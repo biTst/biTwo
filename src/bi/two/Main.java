@@ -7,6 +7,7 @@ import bi.two.chart.ChartData;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TimesSeriesData;
+import bi.two.exch.MarketConfig;
 import bi.two.util.Utils;
 
 import java.io.BufferedReader;
@@ -21,6 +22,8 @@ public class Main {
     public static final int LAST_LINES_TO_PROCES = 1190000;
 
     public static void main(String[] args) {
+        MarketConfig.initMarkets();
+
         final ChartFrame frame = new ChartFrame();
         frame.setVisible(true);
 
