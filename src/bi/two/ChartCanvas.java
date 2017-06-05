@@ -41,20 +41,10 @@ class ChartCanvas extends JComponent {
         m_chartData.addChartAreaData(new ChartAreaData("bars"));
         m_chartData.addChartAreaData(new ChartAreaData("avg"));
         m_chartData.addChartAreaData(new ChartAreaData("regressor"));
-        m_chartData.addChartAreaData(new ChartAreaData("price2"));
-        m_chartData.addChartAreaData(new ChartAreaData("bars2"));
-        m_chartData.addChartAreaData(new ChartAreaData("avg2"));
-        m_chartData.addChartAreaData(new ChartAreaData("regressor2"));
 
         m_chartSetting = new ChartSetting();
 
-        ChartAreaSettings topTop = new ChartAreaSettings("topTop", 0, 0.0f, 1, 0.35f, Color.RED);
-        List<ChartAreaLayerSettings> topTopLayers = topTop.getLayers();
-        topTopLayers.add(new ChartAreaLayerSettings("price2", Color.RED, TickPainter.TRADE));
-        topTopLayers.add(new ChartAreaLayerSettings("bars2", Color.BLUE, TickPainter.BAR));
-        topTopLayers.add(new ChartAreaLayerSettings("avg2", Color.ORANGE, TickPainter.LINE));
-
-        ChartAreaSettings top = new ChartAreaSettings("top", 0, 0.35f, 1, 0.35f, Color.RED);
+        ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.7f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TRADE));
         topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
@@ -63,9 +53,7 @@ class ChartCanvas extends JComponent {
         ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.7f, 1, 0.3f, Color.GREEN);
         List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
         bottomLayers.add(new ChartAreaLayerSettings("regressor", Color.GREEN, TickPainter.LINE));
-        bottomLayers.add(new ChartAreaLayerSettings("regressor2", Colors.LIGHT_GREEN, TickPainter.LINE));
 
-        m_chartSetting.addChartAreaSettings(topTop);
         m_chartSetting.addChartAreaSettings(top);
         m_chartSetting.addChartAreaSettings(bottom);
     }

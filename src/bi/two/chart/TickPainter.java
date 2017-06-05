@@ -12,8 +12,8 @@ public enum TickPainter {
                 int y = yAxe.translateInt(price);
                 long timestamp = tick.getTimestamp();
                 int x = xAxe.translateInt(timestamp);
-                g2.drawLine(x - 7, y, x + 7, y);
-                g2.drawLine(x, y - 7, x, y + 7);
+                g2.drawLine(x - X_RADIUS, y, x + X_RADIUS, y);
+                g2.drawLine(x, y - X_RADIUS, x, y + X_RADIUS);
             }
         }
     },
@@ -53,6 +53,8 @@ public enum TickPainter {
             }
         }
     };
+
+    public static final int X_RADIUS = 5;
 
     public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {}
 }

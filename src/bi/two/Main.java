@@ -3,14 +3,16 @@ package bi.two;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.Regressor;
 import bi.two.algo.WeightedAverager;
-import bi.two.chart.*;
+import bi.two.chart.ChartData;
+import bi.two.chart.TickData;
+import bi.two.chart.TickVolumeData;
+import bi.two.chart.TimesSeriesData;
 import bi.two.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
@@ -42,61 +44,29 @@ public class Main {
 
             final ChartData chartData = frame.getChartCanvas().getChartData();
 
-            TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>();
-            final BarSplitter bs0 = new BarSplitter(ticksTs);
-            final WeightedAverager averager0 = new WeightedAverager(bs0);
-            final Regressor regressor0 = new Regressor(BarSplitter.BARS_NUM, bs0);
-
-            final List<TickData> ticks = new ArrayList<TickData>();
-            final BarSplitter bs = new BarSplitter(null);
+            final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>();
+            final BarSplitter bs = new BarSplitter(ticksTs);
             final WeightedAverager averager = new WeightedAverager(bs);
             final Regressor regressor = new Regressor(BarSplitter.BARS_NUM, bs);
 
-            final BaseTicksData ticksData = new BaseTicksData() {
-                @Override public List<? extends ITickData> obtainTicks() {
-                    return new ArrayList<TickData>(ticks);
-                }
-            };
-            chartData.setTicksData("price", ticksData);
-
-            final BaseTicksData barsData = new BaseTicksData() {
-                @Override public List<? extends ITickData> obtainTicks() {
-                    return bs.getBarDatas();
-                }
-            };
-            chartData.setTicksData("bars", barsData);
-
-            final BaseTicksData averagerData = new BaseTicksData() {
-                @Override public List<? extends ITickData> obtainTicks() {
-                    return averager.getTicks();
-                }
-            };
-            chartData.setTicksData("avg", averagerData);
-
-            final BaseTicksData regressorData = new BaseTicksData() {
-                @Override public List<? extends ITickData> obtainTicks() {
-                    return regressor.getTicks();
-                }
-            };
-            chartData.setTicksData("regressor", regressorData);
-            
-            chartData.setTicksData("price2", ticksTs);
-            chartData.setTicksData("bars2", bs0);
-            chartData.setTicksData("avg2", averager0);
-            chartData.setTicksData("regressor2", regressor0);
+            chartData.setTicksData("price", ticksTs);
+            chartData.setTicksData("bars", bs);
+            chartData.setTicksData("avg", averager);
+            chartData.setTicksData("regressor", regressor);
 
             Runnable callback = new Runnable() {
                 private int m_counter = 0;
 
                 @Override public void run() {
                     if (m_counter == PREFILL_TICKS) {
+                        List<TickData> ticks = ticksTs.getTicks();
                         long firstTimestamp = ticks.get(ticks.size() - 1).getTimestamp();
                         int size = ticks.size();
                         long lastTimestamp = ticks.get(0).getTimestamp();
                         long timeDiff = lastTimestamp - firstTimestamp;
                         System.out.println("ticksCount=" + size + "; timeDiff=" + Utils.millisToDHMSStr(timeDiff));
                     } else if (m_counter > PREFILL_TICKS) {
-                        resetRepaint(ticksData, barsData, averagerData, regressorData, frame);
+                        frame.repaint();
 
                         try {
                             Thread.sleep(100);
@@ -108,9 +78,9 @@ public class Main {
                 }
             };
 
-            readTicks(fileReader, ticksTs, ticks, bs, callback);
+            readTicks(fileReader, ticksTs, callback);
 
-            resetRepaint(ticksData, barsData, averagerData, regressorData, frame);
+            frame.repaint();
 
             System.out.println("DONE");
         } catch (Exception e) {
@@ -118,15 +88,7 @@ public class Main {
         }
     }
 
-    private static void resetRepaint(BaseTicksData ticksData, BaseTicksData barsData, BaseTicksData averagerData, BaseTicksData regressorData, ChartFrame frame) {
-        ticksData.reset();
-        barsData.reset();
-        averagerData.reset();
-        regressorData.reset();
-        frame.repaint();
-    }
-
-    private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, List<TickData> ticks, BarSplitter bs, Runnable callback) throws IOException {
+    private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback) throws IOException {
         BufferedReader br = new BufferedReader(fileReader);
         try {
             br.readLine(); // skip to the end of line
@@ -136,9 +98,6 @@ public class Main {
                 // System.out.println("line = " + line);
                 TickVolumeData tickData = parseLine(line);
                 ticksTs.add(tickData);
-
-                ticks.add(0, tickData);
-                bs.onTick(tickData);
 
                 callback.run();
             }
@@ -169,26 +128,5 @@ public class Main {
             }
         }
         return null;
-    }
-
-    // ---------------------------------------------------------------
-    private static abstract class BaseTicksData implements ITicksData {
-        private List<? extends ITickData> m_copy;
-
-        public abstract List<? extends ITickData> obtainTicks();
-
-        public BaseTicksData() {
-        }
-
-        public List<? extends ITickData> getTicks() {
-            if(m_copy == null) {
-                m_copy = obtainTicks();
-            }
-            return m_copy;
-        }
-
-        public void reset() {
-            m_copy = null;
-        }
     }
 }
