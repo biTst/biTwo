@@ -102,7 +102,7 @@ class ChartCanvas extends JComponent {
     }
 
 
-
+    //------------------------------------------------------------------------
     private class MyMouseAdapter extends MouseAdapter {
 
         private Integer m_dragStartX;

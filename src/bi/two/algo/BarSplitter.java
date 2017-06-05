@@ -1,9 +1,11 @@
 package bi.two.algo;
 
-import bi.two.chart.*;
+import bi.two.chart.ITickData;
+import bi.two.chart.ITimesSeriesData;
+import bi.two.chart.TickPainter;
+import bi.two.chart.TimesSeriesData;
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
@@ -11,7 +13,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     private static final long DEF_PERIOD = 60000L;
 
     private final ITimesSeriesData m_source;
-    private final int m_barsNum;
+    private int m_barsNum;
     private final long m_period;
     private long m_lastTickTime;
     private BarSplitter.BarHolder m_latestBar;
@@ -34,21 +36,27 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     public List<BarHolder> getBars() { return getTicks(); }
     public long getLastTickTime() { return m_lastTickTime; }
 
+    public void setBarsNum(int barsNum) {
+        if (m_lastTickTime == 0L) {
+            throw new RuntimeException("to late to initiate barsNum");
+        }
+        m_barsNum = barsNum;
+    }
+
     public void onTick(ITickData tickData) {
         long timestamp = tickData.getTimestamp();
         List<BarSplitter.BarHolder> barHolders = getTicks();
-        if(m_lastTickTime == 0L) {
+        if (m_lastTickTime == 0L) {
             long timeShift = timestamp;
             BarSplitter.BarHolder prevBar = null;
 
-            for(int i = 0; i < m_barsNum; ++i) {
+            for (int i = 0; i < m_barsNum; ++i) {
                 BarSplitter.BarHolder bar = new BarSplitter.BarHolder(timeShift, m_period);
                 barHolders.add(bar);
                 timeShift -= m_period;
-                if(prevBar != null) {
+                if (prevBar != null) {
                     prevBar.setOlderBar(bar);
                 }
-
                 prevBar = bar;
             }
 
@@ -57,7 +65,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         } else {
             long timeShift = timestamp - m_latestBar.m_time;
             m_latestBar.put(tickData);
-            if(timeShift > 0L) {
+            if (timeShift > 0L) {
                 for (int index = 0; index < m_barsNum; ++index) {
                     BarSplitter.BarHolder newerBar = barHolders.get(index);
                     int nextIndex = index + 1;
@@ -71,71 +79,19 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         notifyListeners();
     }
 
-    public List<BarData> getBarDatas() {
-        final List<BarData> ret = new ArrayList();
-
-        for(final BarHolder barHolder:getTicks()) {
-            barHolder.iterateTicks(new BarSplitter.ITicksProcessor() {
-                float minPrice = Utils.INVALID_PRICE;
-                float maxPrice = 0.0F;
-
-                public void processTick(ITickData tick) {
-                    float price = tick.getMaxPrice();
-                    maxPrice = Math.max(maxPrice, price);
-                    minPrice = Math.min(minPrice, price);
-                }
-
-                public void done() {
-                    long time = barHolder.m_time;
-                    long period = barHolder.m_period;
-                    BarData barData = new BarData(time, period, maxPrice, minPrice);
-                    int size = ret.size();
-                    if(size > 0) {
-                        BarData last = ret.get(size - 1);
-                        barData.setOlderTick(last);
-                    }
-
-                    ret.add(barData);
-                }
-            });
-        }
-
-        return ret;
-    }
-
-    public void iterateBars(BarSplitter.IBarProcessor processor) {
-        for (BarSplitter.BarHolder barHolder : getTicks()) {
-            boolean continueProcessing = processor.processBar(barHolder);
-            if (!continueProcessing) {
-                break;
-            }
-        }
-        processor.done();
-    }
-
     public void onChanged() {
         ITickData tick = m_source.getTicks().get(0);
         onTick(tick);
     }
 
-    private static class Node<T> {
-        protected T m_param;
-        protected BarSplitter.Node<T> m_next;
-        protected BarSplitter.Node<T> m_prev;
-
-        public Node(BarSplitter.Node<T> prev, T param, BarSplitter.Node<T> next) {
-            m_param = param;
-            m_next = next;
-            m_prev = prev;
-        }
-    }
-
-    static class TickNode extends BarSplitter.Node<ITickData> {
+    //---------------------------------------------------------------
+    static class TickNode extends Node<ITickData> {
         public TickNode(BarSplitter.TickNode prev, ITickData tick, BarSplitter.TickNode next) {
             super(prev, tick, next);
         }
     }
 
+    //---------------------------------------------------------------
     static class BarHolder implements ITickData {
         private final long m_period;
         private long m_time;
@@ -205,7 +161,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         }
 
         public void put(ITickData tickData) {
-            BarSplitter.TickNode tickNode = new BarSplitter.TickNode(m_latestTick, tickData, (BarSplitter.TickNode)null);
+            BarSplitter.TickNode tickNode = new BarSplitter.TickNode(m_latestTick, tickData, null);
             if(m_latestTick != null) {
                 m_latestTick.m_next = tickNode;
             }
@@ -224,31 +180,31 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             m_time += timeShift;
             m_oldestTime += timeShift;
 
-            while(m_oldestTick != null) {
+            while (m_oldestTick != null) {
                 long timestamp = m_oldestTick.m_param.getTimestamp();
                 long diff = m_oldestTime - timestamp;
-                if(diff <= 0L) {
+                if (diff <= 0L) {
                     break;
                 }
 
-                if(olderBarHolder != null) {
+                if (olderBarHolder != null) {
                     olderBarHolder.put(m_oldestTick);
                 }
 
                 m_invalid = true;
 
-                if(m_oldestTick == m_latestTick) {
+                if (m_oldestTick == m_latestTick) {
                     m_oldestTick = null;
                     m_latestTick = null;
                     break;
                 }
 
-                m_oldestTick = (BarSplitter.TickNode)m_oldestTick.m_next;
+                m_oldestTick = (BarSplitter.TickNode) m_oldestTick.m_next;
             }
 
         }
 
-        public void iterateTicks(BarSplitter.ITicksProcessor iTicksProcessor) {
+        public void iterateTicks(ITicksProcessor iTicksProcessor) {
             BarSplitter.TickNode lastTick = m_latestTick;
             BarSplitter.TickNode oldestTick = m_oldestTick;
 
@@ -261,21 +217,11 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             }
             iTicksProcessor.done();
         }
-    }
 
-    static class BarNode extends BarSplitter.Node<BarSplitter.BarHolder> {
-        public BarNode(BarSplitter.BarNode prev, BarSplitter.BarHolder bar, BarSplitter.BarNode next) {
-            super(prev, bar, next);
+        //----------------------------------------------------------------------
+        public interface ITicksProcessor {
+            void processTick(ITickData var1);
+            void done();
         }
-    }
-
-    public interface ITicksProcessor {
-        void processTick(ITickData var1);
-        void done();
-    }
-
-    public interface IBarProcessor {
-        boolean processBar(BarSplitter.BarHolder var1);
-        void done();
     }
 }
