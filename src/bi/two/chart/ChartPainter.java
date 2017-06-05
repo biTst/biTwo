@@ -1,5 +1,7 @@
 package bi.two.chart;
 
+import bi.two.util.Utils;
+
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -69,7 +71,7 @@ public class ChartPainter {
 
             ChartAreaPaintSetting caps = new ChartAreaPaintSetting(paintLeft, paintWidth, paintTop, paintHeight);
 
-            float minPrice = Float.MAX_VALUE;
+            float minPrice = Utils.INVALID_PRICE;
             float maxPrice = 0;
             List<ChartAreaLayerSettings> layers = cas.getLayers();
             for (ChartAreaLayerSettings layer : layers) {
@@ -82,7 +84,7 @@ public class ChartPainter {
                         float min = tick.getMinPrice();
                         float max = tick.getMaxPrice();
 
-                        if ((min != Float.MAX_VALUE) && (max != 0)) {
+                        if ((min != Utils.INVALID_PRICE) && (max != 0)) {
                             maxPrice = Math.max(maxPrice, max);
                             minPrice = Math.min(minPrice, min);
                         }

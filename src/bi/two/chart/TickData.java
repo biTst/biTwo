@@ -1,5 +1,7 @@
 package bi.two.chart;
 
+import bi.two.util.Utils;
+
 public class TickData implements ITickData {
     private long m_timestamp;
     private float m_price;
@@ -28,5 +30,5 @@ public class TickData implements ITickData {
 
     public void setOlderTick(ITickData olderTick) { m_olderTick = olderTick; }
 
-    @Override public boolean isValid() { return (m_price != Float.MAX_VALUE) && (m_price > 0); }
+    @Override public boolean isValid() { return (m_price != Utils.INVALID_PRICE) && (m_price > 0); }
 }

@@ -1,12 +1,14 @@
 package bi.two.chart;
 
+import bi.two.util.Utils;
+
 import java.awt.*;
 
 public enum TickPainter {
     TRADE {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             float price = tick.getMaxPrice();
-            if ((price != Float.MAX_VALUE) && (price != 0)) {
+            if ((price != Utils.INVALID_PRICE) && (price != 0)) {
                 int y = yAxe.translateInt(price);
                 long timestamp = tick.getTimestamp();
                 int x = xAxe.translateInt(timestamp);
@@ -19,9 +21,9 @@ public enum TickPainter {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             if (prevTick != null) {
                 float price = tick.getMaxPrice();
-                if ((price != Float.MAX_VALUE) && (price != 0)) {
+                if ((price != Utils.INVALID_PRICE) && (price != 0)) {
                     float prevPrice = prevTick.getMaxPrice();
-                    if ((prevPrice != Float.MAX_VALUE) && (prevPrice != 0)) {
+                    if ((prevPrice != Utils.INVALID_PRICE) && (prevPrice != 0)) {
                         int y = yAxe.translateInt(price);
                         long timestamp = tick.getTimestamp();
                         int x = xAxe.translateInt(timestamp);
@@ -40,7 +42,7 @@ public enum TickPainter {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             float maxPrice = tick.getMaxPrice();
             float minPrice = tick.getMinPrice();
-            if ((minPrice != Float.MAX_VALUE) && (maxPrice != 0)) {
+            if ((minPrice != Utils.INVALID_PRICE) && (maxPrice != 0)) {
                 long barSize = tick.getBarSize();
                 int top = yAxe.translateInt(maxPrice);
                 int bottom = yAxe.translateInt(minPrice);

@@ -7,6 +7,8 @@ public class Utils {
     public static final long MONTH_IN_MILLIS = 30 * DAY_IN_MILLIS;
     public static final long YEAR_IN_MILLIS = 365 * DAY_IN_MILLIS;
 
+    public static final float INVALID_PRICE = Float.MAX_VALUE;
+
     public static String millisToDHMSStr(long millis) {
         StringBuilder res = new StringBuilder();
         long millisec = millis % 1000;

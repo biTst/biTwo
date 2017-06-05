@@ -1,5 +1,7 @@
 package bi.two.chart;
 
+import bi.two.util.Utils;
+
 public class BarData implements ITickData {
 
     private final long m_time;
@@ -29,5 +31,5 @@ public class BarData implements ITickData {
 
     @Override public void setOlderTick(ITickData older) { m_olderBar = older; }
 
-    @Override public boolean isValid() { return (m_maxPrice != Float.MAX_VALUE) && (m_minPrice > 0); }
+    @Override public boolean isValid() { return (m_maxPrice != Utils.INVALID_PRICE) && (m_minPrice > 0); }
 }
