@@ -7,8 +7,15 @@ public class TickData implements ITickData {
     private float m_price;
     private ITickData m_olderTick;
 
+    public TickData() {}
+
     public TickData(long timestamp, float price) {
         init(timestamp, price);
+    }
+
+    public TickData(TickData tickData) {
+        this(tickData.m_timestamp, tickData.m_price);
+        m_olderTick = tickData.m_olderTick;
     }
 
     public void init(long timestamp, float price) {

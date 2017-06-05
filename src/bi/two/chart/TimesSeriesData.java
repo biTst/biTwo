@@ -1,12 +1,12 @@
 package bi.two.chart;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class TimesSeriesData<T extends ITickData> implements ITimesSeriesData, ITicksData, ITimesSeriesData.ITimesSeriesListener {
+public class TimesSeriesData<T extends ITickData>
+        extends BaseTimesSeriesData<T>
+        implements ITicksData, ITimesSeriesData.ITimesSeriesListener {
     private List<T> m_ticks = new CopyOnWriteArrayList<T>();
-    private List<ITimesSeriesListener> m_listeners = new ArrayList<ITimesSeriesListener>();
 
     public List<T> getTicks() { return m_ticks; }
 
@@ -15,17 +15,7 @@ public class TimesSeriesData<T extends ITickData> implements ITimesSeriesData, I
         notifyListeners();
     }
 
-    @Override public void addListener(ITimesSeriesListener listener) {
-        m_listeners.add(listener);
-    }
-
-    public void notifyListeners() {
-        for (ITimesSeriesListener listener : m_listeners) {
-            listener.onChanged();
-        }
-    }
-
-    @Override public void onChanged() {
+    @Override public void onChanged(ITimesSeriesData ts) {
         new Exception("not implemented");
     }
 

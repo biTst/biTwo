@@ -9,7 +9,7 @@ public class WeightedAverager extends TimesSeriesData<TickData>{
 
     public WeightedAverager(final BarSplitter barSplitter) {
         barSplitter.addListener(new ITimesSeriesData.ITimesSeriesListener() {
-            @Override public void onChanged() {
+            @Override public void onChanged(ITimesSeriesData ts) {
                 int counter = 0;
                 for (final BarSplitter.BarHolder barHolder : barSplitter.getBars()) {
                     final int finalCounter = counter;

@@ -1,9 +1,9 @@
 package bi.two.chart;
 
-public interface ITimesSeriesData extends ITicksData {
+public interface ITimesSeriesData {
     void addListener(ITimesSeriesListener listener);
 
     interface ITimesSeriesListener {
-        void onChanged();
+        void onChanged(ITimesSeriesData ts);
     }
 }

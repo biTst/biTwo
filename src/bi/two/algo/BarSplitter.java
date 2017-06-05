@@ -1,9 +1,6 @@
 package bi.two.algo;
 
-import bi.two.chart.ITickData;
-import bi.two.chart.ITimesSeriesData;
-import bi.two.chart.TickPainter;
-import bi.two.chart.TimesSeriesData;
+import bi.two.chart.*;
 import bi.two.util.Utils;
 
 import java.util.List;
@@ -12,20 +9,20 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     public static final int BARS_NUM = 20;
     private static final long DEF_PERIOD = 60000L;
 
-    private final ITimesSeriesData m_source;
+    private final ITicksData m_source;
     private int m_barsNum;
     private final long m_period;
     private long m_lastTickTime;
     private BarSplitter.BarHolder m_latestBar;
 
-    public BarSplitter(ITimesSeriesData iTimesSeriesData) {
-        this(iTimesSeriesData, BARS_NUM, DEF_PERIOD);
+    public BarSplitter(ITicksData iTicksData) {
+        this(iTicksData, BARS_NUM, DEF_PERIOD);
     }
 
-    public BarSplitter(ITimesSeriesData iTimesSeriesData, int barsNum, long period) {
-        m_source = iTimesSeriesData;
-        if(iTimesSeriesData != null) {
-            iTimesSeriesData.addListener(this);
+    public BarSplitter(ITicksData iTicksData, int barsNum, long period) {
+        m_source = iTicksData;
+        if(iTicksData != null) {
+            iTicksData.addListener(this);
         }
 
         m_barsNum = barsNum;
@@ -37,10 +34,12 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     public long getLastTickTime() { return m_lastTickTime; }
 
     public void setBarsNum(int barsNum) {
-        if (m_lastTickTime == 0L) {
+        if (m_lastTickTime != 0L) {
             throw new RuntimeException("to late to initiate barsNum");
         }
-        m_barsNum = barsNum;
+        if (barsNum > m_barsNum) {
+            m_barsNum = barsNum;
+        }
     }
 
     public void onTick(ITickData tickData) {
@@ -79,7 +78,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         notifyListeners();
     }
 
-    public void onChanged() {
+    public void onChanged(ITimesSeriesData ts) {
         ITickData tick = m_source.getTicks().get(0);
         onTick(tick);
     }

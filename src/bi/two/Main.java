@@ -1,8 +1,8 @@
 package bi.two;
 
 import bi.two.algo.BarSplitter;
-import bi.two.algo.Regressor;
 import bi.two.algo.WeightedAverager;
+import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.ChartData;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
@@ -45,17 +45,20 @@ public class Main {
 
             fileReader.skip(fileLength - LAST_LINES_TO_PROCES);
 
-            final ChartData chartData = frame.getChartCanvas().getChartData();
+            ChartData chartData = frame.getChartCanvas().getChartData();
 
             final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>();
-            final BarSplitter bs = new BarSplitter(ticksTs);
-            final WeightedAverager averager = new WeightedAverager(bs);
-            final Regressor regressor = new Regressor(BarSplitter.BARS_NUM, bs);
+            BarSplitter bs = new BarSplitter(ticksTs);
+            WeightedAverager averager = new WeightedAverager(bs);
+//            final Regressor regressor = new Regressor(BarSplitter.BARS_NUM, bs);
+
+            RegressionAlgo algo = new RegressionAlgo(bs);
+            TimesSeriesData<TickData> algoTs = algo.getTS();
 
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);
             chartData.setTicksData("avg", averager);
-            chartData.setTicksData("regressor", regressor);
+            chartData.setTicksData("regressor", algoTs);
 
             Runnable callback = new Runnable() {
                 private int m_counter = 0;
