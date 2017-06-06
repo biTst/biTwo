@@ -103,7 +103,7 @@ public class Main {
             while ((line = br.readLine()) != null) {
                 // System.out.println("line = " + line);
                 TickVolumeData tickData = parseLine(line);
-                ticksTs.add(tickData);
+                ticksTs.addNewestTick(tickData);
 
                 callback.run();
             }

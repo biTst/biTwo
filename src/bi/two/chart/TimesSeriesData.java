@@ -10,7 +10,7 @@ public class TimesSeriesData<T extends ITickData>
 
     public List<T> getTicks() { return m_ticks; }
 
-    public void add(T t) {
+    public void addNewestTick(T t) {
         m_ticks.add(0, t);
         notifyListeners();
     }

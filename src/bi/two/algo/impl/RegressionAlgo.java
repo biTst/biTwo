@@ -5,7 +5,6 @@ import bi.two.algo.BaseAlgo;
 import bi.two.calc.RegressionCalc;
 import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
-import bi.two.chart.TimesSeriesData;
 
 public class RegressionAlgo extends BaseAlgo {
     private RegressionCalc m_calc;
@@ -34,16 +33,5 @@ public class RegressionAlgo extends BaseAlgo {
         return 0;
     }
 
-    public TimesSeriesData<TickData> getTS() {
-        final TimesSeriesData<TickData> timesSeriesData = new TimesSeriesData<TickData>();
-        addListener(new ITimesSeriesListener() {
-            @Override public void onChanged(ITimesSeriesData ts) {
-                if(m_value != null) {
-                    TickData tickData = new TickData(m_value);
-                    timesSeriesData.add(tickData);
-                }
-            }
-        });
-        return timesSeriesData;
-    }
+    public TickData getValue() { return m_value; }
 }
