@@ -11,6 +11,7 @@ public class Exchange {
 
     public final String m_name;
     public BaseExchImpl m_impl;
+    public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
 
     public Exchange(String name) {
         m_name = name;
@@ -20,5 +21,16 @@ public class Exchange {
 
     @Override public String toString() {
         return "Exchange[" + m_name + ']';
+    }
+
+    public void addPair(Pair pair) {
+        m_pairsMap.put(pair, new ExchPairData());
+    }
+
+    public ExchPairData getPairData(Pair pair) { return m_pairsMap.get(pair); }
+
+    // -----------------------------------------------------
+    public static class ExchPairData {
+        public TopData m_topData;
     }
 }

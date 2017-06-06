@@ -14,13 +14,13 @@ public class BaseAlgo extends BaseTimesSeriesData<TickData> {
 
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
-    public TickData getValue() { return null; }
+    public TickData getTickAdjusted() { return null; }
 
     public TimesSeriesData<TickData> getTS() {
         final TimesSeriesData<TickData> timesSeriesData = new TimesSeriesData<TickData>();
         addListener(new ITimesSeriesListener() {
             @Override public void onChanged(ITimesSeriesData ts) {
-                TickData value = getValue();
+                TickData value = getTickAdjusted();
                 if (value != null) {
                     if (m_joinNonChangedValues) {
                         List<TickData> ticks = timesSeriesData.getTicks();

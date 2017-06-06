@@ -8,15 +8,23 @@ import bi.two.chart.TickData;
 
 public class RegressionAlgo extends BaseAlgo {
     private RegressionCalc m_calc;
-    private TickData m_value;
+    private TickData m_calcValue;
 
     public RegressionAlgo(BarSplitter bs) {
         m_calc = new RegressionCalc(BarSplitter.BARS_NUM, bs);
 
         bs.addListener(new ITimesSeriesData.ITimesSeriesListener() {
             @Override public void onChanged(ITimesSeriesData ts) {
-                m_value = m_calc.calcValue();
-                if(m_value != null) {
+                TickData prevCalcValue = m_calcValue;
+                m_calcValue = m_calc.calcValue();
+                if (m_calcValue != null) {
+                    if (prevCalcValue != null) {
+                        float value = m_calcValue.getPrice();
+                        float prevValue = prevCalcValue.getPrice();
+                        if (value == prevValue) {
+                            return; // value not changed
+                        }
+                    }
                     notifyListeners();
                 }
             }
@@ -24,8 +32,8 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
-        if (m_value != null) {
-            float value = m_value.getPrice();
+        if (m_calcValue != null) {
+            float value = m_calcValue.getPrice();
             return (value > 0)
                     ? 1 :
                     (value < 0) ? -1 : 0;
@@ -33,5 +41,10 @@ public class RegressionAlgo extends BaseAlgo {
         return 0;
     }
 
-    public TickData getValue() { return m_value; }
+    @Override public TickData getTickAdjusted() {
+        if (m_calcValue != null) {
+            return new TickData(m_calcValue.getTimestamp(), (float) getDirectionAdjusted());
+        }
+        return null;
+    }
 }
