@@ -4,6 +4,6 @@ public interface ITimesSeriesData {
     void addListener(ITimesSeriesListener listener);
 
     interface ITimesSeriesListener {
-        void onChanged(ITimesSeriesData ts);
+        void onChanged(ITimesSeriesData ts, boolean changed);
     }
 }

@@ -16,7 +16,7 @@ public class TimesSeriesData<T extends ITickData>
 
     public void addNewestTick(T t) {
         m_ticks.add(0, t);
-        notifyListeners();
+        notifyListeners(true);
     }
 
     protected void addTick(T tickData) {

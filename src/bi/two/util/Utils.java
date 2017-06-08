@@ -1,5 +1,7 @@
 package bi.two.util;
 
+import java.text.DecimalFormat;
+
 public class Utils {
     public static final long MIN_IN_MILLIS = 60 * 1000L;
     public static final long HOUR_IN_MILLIS = 60 * MIN_IN_MILLIS;
@@ -8,6 +10,14 @@ public class Utils {
     public static final long YEAR_IN_MILLIS = 365 * DAY_IN_MILLIS;
 
     public static final float INVALID_PRICE = Float.MAX_VALUE;
+
+    public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
+    public static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
+    public static final DecimalFormat X_YYYYYYYYYYYY = new DecimalFormat("0.000000000000");
+
+    public static String format12(double value) { return X_YYYYYYYYYYYY.format(value); }
+    public static String format8(double value) { return X_YYYYYYYY.format(value); }
+    public static String format5(double value) { return X_YYYYY.format(value); }
 
     public static String millisToDHMSStr(long millis) {
         StringBuilder res = new StringBuilder();

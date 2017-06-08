@@ -22,8 +22,8 @@ public class AccountData {
         for (Currency currency : m_funds.keySet()) {
             double value = getAllValue(currency);
             if (value > 0.000000001) {
-                Double rate = rate(currency, baseCurrency);
-                if(rate != null) { // if can convert
+                double rate = rate(currency, baseCurrency);
+                if(rate != 0) { // if can convert
                     value = value / rate;
                     allValue += value;
                 }
@@ -33,22 +33,29 @@ public class AccountData {
         return allValue;
     }
 
-    public Double rate(Currency from, Currency to) {
-        Double rate;
+    /** @return 0 if no convert route */
+    public double rate(Currency from, Currency to) {
+        double rate;
         if (from == to) {
             rate = 1d;
         } else {
-            boolean support = m_exch.supportPair(from, to);
-            if(support) {
-                rate = rate(from, to);
-            } else {
-                Currency baseCurrency = m_exch.baseCurrency();
-                Double rate1 = rate(from, baseCurrency);
-                Double rate2 = rate(baseCurrency, to);
-                if ((rate1 != null) && (rate2 != null)) {
+            Pair pair = m_exch.getPair(from, to);
+            if (pair != null) {
+                ExchPairData pairData = m_exch.getPairData(pair);
+                TopData topData = pairData.m_topData;
+                boolean forward = (pair.m_from == from);
+                rate = forward ? topData.m_bid : topData.m_ask;
+                if (!forward) {
+                    rate = 1 / rate;
+                }
+            } else { // no direct pair support - try via base currency
+                Currency baseCurrency = m_exch.m_baseCurrency;
+                double rate1 = rate(from, baseCurrency);
+                double rate2 = rate(baseCurrency, to);
+                if ((rate1 != 0) && (rate2 != 0)) {
                     rate = rate1 * rate2;
                 } else {
-                    rate = null;
+                    rate = 0; // not convert route
                 }
             }
         }

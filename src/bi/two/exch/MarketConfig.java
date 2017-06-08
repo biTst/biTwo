@@ -71,6 +71,7 @@ public class MarketConfig {
                                 throw new RuntimeException("unsupported currency '" + from + "'");
                             }
                         }
+                        ex.addPair(pair);
                     }
                 } else {
                     throw new RuntimeException(name + " exchange Pairs not found in cfg");

@@ -13,10 +13,10 @@ public class Pair {
     public final Currency m_to;
     public final String m_name;
 
-    Pair(Currency to, Currency from) {
+    Pair(Currency from, Currency to) {
         m_from = from;
         m_to = to;
-        m_name = from.name() + "_" + to.name();
+        m_name = from.m_name + "_" + to.m_name;
 
         s_pairs.add(this);
         s_pairsMap.put(m_name, this);

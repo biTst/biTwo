@@ -12,7 +12,7 @@ public class BaseTimesSeriesData<T extends ITickData> implements ITimesSeriesDat
         }
     }
 
-    @Override public void onChanged(ITimesSeriesData ts) {
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         // to override
     }
 
@@ -20,9 +20,9 @@ public class BaseTimesSeriesData<T extends ITickData> implements ITimesSeriesDat
         m_listeners.add(listener);
     }
 
-    public void notifyListeners() {
+    protected void notifyListeners(boolean changed) {
         for (ITimesSeriesListener listener : m_listeners) {
-            listener.onChanged(this);
+            listener.onChanged(this, changed);
         }
     }
 }

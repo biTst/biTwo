@@ -23,17 +23,26 @@ public class Watcher extends TimesSeriesData<TickData> {
         m_exchPairData = exch.getPairData(pair);
     }
 
-    @Override public void onChanged(ITimesSeriesData ts) {
-        TickData tickAdjusted = m_algo.getTickAdjusted();
-        if (tickAdjusted != null) {
-            if (m_initAcctData == null) { // first run
-                init();
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+        if (m_initAcctData == null) { // first run
+            init();
+        } else {
+            TickData adjusted = m_algo.getAdjusted();
+            if (adjusted != null) {
+                process(adjusted);
             }
         }
     }
 
+    private void process(TickData tickAdjusted) {
+        float direction = tickAdjusted.getPrice(); // UP/DOWN
+        System.out.println("Watcher.process() direction = " + direction);
+    }
+
     private void init() {
         TopData topData = m_exchPairData.m_topData;
+        System.out.println("init() topData = " + topData);
+
         if (topData != null) {
             m_initTopData = new TopData(topData);
 //            double bid = topData.m_bid;
@@ -49,8 +58,7 @@ public class Watcher extends TimesSeriesData<TickData> {
 
             m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
             m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
-
-
+            System.out.println(" valuate["+currencyTo.m_name+"]=" + m_valuateToInit + "; valuate["+currencyFrom.name()+"]="+m_valuateFromInit);
         }
     }
 }

@@ -1,13 +1,14 @@
 package bi.two;
 
 import bi.two.algo.BarSplitter;
+import bi.two.algo.Watcher;
 import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.ChartData;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TimesSeriesData;
-import bi.two.exch.MarketConfig;
+import bi.two.exch.*;
 import bi.two.util.Utils;
 
 import java.io.BufferedReader;
@@ -54,6 +55,11 @@ public class Main {
             RegressionAlgo algo = new RegressionAlgo(bs);
             TimesSeriesData<TickData> algoTs = algo.getTS(true);
 
+            Exchange exchange = Exchange.get("bitstamp");
+            Pair pair = Pair.getByName("btc_usd");
+
+            new Watcher(algo, exchange, pair);
+
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);
             chartData.setTicksData("avg", averager);
@@ -83,7 +89,8 @@ public class Main {
                 }
             };
 
-            readTicks(fileReader, ticksTs, callback);
+            ExchPairData pairData = exchange.getPairData(pair);
+            readTicks(fileReader, ticksTs, callback, pairData);
 
             frame.repaint();
 
@@ -93,7 +100,8 @@ public class Main {
         }
     }
 
-    private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback) throws IOException {
+    private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws IOException {
+        TopData topData = pairData.m_topData;
         BufferedReader br = new BufferedReader(fileReader);
         try {
             br.readLine(); // skip to the end of line
@@ -102,8 +110,12 @@ public class Main {
             while ((line = br.readLine()) != null) {
                 // System.out.println("line = " + line);
                 TickVolumeData tickData = parseLine(line);
-                ticksTs.addNewestTick(tickData);
 
+                float price = tickData.getPrice();
+                topData.init(price, price, price);
+                pairData.m_newestTick = tickData;
+
+                ticksTs.addNewestTick(tickData);
                 callback.run();
             }
         } finally {

@@ -21,7 +21,7 @@ public class Exchange {
         s_exchangesMap.put(name, this);
     }
 
-    public Currency baseCurrency() { return m_baseCurrency; }
+    public static Exchange get(String name) { return s_exchangesMap.get(name); }
 
     @Override public String toString() {
         return "Exchange[" + m_name + ']';
@@ -43,5 +43,17 @@ public class Exchange {
             }
         }
         return false;
+    }
+
+    public Pair getPair(Currency from, Currency to) {
+        for (Pair pair : m_pairsMap.keySet()) {
+            if ((pair.m_from == from) && (pair.m_to == to)) {
+                return pair;
+            }
+            if ((pair.m_to == from) && (pair.m_from == to)) {
+                return pair;
+            }
+        }
+        return null;
     }
 }

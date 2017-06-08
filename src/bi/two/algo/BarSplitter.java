@@ -39,15 +39,16 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         }
     }
 
-    public void onTick(ITickData tickData) {
-        long timestamp = tickData.getTimestamp();
-        List<BarSplitter.BarHolder> barHolders = getTicks();
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+        ITickData tick = m_source.getTicks().get(0);
+        long timestamp = tick.getTimestamp();
+        List<BarHolder> barHolders = getTicks();
         if (m_lastTickTime == 0L) {
             long timeShift = timestamp;
-            BarSplitter.BarHolder prevBar = null;
+            BarHolder prevBar = null;
 
             for (int i = 0; i < m_barsNum; ++i) {
-                BarSplitter.BarHolder bar = new BarSplitter.BarHolder(timeShift, m_period);
+                BarHolder bar = new BarHolder(timeShift, m_period);
                 barHolders.add(bar);
                 timeShift -= m_period;
                 if (prevBar != null) {
@@ -57,27 +58,22 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             }
 
             m_latestBar = getTicks().get(0);
-            m_latestBar.put(tickData);
+            m_latestBar.put(tick);
         } else {
             long timeShift = timestamp - m_latestBar.m_time;
-            m_latestBar.put(tickData);
+            m_latestBar.put(tick);
             if (timeShift > 0L) {
                 for (int index = 0; index < m_barsNum; ++index) {
-                    BarSplitter.BarHolder newerBar = barHolders.get(index);
+                    BarHolder newerBar = barHolders.get(index);
                     int nextIndex = index + 1;
-                    BarSplitter.BarHolder olderBar = nextIndex == m_barsNum ? null : barHolders.get(nextIndex);
+                    BarHolder olderBar = nextIndex == m_barsNum ? null : barHolders.get(nextIndex);
                     newerBar.leave(timeShift, olderBar);
                 }
             }
         }
 
         m_lastTickTime = timestamp;
-        notifyListeners();
-    }
-
-    public void onChanged(ITimesSeriesData ts) {
-        ITickData tick = m_source.getTicks().get(0);
-        onTick(tick);
+        notifyListeners(changed);
     }
 
     //---------------------------------------------------------------
