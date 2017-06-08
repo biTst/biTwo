@@ -28,20 +28,22 @@ public class ChartPainter {
             for (ChartAreaLayerSettings lcas : layers) {
                 String name = lcas.getName();
                 ChartAreaData cad = chartData.getChartAreaData(name);
-                ITicksData ticksData = cad.getTicksData();
-                if (ticksData != null) {
-                    if (tryInitAxe) {
-                        List<? extends ITickData> ticks = ticksData.getTicks();
-                        int size = ticks.size();
-                        if(size > 0) {
-                            long oldestTimestamp = ticks.get(size - 1).getTimestamp();
-                            minTimestamp = Math.min(minTimestamp, oldestTimestamp);
-                            long newestTimestamp = ticks.get(0).getTimestamp();
-                            maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
+                if (cad != null) {
+                    ITicksData ticksData = cad.getTicksData();
+                    if (ticksData != null) {
+                        if (tryInitAxe) {
+                            List<? extends ITickData> ticks = ticksData.getTicks();
+                            int size = ticks.size();
+                            if(size > 0) {
+                                long oldestTimestamp = ticks.get(size - 1).getTimestamp();
+                                minTimestamp = Math.min(minTimestamp, oldestTimestamp);
+                                long newestTimestamp = ticks.get(0).getTimestamp();
+                                maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
+                            }
                         }
+                        int width = cad.getPriceAxeWidth();
+                        maxPriceAxeWidth = Math.max(maxPriceAxeWidth, width);
                     }
-                    int width = cad.getPriceAxeWidth();
-                    maxPriceAxeWidth = Math.max(maxPriceAxeWidth, width);
                 }
             }
         }
@@ -77,16 +79,18 @@ public class ChartPainter {
             for (ChartAreaLayerSettings layer : layers) {
                 String name = layer.getName();
                 ChartAreaData cad = chartData.getChartAreaData(name);
-                ITicksData ticksData = cad.getTicksData();
-                if (ticksData != null) {
-                    List<? extends ITickData> ticks = ticksData.getTicks();
-                    for (ITickData tick : ticks) {
-                        float min = tick.getMinPrice();
-                        float max = tick.getMaxPrice();
+                if (cad != null) {
+                    ITicksData ticksData = cad.getTicksData();
+                    if (ticksData != null) {
+                        List<? extends ITickData> ticks = ticksData.getTicks();
+                        for (ITickData tick : ticks) {
+                            float min = tick.getMinPrice();
+                            float max = tick.getMaxPrice();
 
-                        if ((min != Utils.INVALID_PRICE) && (max != 0)) {
-                            maxPrice = Math.max(maxPrice, max);
-                            minPrice = Math.min(minPrice, min);
+                            if ((min != Utils.INVALID_PRICE) && (max != 0)) {
+                                maxPrice = Math.max(maxPrice, max);
+                                minPrice = Math.min(minPrice, min);
+                            }
                         }
                     }
                 }
@@ -136,19 +140,20 @@ public class ChartPainter {
         for (ChartAreaLayerSettings ls : layers) {
             String name = ls.getName();
             ChartAreaData cad = chartData.getChartAreaData(name);
+            if (cad != null) {
+                ITicksData ticksData = cad.getTicksData();
+                if (ticksData != null) {
+                    Axe xAxe = cps.getXAxe();
+                    Color layerColor = ls.getColor();
+                    g2.setColor(layerColor);
 
-            ITicksData ticksData = cad.getTicksData();
-            if (ticksData != null) {
-                Axe xAxe = cps.getXAxe();
-                Color layerColor = ls.getColor();
-                g2.setColor(layerColor);
-
-                TickPainter tickPainter = ls.getTickPainter();
-                List<? extends ITickData> ticks = ticksData.getTicks();
-                ITickData prevTick = null;
-                for (ITickData tick : ticks) {
-                    tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
-                    prevTick = tick;
+                    TickPainter tickPainter = ls.getTickPainter();
+                    List<? extends ITickData> ticks = ticksData.getTicks();
+                    ITickData prevTick = null;
+                    for (ITickData tick : ticks) {
+                        tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
+                        prevTick = tick;
+                    }
                 }
             }
         }

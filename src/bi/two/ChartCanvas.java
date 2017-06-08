@@ -36,12 +36,6 @@ class ChartCanvas extends JComponent {
 
     private void initChart() {
         m_chartData = new ChartData();
-
-        m_chartData.addChartAreaData(new ChartAreaData("price"));
-        m_chartData.addChartAreaData(new ChartAreaData("bars"));
-        m_chartData.addChartAreaData(new ChartAreaData("avg"));
-        m_chartData.addChartAreaData(new ChartAreaData("regressor"));
-
         m_chartSetting = new ChartSetting();
 
         ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.7f, Color.RED);

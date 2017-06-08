@@ -3,7 +3,7 @@ package bi.two.chart;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BaseTimesSeriesData<T extends ITickData> implements ITimesSeriesData, ITimesSeriesData.ITimesSeriesListener {
+public class BaseTimesSeriesData implements ITimesSeriesData, ITimesSeriesData.ITimesSeriesListener {
     private List<ITimesSeriesListener> m_listeners = new ArrayList<ITimesSeriesListener>();
 
     public BaseTimesSeriesData(ITimesSeriesData parent) {

@@ -55,15 +55,17 @@ public class Main {
             RegressionAlgo algo = new RegressionAlgo(bs);
             TimesSeriesData<TickData> algoTs = algo.getTS(true);
 
+            TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS(true);
+
             Exchange exchange = Exchange.get("bitstamp");
             Pair pair = Pair.getByName("btc_usd");
-
             new Watcher(algo, exchange, pair);
 
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);
             chartData.setTicksData("avg", averager);
-            chartData.setTicksData("regressor", algoTs);
+            chartData.setTicksData("regressor", indicatorTs);
+            chartData.setTicksData("adjusted", algoTs);
 
             Runnable callback = new Runnable() {
                 private int m_counter = 0;

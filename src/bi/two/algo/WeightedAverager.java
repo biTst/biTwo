@@ -16,11 +16,12 @@ public class WeightedAverager extends TimesSeriesData<TickData>{
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if(changed) {
+            boolean anyNotified = false;
             int counter = 0;
             for (final BarSplitter.BarHolder barHolder : m_barSplitter.getBars()) { // iterate all bars
 
                 final int barIndex = counter;
-                barHolder.iterateTicks(new BarSplitter.BarHolder.ITicksProcessor() {
+                Boolean notified = barHolder.iterateTicks(new BarSplitter.BarHolder.ITicksProcessor<Boolean>() {
                     private float m_volumeSum;
                     private float m_amount;
 
@@ -31,22 +32,31 @@ public class WeightedAverager extends TimesSeriesData<TickData>{
                         m_amount += price * volume;
                     }
 
-                    @Override public void done() {
+                    @Override public Boolean done() {
+                        boolean notified;
                         long time = barHolder.getTime();
                         float avg = (m_volumeSum == 0) ? 0 : (m_amount / m_volumeSum);
                         List<TickData> ticks = getTicks(); // my ticks
                         if (barIndex < ticks.size()) { // if known bar changed - update my tick
                             TickData tickData = ticks.get(barIndex);
                             tickData.init(time, avg);
+                            notified = false;
                         } else { // bars number is more than my ticks - add tick
                             TickData tickData = new TickData(time, avg);
-                            addTick(tickData);
+                            addTick(tickData); // will notify listeners inside
+                            notified = true;
                         }
+                        return notified;
                     }
                 });
+                anyNotified |= notified;
                 counter++;
             }
+            if(!anyNotified) {
+                notifyListeners(true);
+            }
+        } else {
+            notifyListeners(changed);
         }
-        notifyListeners(changed);
     }
 }

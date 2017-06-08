@@ -16,6 +16,13 @@ public class ChartData {
     }
 
     public void setTicksData(String name, ITicksData ticksData) {
-        getChartAreaData(name).setTicksData(ticksData);
+        ChartAreaData chartAreaData = getChartAreaData(name);
+        if (chartAreaData == null) {
+            chartAreaData = new ChartAreaData(name);
+            addChartAreaData(chartAreaData);
+            chartAreaData.setTicksData(ticksData);
+        } else {
+            throw new RuntimeException("ChartAreaData[" + name + "] already defined");
+        }
     }
 }

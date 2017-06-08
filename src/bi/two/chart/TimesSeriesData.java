@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TimesSeriesData<T extends ITickData>
-        extends BaseTimesSeriesData<T>
+        extends BaseTimesSeriesData
         implements ITicksData, ITimesSeriesData.ITimesSeriesListener {
     private List<T> m_ticks = new CopyOnWriteArrayList<T>();
 
@@ -19,12 +19,13 @@ public class TimesSeriesData<T extends ITickData>
         notifyListeners(true);
     }
 
-    protected void addTick(T tickData) {
+    protected void addTick(T t) {
         int size = m_ticks.size();
         if (size > 0) {
             T last = m_ticks.get(size - 1);
-            tickData.setOlderTick(last);
+            t.setOlderTick(last);
         }
-        m_ticks.add(tickData);
+        m_ticks.add(t);
+        notifyListeners(true);
     }
 }

@@ -196,7 +196,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         }
 
-        public void iterateTicks(ITicksProcessor iTicksProcessor) {
+        public <Ret> Ret iterateTicks( ITicksProcessor<Ret> iTicksProcessor) {
             BarSplitter.TickNode lastTick = m_latestTick;
             BarSplitter.TickNode oldestTick = m_oldestTick;
 
@@ -207,13 +207,14 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     break;
                 }
             }
-            iTicksProcessor.done();
+            Ret done = iTicksProcessor.done();
+            return done;
         }
 
         //----------------------------------------------------------------------
-        public interface ITicksProcessor {
-            void processTick(ITickData var1);
-            void done();
+        public interface ITicksProcessor<Ret> {
+            void processTick(ITickData tick);
+            Ret done();
         }
     }
 }
