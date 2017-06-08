@@ -47,13 +47,12 @@ public class Main {
 
             ChartData chartData = frame.getChartCanvas().getChartData();
 
-            final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>();
+            final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
             BarSplitter bs = new BarSplitter(ticksTs);
             WeightedAverager averager = new WeightedAverager(bs);
-//            final Regressor regressor = new Regressor(BarSplitter.BARS_NUM, bs);
 
             RegressionAlgo algo = new RegressionAlgo(bs);
-            TimesSeriesData<TickData> algoTs = algo.getTS();
+            TimesSeriesData<TickData> algoTs = algo.getTS(true);
 
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);

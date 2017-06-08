@@ -20,11 +20,8 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     }
 
     public BarSplitter(ITicksData iTicksData, int barsNum, long period) {
+        super(iTicksData);
         m_source = iTicksData;
-        if(iTicksData != null) {
-            iTicksData.addListener(this);
-        }
-
         m_barsNum = barsNum;
         m_period = period;
     }

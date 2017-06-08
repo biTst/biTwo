@@ -7,28 +7,27 @@ import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
 
 public class RegressionAlgo extends BaseAlgo {
-    private RegressionCalc m_calc;
+    private final RegressionCalc m_calc;
     private TickData m_calcValue;
 
     public RegressionAlgo(BarSplitter bs) {
+        super(bs);
         m_calc = new RegressionCalc(BarSplitter.BARS_NUM, bs);
+    }
 
-        bs.addListener(new ITimesSeriesData.ITimesSeriesListener() {
-            @Override public void onChanged(ITimesSeriesData ts) {
-                TickData prevCalcValue = m_calcValue;
-                m_calcValue = m_calc.calcValue();
-                if (m_calcValue != null) {
-                    if (prevCalcValue != null) {
-                        float value = m_calcValue.getPrice();
-                        float prevValue = prevCalcValue.getPrice();
-                        if (value == prevValue) {
-                            return; // value not changed
-                        }
-                    }
-                    notifyListeners();
+    @Override public void onChanged(ITimesSeriesData ts) {
+        TickData prevCalcValue = m_calcValue;
+        m_calcValue = m_calc.calcValue();
+        if (m_calcValue != null) {
+            if (prevCalcValue != null) {
+                float value = m_calcValue.getPrice();
+                float prevValue = prevCalcValue.getPrice();
+                if (value == prevValue) {
+                    return; // value not changed
                 }
             }
-        });
+            notifyListeners();
+        }
     }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]

@@ -13,19 +13,14 @@ public class Watcher extends TimesSeriesData<TickData> {
     private AccountData m_initAcctData;
 
     public Watcher(BaseAlgo algo, Exchange exch, Pair pair) {
+        super(algo);
         m_algo = algo;
         m_exch = exch;
         m_pair = pair;
         m_pairData = exch.getPairData(pair);
-
-        algo.addListener(new ITimesSeriesListener() {
-            @Override public void onChanged(ITimesSeriesData ts) {
-                onAlgoChanged();
-            }
-        });
     }
 
-    private void onAlgoChanged() {
+    @Override public void onChanged(ITimesSeriesData ts) {
         TickData tickAdjusted = m_algo.getTickAdjusted();
         if (tickAdjusted != null) {
             if (m_initAcctData == null) { // first run
