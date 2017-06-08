@@ -29,45 +29,58 @@ public class MarketConfig {
             String[] exchanges = exchangesStr.split(";");
             for (String name : exchanges) {
                 System.out.println(" exchange[" + name + "]");
-                Exchange ex = new Exchange(name);
-                initExchange(prop, name, ex);
+                initExchange(prop, name);
             }
         } else {
             throw new RuntimeException("exchanges list not found in cfg");
         }
     }
 
-    private static void initExchange(Properties prop, String name, Exchange ex) {
-        String pairsStr = prop.getProperty(name + ".pairs");
-        System.out.println("  pairs=" + pairsStr);
-        if (pairsStr != null) {
-            String[] pairs = pairsStr.split(";");
-            for (String pairName : pairs) {
-                System.out.println("   pair=" + pairName);
-                Pair pair = Pair.getByNameInt(pairName);
-                if (pair == null) { // create on demand
-                    String[] currencies = pairName.split("_");
-                    String from = currencies[0];
-                    Currency fromCur = Currency.getByName(from);
-                    System.out.println("    from=" + from + "; curr=" + fromCur);
-                    if (fromCur != null) {
-                        String to = currencies[1];
-                        System.out.println("    to=" + to);
-                        Currency toCur = Currency.getByName(to);
-                        System.out.println("    to=" + to + "; curr=" + toCur);
-                        if (toCur != null) {
-                            pair = new Pair(fromCur, toCur);
-                            System.out.println("     pair created: " + pair);
-                        } else {
-                            throw new RuntimeException("unsupported currency '" + to + "'");
+    private static void initExchange(Properties prop, String name) {
+        String prefix = "exchange." + name;
+        String baseCurrencyName = prop.getProperty(prefix + ".baseCurrency");
+        System.out.println("  baseCurrencyName=" + baseCurrencyName);
+        if (baseCurrencyName != null) {
+            Currency baseCurrency = Currency.getByName(baseCurrencyName);
+            System.out.println("   baseCurrency=" + baseCurrency);
+            if (baseCurrency != null) {
+                Exchange ex = new Exchange(name, baseCurrency);
+                String pairsStr = prop.getProperty(prefix + ".pairs");
+                System.out.println("  pairs=" + pairsStr);
+                if (pairsStr != null) {
+                    String[] pairs = pairsStr.split(";");
+                    for (String pairName : pairs) {
+                        Pair pair = Pair.getByNameInt(pairName);
+                        System.out.println("   pair '" + pairName + "; = " + pair);
+                        if (pair == null) { // create on demand
+                            String[] currencies = pairName.split("_");
+                            String from = currencies[0];
+                            Currency fromCur = Currency.getByName(from);
+                            System.out.println("    from=" + from + "; curr=" + fromCur);
+                            if (fromCur != null) {
+                                String to = currencies[1];
+                                Currency toCur = Currency.getByName(to);
+                                System.out.println("    to=" + to + "; curr=" + toCur);
+                                if (toCur != null) {
+                                    pair = new Pair(fromCur, toCur);
+                                    System.out.println("     pair created: " + pair);
+                                } else {
+                                    throw new RuntimeException("unsupported currency '" + to + "'");
+                                }
+                            } else {
+                                throw new RuntimeException("unsupported currency '" + from + "'");
+                            }
                         }
-                    } else {
-                        throw new RuntimeException("unsupported currency '" + from + "'");
                     }
+                } else {
+                    throw new RuntimeException(name + " exchange Pairs not found in cfg");
                 }
+            } else {
+                throw new RuntimeException("invalid baseCurrency '" + baseCurrencyName + "' specified for exchange " + name);
             }
         } else {
-            throw new RuntimeException(name + " exchange Pairs not found in cfg");
+            throw new RuntimeException("no baseCurrency specified for exchange " + name);
         }
     }
+
 }

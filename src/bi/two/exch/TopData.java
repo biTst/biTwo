@@ -6,6 +6,10 @@ public class TopData {
     public final double m_ask;
     public final double m_last;
 
+    public TopData(TopData topData) {
+        this(topData.m_bid, topData.m_ask, topData.m_last);
+    }
+
     public TopData(double bid, double ask) {
         this(bid, ask, 0);
     }

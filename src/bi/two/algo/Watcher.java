@@ -9,15 +9,18 @@ public class Watcher extends TimesSeriesData<TickData> {
     private final BaseAlgo m_algo;
     private final Exchange m_exch;
     private final Pair m_pair;
-    private final Exchange.ExchPairData m_pairData;
+    private final ExchPairData m_exchPairData;
     private AccountData m_initAcctData;
+    private TopData m_initTopData;
+    private double m_valuateToInit;
+    private double m_valuateFromInit;
 
     public Watcher(BaseAlgo algo, Exchange exch, Pair pair) {
         super(algo);
         m_algo = algo;
         m_exch = exch;
         m_pair = pair;
-        m_pairData = exch.getPairData(pair);
+        m_exchPairData = exch.getPairData(pair);
     }
 
     @Override public void onChanged(ITimesSeriesData ts) {
@@ -30,8 +33,9 @@ public class Watcher extends TimesSeriesData<TickData> {
     }
 
     private void init() {
-        TopData topData = m_pairData.m_topData;
+        TopData topData = m_exchPairData.m_topData;
         if (topData != null) {
+            m_initTopData = new TopData(topData);
 //            double bid = topData.m_bid;
 //            double ask = topData.m_ask;
             double lastPrice = topData.m_last;
@@ -42,6 +46,10 @@ public class Watcher extends TimesSeriesData<TickData> {
             m_initAcctData = new AccountData(m_exch);
             m_initAcctData.setAvailable(currencyFrom, lastPrice);
             m_initAcctData.setAvailable(currencyTo, 1);
+
+            m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
+            m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
+
 
         }
     }
