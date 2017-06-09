@@ -7,9 +7,10 @@ import bi.two.exch.*;
 import bi.two.util.Utils;
 
 public class Watcher extends TimesSeriesData<TickData> {
+    private static final boolean VERBOSE = false;
     private static final double MIN_MOVE = 0.015;
-    
-    private final BaseAlgo m_algo;
+
+    public final BaseAlgo m_algo;
     private final Exchange m_exch;
     private final Pair m_pair;
     private final ExchPairData m_exchPairData;
@@ -44,10 +45,10 @@ public class Watcher extends TimesSeriesData<TickData> {
 
     private void process(TickData tickAdjusted) {
         float direction = tickAdjusted.getPrice(); // UP/DOWN
-        System.out.println("Watcher.process() direction=" + direction);
+        log("Watcher.process() direction=" + direction);
 
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
-        System.out.println(" needBuy=" + Utils.format8(needBuyTo) + " " + m_pair.m_to.m_name);
+        log(" needBuy=" + Utils.format8(needBuyTo) + " " + m_pair.m_to.m_name);
 
         needBuyTo *= 0.95;
 
@@ -55,20 +56,20 @@ public class Watcher extends TimesSeriesData<TickData> {
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.BUY : OrderSide.SELL;
-        System.out.println("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+        log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
 
         double exchMinOrderToCreate = m_exch.minOrderToCreate(m_pair);
         if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
             m_accountData.move(m_pair, needBuyTo);
 
             double gain = totalPriceRatio();
-            System.out.println("    gain: " + Utils.format8(gain) + " .....................................");
+            log("    gain: " + Utils.format8(gain) + " .....................................");
         }
         m_lastMillis = m_exchPairData.m_newestTick.getTimestamp();
     }
 
     public long getProcessedPeriod() {
-       return m_lastMillis - m_startMillis;
+        return m_lastMillis - m_startMillis;
     }
 
     public double totalPriceRatio() {
@@ -91,7 +92,7 @@ public class Watcher extends TimesSeriesData<TickData> {
     private void init() {
         m_startMillis = m_exchPairData.m_newestTick.getTimestamp();
         TopData topData = m_exchPairData.m_topData;
-        System.out.println("init() topData = " + topData);
+        log("init() topData = " + topData);
 
         if (topData != null) {
             m_initTopData = new TopData(topData);
@@ -110,7 +111,13 @@ public class Watcher extends TimesSeriesData<TickData> {
 
             m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
             m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
-            System.out.println(" valuate["+currencyTo.m_name+"]=" + m_valuateToInit + "; valuate["+currencyFrom.name()+"]="+m_valuateFromInit);
+            log(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
+        }
+    }
+
+    private void log(String s) {
+        if (VERBOSE) {
+            System.out.println(s);
         }
     }
 }
