@@ -5,14 +5,15 @@ import bi.two.algo.BaseAlgo;
 import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.ind.RegressionIndicator;
+import bi.two.util.MapConfig;
 
 public class RegressionAlgo extends BaseAlgo {
     public final RegressionIndicator m_regressionIndicator;
 
-    public RegressionAlgo(BarSplitter bs) {
+    public RegressionAlgo(MapConfig config, BarSplitter bs) {
         super(null);
 
-        m_regressionIndicator = new RegressionIndicator(bs);
+        m_regressionIndicator = new RegressionIndicator(config, bs);
         m_indicators.add(m_regressionIndicator);
 
         m_regressionIndicator.addListener(this);
@@ -31,8 +32,8 @@ public class RegressionAlgo extends BaseAlgo {
         return (value == null)
                 ? 0
                 : (value > 0)
-                    ? 1 :
-                    (value < 0) ? -1 : 0;
+                    ? -1 :
+                    (value < 0) ? +1 : 0;
     }
 
     @Override public TickData getAdjusted() {

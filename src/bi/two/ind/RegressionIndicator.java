@@ -3,15 +3,16 @@ package bi.two.ind;
 import bi.two.algo.BarSplitter;
 import bi.two.calc.RegressionCalc;
 import bi.two.chart.TickData;
+import bi.two.util.MapConfig;
 
 public class RegressionIndicator extends BaseIndicator {
-    private final RegressionCalc m_calc;
+    public final RegressionCalc m_calc;
     private TickData m_calcValue;
 
-    public RegressionIndicator(BarSplitter bs) {
+    public RegressionIndicator(MapConfig config, BarSplitter bs) {
         super(bs);
 
-        m_calc = new RegressionCalc(BarSplitter.BARS_NUM, bs);
+        m_calc = new RegressionCalc(config, bs);
     }
 
     public TickData getTickValue() {

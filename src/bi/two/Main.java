@@ -2,25 +2,28 @@ package bi.two;
 
 import bi.two.algo.BarSplitter;
 import bi.two.algo.Watcher;
-import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
+import bi.two.calc.RegressionCalc;
 import bi.two.chart.ChartData;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TimesSeriesData;
 import bi.two.exch.*;
+import bi.two.ind.RegressionIndicator;
+import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
 
-    public static final int PREFILL_TICKS = 4190000; // 190;
-    public static final int LAST_LINES_TO_PROCES = 4190000;
+    public static final int PREFILL_TICKS = 32190000; // 190;
+    public static final int LAST_BYTES_TO_PROCES = 32190000;
 
     public static void main(String[] args) {
         MarketConfig.initMarkets();
@@ -44,28 +47,33 @@ public class Main {
 
             FileReader fileReader = new FileReader(file);
 
-            fileReader.skip(fileLength - LAST_LINES_TO_PROCES);
+            fileReader.skip(fileLength - LAST_BYTES_TO_PROCES);
 
             ChartData chartData = frame.getChartCanvas().getChartData();
 
             final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
             BarSplitter bs = new BarSplitter(ticksTs);
-            WeightedAverager averager = new WeightedAverager(bs);
+//            WeightedAverager averager = new WeightedAverager(bs);
 
-            RegressionAlgo algo = new RegressionAlgo(bs);
-            TimesSeriesData<TickData> algoTs = algo.getTS(true);
-
-            TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS(true);
-
+            List<Watcher> watchers = new ArrayList<Watcher>();
             Exchange exchange = Exchange.get("bitstamp");
             Pair pair = Pair.getByName("btc_usd");
-            Watcher watcher = new Watcher(algo, exchange, pair);
+            MapConfig config = new MapConfig();
+            for (int i = 5; i <= 25; i++) {
+                String barsNumStr = Integer.toString(i);
+                config.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+                RegressionAlgo algo = new RegressionAlgo(config, bs);
+//            TimesSeriesData<TickData> algoTs = algo.getTS(true);
+//            TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS(true);
+                Watcher watcher = new Watcher(algo, exchange, pair);
+                watchers.add(watcher);
+            }
 
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);
-            chartData.setTicksData("avg", averager);
-            chartData.setTicksData("regressor", indicatorTs);
-            chartData.setTicksData("adjusted", algoTs);
+//            chartData.setTicksData("avg", averager);
+//            chartData.setTicksData("regressor", indicatorTs);
+//            chartData.setTicksData("adjusted", algoTs);
 
             Runnable callback = new Runnable() {
                 private int m_counter = 0;
@@ -92,13 +100,23 @@ public class Main {
             };
 
             ExchPairData pairData = exchange.getPairData(pair);
+            long startMillis = System.currentTimeMillis();
             readTicks(fileReader, ticksTs, callback, pairData);
+            long endMillis = System.currentTimeMillis();
 
             frame.repaint();
 
-            long processedPeriod = watcher.getProcessedPeriod();
-            double gain = watcher.totalPriceRatio();
-            System.out.println("GAIN: " + Utils.format8(gain) + "   processed=" + Utils.millisToDHMSStr(processedPeriod) + " .....................................");
+            for (Watcher watcher : watchers) {
+                long processedPeriod = watcher.getProcessedPeriod();
+                double gain = watcher.totalPriceRatio();
+
+                RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
+                int barsNum = ri.m_calc.m_barsNum;
+
+                System.out.println("GAIN["+barsNum+"]: " + Utils.format8(gain)
+                        + "   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
+                        + "   spent=" + Utils.millisToDHMSStr(endMillis-startMillis) + " .....................................");
+            }
 
             System.out.println("DONE");
         } catch (Exception e) {
