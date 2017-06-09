@@ -1,6 +1,11 @@
 package bi.two.exch;
 
+import bi.two.util.Utils;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Set;
 
 public class AccountData {
     private final Exchange m_exch;
@@ -10,6 +15,10 @@ public class AccountData {
     public AccountData(Exchange exch) {
         m_exch = exch;
     }
+
+    public double available(Currency currency) { return notNull(m_funds.get(currency)); }
+    public double allocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
+    private double notNull(Double aDouble) { return aDouble == null ? 0 : aDouble.doubleValue(); }
 
     public void setAvailable(Currency currency, double value) { m_funds.put(currency, round(value)); }
 
@@ -24,11 +33,10 @@ public class AccountData {
             if (value > 0.000000001) {
                 double rate = rate(currency, baseCurrency);
                 if(rate != 0) { // if can convert
-                    value = value / rate;
+                    value = value * rate;
                     allValue += value;
                 }
             }
-
         }
         return allValue;
     }
@@ -73,6 +81,132 @@ public class AccountData {
             allValue += allocated;
         }
         return allValue;
+    }
+
+    public AccountData copy() {
+        AccountData ret = new AccountData(m_exch);
+        ret.m_funds.putAll(m_funds);
+        ret.m_allocatedFunds.putAll(m_allocatedFunds);
+        return ret;
+    }
+
+    public double calcNeedBuyTo(Pair pair, float direction) {
+        Currency currencyFrom = pair.m_from; // cnh=from
+        Currency currencyTo = pair.m_to;     // btc=to
+
+        double valuateTo = evaluateAll( currencyTo);
+        double valuateFrom = evaluateAll( currencyFrom);
+        System.out.println("  valuate" + currencyTo.m_name + "=" + Utils.format8(valuateTo) + " " + currencyTo.m_name
+                + "; valuate" + currencyFrom.m_name + "=" + Utils.format8(valuateFrom) + " " + currencyFrom.m_name);
+
+        double haveFrom = getValueForCurrency(currencyFrom, currencyTo);
+        double haveTo =   getValueForCurrency(currencyTo, currencyFrom);
+        System.out.println("  have" + currencyTo.m_name + "=" + Utils.format8(haveTo) + " " + currencyTo.m_name
+                + "; have" + currencyFrom.m_name + "=" + Utils.format8(haveFrom) + " " + currencyFrom.m_name + "; on account=" + this);
+
+        double needTo = (1 - direction) / 2 * valuateTo;
+        double needFrom = (1 + direction) / 2 * valuateFrom;
+        System.out.println("  need" + currencyTo.m_name + "=" + Utils.format8(needTo) + " " + currencyTo.m_name
+                + "; need" + currencyFrom.m_name + "=" + Utils.format8(needFrom) + " " + currencyFrom.m_name);
+
+        double needBuyTo = needTo - haveTo;
+        double needSellFrom = haveFrom - needFrom;
+        System.out.println("  direction=" + Utils.format8((double)direction)
+                + "; needBuy" + currencyTo.m_name + "=" + Utils.format8(needBuyTo)
+                + "; needSell" + currencyFrom.m_name + "=" + Utils.format8(needSellFrom));
+
+        return needBuyTo;
+    }
+
+    private double getValueForCurrency(Currency currency, Currency currency2) {
+        double from = 0;
+        Double availableFrom = m_funds.get(currency);
+        if (availableFrom != null) {
+            from += availableFrom;
+        }
+        Double allocatedTo = m_allocatedFunds.get(currency2);
+        System.out.println("   available" + currency.m_name + "=" + Utils.format8(from) + " " + currency.m_name +
+                "; allocated" + currency2.m_name + "=" + Utils.format8(allocatedTo) + " " + currency2.m_name);
+        if (allocatedTo != null) {
+            Double rate = rate(currency2, currency);
+            if (rate != null) { // if can convert
+                Double allocatedToForFrom = allocatedTo / rate;
+                from += allocatedToForFrom;
+                System.out.println("    " + currency2.m_name + "->" + currency.m_name + " rate=" + Utils.format8(rate) +
+                        "; allocated" + currency2.m_name + "in" + currency.m_name + "=" + Utils.format8(allocatedToForFrom) + " " + currency.m_name +
+                        "; total" + currency.m_name + " = " + Utils.format8(from) + " " + currency.m_name);
+            }
+        }
+        return from;
+    }
+
+    public void move(Pair pair, double amountTo) {
+        Currency currencyFrom = pair.m_from;
+        Currency currencyTo = pair.m_to;
+
+        System.out.println("   move() currencyFrom=" + currencyFrom.m_name + "; currencyTo=" + currencyTo.m_name + "; amountTo=" + amountTo);
+        System.out.println("    account in: " + this);
+
+        double amountFrom = convert(currencyTo, currencyFrom, amountTo);
+        double availableFrom = available(currencyFrom);
+        double newAvailableFrom = availableFrom - amountFrom;
+        if (newAvailableFrom < 0) {
+            throw new RuntimeException("Error account move. from=" + currencyFrom.m_name + "; to=" + currencyTo.m_name + "; amountTo=" + amountTo
+                    + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; on " + this);
+        }
+
+        double availableTo = available(currencyTo);
+        double newAvailableTo = availableTo + amountTo;
+        if (newAvailableTo < 0) {
+            throw new RuntimeException("Error account move. from=" + currencyFrom.m_name + "; to=" + currencyTo.m_name + "; amountTo=" + amountTo
+                    + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
+        }
+
+        setAvailable(currencyFrom, newAvailableFrom);
+        setAvailable(currencyTo, newAvailableTo);
+
+        System.out.println("    account out: " + this);
+    }
+
+    private Double convert(Currency fromCurrency, Currency toCurrency, double amountTo) {
+        Double rate = rate(fromCurrency, toCurrency);
+        if (rate != null) {
+            double converted = amountTo * rate;
+            return converted;
+        } else {
+            return null;
+        }
+    }
+
+    @Override public String toString() {
+        return "AccountData[" +
+                "name='" + m_exch.m_name + "\' " +
+                "funds=" + toString(m_funds) + "; " +
+                "allocated=" + toString(m_allocatedFunds) +
+                ']';
+    }
+
+    private String toString(HashMap<Currency, Double> funds) {
+        if (funds.isEmpty()) { return "{}"; }
+        Set<Currency> entries = funds.keySet();
+        ArrayList<Currency> list = new ArrayList<Currency>(entries);
+        Collections.sort(list);
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        for (Currency currency : list) {
+            Double value = funds.get(currency);
+            if (Math.abs(value) > 0.0000000001) {
+                sb.append(currency);
+                sb.append('=');
+                sb.append(Utils.format5(value));
+                sb.append(", ");
+            }
+        }
+        int length = sb.length();
+        if (length > 2) {
+            sb.setLength(length - 2);
+        }
+        return sb.append('}').toString();
     }
 
 }

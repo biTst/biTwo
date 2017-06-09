@@ -64,6 +64,7 @@ public class MarketConfig {
                                 if (toCur != null) {
                                     pair = new Pair(fromCur, toCur);
                                     System.out.println("     pair created: " + pair);
+
                                 } else {
                                     throw new RuntimeException("unsupported currency '" + to + "'");
                                 }
@@ -71,7 +72,10 @@ public class MarketConfig {
                                 throw new RuntimeException("unsupported currency '" + from + "'");
                             }
                         }
-                        ex.addPair(pair);
+                        ExchPairData exchPairData = ex.addPair(pair);
+                        String minOrderStr = prop.getProperty(prefix + ".pair."+pairName+".minOrder");
+                        System.out.println("    minOrderStr: " + minOrderStr);
+                        exchPairData.minOrderToCreate = Double.parseDouble(minOrderStr);
                     }
                 } else {
                     throw new RuntimeException(name + " exchange Pairs not found in cfg");

@@ -19,8 +19,8 @@ import java.util.List;
 
 public class Main {
 
-    public static final int PREFILL_TICKS = 190; // 190;
-    public static final int LAST_LINES_TO_PROCES = 1190000;
+    public static final int PREFILL_TICKS = 4190000; // 190;
+    public static final int LAST_LINES_TO_PROCES = 4190000;
 
     public static void main(String[] args) {
         MarketConfig.initMarkets();
@@ -59,7 +59,7 @@ public class Main {
 
             Exchange exchange = Exchange.get("bitstamp");
             Pair pair = Pair.getByName("btc_usd");
-            new Watcher(algo, exchange, pair);
+            Watcher watcher = new Watcher(algo, exchange, pair);
 
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", bs);
@@ -95,6 +95,10 @@ public class Main {
             readTicks(fileReader, ticksTs, callback, pairData);
 
             frame.repaint();
+
+            long processedPeriod = watcher.getProcessedPeriod();
+            double gain = watcher.totalPriceRatio();
+            System.out.println("GAIN: " + Utils.format8(gain) + "   processed=" + Utils.millisToDHMSStr(processedPeriod) + " .....................................");
 
             System.out.println("DONE");
         } catch (Exception e) {

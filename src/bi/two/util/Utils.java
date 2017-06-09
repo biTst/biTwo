@@ -15,9 +15,12 @@ public class Utils {
     public static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
     public static final DecimalFormat X_YYYYYYYYYYYY = new DecimalFormat("0.000000000000");
 
-    public static String format12(double value) { return X_YYYYYYYYYYYY.format(value); }
-    public static String format8(double value) { return X_YYYYYYYY.format(value); }
-    public static String format5(double value) { return X_YYYYY.format(value); }
+    public static String format12(Double value) { return format(X_YYYYYYYYYYYY, value); }
+    public static String format8(Double value) { return format(X_YYYYYYYY, value); }
+    public static String format5(Double value) { return format(X_YYYYY, value); }
+    private static String format(DecimalFormat format, Double value) {
+        return (value == null) ? "null" : format.format(value);
+    }
 
     public static String millisToDHMSStr(long millis) {
         StringBuilder res = new StringBuilder();

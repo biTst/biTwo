@@ -13,7 +13,7 @@ public class BaseTimesSeriesData implements ITimesSeriesData, ITimesSeriesData.I
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        // to override
+        notifyListeners(changed);
     }
 
     @Override public void addListener(ITimesSeriesListener listener) {

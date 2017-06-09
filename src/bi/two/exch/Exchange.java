@@ -27,8 +27,10 @@ public class Exchange {
         return "Exchange[" + m_name + ']';
     }
 
-    public void addPair(Pair pair) {
-        m_pairsMap.put(pair, new ExchPairData());
+    public ExchPairData addPair(Pair pair) {
+        ExchPairData value = new ExchPairData();
+        m_pairsMap.put(pair, value);
+        return value;
     }
 
     public ExchPairData getPairData(Pair pair) { return m_pairsMap.get(pair); }
@@ -55,5 +57,10 @@ public class Exchange {
             }
         }
         return null;
+    }
+
+    public double minOrderToCreate(Pair pair) {
+        ExchPairData pairData = getPairData(pair);
+        return pairData.minOrderToCreate();
     }
 }

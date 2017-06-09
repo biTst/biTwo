@@ -2,6 +2,7 @@ package bi.two.algo.impl;
 
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
+import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.ind.RegressionIndicator;
 
@@ -13,11 +14,13 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_regressionIndicator = new RegressionIndicator(bs);
         m_indicators.add(m_regressionIndicator);
+
+        m_regressionIndicator.addListener(this);
     }
 
-//    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-//        notifyListeners(iAmChanged);
-//    }
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+        notifyListeners(changed);
+    }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         Double value = m_regressionIndicator.getValue();
