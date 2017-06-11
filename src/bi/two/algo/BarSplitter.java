@@ -10,9 +10,9 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     private static final long DEF_PERIOD = 60000L;
 
     private final ITicksData m_source;
-    private int m_barsNum;
-    private final long m_period;
-    private long m_lastTickTime;
+    public int m_barsNum;
+    public final long m_period;
+    public long m_lastTickTime;
     private BarSplitter.BarHolder m_latestBar;
 
     public BarSplitter(ITicksData iTicksData) {
@@ -26,9 +26,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         m_period = period;
     }
 
-    public int getBarsNum() { return m_barsNum; }
     public List<BarHolder> getBars() { return getTicks(); }
-    public long getLastTickTime() { return m_lastTickTime; }
 
     public void setBarsNum(int barsNum) {
         if (m_lastTickTime != 0L) {
@@ -39,8 +37,16 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         }
     }
 
+    public void addTickDirect(ITickData tick) {
+        onTick(true, tick);
+    }
+
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         ITickData tick = m_source.getTicks().get(0);
+        onTick(changed, tick);
+    }
+
+    private void onTick(boolean changed, ITickData tick) {
         long timestamp = tick.getTimestamp();
         List<BarHolder> barHolders = getTicks();
         if (m_lastTickTime == 0L) {

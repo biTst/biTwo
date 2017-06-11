@@ -7,10 +7,12 @@ import bi.two.util.MapConfig;
 
 public class RegressionIndicator extends BaseIndicator {
     public final RegressionCalc m_calc;
+    public final BarSplitter m_bs;
     private TickData m_calcValue;
 
     public RegressionIndicator(MapConfig config, BarSplitter bs) {
         super(bs);
+        m_bs = bs;
 
         m_calc = new RegressionCalc(config, bs);
     }
