@@ -12,7 +12,12 @@ public class MarketConfig {
         boolean exists = file.exists();
         if (exists) {
             try {
-                properties.load(new FileInputStream(file));
+                FileInputStream inStream = new FileInputStream(file);
+                try {
+                    properties.load(inStream);
+                } finally {
+                    inStream.close();
+                }
                 init(properties);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -73,9 +78,14 @@ public class MarketConfig {
                             }
                         }
                         ExchPairData exchPairData = ex.addPair(pair);
-                        String minOrderStr = prop.getProperty(prefix + ".pair."+pairName+".minOrder");
+                        String pairPrefix = prefix + ".pair." + pairName;
+                        String minOrderStr = prop.getProperty(pairPrefix + ".minOrder");
                         System.out.println("    minOrderStr: " + minOrderStr);
-                        exchPairData.minOrderToCreate = Double.parseDouble(minOrderStr);
+                        exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
+
+                        String commissionStr = prop.getProperty(pairPrefix + ".commission");
+                        System.out.println("    commissionStr: " + commissionStr);
+                        exchPairData.m_commission = Double.parseDouble(commissionStr);
                     }
                 } else {
                     throw new RuntimeException(name + " exchange Pairs not found in cfg");

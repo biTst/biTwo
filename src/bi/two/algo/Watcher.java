@@ -4,6 +4,7 @@ import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.chart.TimesSeriesData;
 import bi.two.exch.*;
+import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 public class Watcher extends TimesSeriesData<TickData> {
@@ -14,6 +15,7 @@ public class Watcher extends TimesSeriesData<TickData> {
     private final Exchange m_exch;
     private final Pair m_pair;
     private final ExchPairData m_exchPairData;
+    private final double m_commission;
     private AccountData m_initAcctData;
     private AccountData m_accountData;
     private TopData m_initTopData;
@@ -21,13 +23,15 @@ public class Watcher extends TimesSeriesData<TickData> {
     private double m_valuateFromInit;
     private long m_startMillis;
     private long m_lastMillis;
+    public int m_tradesNum;
 
-    public Watcher(BaseAlgo algo, Exchange exch, Pair pair) {
+    public Watcher(MapConfig config, BaseAlgo algo, Exchange exch, Pair pair) {
         super(algo);
         m_algo = algo;
         m_exch = exch;
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
+        m_commission = m_exchPairData.m_commission;
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -60,7 +64,8 @@ public class Watcher extends TimesSeriesData<TickData> {
 
         double exchMinOrderToCreate = m_exch.minOrderToCreate(m_pair);
         if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
-            m_accountData.move(m_pair, needBuyTo);
+            m_accountData.move(m_pair, needBuyTo, m_commission);
+            m_tradesNum++;
 
             double gain = totalPriceRatio();
             log("    gain: " + Utils.format8(gain) + " .....................................");

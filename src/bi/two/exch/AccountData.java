@@ -143,6 +143,10 @@ public class AccountData {
     }
 
     public void move(Pair pair, double amountTo) {
+        move(pair, amountTo, 0);
+    }
+
+    public void move(Pair pair, double amountTo, double commission) {
         Currency currencyFrom = pair.m_from;
         Currency currencyTo = pair.m_to;
 
@@ -162,6 +166,10 @@ public class AccountData {
         if (newAvailableTo < 0) {
             throw new RuntimeException("Error account move. from=" + currencyFrom.m_name + "; to=" + currencyTo.m_name + "; amountTo=" + amountTo
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
+        }
+
+        if (commission > 0) {
+            newAvailableTo *= (1 - commission);
         }
 
         setAvailable(currencyFrom, newAvailableFrom);
