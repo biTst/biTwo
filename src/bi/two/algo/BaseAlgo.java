@@ -9,7 +9,7 @@ import bi.two.ind.BaseIndicator;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BaseAlgo extends BaseTimesSeriesData {
+public class BaseAlgo extends TimesSeriesData {
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
 
     public BaseAlgo(BaseTimesSeriesData parent) {

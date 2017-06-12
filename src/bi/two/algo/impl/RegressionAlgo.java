@@ -9,9 +9,11 @@ import bi.two.util.MapConfig;
 
 public class RegressionAlgo extends BaseAlgo {
     public final RegressionIndicator m_regressionIndicator;
+    private final boolean m_collectValues;
 
     public RegressionAlgo(MapConfig config, BarSplitter bs) {
         super(null);
+        m_collectValues = config.getBoolean("collect.values");
 
         m_regressionIndicator = new RegressionIndicator(config, bs);
         m_indicators.add(m_regressionIndicator);
@@ -21,6 +23,10 @@ public class RegressionAlgo extends BaseAlgo {
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         notifyListeners(changed);
+        if (m_collectValues) {
+            TickData adjusted = getAdjusted();
+            addNewestTick(adjusted);
+        }
     }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]

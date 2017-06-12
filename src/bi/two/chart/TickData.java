@@ -31,7 +31,7 @@ public class TickData implements ITickData {
     @Override public float getMinPrice() { return m_price; }
     @Override public float getMaxPrice() { return m_price; }
     @Override public TickPainter getTickPainter() {
-        return TickPainter.TRADE;
+        return TickPainter.TICK;
     }
     @Override public ITickData getOlderTick() { return m_olderTick; }
 

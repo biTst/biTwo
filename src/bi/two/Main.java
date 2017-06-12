@@ -1,6 +1,7 @@
 package bi.two;
 
 import bi.two.algo.BarSplitter;
+import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
@@ -83,15 +84,17 @@ public class Main {
         Exchange exchange = Exchange.get("bitstamp");
         Pair pair = Pair.getByName("btc_usd");
 
-        List<Watcher> watchers = new ArrayList<Watcher>();
         long periodFrom = config.getLong("period.from");
         long periodTo = config.getLong("period.to");
         long periodStep = config.getLong("period.step");
         int barsFrom = config.getInt("bars.from");
         int barsTo = config.getInt("bars.to");
         int barsStep = config.getInt("bars.step");
+        boolean collectValues = config.getBoolean("collect.values");
 
+        List<Watcher> watchers = new ArrayList<Watcher>();
         MapConfig algoConfig = new MapConfig();
+        algoConfig.put("collect.values", Boolean.valueOf(collectValues).toString());
         for (long period = periodFrom; period <= periodTo; period += periodStep) {
             BarSplitter bs = new BarSplitter(ticksTs, 5, period);
             for (int i = barsFrom; i <= barsTo; i += barsStep) {
@@ -106,6 +109,15 @@ public class Main {
 //        chartData.setTicksData("bars", firstBs);
         if (collectTicks) {
             chartData.setTicksData("price", ticksTs);
+        }
+        if (collectValues) {
+            Watcher watcher = watchers.get(0);
+            chartData.setTicksData("trades", watcher);
+
+            BaseAlgo algo = watcher.m_algo;
+            chartData.setTicksData("value", algo.getTS(true));
+            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
+            chartData.setTicksData("indicator", ri.getTS(true));
         }
         
         Runnable callback = new Runnable() {

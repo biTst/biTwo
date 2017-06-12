@@ -38,18 +38,24 @@ class ChartCanvas extends JComponent {
         m_chartData = new ChartData();
         m_chartSetting = new ChartSetting();
 
-        ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.7f, Color.RED);
+        ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
-        topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TRADE));
+        topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TICK));
         topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
         topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
+        topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
 
-        ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.7f, 1, 0.3f, Color.GREEN);
+        ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
         List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
-        bottomLayers.add(new ChartAreaLayerSettings("regressor", Color.GREEN, TickPainter.LINE));
+        bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
+
+        ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
 
         m_chartSetting.addChartAreaSettings(top);
         m_chartSetting.addChartAreaSettings(bottom);
+        m_chartSetting.addChartAreaSettings(value);
     }
 
     @Override public void paint(Graphics g) {

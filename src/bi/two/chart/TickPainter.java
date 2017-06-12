@@ -1,11 +1,12 @@
 package bi.two.chart;
 
+import bi.two.exch.OrderSide;
 import bi.two.util.Utils;
 
 import java.awt.*;
 
 public enum TickPainter {
-    TRADE {
+    TICK {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             float price = tick.getMaxPrice();
             if ((price != Utils.INVALID_PRICE) && (price != 0)) {
@@ -50,6 +51,26 @@ public enum TickPainter {
                 int right = xAxe.translateInt(timestamp);
                 int left = xAxe.translateInt(timestamp - barSize + 1);
                 g2.drawRect(left, top, right - left, bottom - top);
+            }
+        }
+    },
+    TRADE {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+            TradeData trade = (TradeData) tick;
+            float price = trade.getPrice();
+            if ((price != Utils.INVALID_PRICE) && (price != 0)) {
+                int y = yAxe.translateInt(price);
+                long timestamp = tick.getTimestamp();
+                int x = xAxe.translateInt(timestamp);
+                if (trade.m_side == OrderSide.BUY) { // arrow up
+                    g2.drawLine(x - X_RADIUS, y + X_RADIUS, x, y - X_RADIUS);
+                    g2.drawLine(x + X_RADIUS, y + X_RADIUS, x, y - X_RADIUS);
+                    g2.drawLine(x - X_RADIUS, y + X_RADIUS, x + X_RADIUS, y + X_RADIUS);
+                } else {
+                    g2.drawLine(x - X_RADIUS, y - X_RADIUS, x, y + X_RADIUS);
+                    g2.drawLine(x + X_RADIUS, y - X_RADIUS, x, y + X_RADIUS);
+                    g2.drawLine(x - X_RADIUS, y - X_RADIUS, x + X_RADIUS, y - X_RADIUS);
+                }
             }
         }
     };

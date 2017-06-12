@@ -26,7 +26,7 @@ public class RegressionCalc {
     public TickData calcValue() {
         List<? extends ITickData> ticks = m_ts.getTicks();
         int size = ticks.size();
-        if (size > 3) {
+        if (size >= m_barsNum) {
             m_simpleRegression.clear();
             int validPoints = 0;
             size = Math.min(size, m_barsNum);
