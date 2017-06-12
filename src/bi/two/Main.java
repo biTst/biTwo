@@ -23,8 +23,7 @@ import java.util.List;
 
 public class Main {
 
-    public static final int PREFILL_TICKS = 2190000; // 190;
-    public static final int LAST_BYTES_TO_PROCES = 2190000;
+    public static int s_prefillTicks = Integer.MAX_VALUE;
 
     public static void main(String[] args) {
         MarketConfig.initMarkets();
@@ -40,20 +39,24 @@ public class Main {
     }
 
     private static void loadData(final ChartFrame frame) {
-        String path = "D:\\data\\.bitstampUSD.csv";
+        MapConfig config = new MapConfig();
         try {
+            config.load("vary.properties");
+
+            String path = config.getProperty("dataFile");
             File file = new File(path);
             long fileLength = file.length();
             System.out.println("fileLength = " + fileLength);
 
             FileReader fileReader = new FileReader(file);
 
-            fileReader.skip(fileLength - LAST_BYTES_TO_PROCES);
+            long lastBytesToProces = config.getLong("process.bytes");
+            s_prefillTicks = config.getInt("prefill.ticks");
+            fileReader.skip(fileLength - lastBytesToProces);
 
             ChartData chartData = frame.getChartCanvas().getChartData();
-
-//            readOne();
-            readMany(frame, fileReader, chartData);
+            readMany(frame, config, fileReader, chartData);
+//            readOne(frame, fileReader, chartData);
 
             System.out.println("DONE");
         } catch (Exception e) {
@@ -61,42 +64,59 @@ public class Main {
         }
     }
 
-    private static void readMany(final ChartFrame frame, FileReader fileReader, ChartData chartData) throws IOException {
+    private static void readMany(final ChartFrame frame, MapConfig config, FileReader fileReader, ChartData chartData) throws IOException {
+        final boolean collectTicks = config.getBoolean("collect.ticks");
         final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
             @Override public void addNewestTick(TickData tickData) {
-                m_ticks.set(0, tickData);
-                notifyListeners(true);
+                if (collectTicks) {
+                    super.addNewestTick(tickData);
+                } else {
+                    m_ticks.set(0, tickData); // always update last tick
+                    notifyListeners(true);
+                }
             }
         };
-        ticksTs.addTick(new TickData());
+        if (!collectTicks) { // add initial tick to update
+            ticksTs.addTick(new TickData());
+        }
 
         Exchange exchange = Exchange.get("bitstamp");
         Pair pair = Pair.getByName("btc_usd");
 
         List<Watcher> watchers = new ArrayList<Watcher>();
-        for (long period = 10000l; period <= 60000l; period += 10000l) {
+        long periodFrom = config.getLong("period.from");
+        long periodTo = config.getLong("period.to");
+        long periodStep = config.getLong("period.step");
+        int barsFrom = config.getInt("bars.from");
+        int barsTo = config.getInt("bars.to");
+        int barsStep = config.getInt("bars.step");
+
+        MapConfig algoConfig = new MapConfig();
+        for (long period = periodFrom; period <= periodTo; period += periodStep) {
             BarSplitter bs = new BarSplitter(ticksTs, 5, period);
-            MapConfig config = new MapConfig();
-            for (int i = 4; i <= 10; i++) {
+            for (int i = barsFrom; i <= barsTo; i += barsStep) {
                 String barsNumStr = Integer.toString(i);
-                config.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-                RegressionAlgo algo = new RegressionAlgo(config, bs);
-                Watcher watcher = new Watcher(algo, exchange, pair);
+                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+                RegressionAlgo algo = new RegressionAlgo(algoConfig, bs);
+                Watcher watcher = new Watcher(config, algo, exchange, pair);
                 watchers.add(watcher);
             }
         }
 
 //        chartData.setTicksData("bars", firstBs);
-
+        if (collectTicks) {
+            chartData.setTicksData("price", ticksTs);
+        }
+        
         Runnable callback = new Runnable() {
             private int m_counter = 0;
             private long lastTime = 0;
 
             @Override public void run() {
                 m_counter++;
-                if (m_counter == PREFILL_TICKS) {
+                if (m_counter == s_prefillTicks) {
                     System.out.println("PREFILLED: ticksCount=" + m_counter);
-                } else if (m_counter > PREFILL_TICKS) {
+                } else if (m_counter > s_prefillTicks) {
                     frame.repaint();
 
                     try {
@@ -127,21 +147,33 @@ public class Main {
     }
 
     private static void logResults(List<Watcher> watchers, long startMillis, long endMillis) {
+        double maxGain = 0;
+        Watcher maxWatcher = null;
+        for (Watcher watcher : watchers) {
+            double gain = watcher.totalPriceRatio();
+            if (gain > maxGain) {
+                maxGain = gain;
+                maxWatcher = watcher;
+            }
+
+            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
+            int barsNum = ri.m_calc.m_barsNum;
+            long period = ri.m_bs.m_period;
+
+            System.out.println("GAIN[" + barsNum + ", " + Utils.millisToDHMSStr(period) + "]: " + Utils.format8(gain)
+                    + "   trades=" + watcher.m_tradesNum + " .....................................");
+        }
+
         long processedPeriod = watchers.get(watchers.size()-1).getProcessedPeriod();
         System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
                 + "   spent=" + Utils.millisToDHMSStr(endMillis-startMillis) + " .....................................");
 
-        for (Watcher watcher : watchers) {
-            double gain = watcher.totalPriceRatio();
-
-            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
-            int barsNum = ri.m_calc.m_barsNum;
-
-            long period = ri.m_bs.m_period;
-
-            System.out.println("GAIN["+barsNum+"]: " + Utils.format8(gain)
-                    + "   period=" + Utils.millisToDHMSStr(period) + " .....................................");
-        }
+        double gain = maxWatcher.totalPriceRatio();
+        RegressionIndicator ri = (RegressionIndicator) maxWatcher.m_algo.m_indicators.get(0);
+        int barsNum = ri.m_calc.m_barsNum;
+        long period = ri.m_bs.m_period;
+        System.out.println("MAX GAIN[" + barsNum + ", " + Utils.millisToDHMSStr(period) + "]: " + Utils.format8(gain)
+                + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
     }
 
     private static void readOne(final ChartFrame frame, FileReader fileReader, ChartData chartData) throws IOException {
@@ -158,7 +190,7 @@ public class Main {
         RegressionAlgo algo = new RegressionAlgo(config, bs);
         TimesSeriesData<TickData> algoTs = algo.getTS(true);
         TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS(true);
-        Watcher watcher0 = new Watcher(algo, exchange, pair);
+        Watcher watcher0 = new Watcher(config, algo, exchange, pair);
         watchers.add(watcher0);
 
         chartData.setTicksData("price", ticksTs);
@@ -173,14 +205,14 @@ public class Main {
 
             @Override public void run() {
                 m_counter++;
-                if (m_counter == PREFILL_TICKS) {
+                if (m_counter == s_prefillTicks) {
                     List<TickData> ticks = ticksTs.getTicks();
                     long firstTimestamp = ticks.get(ticks.size() - 1).getTimestamp();
                     int size = ticks.size();
                     long lastTimestamp = ticks.get(0).getTimestamp();
                     long timeDiff = lastTimestamp - firstTimestamp;
                     System.out.println("PREFILLED: ticksCount=" + size + "; timeDiff=" + Utils.millisToDHMSStr(timeDiff));
-                } else if (m_counter > PREFILL_TICKS) {
+                } else if (m_counter > s_prefillTicks) {
                     frame.repaint();
 
                     try {
@@ -208,29 +240,6 @@ public class Main {
         frame.repaint();
 
         logResults(watchers, startMillis, endMillis);
-    }
-
-    private static void readTicks(FileReader fileReader, BarSplitter bs, Runnable callback, ExchPairData pairData) throws IOException {
-        TopData topData = pairData.m_topData;
-        BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
-        try {
-            br.readLine(); // skip to the end of line
-
-            String line;
-            while ((line = br.readLine()) != null) {
-                // System.out.println("line = " + line);
-                TickVolumeData tickData = parseLine(line);
-
-                float price = tickData.getPrice();
-                topData.init(price, price, price);
-                pairData.m_newestTick = tickData;
-
-                bs.addTickDirect(tickData);
-                callback.run();
-            }
-        } finally {
-            br.close();
-        }
     }
 
     private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws IOException {

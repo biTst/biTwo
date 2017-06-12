@@ -28,8 +28,7 @@ public class RegressionIndicator extends BaseIndicator {
 
     public Double getValue() {
         if (m_calcValue != null) {
-            double value = m_calcValue.getPrice();
-            return value;
+            return (double) m_calcValue.getPrice();
         }
         return null;
     }
