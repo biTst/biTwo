@@ -9,7 +9,8 @@ import java.util.Set;
 
 public class AccountData {
     private static final boolean VERBOSE = false;
-    
+    private static final boolean LOG_MOVE = true;
+
     private final Exchange m_exch;
     private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
     private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<Currency,Double>();
@@ -150,35 +151,52 @@ public class AccountData {
         Currency currencyFrom = pair.m_from;
         Currency currencyTo = pair.m_to;
 
-        log("   move() currencyFrom=" + currencyFrom.m_name + "; currencyTo=" + currencyTo.m_name + "; amountTo=" + amountTo);
-        log("    account in: " + this);
+        String fromName = currencyFrom.m_name;
+        String toName = currencyTo.m_name;
+        logMove("   move() currencyFrom=" + fromName + "; currencyTo=" + toName + "; amountTo=" + amountTo);
+        if(amountTo == 0) {
+            logMove("NOTHING to move");
+            return;
+        }
+        logMove("    account in: " + this);
+        double availableFrom = available(currencyFrom);
+        double availableTo = available(currencyTo);
 
         double amountFrom = convert(currencyTo, currencyFrom, amountTo);
-        double availableFrom = available(currencyFrom);
+        if (amountTo < 0) {
+            logMove("    move " + (-amountTo) + toName + " -> " + fromName);
+            logMove("     " + (-amountTo) + toName + " = " + Utils.format8(-amountFrom) + fromName);
+            if (commission > 0) {
+                amountFrom *= (1 - commission);
+                logMove("      -" + commission + " commission (" + Utils.format8(-amountFrom * commission) + fromName + ") -> " + Utils.format8(-amountFrom) + fromName);
+            }
+        } else {
+            logMove("    move " + amountFrom + fromName + " -> " + toName);
+            logMove("     " + amountFrom + fromName + " = " + Utils.format8(amountTo) + toName);
+            if (commission > 0) {
+                amountTo *= (1 - commission);
+                logMove("      - " + commission + " commission (" + Utils.format8(amountTo * commission) + toName + ") -> " + Utils.format8(amountTo) + toName);
+            }
+        }
         double newAvailableFrom = availableFrom - amountFrom;
+        double newAvailableTo = availableTo + amountTo;
+        logMove("        newAvailableFrom=" + Utils.format8(newAvailableFrom) + fromName + "; newAvailableTo=" + Utils.format8(newAvailableTo) + toName);
         if (newAvailableFrom < 0) {
-            throw new RuntimeException("Error account move. from=" + currencyFrom.m_name + "; to=" + currencyTo.m_name + "; amountTo=" + amountTo
+            throw new RuntimeException("Error account move (newAvailableFrom="+newAvailableFrom+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; on " + this);
         }
-
-        double availableTo = available(currencyTo);
-        double newAvailableTo = availableTo + amountTo;
         if (newAvailableTo < 0) {
-            throw new RuntimeException("Error account move. from=" + currencyFrom.m_name + "; to=" + currencyTo.m_name + "; amountTo=" + amountTo
+            throw new RuntimeException("Error account move (newAvailableTo="+newAvailableTo+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
-        }
-
-        if (commission > 0) {
-            newAvailableTo *= (1 - commission);
         }
 
         setAvailable(currencyFrom, newAvailableFrom);
         setAvailable(currencyTo, newAvailableTo);
 
-        log("    account out: " + this);
+        logMove("    account out: " + this);
     }
 
-    private Double convert(Currency fromCurrency, Currency toCurrency, double amountTo) {
+    public Double convert(Currency fromCurrency, Currency toCurrency, double amountTo) {
         Double rate = rate(fromCurrency, toCurrency);
         if (rate != null) {
             double converted = amountTo * rate;
@@ -206,7 +224,7 @@ public class AccountData {
         for (Currency currency : list) {
             Double value = funds.get(currency);
             if (Math.abs(value) > 0.0000000001) {
-                sb.append(currency);
+                sb.append(currency.m_name);
                 sb.append('=');
                 sb.append(Utils.format5(value));
                 sb.append(", ");
@@ -221,6 +239,12 @@ public class AccountData {
 
     private void log(String s) {
         if(VERBOSE) {
+            System.out.println(s);
+        }
+    }
+
+    private void logMove(String s) {
+        if(LOG_MOVE || VERBOSE) {
             System.out.println(s);
         }
     }

@@ -38,8 +38,8 @@ public class RegressionAlgo extends BaseAlgo {
         return (value == null)
                 ? 0
                 : (value > 0)
-                    ? -1 :
-                    (value < 0) ? +1 : 0;
+                    ? 1
+                    : (value < 0) ? -1 : 0;
     }
 
     @Override public TickData getAdjusted() {
