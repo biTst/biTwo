@@ -5,15 +5,13 @@ import bi.two.algo.Watcher;
 import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.calc.RegressionCalc;
-import bi.two.chart.ChartData;
-import bi.two.chart.TickData;
-import bi.two.chart.TickVolumeData;
-import bi.two.chart.TimesSeriesData;
+import bi.two.chart.*;
 import bi.two.exch.*;
 import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -54,9 +52,9 @@ public class Main {
             s_prefillTicks = config.getInt("prefill.ticks");
             fileReader.skip(fileLength - lastBytesToProces);
 
-            ChartData chartData = frame.getChartCanvas().getChartData();
-            readMany(frame, config, fileReader, chartData);
-//            readOne(frame, fileReader, chartData);
+            ChartCanvas chartCanvas = frame.getChartCanvas();
+            readMany(frame, config, fileReader, chartCanvas);
+//            readOne(frame, fileReader, chartCanvas);
 
             System.out.println("DONE");
         } catch (Exception e) {
@@ -64,7 +62,7 @@ public class Main {
         }
     }
 
-    private static void readMany(final ChartFrame frame, MapConfig config, FileReader fileReader, ChartData chartData) throws IOException {
+    private static void readMany(final ChartFrame frame, MapConfig config, FileReader fileReader, ChartCanvas chartCanvas) throws IOException {
         final boolean collectTicks = config.getBoolean("collect.ticks");
         final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
             @Override public void addNewestTick(TickData tickData) {
@@ -116,19 +114,45 @@ public class Main {
 //        }
 
         if (collectTicks) {
+            ChartData chartData = chartCanvas.getChartData();
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", firstBarSplitter);
-            TimesSeriesData<TickData> regressorTs = algo.m_regressor.getTS();
-            chartData.setTicksData("regressor", regressorTs);
+            chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs());
+            chartData.setTicksData("bars2", algo.m_barSplitter);
+            chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
+
+            // layout
+            ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
+            List<ChartAreaLayerSettings> topLayers = top.getLayers();
+            topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TICK));
+            topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
+//            topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
+//            topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
+            topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
+            topLayers.add(new ChartAreaLayerSettings("bars2", Color.ORANGE, TickPainter.BAR));
+
+            ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
+            List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
+//            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
+            bottomLayers.add(new ChartAreaLayerSettings("diff", Color.GREEN, TickPainter.LINE));
+
+            ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
+            List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+//            valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
+
+            ChartSetting chartSetting = chartCanvas.getChartSetting();
+            chartSetting.addChartAreaSettings(top);
+            chartSetting.addChartAreaSettings(bottom);
+            chartSetting.addChartAreaSettings(value);
         }
 //        if (collectValues) {
 //            Watcher watcher = watchers.get(0);
 //            chartData.setTicksData("trades", watcher);
 //
 //            BaseAlgo algo = watcher.m_algo;
-//            chartData.setTicksData("value", algo.getTS(true));
+//            chartData.setTicksData("value", algo.getJoinNonChangedTs(true));
 ////            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
-////            chartData.setTicksData("indicator", ri.getTS(true));
+////            chartData.setTicksData("indicator", ri.getJoinNonChangedTs(true));
 //        }
         
         Runnable callback = new Runnable() {
@@ -199,7 +223,8 @@ public class Main {
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
     }
 
-    private static void readOne(final ChartFrame frame, FileReader fileReader, ChartData chartData) throws IOException {
+    private static void readOne(final ChartFrame frame, FileReader fileReader, ChartCanvas chartCanvas) throws IOException {
+        ChartData chartData = chartCanvas.getChartData();
         final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
         BarSplitter bs = new BarSplitter(ticksTs, 20, 60000l);
         WeightedAverager averager = new WeightedAverager(bs);
@@ -212,7 +237,7 @@ public class Main {
         config.put(RegressionCalc.REGRESSION_BARS_NUM, "5");
         RegressionAlgo algo = new RegressionAlgo(config, bs);
         TimesSeriesData<TickData> algoTs = algo.getTS(true);
-        TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS();
+        TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getJoinNonChangedTs();
         Watcher watcher0 = new Watcher(config, algo, exchange, pair);
         watchers.add(watcher0);
 

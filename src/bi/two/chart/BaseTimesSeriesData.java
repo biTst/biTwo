@@ -28,4 +28,22 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
             listener.onChanged(this, changed);
         }
     }
+
+
+    public TimesSeriesData<TickData> getJoinNonChangedTs() {
+        return new JoinNonChangedTimesSeriesData2(this);
+    }
+
+
+
+    //----------------------------------------------------------
+    public class JoinNonChangedTimesSeriesData2 extends BaseJoinNonChangedTimesSeriesData {
+        public JoinNonChangedTimesSeriesData2(ITimesSeriesData parent) {
+            super(parent);
+        }
+
+        @Override protected ITickData getTickValue() {
+            return BaseTimesSeriesData.this.getLastTick();
+        }
+    }
 }

@@ -1,6 +1,8 @@
 package bi.two.ind;
 
-import bi.two.chart.*;
+import bi.two.chart.BaseTimesSeriesData;
+import bi.two.chart.ITimesSeriesData;
+import bi.two.chart.TickData;
 
 public abstract class BaseIndicator extends BaseTimesSeriesData {
     private Float m_prevValue;
@@ -29,21 +31,5 @@ public abstract class BaseIndicator extends BaseTimesSeriesData {
             }
         }
         notifyListeners(iAmChanged);
-    }
-
-
-    public TimesSeriesData<TickData> getTS() {
-        return new IndicatorTimesSeriesData(this);
-    }
-
-    //----------------------------------------------------------
-    public class IndicatorTimesSeriesData extends JoinNonChangedTimesSeriesData {
-        public IndicatorTimesSeriesData(ITimesSeriesData parent) {
-            super(parent);
-        }
-
-        @Override protected TickData getTickValue() {
-            return BaseIndicator.this.getTickValue();
-        }
     }
 }

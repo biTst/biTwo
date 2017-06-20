@@ -1,13 +1,15 @@
 package bi.two;
 
-import bi.two.chart.*;
+import bi.two.chart.ChartData;
+import bi.two.chart.ChartPaintSetting;
+import bi.two.chart.ChartPainter;
+import bi.two.chart.ChartSetting;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.util.List;
 
 class ChartCanvas extends JComponent {
     private final ChartPainter m_chartPainter;
@@ -33,30 +35,11 @@ class ChartCanvas extends JComponent {
     }
 
     public ChartData getChartData() { return m_chartData; }
+    public ChartSetting getChartSetting() { return m_chartSetting; }
 
     private void initChart() {
         m_chartData = new ChartData();
         m_chartSetting = new ChartSetting();
-
-        ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
-        List<ChartAreaLayerSettings> topLayers = top.getLayers();
-        topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TICK));
-        topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
-        topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
-        topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
-        topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
-
-        ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
-        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
-        bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
-
-        ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
-        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-        valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
-
-        m_chartSetting.addChartAreaSettings(top);
-        m_chartSetting.addChartAreaSettings(bottom);
-        m_chartSetting.addChartAreaSettings(value);
     }
 
     @Override public void paint(Graphics g) {

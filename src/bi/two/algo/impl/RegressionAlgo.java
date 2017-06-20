@@ -15,6 +15,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final BarSplitter m_lastTicksBuffer;
     public final Regressor m_regressor;
     public final BarSplitter m_barSplitter;
+    public final Differ m_differ;
 
     public RegressionIndicator m_regressionIndicator;
 
@@ -33,55 +34,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_barSplitter = new BarSplitter(m_regressor, 2, barSize);
 
-        BaseTimesSeriesData<ITickData> differ = new BaseTimesSeriesData<ITickData>(m_barSplitter) {
-            public boolean m_initialized;
-            public boolean m_filled;
-            public boolean m_dirty;
-            public BarSplitter.BarHolder m_newestBar;
-            public BarSplitter.BarHolder m_secondBar;
-            public TickData m_tickData;
-
-            @Override public ITickData getLastTick() {
-                if (m_dirty) {
-                    BarSplitter.TickNode newestBarTickNode = m_newestBar.getLatestTick();
-                    BarSplitter.TickNode secondBarTickNode = m_secondBar.getLatestTick();
-                    if ((newestBarTickNode != null) && (secondBarTickNode != null)) {
-                        ITickData newestBarTick = newestBarTickNode.m_param;
-                        ITickData secondBarTick = secondBarTickNode.m_param;
-
-                        float newestPrice = newestBarTick.getMaxPrice();
-                        float secondPrice = secondBarTick.getMaxPrice();
-                        float diff = newestPrice - secondPrice;
-
-                        long timestamp = newestBarTick.getTimestamp();
-                        m_tickData = new TickData(timestamp, diff);
-                        m_dirty = false;
-                        return m_tickData;
-                    }
-                }
-                return null;
-            }
-
-            @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-                boolean iAmChanged = false;
-                if (changed) {
-                    if (!m_initialized) {
-                        m_initialized = true;
-                        m_newestBar = m_barSplitter.m_newestBar;
-                        m_secondBar = m_newestBar.getOlderBar();
-                        m_secondBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                            @Override public void onTickEnter(ITickData tickData) {
-                                m_filled = true;
-                            }
-                            @Override public void onTickExit(ITickData tickData) {}
-                        });
-                    }
-                    m_dirty = true;
-                    iAmChanged = m_filled;
-                }
-                super.onChanged(this, iAmChanged); // notifyListeners
-            }
-        };
+        m_differ = new Differ(m_barSplitter);
 
         m_collectValues = config.getBoolean("collect.values");
         m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
@@ -90,7 +43,7 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_indicators.add(m_regressionIndicator);
 //
 //        m_regressionIndicator.addListener(this);
-        differ.addListener(this);
+        m_differ.addListener(this);
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -146,7 +99,7 @@ public class RegressionAlgo extends BaseAlgo {
             m_tickIterator = new BarSplitter.BarHolder.ITicksProcessor<Boolean>() {
                 @Override public void processTick(ITickData tick) {
                     long timestamp = tick.getTimestamp();
-                    if(m_lastBarTickTime == 0) {
+                    if (m_lastBarTickTime == 0) {
                         m_lastBarTickTime = timestamp;
                     }
 
@@ -179,22 +132,15 @@ public class RegressionAlgo extends BaseAlgo {
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             boolean iAmChanged = false;
-            if(changed) {
-                if(!m_initialized) {
+            if (changed) {
+                if (!m_initialized) {
                     m_initialized = true;
                     m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                         @Override public void onTickEnter(ITickData tickData) {
-//                            long timestamp = tickData.getTimestamp();
-//                            float price = tickData.getMaxPrice();
-//                            m_simpleRegression.addData(timestamp, price);
                             m_dirty = true;
                         }
 
                         @Override public void onTickExit(ITickData tickData) {
-//                            long timestamp = tickData.getTimestamp();
-//                            float price = tickData.getMaxPrice();
-//                            m_simpleRegression.removeData(timestamp, price);
-//                            m_dirty = true;
                             m_filled = true;
                         }
                     });
@@ -203,21 +149,63 @@ public class RegressionAlgo extends BaseAlgo {
             }
             super.onChanged(this, iAmChanged); // notifyListeners
         }
+    }
 
 
-        public TimesSeriesData<TickData> getTS() {
-            return new RegressorTimesSeriesData(this);
+    //----------------------------------------------------------
+    public static class Differ extends BaseTimesSeriesData<ITickData> {
+        private final BarSplitter m_barSplitter;
+        public boolean m_initialized;
+        public boolean m_filled;
+        public boolean m_dirty;
+        public BarSplitter.BarHolder m_newestBar;
+        public BarSplitter.BarHolder m_secondBar;
+        public TickData m_tickData;
+
+        public Differ(BarSplitter barSplitter) {
+            super(barSplitter);
+            m_barSplitter = barSplitter;
         }
 
-        //----------------------------------------------------------
-        public class RegressorTimesSeriesData extends JoinNonChangedTimesSeriesData {
-            public RegressorTimesSeriesData(ITimesSeriesData parent) {
-                super(parent);
-            }
+        @Override public ITickData getLastTick() {
+            if (m_dirty) {
+                BarSplitter.TickNode newestBarTickNode = m_newestBar.getLatestTick();
+                BarSplitter.TickNode secondBarTickNode = m_secondBar.getLatestTick();
+                if ((newestBarTickNode != null) && (secondBarTickNode != null)) {
+                    ITickData newestBarTick = newestBarTickNode.m_param;
+                    ITickData secondBarTick = secondBarTickNode.m_param;
 
-            @Override protected ITickData getTickValue() {
-                return Regressor.this.getLastTick();
+                    float newestPrice = newestBarTick.getMaxPrice();
+                    float secondPrice = secondBarTick.getMaxPrice();
+                    float diff = newestPrice - secondPrice;
+
+                    long timestamp = newestBarTick.getTimestamp();
+                    m_tickData = new TickData(timestamp, diff);
+                    m_dirty = false;
+                    return m_tickData;
+                }
             }
+            return null;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                if (!m_initialized) {
+                    m_initialized = true;
+                    m_newestBar = m_barSplitter.m_newestBar;
+                    m_secondBar = m_newestBar.getOlderBar();
+                    m_secondBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_filled = true;
+                        }
+                        @Override public void onTickExit(ITickData tickData) {}
+                    });
+                }
+                m_dirty = true;
+                iAmChanged = m_filled;
+            }
+            super.onChanged(this, iAmChanged); // notifyListeners
         }
     }
 }
