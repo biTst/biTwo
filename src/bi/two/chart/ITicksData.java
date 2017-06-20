@@ -2,6 +2,7 @@ package bi.two.chart;
 
 import java.util.List;
 
-public interface ITicksData extends ITimesSeriesData {
-    List<? extends ITickData> getTicks();
+public interface ITicksData<T extends ITickData>
+        extends ITimesSeriesData<T> {
+    List<T> getTicks();
 }

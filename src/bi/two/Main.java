@@ -1,7 +1,6 @@
 package bi.two;
 
 import bi.two.algo.BarSplitter;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
@@ -92,33 +91,45 @@ public class Main {
         int barsStep = config.getInt("bars.step");
         boolean collectValues = config.getBoolean("collect.values");
 
-        List<Watcher> watchers = new ArrayList<Watcher>();
         MapConfig algoConfig = new MapConfig();
         algoConfig.put("collect.values", Boolean.valueOf(collectValues).toString());
-        for (long period = periodFrom; period <= periodTo; period += periodStep) {
-            BarSplitter bs = new BarSplitter(ticksTs, 5, period);
-            for (int i = barsFrom; i <= barsTo; i += barsStep) {
-                String barsNumStr = Integer.toString(i);
-                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-                RegressionAlgo algo = new RegressionAlgo(algoConfig, bs);
-                Watcher watcher = new Watcher(config, algo, exchange, pair);
-                watchers.add(watcher);
-            }
-        }
+        String barsNumStr = Integer.toString(barsFrom);
+        algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+        RegressionAlgo algo = new RegressionAlgo(algoConfig, ticksTs);
+        BarSplitter firstBarSplitter = algo.m_lastTicksBuffer;
 
-//        chartData.setTicksData("bars", firstBs);
+        List<Watcher> watchers = new ArrayList<Watcher>();
+//        BarSplitter firstBarSplitter = null;
+//        for (long period = periodFrom; period <= periodTo; period += periodStep) {
+//            BarSplitter bs = new BarSplitter(ticksTs, 5, period);
+//            for (int i = barsFrom; i <= barsTo; i += barsStep) {
+//                String barsNumStr = Integer.toString(i);
+//                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+//                RegressionAlgo algo = new RegressionAlgo(algoConfig, bs);
+//                Watcher watcher = new Watcher(config, algo, exchange, pair);
+//                watchers.add(watcher);
+//
+//                if(firstBarSplitter == null) {
+//                    firstBarSplitter = algo.m_lastTicksBuffer;
+//                }
+//            }
+//        }
+
         if (collectTicks) {
             chartData.setTicksData("price", ticksTs);
+            chartData.setTicksData("bars", firstBarSplitter);
+            TimesSeriesData<TickData> regressorTs = algo.m_regressor.getTS();
+            chartData.setTicksData("regressor", regressorTs);
         }
-        if (collectValues) {
-            Watcher watcher = watchers.get(0);
-            chartData.setTicksData("trades", watcher);
-
-            BaseAlgo algo = watcher.m_algo;
-            chartData.setTicksData("value", algo.getTS(true));
-            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
-            chartData.setTicksData("indicator", ri.getTS(true));
-        }
+//        if (collectValues) {
+//            Watcher watcher = watchers.get(0);
+//            chartData.setTicksData("trades", watcher);
+//
+//            BaseAlgo algo = watcher.m_algo;
+//            chartData.setTicksData("value", algo.getTS(true));
+////            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
+////            chartData.setTicksData("indicator", ri.getTS(true));
+//        }
         
         Runnable callback = new Runnable() {
             private int m_counter = 0;
@@ -201,7 +212,7 @@ public class Main {
         config.put(RegressionCalc.REGRESSION_BARS_NUM, "5");
         RegressionAlgo algo = new RegressionAlgo(config, bs);
         TimesSeriesData<TickData> algoTs = algo.getTS(true);
-        TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS(true);
+        TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getTS();
         Watcher watcher0 = new Watcher(config, algo, exchange, pair);
         watchers.add(watcher0);
 

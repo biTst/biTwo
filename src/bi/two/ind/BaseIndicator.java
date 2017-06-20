@@ -1,11 +1,6 @@
 package bi.two.ind;
 
-import bi.two.chart.BaseTimesSeriesData;
-import bi.two.chart.ITimesSeriesData;
-import bi.two.chart.TickData;
-import bi.two.chart.TimesSeriesData;
-
-import java.util.List;
+import bi.two.chart.*;
 
 public abstract class BaseIndicator extends BaseTimesSeriesData {
     private Float m_prevValue;
@@ -37,44 +32,18 @@ public abstract class BaseIndicator extends BaseTimesSeriesData {
     }
 
 
-    public TimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
-        return new IndicatorTimesSeriesData(this, joinNonChangedValues);
+    public TimesSeriesData<TickData> getTS() {
+        return new IndicatorTimesSeriesData(this);
     }
 
     //----------------------------------------------------------
-    public class IndicatorTimesSeriesData extends TimesSeriesData<TickData> {
-
-        private final boolean m_joinNonChangedValues;
-
-        public IndicatorTimesSeriesData(ITimesSeriesData parent, boolean joinNonChangedValues) {
+    public class IndicatorTimesSeriesData extends JoinNonChangedTimesSeriesData {
+        public IndicatorTimesSeriesData(ITimesSeriesData parent) {
             super(parent);
-            m_joinNonChangedValues = joinNonChangedValues;
         }
 
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            if (changed) {
-                TickData value = getTickValue();
-                if (value != null) {
-                    if (m_joinNonChangedValues) {
-                        List<TickData> ticks = getTicks();
-                        if (!ticks.isEmpty()) {
-                            TickData newestAddedTick = ticks.get(0); // newest
-                            float newestAddedPrice = newestAddedTick.getPrice();
-                            float nowPrice = value.getPrice();
-                            if (newestAddedPrice == nowPrice) {
-                                newestAddedTick.init(value); // just update newest added tick
-                                notifyListeners(false);
-                                return;
-                            }
-                        }
-                    }
-                    TickData tickData = new TickData(value); // close
-                    addNewestTick(tickData);
-                    return;
-                }
-            }
-            notifyListeners(false);
+        @Override protected TickData getTickValue() {
+            return BaseIndicator.this.getTickValue();
         }
     }
-
 }

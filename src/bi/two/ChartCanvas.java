@@ -44,6 +44,7 @@ class ChartCanvas extends JComponent {
         topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
         topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
         topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
+        topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
 
         ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
         List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();

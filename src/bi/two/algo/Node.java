@@ -2,7 +2,7 @@ package bi.two.algo;
 
 //---------------------------------------------------------------
 public class Node<T> {
-    protected T m_param;
+    public T m_param;
     protected Node<T> m_next;
     protected Node<T> m_prev;
 

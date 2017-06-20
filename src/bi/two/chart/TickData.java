@@ -18,8 +18,12 @@ public class TickData implements ITickData {
         m_olderTick = tickData.m_olderTick;
     }
 
-    public void init(TickData tickData) {
-        init(tickData.m_timestamp, tickData.m_price);
+    public TickData(ITickData tickData) {
+        init(tickData);
+    }
+
+    public void init(ITickData tickData) {
+        init(tickData.getTimestamp(), tickData.getPrice());
     }
 
     public void init(long timestamp, float price) {
@@ -28,6 +32,7 @@ public class TickData implements ITickData {
     }
 
     @Override public long getTimestamp() { return m_timestamp; }
+    @Override public float getPrice() { return m_price; }
     @Override public float getMinPrice() { return m_price; }
     @Override public float getMaxPrice() { return m_price; }
     @Override public TickPainter getTickPainter() {
@@ -37,7 +42,6 @@ public class TickData implements ITickData {
 
     @Override public long getBarSize() { return 0; }
 
-    public float getPrice() { return m_price; }
 
     public void setOlderTick(ITickData olderTick) { m_olderTick = olderTick; }
 

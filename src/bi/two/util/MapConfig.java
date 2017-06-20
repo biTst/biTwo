@@ -32,6 +32,10 @@ public class MapConfig extends Properties {
     }
 
     public float getFloat(String key) {
+        return getFloatOrDefault(key, null);
+    }
+
+    public float getFloatOrDefault(String key, Float def) {
         String property = getProperty(key);
         if (property != null) {
             try {
@@ -39,6 +43,9 @@ public class MapConfig extends Properties {
             } catch (NumberFormatException e) {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Float");
             }
+        }
+        if (def != null) {
+            return def;
         }
         throw new RuntimeException("property '" + key + "' not found");
     }

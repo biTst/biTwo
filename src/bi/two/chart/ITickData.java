@@ -2,9 +2,11 @@ package bi.two.chart;
 
 public interface ITickData {
     long getTimestamp();
-    long getBarSize();
+    float getPrice();
     float getMinPrice();
     float getMaxPrice();
+
+    long getBarSize();
 
     TickPainter getTickPainter();
     

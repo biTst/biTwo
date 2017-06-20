@@ -2,6 +2,7 @@ package bi.two.ind;
 
 import bi.two.algo.BarSplitter;
 import bi.two.calc.RegressionCalc;
+import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.util.MapConfig;
 
@@ -38,5 +39,9 @@ public class RegressionIndicator extends BaseIndicator {
             return m_calcValue.getTimestamp();
         }
         return 0;
+    }
+
+    @Override public ITickData getLastTick() {
+        return null;
     }
 }
