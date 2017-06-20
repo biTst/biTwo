@@ -136,15 +136,37 @@ public class RegressionAlgo extends BaseAlgo {
         boolean m_dirty = true;
         private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
         public TickData m_tickData;
+        private BarSplitter.BarHolder.ITicksProcessor<Boolean> m_tickIterator;
+        private long m_lastBarTickTime;
 
         public Regressor(BarSplitter splitter) {
             super(splitter);
             m_splitter = splitter;
+
+            m_tickIterator = new BarSplitter.BarHolder.ITicksProcessor<Boolean>() {
+                @Override public void processTick(ITickData tick) {
+                    long timestamp = tick.getTimestamp();
+                    if(m_lastBarTickTime == 0) {
+                        m_lastBarTickTime = timestamp;
+                    }
+
+                    float price = tick.getMaxPrice();
+                    m_simpleRegression.addData(m_lastBarTickTime - timestamp, price);
+                }
+
+                @Override public Boolean done() {
+                    return null;
+                }
+            };
         }
 
         @Override public ITickData getLastTick() {
             if (m_filled) {
                 if (m_dirty) {
+                    m_simpleRegression.clear();
+                    m_lastBarTickTime = 0;// reset
+                    m_splitter.m_newestBar.iterateTicks(m_tickIterator);
+
                     double value = m_simpleRegression.getIntercept();
                     long timestamp = m_parent.getLastTick().getTimestamp();
                     m_tickData = new TickData(timestamp, (float) value);
@@ -162,17 +184,17 @@ public class RegressionAlgo extends BaseAlgo {
                     m_initialized = true;
                     m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                         @Override public void onTickEnter(ITickData tickData) {
-                            long timestamp = tickData.getTimestamp();
-                            float price = tickData.getMaxPrice();
-                            m_simpleRegression.addData(timestamp, price);
+//                            long timestamp = tickData.getTimestamp();
+//                            float price = tickData.getMaxPrice();
+//                            m_simpleRegression.addData(timestamp, price);
                             m_dirty = true;
                         }
 
                         @Override public void onTickExit(ITickData tickData) {
-                            long timestamp = tickData.getTimestamp();
-                            float price = tickData.getMaxPrice();
-                            m_simpleRegression.removeData(timestamp, price);
-                            m_dirty = true;
+//                            long timestamp = tickData.getTimestamp();
+//                            float price = tickData.getMaxPrice();
+//                            m_simpleRegression.removeData(timestamp, price);
+//                            m_dirty = true;
                             m_filled = true;
                         }
                     });
