@@ -121,6 +121,9 @@ public class Main {
             chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
             chartData.setTicksData("diff.buf", algo.m_averager.m_splitter);
             chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
+            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
+            chartData.setTicksData("sig.avg", algo.m_signaler.getJoinNonChangedTs());
+            chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
 
             // layout
             ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
@@ -135,9 +138,12 @@ public class Main {
             ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
             List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
 //            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("diff", Color.GREEN, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("diff.buf", Color.YELLOW, TickPainter.BAR));
+            bottomLayers.add(new ChartAreaLayerSettings("diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE));
+            bottomLayers.add(new ChartAreaLayerSettings("diff.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
             bottomLayers.add(new ChartAreaLayerSettings("diff.avg", Color.RED, TickPainter.LINE));
+            bottomLayers.add(new ChartAreaLayerSettings("sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
+            bottomLayers.add(new ChartAreaLayerSettings("sig.avg", Color.GRAY, TickPainter.LINE));
+            bottomLayers.add(new ChartAreaLayerSettings("power", Color.CYAN, TickPainter.LINE));
 
             ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
@@ -169,7 +175,7 @@ public class Main {
                 } else if (m_counter > s_prefillTicks) {
                     frame.repaint();
 
-                    if (m_counter % 2 == 0) {
+                    if (m_counter % 3 == 0) {
                         try {
                             Thread.sleep(100);
                         } catch (InterruptedException e) {

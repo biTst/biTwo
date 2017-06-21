@@ -1,3 +1,4 @@
+
 package bi.two.algo.impl;
 
 import bi.two.algo.BarSplitter;
@@ -12,14 +13,12 @@ public class RegressionAlgo extends BaseAlgo {
 
 //    private final boolean m_collectValues;
 //    public final double m_threshold;
-//    public final BarSplitter m_lastTicksBuffer;
-//    public final Regressor m_regressor;
     public final Regressor m_regressor;
     public final BarSplitter m_barSplitter;
     public final Differ m_differ;
-//    public final BarSplitter m_avgBuffer;
-//    public final FadingAverager m_averager;
     public final FadingAverager m_averager;
+    public final SimpleAverager m_signaler;
+    public final Powerer m_powerer;
 
     public RegressionIndicator m_regressionIndicator;
 
@@ -27,10 +26,10 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        int curveLength = 25;
-        int slopeLength = 3;
-        int signalLength = 7;
-        int barSize = 60000; // 1 min
+        int curveLength = 50;
+        int slopeLength = 5;
+        int signalLength = 13;
+        int barSize = 5 * 60000;
 
         m_regressor = new Regressor(tsd, curveLength * barSize);
 
@@ -38,6 +37,10 @@ public class RegressionAlgo extends BaseAlgo {
         m_differ = new Differ(m_barSplitter);
 
         m_averager = new FadingAverager(m_differ, slopeLength * barSize);
+        
+        m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
+
+        m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
 
 //        m_collectValues = config.getBoolean("collect.values");
 //        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
@@ -46,16 +49,16 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_indicators.add(m_regressionIndicator);
 //
 //        m_regressionIndicator.addListener(this);
-        m_differ.addListener(this);
+//        m_differ.addListener(this);
     }
 
-    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        super.onChanged(ts, changed);
-//        if (m_collectValues) {
-//            TickData adjusted = getAdjusted();
-//            addNewestTick(adjusted);
-//        }
-    }
+//    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+//        super.onChanged(ts, changed);
+////        if (m_collectValues) {
+////            TickData adjusted = getAdjusted();
+////            addNewestTick(adjusted);
+////        }
+//    }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         Double value = m_regressionIndicator.getValue();
@@ -216,6 +219,37 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
+    public static class SimpleAverager extends BufferBased<Float> {
+        private double m_summ;
+        private int m_weight;
+
+        public SimpleAverager(ITimesSeriesData<ITickData> tsd, long period) {
+            super(tsd, period);
+        }
+
+        @Override public void start() {
+            m_summ = 0;
+            m_weight = 0;
+        }
+
+        @Override public void processTick(ITickData tick) {
+            float price = tick.getMaxPrice();
+            m_summ += price;
+            m_weight++;
+        }
+
+        @Override public Float done() {
+            float ret = (float) (m_summ / m_weight);
+            return ret;
+        }
+
+        @Override protected float calcTickValue(Float ret) {
+            return ret;
+        }
+    }
+
+
+    //----------------------------------------------------------
     public static abstract class BufferBased<R>
             extends BaseTimesSeriesData<ITickData>
             implements BarSplitter.BarHolder.ITicksProcessor<R> {
@@ -263,6 +297,51 @@ public class RegressionAlgo extends BaseAlgo {
                 iAmChanged = m_filled && m_dirty;
             }
             super.onChanged(this, iAmChanged); // notifyListeners
+        }
+    }
+
+    //----------------------------------------------------------
+    public static class Powerer extends BaseTimesSeriesData<ITickData> {
+        private final FadingAverager m_averager;
+        private final SimpleAverager m_signaler;
+        private final float m_rate;
+        public boolean m_dirty;
+        public ITickData m_tick;
+        public float m_xxx;
+
+        public Powerer(FadingAverager averager, SimpleAverager signaler, float rate) {
+            super(averager);
+            m_averager = averager;
+            m_signaler = signaler;
+            m_rate = rate;
+        }
+
+        @Override public ITickData getLastTick() {
+            if (m_dirty) {
+                m_dirty = false;
+                m_tick = new TickData(m_averager.getLastTick().getTimestamp(), m_xxx);
+            }
+            return m_tick;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                ITickData slrsTick = m_averager.getLastTick();
+                if (slrsTick != null) {
+                    ITickData alrsTick = m_signaler.getLastTick();
+                    if (alrsTick != null) {
+                        float slrs = slrsTick.getPrice();
+                        float alrs = alrsTick.getPrice();
+
+                        float diff = slrs - alrs;
+                        m_xxx = slrs + diff * m_rate;
+                        iAmChanged = true;
+                        m_dirty = true;
+                    }
+                }
+            }
+            super.onChanged(ts, iAmChanged);
         }
     }
 }
