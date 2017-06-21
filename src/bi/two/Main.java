@@ -94,7 +94,6 @@ public class Main {
         String barsNumStr = Integer.toString(barsFrom);
         algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
         RegressionAlgo algo = new RegressionAlgo(algoConfig, ticksTs);
-        BarSplitter firstBarSplitter = algo.m_lastTicksBuffer;
 
         List<Watcher> watchers = new ArrayList<Watcher>();
 //        BarSplitter firstBarSplitter = null;
@@ -116,11 +115,11 @@ public class Main {
         if (collectTicks) {
             ChartData chartData = chartCanvas.getChartData();
             chartData.setTicksData("price", ticksTs);
-            chartData.setTicksData("bars", firstBarSplitter);
+            chartData.setTicksData("bars", algo.m_regressor.m_splitter);
             chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs());
             chartData.setTicksData("bars2", algo.m_barSplitter);
             chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
-            chartData.setTicksData("diff.buf", algo.m_avgBuffer);
+            chartData.setTicksData("diff.buf", algo.m_averager.m_splitter);
             chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
 
             // layout
@@ -170,10 +169,12 @@ public class Main {
                 } else if (m_counter > s_prefillTicks) {
                     frame.repaint();
 
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                    if (m_counter % 2 == 0) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 } else {
                     if (m_counter % 5000 == 0) {
