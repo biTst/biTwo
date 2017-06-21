@@ -10,13 +10,14 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.0001f;
 
-    private final boolean m_collectValues;
-    public final double m_threshold;
+//    private final boolean m_collectValues;
+//    public final double m_threshold;
     public final BarSplitter m_lastTicksBuffer;
     public final Regressor m_regressor;
     public final BarSplitter m_barSplitter;
     public final Differ m_differ;
     public final BarSplitter m_avgBuffer;
+    public final FadingAverager m_averager;
 
     public RegressionIndicator m_regressionIndicator;
 
@@ -40,9 +41,11 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_avgBuffer = new BarSplitter(m_differ, 1, avgBarsNum * barSize);
 
+        m_averager = new FadingAverager(m_avgBuffer);
 
-        m_collectValues = config.getBoolean("collect.values");
-        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
+
+//        m_collectValues = config.getBoolean("collect.values");
+//        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
 //        m_indicators.add(m_regressionIndicator);
@@ -52,11 +55,11 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        notifyListeners(changed);
-        if (m_collectValues) {
-            TickData adjusted = getAdjusted();
-            addNewestTick(adjusted);
-        }
+        super.onChanged(ts, changed);
+//        if (m_collectValues) {
+//            TickData adjusted = getAdjusted();
+//            addNewestTick(adjusted);
+//        }
     }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
@@ -95,13 +98,18 @@ public class RegressionAlgo extends BaseAlgo {
         private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
         public TickData m_tickData;
         private BarSplitter.BarHolder.ITicksProcessor<Boolean> m_tickIterator;
-        private long m_lastBarTickTime;
 
         public Regressor(BarSplitter splitter) {
             super(splitter);
             m_splitter = splitter;
 
             m_tickIterator = new BarSplitter.BarHolder.ITicksProcessor<Boolean>() {
+                private long m_lastBarTickTime;
+
+                @Override public void start() {
+                    m_lastBarTickTime = 0;// reset
+                }
+
                 @Override public void processTick(ITickData tick) {
                     long timestamp = tick.getTimestamp();
                     if (m_lastBarTickTime == 0) {
@@ -122,7 +130,6 @@ public class RegressionAlgo extends BaseAlgo {
             if (m_filled) {
                 if (m_dirty) {
                     m_simpleRegression.clear();
-                    m_lastBarTickTime = 0;// reset
                     m_splitter.m_newestBar.iterateTicks(m_tickIterator);
 
                     double value = m_simpleRegression.getIntercept();
@@ -155,7 +162,6 @@ public class RegressionAlgo extends BaseAlgo {
             super.onChanged(this, iAmChanged); // notifyListeners
         }
     }
-
 
     //----------------------------------------------------------
     public static class Differ extends BaseTimesSeriesData<ITickData> {
@@ -208,6 +214,84 @@ public class RegressionAlgo extends BaseAlgo {
                 }
                 m_dirty = true;
                 iAmChanged = m_filled;
+            }
+            super.onChanged(this, iAmChanged); // notifyListeners
+        }
+    }
+
+
+    //----------------------------------------------------------
+    public static class FadingAverager extends BaseTimesSeriesData<ITickData> {
+        private final BarSplitter m_splitter;
+        private final BarSplitter.BarHolder.ITicksProcessor<Float> m_tickIterator;
+        private boolean m_initialized;
+        public boolean m_dirty;
+        public boolean m_filled;
+        private TickData m_tickData;
+
+        public FadingAverager(BarSplitter splitter) {
+            super(splitter);
+            m_splitter = splitter;
+
+            m_tickIterator = new BarSplitter.BarHolder.ITicksProcessor<Float>() {
+                private long m_startTime;
+                private double m_summ;
+                private double m_weight;
+
+                @Override public void start() {
+                    m_startTime = 0;// reset
+                    m_summ = 0;
+                    m_weight = 0;
+                }
+
+                @Override public void processTick(ITickData tick) {
+                    long timestamp = tick.getTimestamp();
+                    if (m_startTime == 0) {
+                        m_startTime = timestamp - m_splitter.m_period;
+                    }
+
+                    float price = tick.getMaxPrice();
+                    long rate = timestamp - m_startTime;
+                    m_summ += (price * rate);
+                    m_weight += rate;
+                }
+
+                @Override public Float done() {
+                    float ret = (float) (m_summ / m_weight);
+                    return ret;
+                }
+            };
+        }
+
+        @Override public ITickData getLastTick() {
+            if (m_filled) {
+                if (m_dirty) {
+                    Float avg = m_splitter.m_newestBar.iterateTicks(m_tickIterator);
+                    long timestamp = m_parent.getLastTick().getTimestamp();
+                    m_tickData = new TickData(timestamp, avg);
+                    m_dirty = false;
+                }
+                return m_tickData;
+            }
+            return null;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                if (!m_initialized) {
+                    m_initialized = true;
+                    m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_dirty = true;
+                        }
+
+                        @Override public void onTickExit(ITickData tickData) {
+                            m_filled = true;
+                        }
+                    });
+                }
+                iAmChanged = m_filled && m_dirty;
             }
             super.onChanged(this, iAmChanged); // notifyListeners
         }

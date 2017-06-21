@@ -120,7 +120,8 @@ public class Main {
             chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs());
             chartData.setTicksData("bars2", algo.m_barSplitter);
             chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
-            chartData.setTicksData("diff.avg", algo.m_avgBuffer);
+            chartData.setTicksData("diff.buf", algo.m_avgBuffer);
+            chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
 
             // layout
             ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
@@ -136,7 +137,8 @@ public class Main {
             List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
 //            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
             bottomLayers.add(new ChartAreaLayerSettings("diff", Color.GREEN, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("diff.avg", Color.YELLOW, TickPainter.BAR));
+            bottomLayers.add(new ChartAreaLayerSettings("diff.buf", Color.YELLOW, TickPainter.BAR));
+            bottomLayers.add(new ChartAreaLayerSettings("diff.avg", Color.RED, TickPainter.LINE));
 
             ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();

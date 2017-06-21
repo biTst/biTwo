@@ -25,6 +25,8 @@ public class WeightedAverager extends TimesSeriesData<TickData>{
                     private float m_volumeSum;
                     private float m_amount;
 
+                    @Override public void start() {}
+
                     @Override public void processTick(ITickData tick) {
                         float price = tick.getMaxPrice();
                         float volume = ((TickVolumeData) tick).getVolume();

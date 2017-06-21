@@ -232,6 +232,8 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             TickNode lastTick = m_latestTick;
             TickNode oldestTick = m_oldestTick;
 
+            iTicksProcessor.start(); // before iteration
+
             for (TickNode tickNode = lastTick; tickNode != null; tickNode = (TickNode) tickNode.m_prev) {
                 ITickData tick = tickNode.m_param;
                 iTicksProcessor.processTick(tick);
@@ -239,7 +241,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     break;
                 }
             }
-            Ret done = iTicksProcessor.done();
+            Ret done = iTicksProcessor.done();  // after iteration
             return done;
         }
 
@@ -258,6 +260,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         //----------------------------------------------------------------------
         public interface ITicksProcessor<Ret> {
+            void start();
             void processTick(ITickData tick);
             Ret done();
         }
