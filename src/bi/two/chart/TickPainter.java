@@ -43,7 +43,7 @@ public enum TickPainter {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             float maxPrice = tick.getMaxPrice();
             float minPrice = tick.getMinPrice();
-            if ((minPrice != Utils.INVALID_PRICE) && (maxPrice != 0)) {
+            if ((minPrice != Utils.INVALID_PRICE) && (maxPrice != Utils.INVALID_PRICE)) {
                 long barSize = tick.getBarSize();
                 int top = yAxe.translateInt(maxPrice);
                 int bottom = yAxe.translateInt(minPrice);
@@ -51,6 +51,8 @@ public enum TickPainter {
                 int right = xAxe.translateInt(timestamp);
                 int left = xAxe.translateInt(timestamp - barSize + 1);
                 g2.drawRect(left, top, right - left, bottom - top);
+            } else {
+//                System.out.println("minPrice=" + minPrice + "; maxPrice=" + maxPrice);
             }
         }
     },

@@ -16,6 +16,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final Regressor m_regressor;
     public final BarSplitter m_barSplitter;
     public final Differ m_differ;
+    public final BarSplitter m_avgBuffer;
 
     public RegressionIndicator m_regressionIndicator;
 
@@ -23,8 +24,9 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        int barsNum = 20;
-        int barSize = 60000;
+        int barsNum = 25;
+        int avgBarsNum = 3;
+        int barSize = 60000; // 1 min
 
         // last ticks buffer
         m_lastTicksBuffer = new BarSplitter(tsd, 1, barsNum * barSize);
@@ -35,6 +37,9 @@ public class RegressionAlgo extends BaseAlgo {
         m_barSplitter = new BarSplitter(m_regressor, 2, barSize);
 
         m_differ = new Differ(m_barSplitter);
+
+        m_avgBuffer = new BarSplitter(m_differ, 1, avgBarsNum * barSize);
+
 
         m_collectValues = config.getBoolean("collect.values");
         m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
@@ -182,10 +187,9 @@ public class RegressionAlgo extends BaseAlgo {
                     long timestamp = newestBarTick.getTimestamp();
                     m_tickData = new TickData(timestamp, diff);
                     m_dirty = false;
-                    return m_tickData;
                 }
             }
-            return null;
+            return m_tickData;
         }
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {

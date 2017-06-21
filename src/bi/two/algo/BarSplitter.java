@@ -104,7 +104,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         private TickNode m_oldestTick;
         private BarHolder m_olderBar;
         private float m_minPrice = Utils.INVALID_PRICE;
-        private float m_maxPrice = 0.0F;
+        private float m_maxPrice = Utils.INVALID_PRICE;
         private boolean m_dirty; // == changed
         private List<IBarHolderListener> m_listeners;
 
@@ -143,17 +143,22 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         private void recalcMinMax() {
             float minPrice = Utils.INVALID_PRICE;
-            float maxPrice = 0.0F;
+            float maxPrice = Utils.INVALID_PRICE;
             TickNode lastTick = m_latestTick;
             TickNode oldestTick = m_oldestTick;
 
-            for(TickNode tickNode = lastTick; tickNode != null; tickNode = (TickNode)tickNode.m_prev) {
+            for (TickNode tickNode = lastTick; tickNode != null; tickNode = (TickNode) tickNode.m_prev) {
                 ITickData tick = tickNode.m_param;
-                float max = tick.getMaxPrice();
-                maxPrice = Math.max(maxPrice, max);
                 float min = tick.getMinPrice();
-                minPrice = Math.min(minPrice, min);
-                if(tickNode == oldestTick) {
+                float max = tick.getMaxPrice();
+                if (tickNode == lastTick) {
+                    minPrice = min;
+                    maxPrice = max;
+                } else {
+                    minPrice = Math.min(minPrice, min);
+                    maxPrice = Math.max(maxPrice, max);
+                }
+                if (tickNode == oldestTick) {
                     break;
                 }
             }
