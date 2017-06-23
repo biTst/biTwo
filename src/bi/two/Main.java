@@ -153,7 +153,7 @@ public class Main {
             chartSetting.addChartAreaSettings(top);
             chartSetting.addChartAreaSettings(bottom);
             chartSetting.addChartAreaSettings(value);
-        }
+        } //
 //        if (collectValues) {
 //            Watcher watcher = watchers.get(0);
 //            chartData.setTicksData("trades", watcher);
