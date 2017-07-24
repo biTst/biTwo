@@ -3,6 +3,7 @@ package bi.two.algo.impl;
 
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
+import bi.two.calc.BarsSimpleAverager;
 import bi.two.chart.*;
 import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
@@ -11,10 +12,11 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.0001f;
 
-//    private final boolean m_collectValues;
+    private final boolean m_collectValues;
 //    public final double m_threshold;
     public final Regressor m_regressor;
-    public final BarSplitter m_barSplitter;
+    public final BarSplitter m_regressorBars;
+    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ;
     public final FadingAverager m_averager;
     public final SimpleAverager m_signaler;
@@ -31,10 +33,16 @@ public class RegressionAlgo extends BaseAlgo {
         int signalLength = 13;
         int barSize = 5 * 60000;
 
+        m_collectValues = config.getBoolean("collect.values");
+
         m_regressor = new Regressor(tsd, curveLength * barSize);
 
-        m_barSplitter = new BarSplitter(m_regressor, 2, barSize);
-        m_differ = new Differ(m_barSplitter);
+        m_regressorBars = new BarSplitter(m_regressor, m_collectValues ? 1000 : 2, barSize);
+        if (m_collectValues) {
+            m_regressorBarsAvg = new BarsSimpleAverager(m_regressorBars);
+        }
+
+        m_differ = new Differ(m_regressorBars);
 
         m_averager = new FadingAverager(m_differ, slopeLength * barSize);
         
@@ -42,7 +50,6 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
 
-//        m_collectValues = config.getBoolean("collect.values");
 //        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
@@ -310,7 +317,7 @@ public class RegressionAlgo extends BaseAlgo {
         public float m_xxx;
 
         public Powerer(FadingAverager averager, SimpleAverager signaler, float rate) {
-            super(averager);
+            super(signaler);
             m_averager = averager;
             m_signaler = signaler;
             m_rate = rate;

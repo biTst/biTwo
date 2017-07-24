@@ -187,8 +187,9 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             }
             m_dirty = true;
             if (m_listeners != null) {
+                ITickData param = tickNode.m_param;
                 for (IBarHolderListener listener : m_listeners) {
-                    listener.onTickEnter(tickNode.m_param);
+                    listener.onTickEnter(param);
                 }
             }
         }
@@ -225,7 +226,6 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
                 m_oldestTick = (TickNode) m_oldestTick.m_next;
             }
-
         }
 
         public <Ret> Ret iterateTicks(ITicksProcessor<Ret> iTicksProcessor) {

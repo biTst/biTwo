@@ -21,7 +21,7 @@ public class TimesSeriesData<T extends ITickData>
         notifyListeners(true);
     }
 
-    public void addTick(T t) {
+    public void addOlderTick(T t) {
         int size = m_ticks.size();
         if (size > 0) {
             T last = m_ticks.get(size - 1);

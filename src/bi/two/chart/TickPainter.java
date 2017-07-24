@@ -56,6 +56,25 @@ public enum TickPainter {
             }
         }
     },
+    CIRCLE {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+            float maxPrice = tick.getMaxPrice();
+            if (maxPrice != Utils.INVALID_PRICE) {
+                long barSize = tick.getBarSize();
+
+                long timestamp = tick.getTimestamp();
+                int right = xAxe.translateInt(timestamp);
+                int left = xAxe.translateInt(timestamp - barSize + 1);
+                int width = right - left;
+
+                int top = yAxe.translateInt(maxPrice) - width/2;
+
+                g2.drawOval(left, top, width, width);
+            } else {
+//                System.out.println("minPrice=" + minPrice + "; maxPrice=" + maxPrice);
+            }
+        }
+    },
     TRADE {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             TradeData trade = (TradeData) tick;

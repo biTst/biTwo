@@ -2,8 +2,8 @@ package bi.two;
 
 import bi.two.algo.BarSplitter;
 import bi.two.algo.Watcher;
-import bi.two.algo.WeightedAverager;
 import bi.two.algo.impl.RegressionAlgo;
+import bi.two.calc.BarsWeightedAverager;
 import bi.two.calc.RegressionCalc;
 import bi.two.chart.*;
 import bi.two.exch.*;
@@ -75,7 +75,7 @@ public class Main {
             }
         };
         if (!collectTicks) { // add initial tick to update
-            ticksTs.addTick(new TickData());
+            ticksTs.addOlderTick(new TickData());
         }
 
         Exchange exchange = Exchange.get("bitstamp");
@@ -117,23 +117,25 @@ public class Main {
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("bars", algo.m_regressor.m_splitter);
             chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs());
-            chartData.setTicksData("bars2", algo.m_barSplitter);
-            chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
-            chartData.setTicksData("diff.buf", algo.m_averager.m_splitter);
-            chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
-            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
-            chartData.setTicksData("sig.avg", algo.m_signaler.getJoinNonChangedTs());
-            chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
+            chartData.setTicksData("bars2", algo.m_regressorBars);
+            chartData.setTicksData("bars2.avg", algo.m_regressorBarsAvg);
+//            chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
+//            chartData.setTicksData("diff.buf", algo.m_averager.m_splitter);
+//            chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
+//            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
+//            chartData.setTicksData("sig.avg", algo.m_signaler.getJoinNonChangedTs());
+//            chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
 
             // layout
             ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
             List<ChartAreaLayerSettings> topLayers = top.getLayers();
-            topLayers.add(new ChartAreaLayerSettings("price", Color.RED, TickPainter.TICK));
+            topLayers.add(new ChartAreaLayerSettings("price", Colors.alpha(Color.RED, 100), TickPainter.TICK));
             topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
 //            topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
 //            topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
             topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
             topLayers.add(new ChartAreaLayerSettings("bars2", Color.ORANGE, TickPainter.BAR));
+            topLayers.add(new ChartAreaLayerSettings("bars2.avg", Colors.LIME, TickPainter.CIRCLE));
 
             ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
             List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
@@ -175,7 +177,7 @@ public class Main {
                 } else if (m_counter > s_prefillTicks) {
                     frame.repaint();
 
-                    if (m_counter % 3 == 0) {
+                    if (m_counter % 5 == 0) {
                         try {
                             Thread.sleep(100);
                         } catch (InterruptedException e) {
@@ -238,7 +240,7 @@ public class Main {
         ChartData chartData = chartCanvas.getChartData();
         final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
         BarSplitter bs = new BarSplitter(ticksTs, 20, 60000l);
-        WeightedAverager averager = new WeightedAverager(bs);
+        BarsWeightedAverager averager = new BarsWeightedAverager(bs);
 
         List<Watcher> watchers = new ArrayList<Watcher>();
         Exchange exchange = Exchange.get("bitstamp");
