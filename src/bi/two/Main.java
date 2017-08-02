@@ -168,7 +168,7 @@ public class Main {
                 Watcher watcher = watchers.get(0);
                 chartData.setTicksData("trades", watcher);
 
-                topLayers.add(new ChartAreaLayerSettings("trades", Color.RED, TickPainter.RIGHT_CIRCLE));
+                topLayers.add(new ChartAreaLayerSettings("trades", Color.WHITE, TickPainter.TRADE));
 
 //            BaseAlgo baseAlgo = watcher.m_algo;
 //            chartData.setTicksData("value", baseAlgo.getJoinNonChangedTs());

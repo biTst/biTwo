@@ -137,7 +137,7 @@ class ChartCanvas extends JComponent {
 
         private void onMouseWheelMoved(MouseWheelEvent e) {
             int notches = e.getWheelRotation();
-            m_cps.zoom(notches < 0);
+            m_cps.zoom(notches > 0);
             repaint(150);
         }
     }

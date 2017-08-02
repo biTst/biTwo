@@ -64,7 +64,7 @@ public enum TickPainter {
 
                 long timestamp = tick.getTimestamp();
                 int right = xAxe.translateInt(timestamp);
-                int left = xAxe.translateInt(timestamp - barSize + 1);
+                int left = (barSize > 0) ? xAxe.translateInt(timestamp - barSize + 1) : right - 12;
                 int width = right - left;
                 if (width > 4) {
                     width = width / 2;
