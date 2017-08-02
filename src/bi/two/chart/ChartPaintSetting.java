@@ -4,7 +4,7 @@ package bi.two.chart;
 public class ChartPaintSetting {
     private int m_width;
     private int m_height;
-    private final Axe m_xAxe = new Axe();
+    private final Axe.AxeLong m_xAxe = new Axe.AxeLong();
     private int m_priceAxeWidth;
 
     public ChartPaintSetting() {
@@ -12,7 +12,7 @@ public class ChartPaintSetting {
 
     public int getWidth() { return m_width; }
     public int getHeight() { return m_height; }
-    public Axe getXAxe() { return m_xAxe; }
+    public Axe.AxeLong getXAxe() { return m_xAxe; }
     public int getPriceAxeWidth() { return m_priceAxeWidth; }
 
     public void setPriceAxeWidth(int priceAxeWidth) { m_priceAxeWidth = priceAxeWidth; }
@@ -29,12 +29,12 @@ public class ChartPaintSetting {
     }
 
     private void shiftXAxe(int widthDelta) {
-        if(m_xAxe.isInitialized()) {
-            m_xAxe.resize(widthDelta);
+        if (m_xAxe.isInitialized()) {
+            m_xAxe.shift(widthDelta);
         }
     }
 
-    public void initXAxe(float timeMin, float timeMax, int xMin, int xMax) {
+    public void initXAxe(long timeMin, long timeMax, int xMin, int xMax) {
         m_xAxe.init(timeMin, timeMax, xMin, xMax);
     }
 
@@ -43,7 +43,7 @@ public class ChartPaintSetting {
     }
 
     public void zoom(boolean in) {
-        if(m_xAxe.isInitialized()) {
+        if (m_xAxe.isInitialized()) {
             m_xAxe.zoom(in);
         }
     }

@@ -65,11 +65,16 @@ public enum TickPainter {
                 long timestamp = tick.getTimestamp();
                 int right = xAxe.translateInt(timestamp);
                 int left = xAxe.translateInt(timestamp - barSize + 1);
+                int centerX = (right + left) / 2;
                 int width = right - left;
+                if (width > 4) {
+                    width = width / 2;
+                }
+                int radius = width / 2;
 
-                int top = yAxe.translateInt(maxPrice) - width/2;
+                int centerY = yAxe.translateInt(maxPrice);
 
-                g2.drawOval(left, top, width, width);
+                g2.fillOval(centerX - radius, centerY - radius, width, width);
             } else {
 //                System.out.println("minPrice=" + minPrice + "; maxPrice=" + maxPrice);
             }

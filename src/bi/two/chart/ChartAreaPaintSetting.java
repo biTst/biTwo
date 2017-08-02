@@ -5,7 +5,7 @@ public class ChartAreaPaintSetting {
     private final int m_paintWidth;
     private final int m_paintTop;
     private final int m_paintHeight;
-    private final Axe m_yAxe = new Axe();
+    private final Axe.AxeFloat m_yAxe = new Axe.AxeFloat();
 
     public ChartAreaPaintSetting(int paintLeft, int paintWidth, int paintTop, int paintHeight) {
         m_paintLeft = paintLeft;

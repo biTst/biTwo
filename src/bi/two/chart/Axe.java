@@ -4,32 +4,36 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.text.NumberFormat;
 
-public class Axe {
+public abstract class Axe<Src extends Number> {
     public static final int AXE_MARKER_WIDTH = 10;
 
     private boolean m_isInitialized;
-    private double m_srcMin;
-    private double m_srcMax;
+    private Src m_srcMin;
+    private Src m_srcMax;
+    private Src m_srcDiff; // src min<->max
+
     private int m_dstMin;
     private int m_dstMax;
+    private int m_dstDiff;
+
     private double m_scale;
-    private int m_size;
-    private double m_diff; // src min<->max
+
+    protected abstract Src newSrc(double value);
 
     public Axe() {
         m_isInitialized = false;
     }
 
-    public Axe(float srcMin, float srcMax, int dstMin, int dstMax) {
+    public Axe(Src srcMin, Src srcMax, int dstMin, int dstMax) {
         init(srcMin, srcMax, dstMin, dstMax);
     }
 
     public boolean isInitialized() { return m_isInitialized; }
     public double getScale() { return m_scale; }
-    public double getSrcMin() { return m_srcMin; }
+    public Src getSrcMin() { return m_srcMin; }
     public int getDstMin() { return m_dstMin; }
 
-    public void init(double srcMin, double srcMax, int dstMin, int dstMax) {
+    public void init(Src srcMin, Src srcMax, int dstMin, int dstMax) {
         m_srcMin = srcMin;
         m_srcMax = srcMax;
         m_dstMin = dstMin;
@@ -39,14 +43,28 @@ public class Axe {
     }
 
     protected void updateInt() {
-        m_size = m_dstMax - m_dstMin;
-        m_diff = m_srcMax - m_srcMin;
-        m_scale = (m_srcMax - m_srcMin) / (m_dstMax - m_dstMin);
+        m_srcDiff = newSrc(m_srcMax.doubleValue() - m_srcMin.doubleValue());
+        m_dstDiff = m_dstMax - m_dstMin;
+        m_scale = m_srcDiff.doubleValue() / m_dstDiff;
     }
 
     public void resize(int xDelta) {
         m_dstMax += xDelta;
-        m_srcMin -= (xDelta * m_scale);
+        m_srcMin = newSrc(m_srcMin.doubleValue() - (xDelta * m_scale));
+        updateInt();
+    }
+
+    public void shift(int xDelta) {
+        double xDeltaScaled = xDelta * m_scale;
+        m_srcMin = newSrc(m_srcMin.doubleValue() - xDeltaScaled);
+        m_srcMax = newSrc(m_srcMax.doubleValue() - xDeltaScaled);
+        updateInt();
+    }
+
+    public void zoom(boolean in) {
+        double newDiff = m_srcDiff.doubleValue() * (in ? 1.1f : 0.9f);
+        double newSrcMin = m_srcMax.doubleValue() - newDiff;
+        m_srcMin = newSrc(newSrcMin);
         updateInt();
     }
 
@@ -62,7 +80,7 @@ public class Axe {
     }
 
     public double getDstOffset(double value) {
-        double srcOffset = value - m_srcMin;
+        double srcOffset = value - m_srcMin.doubleValue();
         double ret = srcOffset / m_scale;
         return ret;
     }
@@ -75,7 +93,7 @@ public class Axe {
 
     private double getValue(int dstOffset) {
         double offset = dstOffset * m_scale;
-        double value = offset + m_srcMin;
+        double value = offset + m_srcMin.doubleValue();
         return value;
     }
 
@@ -86,8 +104,8 @@ public class Axe {
         int fontHeight = g.getFont().getSize();
         int halfFontHeight = fontHeight / 2;
 
-        int maxLabelsCount = Math.abs(m_size) * 3 / fontHeight / 4;
-        double maxLabelsStep = m_diff / maxLabelsCount;
+        int maxLabelsCount = Math.abs(m_dstDiff) * 3 / fontHeight / 4;
+        double maxLabelsStep = m_srcDiff.doubleValue() / maxLabelsCount;
         double log = Math.log10(maxLabelsStep);
         int floor = (int) Math.floor(log);
         int points = Math.max(0, -floor);
@@ -107,8 +125,8 @@ public class Axe {
         }
         double step = stepMant * pow;
 
-        double minLabel = Math.floor(m_srcMin / step) * step;
-        double maxLabel = Math.ceil(m_srcMax / step) * step;
+        double minLabel = Math.floor(m_srcMin.doubleValue() / step) * step;
+        double maxLabel = Math.ceil(m_srcMax.doubleValue() / step) * step;
 
         NumberFormat nf = NumberFormat.getInstance();
         nf.setMaximumFractionDigits(points);
@@ -152,10 +170,27 @@ public class Axe {
         return maxWidth + AXE_MARKER_WIDTH + 2;
     }
 
-    public void zoom(boolean in) {
-        double newDiff = m_diff * (in ? 1.1f : 0.9f);
-        double newSrcMin = m_srcMax - newDiff;
-        m_srcMin = newSrcMin;
-        updateInt();
+
+    //--------------------------------------------------------------
+    public static class AxeLong extends Axe<Long> {
+        @Override protected Long newSrc(double value) {
+            return new Long((long) value);
+        }
+    }
+
+
+    //--------------------------------------------------------------
+    public static class AxeFloat extends Axe<Float> {
+        @Override protected Float newSrc(double value) {
+            return new Float(value);
+        }
+    }
+
+
+    //--------------------------------------------------------------
+    public static class AxeDouble extends Axe<Double> {
+        @Override protected Double newSrc(double value) {
+            return new Double(value);
+        }
     }
 }

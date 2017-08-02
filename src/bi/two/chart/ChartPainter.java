@@ -18,7 +18,7 @@ public class ChartPainter {
     public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData) {
         List<ChartAreaSettings> chartAreasSettings = chartSetting.getChartAreasSettings();
 
-        Axe xAxe = cps.getXAxe();
+        Axe.AxeLong xAxe = cps.getXAxe();
         boolean tryInitAxe = !xAxe.isInitialized();
         long minTimestamp = Long.MAX_VALUE;
         long maxTimestamp = 0;
@@ -143,7 +143,7 @@ public class ChartPainter {
             if (cad != null) {
                 ITicksData ticksData = cad.getTicksData();
                 if (ticksData != null) {
-                    Axe xAxe = cps.getXAxe();
+                    Axe.AxeLong xAxe = cps.getXAxe();
                     Color layerColor = ls.getColor();
                     g2.setColor(layerColor);
 
@@ -172,7 +172,11 @@ public class ChartPainter {
 
         int textY = height - 2;
 
-        Axe timeAxe = cps.getXAxe();
+        Axe.AxeLong timeAxe = cps.getXAxe();
+        if(!timeAxe.isInitialized()) {
+            return;
+        }
+
         long timeMin = (long) timeAxe.translateReverse(0);
         long timeMax = (long) timeAxe.translateReverse(timeAxeWidth);
 
