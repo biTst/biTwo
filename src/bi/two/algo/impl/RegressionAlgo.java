@@ -58,7 +58,7 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_indicators.add(m_regressionIndicator);
 //
 //        m_regressionIndicator.addListener(this);
-//        m_differ.addListener(this);
+        m_adjuster.addListener(this);
     }
 
 //    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -74,7 +74,7 @@ public class RegressionAlgo extends BaseAlgo {
         return getDirectionAdjusted(value);
     }
 
-    private double getDirectionAdjusted(Double value) {
+    private static double getDirectionAdjusted(Double value) {
         return (value == null)
                 ? 0
                 : (value > DEF_THRESHOLD)
@@ -84,15 +84,22 @@ public class RegressionAlgo extends BaseAlgo {
                         : 0;
     }
 
-    @Override public TickData getAdjusted() {
-        long timestamp = m_regressionIndicator.getTimestamp();
-        if (timestamp != 0) {
-            Double value = m_regressionIndicator.getValue();
-            if (value != null) {
-                return new TickData(timestamp, (float) getDirectionAdjusted(value));
-            }
-        }
-        return null;
+    @Override public ITickData getAdjusted() {
+        ITickData lastTick = m_adjuster.getLastTick();
+        return lastTick;
+        
+//        if(lastTick != null) {
+//            return new TickData(lastTick.getTimestamp(), m_adjuster.);
+//        }
+
+//        long timestamp = m_regressionIndicator.getTimestamp();
+//        if (timestamp != 0) {
+//            Double value = m_regressionIndicator.getValue();
+//            if (value != null) {
+//                return new TickData(timestamp, (float) getDirectionAdjusted(value));
+//            }
+//        }
+//        return null;
     }
 
 

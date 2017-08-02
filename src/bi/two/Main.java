@@ -91,29 +91,33 @@ public class Main {
 
         MapConfig algoConfig = new MapConfig();
         algoConfig.put("collect.values", Boolean.valueOf(collectValues).toString());
-        String barsNumStr = Integer.toString(barsFrom);
-        algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-        RegressionAlgo algo = new RegressionAlgo(algoConfig, ticksTs);
+//        String barsNumStr = Integer.toString(barsFrom);
+//        algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+//        RegressionAlgo algo = new RegressionAlgo(algoConfig, ticksTs);
 
+        RegressionAlgo algo = null;
         List<Watcher> watchers = new ArrayList<Watcher>();
 //        BarSplitter firstBarSplitter = null;
-//        for (long period = periodFrom; period <= periodTo; period += periodStep) {
+        for (long period = periodFrom; period <= periodTo; period += periodStep) {
 //            BarSplitter bs = new BarSplitter(ticksTs, 5, period);
-//            for (int i = barsFrom; i <= barsTo; i += barsStep) {
-//                String barsNumStr = Integer.toString(i);
-//                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-//                RegressionAlgo algo = new RegressionAlgo(algoConfig, bs);
-//                Watcher watcher = new Watcher(config, algo, exchange, pair);
-//                watchers.add(watcher);
-//
+            for (int i = barsFrom; i <= barsTo; i += barsStep) {
+                String barsNumStr = Integer.toString(i);
+                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
+                RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                if (algo == null) {
+                    algo = nextAlgo;
+                }
+                Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
+                watchers.add(watcher);
+
 //                if(firstBarSplitter == null) {
 //                    firstBarSplitter = algo.m_lastTicksBuffer;
 //                }
-//            }
-//        }
+            }
+        }
 
+        ChartData chartData = chartCanvas.getChartData();
         if (collectTicks) {
-            ChartData chartData = chartCanvas.getChartData();
             chartData.setTicksData("price", ticksTs);
             chartData.setTicksData("price.buff", algo.m_regressor.m_splitter); // regressor price buffer
             chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs()); // Linear Regression Curve
@@ -160,21 +164,24 @@ public class Main {
                 valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
             }
 
+            if (collectValues) {
+                Watcher watcher = watchers.get(0);
+                chartData.setTicksData("trades", watcher);
+
+                topLayers.add(new ChartAreaLayerSettings("trades", Color.RED, TickPainter.RIGHT_CIRCLE));
+
+//            BaseAlgo baseAlgo = watcher.m_algo;
+//            chartData.setTicksData("value", baseAlgo.getJoinNonChangedTs());
+//            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
+//            chartData.setTicksData("indicator", ri.getJoinNonChangedTs(true));
+            }
+
             ChartSetting chartSetting = chartCanvas.getChartSetting();
             chartSetting.addChartAreaSettings(top);
             chartSetting.addChartAreaSettings(bottom);
             chartSetting.addChartAreaSettings(value);
-        } //
-//        if (collectValues) {
-//            Watcher watcher = watchers.get(0);
-//            chartData.setTicksData("trades", watcher);
-//
-//            BaseAlgo algo = watcher.m_algo;
-//            chartData.setTicksData("value", algo.getJoinNonChangedTs(true));
-////            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
-////            chartData.setTicksData("indicator", ri.getJoinNonChangedTs(true));
-//        }
-        
+        }
+
         Runnable callback = new Runnable() {
             private int m_counter = 0;
             private long lastTime = 0;

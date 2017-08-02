@@ -1,9 +1,6 @@
 package bi.two.algo;
 
-import bi.two.chart.ITimesSeriesData;
-import bi.two.chart.TickData;
-import bi.two.chart.TimesSeriesData;
-import bi.two.chart.TradeData;
+import bi.two.chart.*;
 import bi.two.exch.*;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -43,7 +40,7 @@ public class Watcher extends TimesSeriesData<TickData> {
             if (m_initAcctData == null) { // first run
                 init();
             } else {
-                TickData adjusted = m_algo.getAdjusted();
+                ITickData adjusted = m_algo.getAdjusted();
                 if (adjusted != null) {
                     process(adjusted);
                 }
@@ -51,7 +48,7 @@ public class Watcher extends TimesSeriesData<TickData> {
         }
     }
 
-    private void process(TickData tickAdjusted) {
+    private void process(ITickData tickAdjusted) {
         float direction = tickAdjusted.getPrice(); // UP/DOWN
 
         Currency currencyFrom = m_pair.m_from;

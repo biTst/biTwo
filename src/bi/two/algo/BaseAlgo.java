@@ -1,9 +1,6 @@
 package bi.two.algo;
 
-import bi.two.chart.BaseTimesSeriesData;
-import bi.two.chart.ITimesSeriesData;
-import bi.two.chart.TickData;
-import bi.two.chart.TimesSeriesData;
+import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
 
 import java.util.ArrayList;
@@ -18,7 +15,7 @@ public class BaseAlgo extends TimesSeriesData {
 
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
-    public TickData getAdjusted() { return null; }
+    public ITickData getAdjusted() { return null; }
 
     public TimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
         return new AlgoTimesSeriesData(this, joinNonChangedValues);
@@ -41,7 +38,7 @@ public class BaseAlgo extends TimesSeriesData {
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             if (changed) {
-                TickData value = getAdjusted();
+                ITickData value = getAdjusted();
                 if (value != null) {
                     if (m_joinNonChangedValues) {
                         List<TickData> ticks = getTicks();
