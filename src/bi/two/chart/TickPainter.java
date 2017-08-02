@@ -22,9 +22,9 @@ public enum TickPainter {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             if (prevTick != null) {
                 float price = tick.getMaxPrice();
-                if ((price != Utils.INVALID_PRICE) && (price != 0)) {
+                if ((price != Utils.INVALID_PRICE) && !Float.isInfinite(price)) {
                     float prevPrice = prevTick.getMaxPrice();
-                    if ((prevPrice != Utils.INVALID_PRICE) && (prevPrice != 0)) {
+                    if ((prevPrice != Utils.INVALID_PRICE) && !Float.isInfinite(prevPrice)) {
                         int y = yAxe.translateInt(price);
                         long timestamp = tick.getTimestamp();
                         int x = xAxe.translateInt(timestamp);

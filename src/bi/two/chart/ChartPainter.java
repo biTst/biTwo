@@ -73,8 +73,8 @@ public class ChartPainter {
 
             ChartAreaPaintSetting caps = new ChartAreaPaintSetting(paintLeft, paintWidth, paintTop, paintHeight);
 
-            float minPrice = Utils.INVALID_PRICE;
-            float maxPrice = 0;
+            float minPrice = Float.POSITIVE_INFINITY;
+            float maxPrice = Float.NEGATIVE_INFINITY;
             List<ChartAreaLayerSettings> layers = cas.getLayers();
             for (ChartAreaLayerSettings layer : layers) {
                 String name = layer.getName();
@@ -87,13 +87,19 @@ public class ChartPainter {
                             float min = tick.getMinPrice();
                             float max = tick.getMaxPrice();
 
-                            if ((min != Utils.INVALID_PRICE) && (max != 0)) {
+                            if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
                                 maxPrice = Math.max(maxPrice, max);
                                 minPrice = Math.min(minPrice, min);
                             }
                         }
                     }
                 }
+            }
+            if (!Float.isInfinite(minPrice) && !Float.isInfinite(maxPrice)) {
+                float diff = maxPrice - minPrice;
+                float extra = diff * 0.05f;
+                minPrice -= extra;
+                maxPrice += extra;
             }
             caps.initYAxe(minPrice, maxPrice);
 
