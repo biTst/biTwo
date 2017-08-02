@@ -115,41 +115,48 @@ public class Main {
         if (collectTicks) {
             ChartData chartData = chartCanvas.getChartData();
             chartData.setTicksData("price", ticksTs);
-            chartData.setTicksData("bars", algo.m_regressor.m_splitter);
-            chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs());
-            chartData.setTicksData("bars2", algo.m_regressorBars);
-            chartData.setTicksData("bars2.avg", algo.m_regressorBarsAvg);
-//            chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs());
-//            chartData.setTicksData("diff.buf", algo.m_averager.m_splitter);
-//            chartData.setTicksData("diff.avg", algo.m_averager.getJoinNonChangedTs());
+            chartData.setTicksData("price.buff", algo.m_regressor.m_splitter); // regressor price buffer
+            chartData.setTicksData("regressor", algo.m_regressor.getJoinNonChangedTs()); // Linear Regression Curve
+            chartData.setTicksData("regressor.bars", algo.m_regressorBars);
+//            chartData.setTicksData("bars2.avg", algo.m_regressorBarsAvg);
+//            chartData.setTicksData("diff", algo.m_differ.getJoinNonChangedTs()); // diff = Linear Regression Slope
+            chartData.setTicksData("slope", algo.m_scaler.getJoinNonChangedTs()); // diff (Linear Regression Slope) scaled by price
+//            chartData.setTicksData("slope.buf", algo.m_averager.m_splitter);
+            chartData.setTicksData("slope.avg", algo.m_averager.getJoinNonChangedTs());
 //            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
-//            chartData.setTicksData("sig.avg", algo.m_signaler.getJoinNonChangedTs());
-//            chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
+            chartData.setTicksData("signal.avg", algo.m_signaler.getJoinNonChangedTs());
+            chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
 
             // layout
             ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
             List<ChartAreaLayerSettings> topLayers = top.getLayers();
-            topLayers.add(new ChartAreaLayerSettings("price", Colors.alpha(Color.RED, 100), TickPainter.TICK));
-            topLayers.add(new ChartAreaLayerSettings("bars", Color.BLUE, TickPainter.BAR));
+            {
+                topLayers.add(new ChartAreaLayerSettings("price", Colors.alpha(Color.RED, 70), TickPainter.TICK));
+                topLayers.add(new ChartAreaLayerSettings("price.buff", Colors.alpha(Color.BLUE, 100), TickPainter.BAR));
 //            topLayers.add(new ChartAreaLayerSettings("avg", Color.ORANGE, TickPainter.LINE));
 //            topLayers.add(new ChartAreaLayerSettings("trades", Color.YELLOW, TickPainter.TRADE));
-            topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
-            topLayers.add(new ChartAreaLayerSettings("bars2", Color.ORANGE, TickPainter.BAR));
-            topLayers.add(new ChartAreaLayerSettings("bars2.avg", Colors.LIME, TickPainter.CIRCLE));
+                topLayers.add(new ChartAreaLayerSettings("regressor", Color.PINK, TickPainter.LINE));
+                topLayers.add(new ChartAreaLayerSettings("regressor.bars", Color.ORANGE, TickPainter.BAR));
+//                topLayers.add(new ChartAreaLayerSettings("bars2.avg", Colors.LIME, TickPainter.RIGHT_CIRCLE));
+            }
 
             ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
-            List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
+            List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers(); {
 //            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("diff.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
-            bottomLayers.add(new ChartAreaLayerSettings("diff.avg", Color.RED, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
-            bottomLayers.add(new ChartAreaLayerSettings("sig.avg", Color.GRAY, TickPainter.LINE));
-            bottomLayers.add(new ChartAreaLayerSettings("power", Color.CYAN, TickPainter.LINE));
+//                bottomLayers.add(new ChartAreaLayerSettings("diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE));
+                bottomLayers.add(new ChartAreaLayerSettings("slope", Colors.alpha(Colors.LIME, 60), TickPainter.LINE /*RIGHT_CIRCLE*/));
+//                bottomLayers.add(new ChartAreaLayerSettings("slope.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
+                bottomLayers.add(new ChartAreaLayerSettings("slope.avg", Color.RED, TickPainter.LINE));
+//                bottomLayers.add(new ChartAreaLayerSettings("sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
+                bottomLayers.add(new ChartAreaLayerSettings("signal.avg", Color.GRAY, TickPainter.LINE));
+                bottomLayers.add(new ChartAreaLayerSettings("power", Color.CYAN, TickPainter.LINE));
+            }
 
             ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+            {
 //            valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
+            }
 
             ChartSetting chartSetting = chartCanvas.getChartSetting();
             chartSetting.addChartAreaSettings(top);
@@ -216,9 +223,9 @@ public class Main {
                 maxWatcher = watcher;
             }
 
-            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
-            int barsNum = ri.m_calc.m_barsNum;
-            long period = ri.m_bs.m_period;
+//            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
+            int barsNum = 0; //ri.m_calc.m_barsNum;
+            long period = 0; // ri.m_bs.m_period;
 
             System.out.println("GAIN[" + barsNum + ", " + Utils.millisToDHMSStr(period) + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");

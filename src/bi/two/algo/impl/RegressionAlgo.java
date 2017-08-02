@@ -11,13 +11,15 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.0001f;
+    public static final String REGRESSION_BARS_NUM = "regression.barsNum";
 
     private final boolean m_collectValues;
 //    public final double m_threshold;
     public final Regressor m_regressor;
-    public final BarSplitter m_regressorBars;
+    public final BarSplitter m_regressorBars; // buffer to calc diff
     public BarsSimpleAverager m_regressorBarsAvg;
-    public final Differ m_differ;
+    public final Differ m_differ; // Linear Regression Slope
+    public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
     public final FadingAverager m_averager;
     public final SimpleAverager m_signaler;
     public final Powerer m_powerer;
@@ -28,7 +30,7 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        int curveLength = 50;
+        int curveLength = config.getInt(REGRESSION_BARS_NUM); // def = 50;
         int slopeLength = 5;
         int signalLength = 13;
         int barSize = 5 * 60000;
@@ -44,8 +46,10 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_differ = new Differ(m_regressorBars);
 
-        m_averager = new FadingAverager(m_differ, slopeLength * barSize);
-        
+        m_scaler = new Scaler(m_differ, tsd, 1000);
+
+        m_averager = new FadingAverager(m_scaler, slopeLength * barSize);
+
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
 
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
@@ -343,6 +347,48 @@ public class RegressionAlgo extends BaseAlgo {
 
                         float diff = slrs - alrs;
                         m_xxx = slrs + diff * m_rate;
+                        iAmChanged = true;
+                        m_dirty = true;
+                    }
+                }
+            }
+            super.onChanged(ts, iAmChanged);
+        }
+    }
+
+    //----------------------------------------------------------
+    public static class Scaler extends BaseTimesSeriesData<ITickData> {
+        private final BaseTimesSeriesData<ITickData> m_scale;
+        private final float m_multiplier;
+        public boolean m_dirty;
+        public ITickData m_tick;
+        public float m_xxx;
+
+        public Scaler(BaseTimesSeriesData<ITickData> tsd, BaseTimesSeriesData<ITickData> scale, float multiplier) {
+            super(tsd);
+            m_scale = scale;
+            m_multiplier = multiplier;
+        }
+
+        @Override public ITickData getLastTick() {
+            if (m_dirty) {
+                m_dirty = false;
+                m_tick = new TickData(m_parent.getLastTick().getTimestamp(), m_xxx);
+            }
+            return m_tick;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                ITickData srcTick = m_parent.getLastTick();
+                if (srcTick != null) {
+                    ITickData scaleTick = m_scale.getLastTick();
+                    if (scaleTick != null) {
+                        float src = srcTick.getPrice();
+                        float scale = scaleTick.getPrice();
+
+                        m_xxx = src / scale * m_multiplier;
                         iAmChanged = true;
                         m_dirty = true;
                     }

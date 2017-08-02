@@ -29,8 +29,8 @@ public class RegressionCalc {
         if (size >= m_barsNum) {
             m_simpleRegression.clear();
 
-            ITickData lastTick = ticks.get(0);
-            float lastPrice = lastTick.getMaxPrice();
+//            ITickData lastTick = ticks.get(0);
+//            float lastPrice = lastTick.getMaxPrice();
 
             int validPoints = 0;
             size = Math.min(size, m_barsNum);

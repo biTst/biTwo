@@ -56,7 +56,7 @@ public enum TickPainter {
             }
         }
     },
-    CIRCLE {
+    RIGHT_CIRCLE {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             float maxPrice = tick.getMaxPrice();
             if (maxPrice != Utils.INVALID_PRICE) {
@@ -65,7 +65,6 @@ public enum TickPainter {
                 long timestamp = tick.getTimestamp();
                 int right = xAxe.translateInt(timestamp);
                 int left = xAxe.translateInt(timestamp - barSize + 1);
-                int centerX = (right + left) / 2;
                 int width = right - left;
                 if (width > 4) {
                     width = width / 2;
@@ -74,7 +73,7 @@ public enum TickPainter {
 
                 int centerY = yAxe.translateInt(maxPrice);
 
-                g2.fillOval(centerX - radius, centerY - radius, width, width);
+                g2.fillOval(right - radius, centerY - radius, width, width);
             } else {
 //                System.out.println("minPrice=" + minPrice + "; maxPrice=" + maxPrice);
             }
@@ -101,7 +100,7 @@ public enum TickPainter {
         }
     };
 
-    public static final int X_RADIUS = 5;
+    public static final int X_RADIUS = 4;
 
     public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {}
 }

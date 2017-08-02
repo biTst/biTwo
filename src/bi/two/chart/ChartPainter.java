@@ -144,15 +144,17 @@ public class ChartPainter {
                 ITicksData ticksData = cad.getTicksData();
                 if (ticksData != null) {
                     Axe.AxeLong xAxe = cps.getXAxe();
-                    Color layerColor = ls.getColor();
-                    g2.setColor(layerColor);
+                    if(xAxe.isInitialized()) {
+                        Color layerColor = ls.getColor();
+                        g2.setColor(layerColor);
 
-                    TickPainter tickPainter = ls.getTickPainter();
-                    List<? extends ITickData> ticks = ticksData.getTicks();
-                    ITickData prevTick = null;
-                    for (ITickData tick : ticks) {
-                        tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
-                        prevTick = tick;
+                        TickPainter tickPainter = ls.getTickPainter();
+                        List<? extends ITickData> ticks = ticksData.getTicks();
+                        ITickData prevTick = null;
+                        for (ITickData tick : ticks) {
+                            tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
+                            prevTick = tick;
+                        }
                     }
                 }
             }
