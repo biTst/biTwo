@@ -54,9 +54,13 @@ public class Watcher extends TimesSeriesData<TickData> {
     private void process(TickData tickAdjusted) {
         float direction = tickAdjusted.getPrice(); // UP/DOWN
 
+        Currency currencyFrom = m_pair.m_from;
+        Currency currencyTo = m_pair.m_to;
+        String pairToName = currencyTo.m_name;
+
         log("Watcher.process() direction=" + direction);
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
-        log(" needBuy=" + Utils.format8(needBuyTo) + " " + m_pair.m_to.m_name);
+        log(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
 
         needBuyTo *= 0.95;
 
@@ -70,13 +74,11 @@ public class Watcher extends TimesSeriesData<TickData> {
         long timestamp = m_exchPairData.m_newestTick.getTimestamp();
         if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
 
-            Currency currencyFrom = m_pair.m_from;
-            Currency currencyTo = m_pair.m_to;
             double amountFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
             logMove("Watcher.process() direction=" + direction
-                    + "; needBuy=" + Utils.format8(needBuyTo) + " " + m_pair.m_to.m_name
-                    + "; needSell=" + Utils.format8(amountFrom) + " " + m_pair.m_from.m_name
+                    + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
+                    + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
                     + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
 
             m_accountData.move(m_pair, needBuyTo, m_commission);

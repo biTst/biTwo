@@ -126,6 +126,7 @@ public class Main {
 //            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
             chartData.setTicksData("signal.avg", algo.m_signaler.getJoinNonChangedTs());
             chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
+            chartData.setTicksData("value", algo.m_adjuster.getJoinNonChangedTs());
 
             // layout
             ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
@@ -141,7 +142,8 @@ public class Main {
             }
 
             ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
-            List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers(); {
+            List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
+            {
 //            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
 //                bottomLayers.add(new ChartAreaLayerSettings("diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE));
                 bottomLayers.add(new ChartAreaLayerSettings("slope", Colors.alpha(Colors.LIME, 60), TickPainter.LINE /*RIGHT_CIRCLE*/));
@@ -155,7 +157,7 @@ public class Main {
             ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
             {
-//            valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
+                valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
             }
 
             ChartSetting chartSetting = chartCanvas.getChartSetting();
@@ -281,13 +283,7 @@ public class Main {
                     long timeDiff = lastTimestamp - firstTimestamp;
                     System.out.println("PREFILLED: ticksCount=" + size + "; timeDiff=" + Utils.millisToDHMSStr(timeDiff));
                 } else if (m_counter > s_prefillTicks) {
-                    frame.repaint();
-
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    frame.repaint(100);
                 } else {
                     if (m_counter % 5000 == 0) {
                         long time = System.currentTimeMillis();

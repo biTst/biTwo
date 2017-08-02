@@ -10,7 +10,7 @@ import bi.two.util.MapConfig;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 public class RegressionAlgo extends BaseAlgo {
-    public static final float DEF_THRESHOLD = 0.0001f;
+    public static final float DEF_THRESHOLD = 0.1f;
     public static final String REGRESSION_BARS_NUM = "regression.barsNum";
 
     private final boolean m_collectValues;
@@ -23,6 +23,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final FadingAverager m_averager;
     public final SimpleAverager m_signaler;
     public final Powerer m_powerer;
+    public final Adjuster m_adjuster;
 
     public RegressionIndicator m_regressionIndicator;
 
@@ -45,14 +46,11 @@ public class RegressionAlgo extends BaseAlgo {
         }
 
         m_differ = new Differ(m_regressorBars);
-
         m_scaler = new Scaler(m_differ, tsd, 1000);
-
         m_averager = new FadingAverager(m_scaler, slopeLength * barSize);
-
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
-
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
+        m_adjuster = new Adjuster(m_powerer, DEF_THRESHOLD);
 
 //        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
 
@@ -350,6 +348,41 @@ public class RegressionAlgo extends BaseAlgo {
                         iAmChanged = true;
                         m_dirty = true;
                     }
+                }
+            }
+            super.onChanged(ts, iAmChanged);
+        }
+    }
+
+    //----------------------------------------------------------
+    public static class Adjuster extends BaseTimesSeriesData<ITickData> {
+        public boolean m_dirty;
+        public ITickData m_tick;
+        public float m_threshold;
+        public float m_xxx;
+
+        public Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
+            super(parent);
+            m_threshold = threshold;
+        }
+
+        @Override public ITickData getLastTick() {
+            if (m_dirty) {
+                m_dirty = false;
+                m_tick = new TickData(m_parent.getLastTick().getTimestamp(), m_xxx);
+            }
+            return m_tick;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                ITickData tick = m_parent.getLastTick();
+                if (tick != null) {
+                    float price = tick.getPrice();
+                    m_xxx = (price > m_threshold) ? 1f : (price < -m_threshold) ? -1f : 0;
+                    iAmChanged = true;
+                    m_dirty = true;
                 }
             }
             super.onChanged(ts, iAmChanged);
