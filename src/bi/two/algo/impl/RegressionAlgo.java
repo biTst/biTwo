@@ -12,7 +12,7 @@ public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
     public static final String COLLECT_LAVUES_KEY = "collect.values";
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
-    public static final String THRESHOLD_KEY = "regression.treshold";
+    public static final String THRESHOLD_KEY = "regression.threshold";
 
     private final boolean m_collectValues;
     public final float m_threshold;

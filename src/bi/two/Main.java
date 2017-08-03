@@ -99,8 +99,8 @@ public class Main {
                 String barsNumStr = Integer.toString(barsNum);
                 algoConfig.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, barsNumStr);
 
-                for (float treshold = 0.1f; treshold <= 1.3f; treshold += 0.05f) {
-                    algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(treshold));
+                for (float threshold = 0.1f; threshold <= 1.3f; threshold += 0.05f) {
+                    algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(threshold));
                     RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
                     if (algo == null) {
                         algo = nextAlgo;
