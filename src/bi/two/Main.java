@@ -4,10 +4,8 @@ import bi.two.algo.BarSplitter;
 import bi.two.algo.Watcher;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.calc.BarsWeightedAverager;
-import bi.two.calc.RegressionCalc;
 import bi.two.chart.*;
 import bi.two.exch.*;
-import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -90,25 +88,26 @@ public class Main {
         boolean collectValues = config.getBoolean("collect.values");
 
         MapConfig algoConfig = new MapConfig();
-        algoConfig.put("collect.values", Boolean.valueOf(collectValues).toString());
-//        String barsNumStr = Integer.toString(barsFrom);
-//        algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-//        RegressionAlgo algo = new RegressionAlgo(algoConfig, ticksTs);
+        algoConfig.put(RegressionAlgo.COLLECT_LAVUES_KEY, Boolean.toString(collectValues));
 
         RegressionAlgo algo = null;
         List<Watcher> watchers = new ArrayList<Watcher>();
 //        BarSplitter firstBarSplitter = null;
         for (long period = periodFrom; period <= periodTo; period += periodStep) {
 //            BarSplitter bs = new BarSplitter(ticksTs, 5, period);
-            for (int i = barsFrom; i <= barsTo; i += barsStep) {
-                String barsNumStr = Integer.toString(i);
-                algoConfig.put(RegressionCalc.REGRESSION_BARS_NUM, barsNumStr);
-                RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                if (algo == null) {
-                    algo = nextAlgo;
+            for (int barsNum = barsFrom; barsNum <= barsTo; barsNum += barsStep) {
+                String barsNumStr = Integer.toString(barsNum);
+                algoConfig.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, barsNumStr);
+
+                for (float treshold = 0.1f; treshold <= 1.3f; treshold += 0.05f) {
+                    algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(treshold));
+                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                    if (algo == null) {
+                        algo = nextAlgo;
+                    }
+                    Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
+                    watchers.add(watcher);
                 }
-                Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
-                watchers.add(watcher);
 
 //                if(firstBarSplitter == null) {
 //                    firstBarSplitter = algo.m_lastTicksBuffer;
@@ -169,11 +168,6 @@ public class Main {
                 chartData.setTicksData("trades", watcher);
 
                 topLayers.add(new ChartAreaLayerSettings("trades", Color.WHITE, TickPainter.TRADE));
-
-//            BaseAlgo baseAlgo = watcher.m_algo;
-//            chartData.setTicksData("value", baseAlgo.getJoinNonChangedTs());
-//            RegressionIndicator ri = (RegressionIndicator) algo.m_indicators.get(0);
-//            chartData.setTicksData("indicator", ri.getJoinNonChangedTs(true));
             }
 
             ChartSetting chartSetting = chartCanvas.getChartSetting();
@@ -232,11 +226,14 @@ public class Main {
                 maxWatcher = watcher;
             }
 
-//            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
-            int barsNum = 0; //ri.m_calc.m_barsNum;
-            long period = 0; // ri.m_bs.m_period;
+            RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
+            float threshold = ralgo.m_threshold;
 
-            System.out.println("GAIN[" + barsNum + ", " + Utils.millisToDHMSStr(period) + "]: " + Utils.format8(gain)
+//            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
+//            int barsNum = 0; //ri.m_calc.m_barsNum;
+//            long period = 0; // ri.m_bs.m_period;
+
+            System.out.println("GAIN[" + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
 
@@ -245,10 +242,12 @@ public class Main {
                 + "   spent=" + Utils.millisToDHMSStr(endMillis-startMillis) + " .....................................");
 
         double gain = maxWatcher.totalPriceRatio();
-        RegressionIndicator ri = (RegressionIndicator) maxWatcher.m_algo.m_indicators.get(0);
-        int barsNum = ri.m_calc.m_barsNum;
-        long period = ri.m_bs.m_period;
-        System.out.println("MAX GAIN[" + barsNum + ", " + Utils.millisToDHMSStr(period) + "]: " + Utils.format8(gain)
+        RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
+        float threshold = ralgo.m_threshold;
+//        RegressionIndicator ri = (RegressionIndicator) maxWatcher.m_algo.m_indicators.get(0);
+//        int barsNum = 0; //ri.m_calc.m_barsNum;
+//        long period = 0; //ri.m_bs.m_period;
+        System.out.println("MAX GAIN[" + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
     }
 
@@ -263,7 +262,7 @@ public class Main {
         Pair pair = Pair.getByName("btc_usd");
         MapConfig config = new MapConfig();
 
-        config.put(RegressionCalc.REGRESSION_BARS_NUM, "5");
+        config.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, "5");
         RegressionAlgo algo = new RegressionAlgo(config, bs);
         TimesSeriesData<TickData> algoTs = algo.getTS(true);
         TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getJoinNonChangedTs();

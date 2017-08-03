@@ -8,7 +8,7 @@ import java.util.Properties;
 
 public class MapConfig extends Properties {
     public int getInt(String key) {
-        String property = getProperty(key);
+        String property = getPropertyNoComment(key);
         if (property != null) {
             try {
                 return Integer.parseInt(property);
@@ -20,8 +20,12 @@ public class MapConfig extends Properties {
     }
 
     public long getLong(String key) {
-        String property = getProperty(key);
+        String property = getPropertyNoComment(key);
         if (property != null) {
+            int indx = property.indexOf('#'); // remove comment
+            if (indx != -1) {
+                property = property.substring(0, indx).trim();
+            }
             try {
                 return Long.parseLong(property);
             } catch (NumberFormatException e) {
@@ -36,7 +40,7 @@ public class MapConfig extends Properties {
     }
 
     public float getFloatOrDefault(String key, Float def) {
-        String property = getProperty(key);
+        String property = getPropertyNoComment(key);
         if (property != null) {
             try {
                 return Float.parseFloat(property);
@@ -51,7 +55,7 @@ public class MapConfig extends Properties {
     }
 
     public double getDouble(String key) {
-        String property = getProperty(key);
+        String property = getPropertyNoComment(key);
         if (property != null) {
             try {
                 return Double.parseDouble(property);
@@ -63,13 +67,23 @@ public class MapConfig extends Properties {
     }
 
     public boolean getBoolean(String key) {
-        String property = getProperty(key);
+        String property = getPropertyNoComment(key);
         if (property != null) {
             return property.equals("true") || property.equals("yes");
         }
         throw new RuntimeException("property '" + key + "' not found");
     }
 
+    private String getPropertyNoComment(String key) {
+        String property = getProperty(key);
+        if (property != null) {
+            int indx = property.indexOf('#'); // remove comment
+            if (indx != -1) {
+                property = property.substring(0, indx).trim();
+            }
+        }
+        return property;
+    }
 
     public void load(String file) throws IOException {
         load(new File(file));

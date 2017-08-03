@@ -3,7 +3,6 @@ package bi.two.algo.impl;
 
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
-import bi.two.calc.BarsSimpleAverager;
 import bi.two.chart.*;
 import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
@@ -11,13 +10,15 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
-    public static final String REGRESSION_BARS_NUM = "regression.barsNum";
+    public static final String COLLECT_LAVUES_KEY = "collect.values";
+    public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
+    public static final String THRESHOLD_KEY = "regression.treshold";
 
     private final boolean m_collectValues;
-//    public final double m_threshold;
+    public final float m_threshold;
     public final Regressor m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
-    public BarsSimpleAverager m_regressorBarsAvg;
+//    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
     public final FadingAverager m_averager;
@@ -31,7 +32,8 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        int curveLength = config.getInt(REGRESSION_BARS_NUM); // def = 50;
+        m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
+        int curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         int slopeLength = 5;
         int signalLength = 13;
         int barSize = 5 * 60000;
@@ -41,18 +43,16 @@ public class RegressionAlgo extends BaseAlgo {
         m_regressor = new Regressor(tsd, curveLength * barSize);
 
         m_regressorBars = new BarSplitter(m_regressor, m_collectValues ? 1000 : 2, barSize);
-        if (m_collectValues) {
-            m_regressorBarsAvg = new BarsSimpleAverager(m_regressorBars);
-        }
+//        if (m_collectValues) {
+//            m_regressorBarsAvg = new BarsSimpleAverager(m_regressorBars);
+//        }
 
         m_differ = new Differ(m_regressorBars);
         m_scaler = new Scaler(m_differ, tsd, 1000);
         m_averager = new FadingAverager(m_scaler, slopeLength * barSize);
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
-        m_adjuster = new Adjuster(m_powerer, DEF_THRESHOLD);
-
-//        m_threshold = config.getFloatOrDefault("threshold", DEF_THRESHOLD);
+        m_adjuster = new Adjuster(m_powerer, m_threshold);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
 //        m_indicators.add(m_regressionIndicator);

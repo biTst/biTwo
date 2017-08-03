@@ -7,7 +7,7 @@ import bi.two.util.Utils;
 
 public class Watcher extends TimesSeriesData<TickData> {
     private static final boolean LOG_ALL = false;
-    private static final boolean LOG_MOVE = true;
+    private static final boolean LOG_MOVE = false;
     private static final double MIN_MOVE = 0.015;
 
     public final BaseAlgo m_algo;

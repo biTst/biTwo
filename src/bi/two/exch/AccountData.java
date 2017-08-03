@@ -9,7 +9,7 @@ import java.util.Set;
 
 public class AccountData {
     private static final boolean VERBOSE = false;
-    private static final boolean LOG_MOVE = true;
+    private static final boolean LOG_MOVE = false;
 
     private final Exchange m_exch;
     private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
