@@ -87,19 +87,6 @@ public class RegressionAlgo extends BaseAlgo {
     @Override public ITickData getAdjusted() {
         ITickData lastTick = m_adjuster.getLastTick();
         return lastTick;
-        
-//        if(lastTick != null) {
-//            return new TickData(lastTick.getTimestamp(), m_adjuster.);
-//        }
-
-//        long timestamp = m_regressionIndicator.getTimestamp();
-//        if (timestamp != 0) {
-//            Double value = m_regressionIndicator.getValue();
-//            if (value != null) {
-//                return new TickData(timestamp, (float) getDirectionAdjusted(value));
-//            }
-//        }
-//        return null;
     }
 
 
@@ -367,10 +354,15 @@ public class RegressionAlgo extends BaseAlgo {
         public ITickData m_tick;
         public float m_threshold;
         public float m_xxx;
+        private float m_max;
+        private float m_min;
+        private float m_last = 0;
 
         public Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
             super(parent);
             m_threshold = threshold;
+            m_max = m_threshold;
+            m_min = - m_threshold;
         }
 
         @Override public ITickData getLastTick() {
@@ -387,7 +379,31 @@ public class RegressionAlgo extends BaseAlgo {
                 ITickData tick = m_parent.getLastTick();
                 if (tick != null) {
                     float price = tick.getPrice();
-                    m_xxx = (price > m_threshold) ? 1f : (price < -m_threshold) ? -1f : 0;
+                    if ((price > m_min) && (price < m_max)) { // between
+                        float delta = price - m_last;
+                        if (delta > 0) {
+                            m_max -= delta;
+                            m_max = Math.max(m_max, m_threshold); // not less than threshold
+                        } else if (delta < 0) {
+                            m_min -= delta;
+                            m_min = Math.min(m_min, -m_threshold); // mot more than -threshold
+                        }
+                    }
+                    if (price > m_max) {
+                        m_max = price;
+                        m_min = -m_threshold;
+                    } else if (price < m_min) {
+                        m_min = price;
+                        m_max = m_threshold;
+                    }
+                    m_last = price;
+
+                    m_xxx = ((price - m_min) / (m_max - m_min)) * 2 - 1; // [-1 .. 1]
+
+                    if(Math.abs(m_xxx) > 1) {
+System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + price + "; m_max=" + m_max);
+                    }
+
                     iAmChanged = true;
                     m_dirty = true;
                 }
