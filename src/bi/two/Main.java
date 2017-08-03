@@ -16,6 +16,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
@@ -85,6 +86,9 @@ public class Main {
         int barsFrom = config.getInt("bars.from");
         int barsTo = config.getInt("bars.to");
         int barsStep = config.getInt("bars.step");
+        float thresholdFrom = config.getFloat("threshold.from");
+        float thresholdTo = config.getFloat("threshold.to");
+        float thresholdStep = config.getFloat("threshold.step");
         boolean collectValues = config.getBoolean("collect.values");
 
         MapConfig algoConfig = new MapConfig();
@@ -92,14 +96,12 @@ public class Main {
 
         RegressionAlgo algo = null;
         List<Watcher> watchers = new ArrayList<Watcher>();
-//        BarSplitter firstBarSplitter = null;
         for (long period = periodFrom; period <= periodTo; period += periodStep) {
-//            BarSplitter bs = new BarSplitter(ticksTs, 5, period);
             for (int barsNum = barsFrom; barsNum <= barsTo; barsNum += barsStep) {
                 String barsNumStr = Integer.toString(barsNum);
                 algoConfig.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, barsNumStr);
 
-                for (float threshold = 0.1f; threshold <= 1.3f; threshold += 0.05f) {
+                for (float threshold = thresholdFrom; threshold <= thresholdTo; threshold += thresholdStep) {
                     algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(threshold));
                     RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
                     if (algo == null) {
@@ -108,10 +110,6 @@ public class Main {
                     Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
                     watchers.add(watcher);
                 }
-
-//                if(firstBarSplitter == null) {
-//                    firstBarSplitter = algo.m_lastTicksBuffer;
-//                }
             }
         }
 
@@ -228,12 +226,9 @@ public class Main {
 
             RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
             float threshold = ralgo.m_threshold;
+            int curveLength = ralgo.m_curveLength;
 
-//            RegressionIndicator ri = (RegressionIndicator) watcher.m_algo.m_indicators.get(0);
-//            int barsNum = 0; //ri.m_calc.m_barsNum;
-//            long period = 0; // ri.m_bs.m_period;
-
-            System.out.println("GAIN[" + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+            System.out.println("GAIN[" + curveLength + "," + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
 
@@ -244,11 +239,16 @@ public class Main {
         double gain = maxWatcher.totalPriceRatio();
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
         float threshold = ralgo.m_threshold;
-//        RegressionIndicator ri = (RegressionIndicator) maxWatcher.m_algo.m_indicators.get(0);
-//        int barsNum = 0; //ri.m_calc.m_barsNum;
-//        long period = 0; //ri.m_bs.m_period;
-        System.out.println("MAX GAIN[" + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+        int curveLength = ralgo.m_curveLength;
+
+        System.out.println("MAX GAIN[" + curveLength + ", " + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
+
+        try {
+            Thread.sleep(TimeUnit.MINUTES.toMillis(5));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void readOne(final ChartFrame frame, FileReader fileReader, ChartCanvas chartCanvas) throws IOException {
