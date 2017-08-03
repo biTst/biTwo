@@ -8,13 +8,20 @@ import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
+import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
+
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
     public static final String COLLECT_LAVUES_KEY = "collect.values";
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
 
+    public final HashMap<String,Regressor> s_regressors = new HashMap<>();
+    public final HashMap<String,BarSplitter> s_regressorBars = new HashMap<>();
+
     private final boolean m_collectValues;
+    public final int m_curveLength;
     public final float m_threshold;
     public final Regressor m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
@@ -32,17 +39,32 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
+        m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
-        int curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         int slopeLength = 5;
         int signalLength = 13;
-        int barSize = 5 * 60000;
+        long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
 
         m_collectValues = config.getBoolean("collect.values");
 
-        m_regressor = new Regressor(tsd, curveLength * barSize);
+        long regressorPeriod = m_curveLength * barSize;
 
-        m_regressorBars = new BarSplitter(m_regressor, m_collectValues ? 1000 : 2, barSize);
+        String key = tsd.hashCode() + "." + regressorPeriod;
+        Regressor regressor = s_regressors.get(key);
+        if (regressor == null) {
+            regressor = new Regressor(tsd, regressorPeriod);
+            s_regressors.put(key, regressor);
+        }
+        m_regressor = regressor;
+
+        key = key + "." + barSize;
+        BarSplitter regressorBars = s_regressorBars.get(key);
+        if(regressorBars == null) {
+            regressorBars = new BarSplitter(m_regressor, m_collectValues ? 1000 : 2, barSize);
+            s_regressorBars.put(key, regressorBars);
+        }
+        m_regressorBars = regressorBars;
+
 //        if (m_collectValues) {
 //            m_regressorBarsAvg = new BarsSimpleAverager(m_regressorBars);
 //        }
