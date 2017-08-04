@@ -1,7 +1,7 @@
 package bi.two.chart;
 
 public interface ITimesSeriesData<T extends ITickData> {
-    T getLastTick();
+    T getLatestTick();
     void addListener(ITimesSeriesListener listener);
 
     interface ITimesSeriesListener {

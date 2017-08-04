@@ -18,13 +18,13 @@ public class RegressionAlgo extends BaseAlgo {
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
 
-    public final HashMap<String,Regressor> s_regressors = new HashMap<>();
+    public final HashMap<String,Regressor2> s_regressors = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBars = new HashMap<>();
 
     private final boolean m_collectValues;
     public final int m_curveLength;
     public final float m_threshold;
-    public final Regressor m_regressor;
+    public final Regressor2 m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
 //    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
@@ -59,20 +59,27 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_collectValues = config.getBoolean("collect.values");
 
-        long regressorPeriod = m_curveLength * barSize;
+//        long regressorPeriod = m_curveLength * barSize;
+//        String key = tsd.hashCode() + "." + regressorPeriod;
+//        Regressor regressor = s_regressors.get(key);
+//        if (regressor == null) {
+//            regressor = new Regressor(tsd, regressorPeriod);
+//            s_regressors.put(key, regressor);
+//        }
+//        m_regressor = regressor;
 
-        String key = tsd.hashCode() + "." + regressorPeriod;
-        Regressor regressor = s_regressors.get(key);
+        String key = tsd.hashCode() + "." + m_curveLength + "." + barSize;
+        Regressor2 regressor = s_regressors.get(key);
         if (regressor == null) {
-            regressor = new Regressor(tsd, regressorPeriod);
+            regressor = new Regressor2(tsd, m_curveLength, barSize);
             s_regressors.put(key, regressor);
         }
         m_regressor = regressor;
 
         key = key + "." + barSize;
         BarSplitter regressorBars = s_regressorBars.get(key);
-        if(regressorBars == null) {
-            regressorBars = new BarSplitter(m_regressor, m_collectValues ? 1000 : 2, barSize);
+        if (regressorBars == null) {
+            regressorBars = new BarSplitter(m_regressor, m_collectValues ? 100 : 2, barSize);
             s_regressorBars.put(key, regressorBars);
         }
         m_regressorBars = regressorBars;
@@ -119,7 +126,7 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
     @Override public ITickData getAdjusted() {
-        ITickData lastTick = m_adjuster.getLastTick();
+        ITickData lastTick = m_adjuster.getLatestTick();
         return lastTick;
     }
 
@@ -165,6 +172,82 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
     
+    // -----------------------------------------------------------------------------
+    public static class Regressor2 extends BaseTimesSeriesData<ITickData>
+            implements ITicksProcessor<BarSplitter.BarHolder, Float> {
+        public final BarSplitter m_splitter;
+        private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
+        private long m_lastBarTickTime;
+        private boolean m_initialized;
+        private boolean m_filled;
+        private boolean m_dirty;
+        private TickData m_tickData;
+
+        public Regressor2(ITimesSeriesData<ITickData> tsd, int barsNum, long barSize) {
+            m_splitter = new BarSplitter(tsd, barsNum, barSize);
+            setParent(m_splitter);
+        }
+
+        @Override public void processTick(BarSplitter.BarHolder barHolder) {
+            BarSplitter.TickNode latestTickNode = barHolder.getLatestTick();
+            if(latestTickNode != null) { // have ticks in bar ?
+                ITickData latestTick = latestTickNode.m_param;
+
+                long timestamp = latestTick.getTimestamp();
+                if (m_lastBarTickTime == 0) {
+                    m_lastBarTickTime = timestamp;
+                }
+
+                float price = latestTick.getMaxPrice();
+                m_simpleRegression.addData(m_lastBarTickTime - timestamp, price);
+            }
+        }
+
+        @Override public Float done() {
+            double value = m_simpleRegression.getIntercept();
+            return (float) value;
+        }
+
+        @Override public ITickData getLatestTick() {
+            if (m_filled) {
+                if (m_dirty) {
+                    m_simpleRegression.clear();
+                    m_lastBarTickTime = 0;// reset
+                    Float regression = m_splitter.iterateTicks( this);
+
+                    long timestamp = m_parent.getLatestTick().getTimestamp();
+                    m_tickData = new TickData(timestamp, regression);
+                    m_dirty = false;
+                }
+                return m_tickData;
+            }
+            return null;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                if (!m_initialized) {
+                    m_initialized = true;
+                    m_splitter.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {}
+                        @Override public void onTickExit(ITickData tickData) { m_filled = true; }
+                    });
+                }
+                m_dirty = true;
+                iAmChanged = m_filled;
+            }
+            super.onChanged(this, iAmChanged); // notifyListeners
+        }
+
+        public String log() {
+            return "Regressor2["
+                    + "\nsplitter=" + m_splitter.log()
+                    + "\n]";
+        }
+    }
+
+
     //----------------------------------------------------------
     public static class Differ extends BaseTimesSeriesData<ITickData> {
         private final BarSplitter m_barSplitter;
@@ -180,7 +263,7 @@ public class RegressionAlgo extends BaseAlgo {
             m_barSplitter = barSplitter;
         }
 
-        @Override public ITickData getLastTick() {
+        @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 BarSplitter.TickNode newestBarTickNode = m_newestBar.getLatestTick();
                 BarSplitter.TickNode secondBarTickNode = m_secondBar.getLatestTick();
@@ -321,11 +404,11 @@ public class RegressionAlgo extends BaseAlgo {
             setParent(m_splitter);
         }
 
-        @Override public ITickData getLastTick() {
+        @Override public ITickData getLatestTick() {
             if (m_filled) {
                 if (m_dirty) {
                     R ret = m_splitter.m_newestBar.iterateTicks(this);
-                    long timestamp = m_parent.getLastTick().getTimestamp();
+                    long timestamp = m_parent.getLatestTick().getTimestamp();
                     m_tickData = new TickData(timestamp, calcTickValue(ret));
                     m_dirty = false;
                 }
@@ -371,10 +454,10 @@ public class RegressionAlgo extends BaseAlgo {
             m_rate = rate;
         }
 
-        @Override public ITickData getLastTick() {
+        @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 m_dirty = false;
-                m_tick = new TickData(m_averager.getLastTick().getTimestamp(), m_xxx);
+                m_tick = new TickData(m_averager.getLatestTick().getTimestamp(), m_xxx);
             }
             return m_tick;
         }
@@ -382,9 +465,9 @@ public class RegressionAlgo extends BaseAlgo {
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             boolean iAmChanged = false;
             if (changed) {
-                ITickData slrsTick = m_averager.getLastTick();
+                ITickData slrsTick = m_averager.getLatestTick();
                 if (slrsTick != null) {
-                    ITickData alrsTick = m_signaler.getLastTick();
+                    ITickData alrsTick = m_signaler.getLatestTick();
                     if (alrsTick != null) {
                         float slrs = slrsTick.getPrice();
                         float alrs = alrsTick.getPrice();
@@ -417,10 +500,10 @@ public class RegressionAlgo extends BaseAlgo {
             m_min = - m_threshold;
         }
 
-        @Override public ITickData getLastTick() {
+        @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 m_dirty = false;
-                m_tick = new TickData(m_parent.getLastTick().getTimestamp(), m_xxx);
+                m_tick = new TickData(m_parent.getLatestTick().getTimestamp(), m_xxx);
             }
             return m_tick;
         }
@@ -428,7 +511,7 @@ public class RegressionAlgo extends BaseAlgo {
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             boolean iAmChanged = false;
             if (changed) {
-                ITickData tick = m_parent.getLastTick();
+                ITickData tick = m_parent.getLatestTick();
                 if (tick != null) {
                     float price = tick.getPrice();
                     if ((price > m_min) && (price < m_max)) { // between
@@ -478,10 +561,10 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
             m_multiplier = multiplier;
         }
 
-        @Override public ITickData getLastTick() {
+        @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 m_dirty = false;
-                m_tick = new TickData(m_parent.getLastTick().getTimestamp(), m_xxx);
+                m_tick = new TickData(m_parent.getLatestTick().getTimestamp(), m_xxx);
             }
             return m_tick;
         }
@@ -489,9 +572,9 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             boolean iAmChanged = false;
             if (changed) {
-                ITickData srcTick = m_parent.getLastTick();
+                ITickData srcTick = m_parent.getLatestTick();
                 if (srcTick != null) {
-                    ITickData scaleTick = m_scale.getLastTick();
+                    ITickData scaleTick = m_scale.getLatestTick();
                     if (scaleTick != null) {
                         float src = srcTick.getPrice();
                         float scale = scaleTick.getPrice();

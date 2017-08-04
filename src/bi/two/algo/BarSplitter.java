@@ -46,7 +46,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        ITickData tick = changed ? m_source.getLastTick() : null;
+        ITickData tick = changed ? m_source.getLatestTick() : null;
         onTick(changed, tick);
     }
 
@@ -87,7 +87,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     prevBar = bar;
                 }
 
-                m_newestBar = getLastTick();
+                m_newestBar = getLatestTick();
                 m_newestBar.put(tick);
             } else {
                 long timeShift = timestamp - m_newestBar.m_time;

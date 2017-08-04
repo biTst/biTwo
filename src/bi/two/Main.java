@@ -130,7 +130,7 @@ public class Main {
             chartData.setTicksData("value", algo.m_adjuster.getJoinNonChangedTs());
 
             // layout
-            ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.5f, Color.RED);
+            ChartAreaSettings top = new ChartAreaSettings("top", 0, 0, 1, 0.4f, Color.RED);
             List<ChartAreaLayerSettings> topLayers = top.getLayers();
             {
                 topLayers.add(new ChartAreaLayerSettings("price", Colors.alpha(Color.RED, 70), TickPainter.TICK));
@@ -142,7 +142,7 @@ public class Main {
 //                topLayers.add(new ChartAreaLayerSettings("bars2.avg", Colors.LIME, TickPainter.RIGHT_CIRCLE));
             }
 
-            ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.5f, 1, 0.25f, Color.GREEN);
+            ChartAreaSettings bottom = new ChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
             List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
             {
 //            bottomLayers.add(new ChartAreaLayerSettings("indicator", Color.GREEN, TickPainter.LINE));
@@ -155,23 +155,33 @@ public class Main {
                 bottomLayers.add(new ChartAreaLayerSettings("power", Color.CYAN, TickPainter.LINE));
             }
 
-            ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.75f, 1, 0.25f, Color.LIGHT_GRAY);
+            ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
             {
                 valueLayers.add(new ChartAreaLayerSettings("value", Color.blue, TickPainter.LINE));
             }
 
+            ChartAreaSettings gain = new ChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            {
+                gainLayers.add(new ChartAreaLayerSettings("gain", Color.blue, TickPainter.LINE));
+            }
+
             if (collectValues) {
                 Watcher watcher = watchers.get(0);
-                chartData.setTicksData("trades", watcher);
 
+                chartData.setTicksData("trades", watcher);
                 topLayers.add(new ChartAreaLayerSettings("trades", Color.WHITE, TickPainter.TRADE));
+
+                chartData.setTicksData("gain", watcher.getGainTs());
             }
 
             ChartSetting chartSetting = chartCanvas.getChartSetting();
             chartSetting.addChartAreaSettings(top);
             chartSetting.addChartAreaSettings(bottom);
             chartSetting.addChartAreaSettings(value);
+            chartSetting.addChartAreaSettings(gain);
         }
 
         Runnable callback = new Runnable() {
@@ -218,7 +228,7 @@ public class Main {
         double maxGain = 0;
         Watcher maxWatcher = null;
         for (Watcher watcher : watchers) {
-            double gain = watcher.totalPriceRatio();
+            double gain = watcher.totalPriceRatio(true);
             if (gain > maxGain) {
                 maxGain = gain;
                 maxWatcher = watcher;
@@ -236,7 +246,7 @@ public class Main {
         System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
                 + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
 
-        double gain = maxWatcher.totalPriceRatio();
+        double gain = maxWatcher.totalPriceRatio(true);
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
         float threshold = ralgo.m_threshold;
         int curveLength = ralgo.m_curveLength;

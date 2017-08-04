@@ -5,7 +5,7 @@ import bi.two.exch.*;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-public class Watcher extends TimesSeriesData<TickData> {
+public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
     private static final double MIN_MOVE = 0.015;
@@ -81,7 +81,7 @@ public class Watcher extends TimesSeriesData<TickData> {
             m_accountData.move(m_pair, needBuyTo, m_commission);
             m_tradesNum++;
 
-            double gain = totalPriceRatio();
+            double gain = totalPriceRatio(true);
             logMove("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
 
             if (m_collectValues) {
@@ -97,6 +97,10 @@ public class Watcher extends TimesSeriesData<TickData> {
     }
 
     public double totalPriceRatio() {
+        return totalPriceRatio(false);
+    }
+
+    public double totalPriceRatio(boolean toLog) {
         Currency currencyFrom = m_pair.m_from; // cnh=from
         Currency currencyTo = m_pair.m_to;     // btc=to
         if (m_accountData == null) { // error
@@ -110,16 +114,18 @@ public class Watcher extends TimesSeriesData<TickData> {
 
         double gainAvg = (gainTo + gainFrom) / 2;
 
-        logMove("totalPriceRatio() m_accountData=" + m_accountData
-                + "; from=" + currencyFrom.m_name
-                + ": valuateInit=" + m_valuateFromInit
-                + ", valuateNow=" + valuateFromNow
-                + ", gain=" + gainFrom
-                + "; to=" + currencyTo.m_name
-                + ": valuateToInit=" + m_valuateToInit
-                + ", valuateToNow=" + valuateToNow
-                + ", gainTo=" + gainTo
-                + "; gainAvg=" + gainAvg);
+        if (toLog) {
+            logMove("totalPriceRatio() accountData=" + m_accountData
+                    + "; from=" + currencyFrom.m_name
+                    + ": valuateInit=" + m_valuateFromInit
+                    + ", valuateNow=" + valuateFromNow
+                    + ", gain=" + gainFrom
+                    + "; to=" + currencyTo.m_name
+                    + ": valuateToInit=" + m_valuateToInit
+                    + ", valuateToNow=" + valuateToNow
+                    + ", gainTo=" + gainTo
+                    + "; gainAvg=" + gainAvg);
+        }
         return gainAvg;
     }
 
@@ -167,4 +173,27 @@ public class Watcher extends TimesSeriesData<TickData> {
                 + "\n ticksNum=" + m_ticks.size()
                 + "\n]";
     }
+
+    public TimesSeriesData<TickData> getGainTs() {
+        return new GainTimesSeriesData(this);
+    }
+
+
+    //----------------------------------------------------------
+    public class GainTimesSeriesData extends BaseJoinNonChangedTimesSeriesData {
+        public GainTimesSeriesData(ITimesSeriesData parent) {
+            super(parent);
+        }
+
+        @Override protected ITickData getTickValue() {
+            TradeData latestTick = Watcher.this.getLatestTick();
+            if (latestTick != null) {
+                long timestamp = latestTick.getTimestamp();
+                double ratio = totalPriceRatio();
+                return new TickData(timestamp, (float) ratio);
+            }
+            return null;
+        }
+    }
+
 }

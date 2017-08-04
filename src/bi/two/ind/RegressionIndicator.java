@@ -41,7 +41,7 @@ public class RegressionIndicator extends BaseIndicator {
         return 0;
     }
 
-    @Override public ITickData getLastTick() {
+    @Override public ITickData getLatestTick() {
         return null;
     }
 }

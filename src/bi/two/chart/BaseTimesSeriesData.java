@@ -50,7 +50,7 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
         }
 
         @Override protected ITickData getTickValue() {
-            return BaseTimesSeriesData.this.getLastTick();
+            return BaseTimesSeriesData.this.getLatestTick();
         }
     }
 }

@@ -1,19 +1,21 @@
 package bi.two.chart;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 // will hold ALL ticks
 public class TimesSeriesData<T extends ITickData>
         extends BaseTimesSeriesData
         implements ITicksData, ITimesSeriesData.ITimesSeriesListener {
-    protected List<T> m_ticks = new CopyOnWriteArrayList<T>();
+    protected List<T> m_ticks = Collections.synchronizedList(new ArrayList<T>()); // CopyOnWriteArrayList<T>();
 
     public TimesSeriesData(ITimesSeriesData parent) {
         super(parent);
     }
 
-    public T getLastTick() { return m_ticks.get(0); }
+    public T getLatestTick() { return m_ticks.get(0); }
+    public T getOldestTick() { return m_ticks.get(m_ticks.size() - 1); }
     public List<T> getTicks() { return m_ticks; }
 
     public void addNewestTick(T t) {

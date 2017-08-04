@@ -60,6 +60,10 @@ public class ChartPainter {
             }
         }
 
+        if(!xAxe.isInitialized()) {
+            return;
+        }
+
         paintTimeAxe(g2, cps);
 
         int timeAxeHeight = cps.getTimeAxeHeight();
@@ -89,15 +93,17 @@ public class ChartPainter {
                     ITicksData ticksData = cad.getTicksData();
                     if (ticksData != null) {
                         List<? extends ITickData> ticks = ticksData.getTicks();
-                        for (ITickData tick : ticks) {
-                            long timestamp = tick.getTimestamp();
-                            if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                float min = tick.getMinPrice();
-                                float max = tick.getMaxPrice();
+                        synchronized (ticks) {
+                            for (ITickData tick : ticks) {
+                                long timestamp = tick.getTimestamp();
+                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
+                                    float min = tick.getMinPrice();
+                                    float max = tick.getMaxPrice();
 
-                                if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
-                                    maxPrice = Math.max(maxPrice, max);
-                                    minPrice = Math.min(minPrice, min);
+                                    if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
+                                        maxPrice = Math.max(maxPrice, max);
+                                        minPrice = Math.min(minPrice, min);
+                                    }
                                 }
                             }
                         }
@@ -144,7 +150,8 @@ public class ChartPainter {
         g2.setClip(null);
 
         // paint zero line
-        int zero = yAxe.translateInt(0);
+        double horizont = cas.getHorizontalLineValue();
+        int zero = yAxe.translateInt(horizont);
         if ((zero > paintTop) && (zero < paintBottom)) {
             g2.setColor(Color.GRAY);
             g2.drawRect(paintLeft, zero, paintWidth - priceAxeWidth, zero);
@@ -168,13 +175,15 @@ public class ChartPainter {
 
                         TickPainter tickPainter = ls.getTickPainter();
                         List<? extends ITickData> ticks = ticksData.getTicks();
-                        ITickData prevTick = null;
-                        for (ITickData tick : ticks) {
-                            long timestamp = tick.getTimestamp();
-                            if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
+                        synchronized (ticks) {
+                            ITickData prevTick = null;
+                            for (ITickData tick : ticks) {
+                                long timestamp = tick.getTimestamp();
+                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
+                                    tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
+                                }
+                                prevTick = tick;
                             }
-                            prevTick = tick;
                         }
                     }
                 }
