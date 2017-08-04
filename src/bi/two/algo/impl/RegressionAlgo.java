@@ -9,6 +9,7 @@ import bi.two.util.MapConfig;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class RegressionAlgo extends BaseAlgo {
@@ -34,6 +35,17 @@ public class RegressionAlgo extends BaseAlgo {
     public final Adjuster m_adjuster;
 
     public RegressionIndicator m_regressionIndicator;
+
+    public String log() {
+        List ticks = getTicks();
+        int size = ticks.size();
+        return "RegressionAlgo[ticksNum=" + size +
+                "\n regressor=" + m_regressor.log() +
+                "\n regressorBars=" + m_regressorBars.log() +
+                "\n averager=" + m_averager.log() +
+                "\n signaler=" + m_signaler.log() +
+                "\n]";
+    }
 
 
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
@@ -144,6 +156,12 @@ public class RegressionAlgo extends BaseAlgo {
             double value = m_simpleRegression.getIntercept();
             return (float) value;
         }
+
+        public String log() {
+            return "Regressor["
+                    + "\nsplitter=" + m_splitter.log()
+                    + "\n]";
+        }
     }
 
     
@@ -240,6 +258,12 @@ public class RegressionAlgo extends BaseAlgo {
         @Override protected float calcTickValue(Float ret) {
             return ret;
         }
+
+        public String log() {
+            return "FadingAverager["
+                    + "\n splitter=" + m_splitter.log()
+                    + "\n]";
+        }
     }
 
 
@@ -270,6 +294,12 @@ public class RegressionAlgo extends BaseAlgo {
 
         @Override protected float calcTickValue(Float ret) {
             return ret;
+        }
+
+        public String log() {
+            return "SimpleAverager["
+                    + "\n splitter=" + m_splitter.log()
+                    + "\n]";
         }
     }
 

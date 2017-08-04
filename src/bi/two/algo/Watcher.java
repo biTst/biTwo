@@ -161,4 +161,10 @@ public class Watcher extends TimesSeriesData<TickData> {
             System.out.println(s);
         }
     }
+
+    public String log() {
+        return "Watcher["
+                + "\n ticksNum=" + m_ticks.size()
+                + "\n]";
+    }
 }

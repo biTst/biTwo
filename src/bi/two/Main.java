@@ -232,9 +232,9 @@ public class Main {
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
 
-        long processedPeriod = watchers.get(watchers.size()-1).getProcessedPeriod();
+        long processedPeriod = watchers.get(watchers.size() - 1).getProcessedPeriod();
         System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
-                + "   spent=" + Utils.millisToDHMSStr(endMillis-startMillis) + " .....................................");
+                + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
 
         double gain = maxWatcher.totalPriceRatio();
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
@@ -243,6 +243,15 @@ public class Main {
 
         System.out.println("MAX GAIN[" + curveLength + ", " + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
+
+        double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
+        System.out.println(" processedDays=" + processedDays
+                + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
+                + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+        );
+
+        System.out.println(maxWatcher.log());
+        System.out.println(ralgo.log());
 
         try {
             Thread.sleep(TimeUnit.MINUTES.toMillis(5));

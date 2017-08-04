@@ -50,11 +50,30 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         onTick(changed, tick);
     }
 
+    public String log() {
+        List<BarHolder> barHolders = getTicks();
+        int size = barHolders.size();
+        String logHolders = logHolders(barHolders);
+        return "BarSplitter[holdersNum=" + size
+                + logHolders
+                + "\n]";
+    }
+
+    private String logHolders(List<BarHolder> barHolders) {
+        StringBuilder sb = new StringBuilder();
+        int size = barHolders.size();
+        for (int i = 0; i < size; i++) {
+            BarHolder barHolder = barHolders.get(i);
+            sb.append("\n holder[").append(i).append("]=").append(barHolder.log());
+        }
+        return sb.toString();
+    }
+
     private void onTick(boolean changed, ITickData tick) {
         if(changed) {
             long timestamp = tick.getTimestamp();
             List<BarHolder> barHolders = getTicks();
-            if (m_lastTickTime == 0L) {
+            if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
                 BarHolder prevBar = null;
 
@@ -77,7 +96,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     for (int index = 0; index < m_barsNum; ++index) {
                         BarHolder newerBar = barHolders.get(index);
                         int nextIndex = index + 1;
-                        BarHolder olderBar = nextIndex == m_barsNum ? null : barHolders.get(nextIndex);
+                        BarHolder olderBar = (nextIndex == m_barsNum) ? null : barHolders.get(nextIndex);
                         newerBar.leave(timeShift, olderBar);
                     }
                 }
@@ -107,6 +126,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
         private float m_maxPrice = Utils.INVALID_PRICE;
         private boolean m_dirty; // == changed
         private List<IBarHolderListener> m_listeners;
+        private int m_ticksCount = 0;
 
         public BarHolder(long time, long period) {
             m_time = time;
@@ -192,6 +212,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     listener.onTickEnter(param);
                 }
             }
+            m_ticksCount++;
         }
 
         public void leave(long timeShift, BarHolder olderBarHolder) {
@@ -216,6 +237,8 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     olderBarHolder.put(m_oldestTick);
                 }
 
+                m_ticksCount--;
+
                 m_dirty = true;
 
                 if (m_oldestTick == m_latestTick) {
@@ -224,7 +247,13 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     break;
                 }
 
+                TickNode oldestTick = m_oldestTick;
                 m_oldestTick = (TickNode) m_oldestTick.m_next;
+
+                if (olderBarHolder == null) { // tick leaves all holders - destroy links
+                    oldestTick.m_next = null;
+                    m_oldestTick.m_prev = null;
+                }
             }
         }
 
@@ -250,6 +279,10 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                 m_listeners = new ArrayList<IBarHolderListener>();
             }
             m_listeners.add(listener);
+        }
+
+        public String log() {
+            return "BarHolder[ticksCount=" + m_ticksCount + "]";
         }
 
         //----------------------------------------------------------------------
