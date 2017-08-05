@@ -16,6 +16,7 @@ import java.util.*;
 
 public class Bitfinex extends BaseExchImpl {
     private static final int DEF_TICKS_TO_LOAD = 1000;
+    public static final int HTTP_TOO_MANY_REQUESTS = 429;
 
     public static void main(String[] args) {
 //        MarketConfig.initMarkets();
@@ -49,8 +50,9 @@ public class Bitfinex extends BaseExchImpl {
         int reads = 0;
         long timestamp = 0;
         while(true) {
+            System.out.println("read: " + reads + "; allTicks.size=" + allTicks.size());
             if (reads > 0) {
-                Thread.sleep(1000); // do not DDoS
+                Thread.sleep(2000); // do not DDoS
             }
             timestamp = readAndLog(allTicks, timestamp);
             reads++;
@@ -61,7 +63,7 @@ public class Bitfinex extends BaseExchImpl {
             long oldestTickTimestamp = oldestTick.getTimestamp();
             long newestTickTimestamp = newestTick.getTimestamp();
             long allPeriod = newestTickTimestamp - oldestTickTimestamp;
-            if(allPeriod > period) {
+            if (allPeriod > period) {
                 break;
             }
         }
@@ -145,6 +147,9 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
             if (responseCode == HttpsURLConnection.HTTP_OK) {
                 List<TickVolumeData> ticks = readAllTicks(con);
                 return ticks;
+            } else if (responseCode == HTTP_TOO_MANY_REQUESTS) {
+                String retryAfter = con.getHeaderField("Retry-After");
+                throw new Exception("ERROR: HTTP_TOO_MANY_REQUESTS: retryAfter=" + retryAfter);
             } else {
                 throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
             }

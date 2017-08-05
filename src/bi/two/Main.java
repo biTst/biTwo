@@ -4,6 +4,7 @@ import bi.two.algo.Watcher;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.*;
 import bi.two.exch.*;
+import bi.two.exch.impl.Bitfinex;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -28,7 +29,7 @@ public class Main {
 
         new Thread() {
             @Override public void run() {
-                loadData(frame, new FileTickReader());
+                loadData(frame, new BitfinexTickReader());
             }
         }.start();
     }
@@ -66,9 +67,8 @@ Exchange exchange = Exchange.get("bitstamp");
                     if (m_counter == s_prefillTicks) {
                         System.out.println("PREFILLED: ticksCount=" + m_counter);
                     } else if (m_counter > s_prefillTicks) {
-                        frame.repaint();
-
-                        if (m_counter % 10 == 0) {
+                        if (m_counter % 20 == 0) {
+                            frame.repaint();
                             try {
                                 Thread.sleep(100);
                             } catch (InterruptedException e) {
@@ -329,6 +329,23 @@ Exchange exchange = Exchange.get("bitstamp");
             fileReader.skip(fileLength - lastBytesToProces);
 
             readFileTicks(fileReader, ticksTs, callback, pairData);
+        }
+    }
+
+    private static class BitfinexTickReader implements ITickReader {
+        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
+                                        Runnable callback, ExchPairData pairData) throws Exception {
+            TopData topData = pairData.m_topData;
+            List<TickVolumeData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
+            for (int i = ticks.size() - 1; i >= 0; i--) {
+                TickVolumeData tick = ticks.get(i);
+                float price = tick.getPrice();
+                topData.init(price, price, price);
+                pairData.m_newestTick = tick;
+
+                ticksTs.addNewestTick(tick);
+                callback.run();
+            }
         }
     }
 }
