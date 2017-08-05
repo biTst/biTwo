@@ -1,9 +1,7 @@
 package bi.two;
 
-import bi.two.algo.BarSplitter;
 import bi.two.algo.Watcher;
 import bi.two.algo.impl.RegressionAlgo;
-import bi.two.calc.BarsWeightedAverager;
 import bi.two.chart.*;
 import bi.two.exch.*;
 import bi.two.util.MapConfig;
@@ -20,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
 
-    public static int s_prefillTicks = Integer.MAX_VALUE;
+    private static int s_prefillTicks = Integer.MAX_VALUE;
 
     public static void main(String[] args) {
         MarketConfig.initMarkets();
@@ -30,30 +28,74 @@ public class Main {
 
         new Thread() {
             @Override public void run() {
-                loadData(frame);
+                loadData(frame, new FileTickReader());
             }
         }.start();
     }
 
-    private static void loadData(final ChartFrame frame) {
+    private static void loadData(final ChartFrame frame, ITickReader tickReader) {
         MapConfig config = new MapConfig();
         try {
             config.load("vary.properties");
-
-            String path = config.getProperty("dataFile");
-            File file = new File(path);
-            long fileLength = file.length();
-            System.out.println("fileLength = " + fileLength);
-
-            FileReader fileReader = new FileReader(file);
-
-            long lastBytesToProces = config.getLong("process.bytes");
             s_prefillTicks = config.getInt("prefill.ticks");
-            fileReader.skip(fileLength - lastBytesToProces);
+
+            final boolean collectTicks = config.getBoolean("collect.ticks");
+            final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
+                @Override public void addNewestTick(TickData tickData) {
+                    if (collectTicks) {
+                        super.addNewestTick(tickData);
+                    } else {
+                        m_ticks.set(0, tickData); // always update last tick
+                        notifyListeners(true);
+                    }
+                }
+            };
+
+Exchange exchange = Exchange.get("bitstamp");
+            Pair pair = Pair.getByName("btc_usd");
 
             ChartCanvas chartCanvas = frame.getChartCanvas();
-            readMany(frame, config, fileReader, chartCanvas);
-//            readOne(frame, fileReader, chartCanvas);
+            List<Watcher> watchers = setup(ticksTs, config, chartCanvas, exchange, pair);
+
+            Runnable callback = new Runnable() {
+                private int m_counter = 0;
+                private long lastTime = 0;
+
+                @Override public void run() {
+                    m_counter++;
+                    if (m_counter == s_prefillTicks) {
+                        System.out.println("PREFILLED: ticksCount=" + m_counter);
+                    } else if (m_counter > s_prefillTicks) {
+                        frame.repaint();
+
+                        if (m_counter % 10 == 0) {
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else {
+                        if (m_counter % 5000 == 0) {
+                            long time = System.currentTimeMillis();
+                            if (time - lastTime > 5000) {
+                                System.out.println("m_counter = " + m_counter);
+                                lastTime = time;
+                            }
+                        }
+                    }
+                }
+            };
+
+            ExchPairData pairData = exchange.getPairData(pair);
+            long startMillis = System.currentTimeMillis();
+            tickReader.readTicks(config, ticksTs, callback, pairData);
+
+            long endMillis = System.currentTimeMillis();
+
+            logResults(watchers, startMillis, endMillis);
+
+            frame.repaint();
 
             System.out.println("DONE");
         } catch (Exception e) {
@@ -61,28 +103,16 @@ public class Main {
         }
     }
 
-    private static void readMany(final ChartFrame frame, MapConfig config, FileReader fileReader, ChartCanvas chartCanvas) throws IOException {
+    private static List<Watcher> setup(TimesSeriesData<TickData> ticksTs, MapConfig config,
+                                       ChartCanvas chartCanvas, Exchange exchange, Pair pair) throws Exception {
         final boolean collectTicks = config.getBoolean("collect.ticks");
-        final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
-            @Override public void addNewestTick(TickData tickData) {
-                if (collectTicks) {
-                    super.addNewestTick(tickData);
-                } else {
-                    m_ticks.set(0, tickData); // always update last tick
-                    notifyListeners(true);
-                }
-            }
-        };
         if (!collectTicks) { // add initial tick to update
             ticksTs.addOlderTick(new TickData());
         }
 
-        Exchange exchange = Exchange.get("bitstamp");
-        Pair pair = Pair.getByName("btc_usd");
-
-        long periodFrom = config.getLong("period.from");
-        long periodTo = config.getLong("period.to");
-        long periodStep = config.getLong("period.step");
+        long periodFrom = config.getPeriodInMillis("period.from");
+        long periodTo = config.getPeriodInMillis("period.to");
+        long periodStep = config.getPeriodInMillis("period.step");
         int barsFrom = config.getInt("bars.from");
         int barsTo = config.getInt("bars.to");
         int barsStep = config.getInt("bars.step");
@@ -184,44 +214,7 @@ public class Main {
             chartSetting.addChartAreaSettings(gain);
         }
 
-        Runnable callback = new Runnable() {
-            private int m_counter = 0;
-            private long lastTime = 0;
-
-            @Override public void run() {
-                m_counter++;
-                if (m_counter == s_prefillTicks) {
-                    System.out.println("PREFILLED: ticksCount=" + m_counter);
-                } else if (m_counter > s_prefillTicks) {
-                    frame.repaint();
-
-                    if (m_counter % 5 == 0) {
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                } else {
-                    if (m_counter % 5000 == 0) {
-                        long time = System.currentTimeMillis();
-                        if (time - lastTime > 5000) {
-                            System.out.println("m_counter = " + m_counter);
-                            lastTime = time;
-                        }
-                    }
-                }
-            }
-        };
-
-        ExchPairData pairData = exchange.getPairData(pair);
-        long startMillis = System.currentTimeMillis();
-        readTicks(fileReader, ticksTs, callback, pairData);
-        long endMillis = System.currentTimeMillis();
-
-        frame.repaint();
-
-        logResults(watchers, startMillis, endMillis);
+        return watchers;
     }
 
     private static void logResults(List<Watcher> watchers, long startMillis, long endMillis) {
@@ -270,68 +263,7 @@ public class Main {
         }
     }
 
-    private static void readOne(final ChartFrame frame, FileReader fileReader, ChartCanvas chartCanvas) throws IOException {
-        ChartData chartData = chartCanvas.getChartData();
-        final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
-        BarSplitter bs = new BarSplitter(ticksTs, 20, 60000l);
-        BarsWeightedAverager averager = new BarsWeightedAverager(bs);
-
-        List<Watcher> watchers = new ArrayList<Watcher>();
-        Exchange exchange = Exchange.get("bitstamp");
-        Pair pair = Pair.getByName("btc_usd");
-        MapConfig config = new MapConfig();
-
-        config.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, "5");
-        RegressionAlgo algo = new RegressionAlgo(config, bs);
-        TimesSeriesData<TickData> algoTs = algo.getTS(true);
-        TimesSeriesData<TickData> indicatorTs = algo.m_regressionIndicator.getJoinNonChangedTs();
-        Watcher watcher0 = new Watcher(config, algo, exchange, pair);
-        watchers.add(watcher0);
-
-        chartData.setTicksData("price", ticksTs);
-        chartData.setTicksData("bars", bs);
-        chartData.setTicksData("avg", averager);
-        chartData.setTicksData("regressor", indicatorTs);
-        chartData.setTicksData("adjusted", algoTs);
-
-        Runnable callback = new Runnable() {
-            private int m_counter = 0;
-            private long lastTime = 0;
-
-            @Override public void run() {
-                m_counter++;
-                if (m_counter == s_prefillTicks) {
-                    List<TickData> ticks = ticksTs.getTicks();
-                    long firstTimestamp = ticks.get(ticks.size() - 1).getTimestamp();
-                    int size = ticks.size();
-                    long lastTimestamp = ticks.get(0).getTimestamp();
-                    long timeDiff = lastTimestamp - firstTimestamp;
-                    System.out.println("PREFILLED: ticksCount=" + size + "; timeDiff=" + Utils.millisToDHMSStr(timeDiff));
-                } else if (m_counter > s_prefillTicks) {
-                    frame.repaint(100);
-                } else {
-                    if (m_counter % 5000 == 0) {
-                        long time = System.currentTimeMillis();
-                        if (time - lastTime > 5000) {
-                            System.out.println("m_counter = " + m_counter);
-                            lastTime = time;
-                        }
-                    }
-                }
-            }
-        };
-
-        ExchPairData pairData = exchange.getPairData(pair);
-        long startMillis = System.currentTimeMillis();
-        readTicks(fileReader, ticksTs, callback, pairData);
-        long endMillis = System.currentTimeMillis();
-
-        frame.repaint();
-
-        logResults(watchers, startMillis, endMillis);
-    }
-
-    private static void readTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws IOException {
+    private static void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws IOException {
         TopData topData = pairData.m_topData;
         BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
         try {
@@ -376,5 +308,27 @@ public class Main {
             }
         }
         return null;
+    }
+
+    private interface ITickReader {
+        void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
+                       Runnable callback, ExchPairData pairData) throws Exception;
+    }
+
+    private static class FileTickReader implements ITickReader {
+        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
+                                        Runnable callback, ExchPairData pairData) throws Exception {
+            String path = config.getProperty("dataFile");
+            File file = new File(path);
+            long fileLength = file.length();
+            System.out.println("fileLength = " + fileLength);
+
+            FileReader fileReader = new FileReader(file);
+
+            long lastBytesToProces = config.getLong("process.bytes");
+            fileReader.skip(fileLength - lastBytesToProces);
+
+            readFileTicks(fileReader, ticksTs, callback, pairData);
+        }
     }
 }
