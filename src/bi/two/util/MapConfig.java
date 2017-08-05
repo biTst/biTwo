@@ -7,6 +7,14 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class MapConfig extends Properties {
+    public String getString(String key) {
+        String property = getPropertyNoComment(key);
+        if (property != null) {
+            return property;
+        }
+        throw new RuntimeException("property '" + key + "' not found");
+    }
+
     public int getInt(String key) {
         String property = getPropertyNoComment(key);
         if (property != null) {
@@ -33,6 +41,12 @@ public class MapConfig extends Properties {
             }
         }
         throw new RuntimeException("property '" + key + "' not found");
+    }
+
+    public long getPeriodInMillis(String key) {
+        String periodStr = getString(key);
+        long period = Utils.toMillis(periodStr);
+        return period;
     }
 
     public float getFloat(String key) {
