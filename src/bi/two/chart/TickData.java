@@ -3,8 +3,8 @@ package bi.two.chart;
 import bi.two.util.Utils;
 
 public class TickData implements ITickData {
-    private long m_timestamp;
-    private float m_price;
+    long m_timestamp;
+    float m_price;
     private ITickData m_olderTick;
 
     public TickData() {}
@@ -46,4 +46,8 @@ public class TickData implements ITickData {
     public void setOlderTick(ITickData olderTick) { m_olderTick = olderTick; }
 
     @Override public boolean isValid() { return (m_price != Utils.INVALID_PRICE) && (m_price > 0); }
+
+    @Override public String toString() {
+        return "TickVolumeData[time=" + m_timestamp + "; price=" + m_price + "]";
+    }
 }
