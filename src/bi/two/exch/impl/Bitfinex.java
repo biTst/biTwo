@@ -38,55 +38,82 @@ public class Bitfinex extends BaseExchImpl {
                 }
             }
 
-            private long readAndLog(List<TickVolumeData> allTicks, long timestamp) throws Exception {
-                List<TickVolumeData> ticks = execute(timestamp);
-
-                int size = ticks.size();
-                System.out.println(" got " + size + " ticks");
-                if (size == 0) {
-                    throw new Exception("no ticks");
-                }
-
-                long oldestTickTimestamp = logTicks(ticks, "ticks: ", false);
-
-                // glue ticks
-                int toDelete = 0;
-                for (TickVolumeData tick : allTicks) {
-                    long millis = tick.getTimestamp();
-                    if (millis == timestamp) {
-                        toDelete++;
-                    }
-                }
-                int allTicksSize = allTicks.size();
-                for (int i = 1; i <= toDelete; i++) {
-                    allTicks.remove(allTicksSize - i);
-                }
-                System.out.println(" got " + toDelete + " ticks with timestamp=" + timestamp + " at the end of allTicks. deleted");
-
-                allTicks.addAll(ticks);
-
-//                logTicks(allTicks, "ALL ticks: ");
-
-                return oldestTickTimestamp;
-            }
-
-            private long logTicks(List<TickVolumeData> ticks, String prefix, boolean logArray) {
-                int size = ticks.size();
-                TickVolumeData newestTick = ticks.get(0);
-                TickVolumeData oldestTick = ticks.get(size - 1);
-                long oldestTickTimestamp = oldestTick.getTimestamp();
-                long newestTickTimestamp = newestTick.getTimestamp();
-                String timePeriod = Utils.millisToDHMSStr(newestTickTimestamp - oldestTickTimestamp);
-                System.out.println(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
-                if (logArray) {
-                    for (int i = 0; i < size; i++) {
-                        TickVolumeData tick = ticks.get(i);
-                        System.out.println(" tick[" + i + "]: " + tick);
-                    }
-                }
-                return oldestTickTimestamp;
-            }
         }.start();
+    }
+
+    public static List<TickVolumeData> readTicks(long period) throws Exception {
+        System.out.println("readTicks() period=" + period);
+
+        List<TickVolumeData> allTicks = new ArrayList<>();
+
+        int reads = 0;
+        long timestamp = 0;
+        while(true) {
+            if (reads > 0) {
+                Thread.sleep(1000); // do not DDoS
+            }
+            timestamp = readAndLog(allTicks, timestamp);
+            reads++;
+
+            int size = allTicks.size();
+            TickVolumeData newestTick = allTicks.get(0);
+            TickVolumeData oldestTick = allTicks.get(size - 1);
+            long oldestTickTimestamp = oldestTick.getTimestamp();
+            long newestTickTimestamp = newestTick.getTimestamp();
+            long allPeriod = newestTickTimestamp - oldestTickTimestamp;
+            if(allPeriod > period) {
+                break;
+            }
+        }
+        logTicks(allTicks, "ALL ticks: ", false);
+        return allTicks;
+    }
+    
+    private static long readAndLog(List<TickVolumeData> allTicks, long timestamp) throws Exception {
+        List<TickVolumeData> ticks = execute(timestamp);
+
+        int size = ticks.size();
+        System.out.println(" got " + size + " ticks");
+        if (size == 0) {
+            throw new Exception("no ticks");
+        }
+
+        long oldestTickTimestamp = logTicks(ticks, "ticks: ", false);
+
+        // glue ticks
+        int toDelete = 0;
+        for (TickVolumeData tick : allTicks) {
+            long millis = tick.getTimestamp();
+            if (millis == timestamp) {
+                toDelete++;
+            }
+        }
+        int allTicksSize = allTicks.size();
+        for (int i = 1; i <= toDelete; i++) {
+            allTicks.remove(allTicksSize - i);
+        }
+        System.out.println(" got " + toDelete + " ticks with timestamp=" + timestamp + " at the end of allTicks. deleted");
+
+        allTicks.addAll(ticks);
+
+        return oldestTickTimestamp;
+    }
+
+    private static long logTicks(List<TickVolumeData> ticks, String prefix, boolean logArray) {
+        int size = ticks.size();
+        TickVolumeData newestTick = ticks.get(0);
+        TickVolumeData oldestTick = ticks.get(size - 1);
+        long oldestTickTimestamp = oldestTick.getTimestamp();
+        long newestTickTimestamp = newestTick.getTimestamp();
+        String timePeriod = Utils.millisToDHMSStr(newestTickTimestamp - oldestTickTimestamp);
+        System.out.println(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
+        if (logArray) {
+            for (int i = 0; i < size; i++) {
+                TickVolumeData tick = ticks.get(i);
+                System.out.println(" tick[" + i + "]: " + tick);
+            }
+        }
+        return oldestTickTimestamp;
     }
 
     private static List<TickVolumeData> execute(long timestamp) throws Exception {
