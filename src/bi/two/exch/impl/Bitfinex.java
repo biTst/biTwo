@@ -1,8 +1,10 @@
 package bi.two.exch.impl;
 
 import bi.two.chart.TickVolumeData;
+import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
 import bi.two.util.Post;
+import bi.two.util.Utils;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedInputStream;
@@ -10,22 +12,84 @@ import java.io.IOException;
 import java.io.PushbackInputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Bitfinex extends BaseExchImpl {
+    private static final int DEF_TICKS_TO_LOAD = 1000;
+
     public static void main(String[] args) {
 //        MarketConfig.initMarkets();
 
         new Thread() {
             @Override public void run() {
-                execute();
+                try {
+                    List<TickVolumeData> allTicks = new ArrayList<>();
+
+                    int timestamp = 0;
+                    long oldestTickTimestamp = readAndLog(allTicks, timestamp);
+
+//                    Thread.sleep(1000); // do not DDoS
+//                    oldestTickTimestamp = readAndLog(allTicks, oldestTickTimestamp);
+
+                    logTicks(allTicks, "ALL ticks: ", false);
+                } catch (Exception e) {
+                    System.out.println("error: " + e);
+                    e.printStackTrace();
+                }
+            }
+
+            private long readAndLog(List<TickVolumeData> allTicks, long timestamp) throws Exception {
+                List<TickVolumeData> ticks = execute(timestamp);
+
+                int size = ticks.size();
+                System.out.println(" got " + size + " ticks");
+                if (size == 0) {
+                    throw new Exception("no ticks");
+                }
+
+                long oldestTickTimestamp = logTicks(ticks, "ticks: ", false);
+
+                // glue ticks
+                int toDelete = 0;
+                for (TickVolumeData tick : allTicks) {
+                    long millis = tick.getTimestamp();
+                    if (millis == timestamp) {
+                        toDelete++;
+                    }
+                }
+                int allTicksSize = allTicks.size();
+                for (int i = 1; i <= toDelete; i++) {
+                    allTicks.remove(allTicksSize - i);
+                }
+                System.out.println(" got " + toDelete + " ticks with timestamp=" + timestamp + " at the end of allTicks. deleted");
+
+                allTicks.addAll(ticks);
+
+//                logTicks(allTicks, "ALL ticks: ");
+
+                return oldestTickTimestamp;
+            }
+
+            private long logTicks(List<TickVolumeData> ticks, String prefix, boolean logArray) {
+                int size = ticks.size();
+                TickVolumeData newestTick = ticks.get(0);
+                TickVolumeData oldestTick = ticks.get(size - 1);
+                long oldestTickTimestamp = oldestTick.getTimestamp();
+                long newestTickTimestamp = newestTick.getTimestamp();
+                String timePeriod = Utils.millisToDHMSStr(newestTickTimestamp - oldestTickTimestamp);
+                System.out.println(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
+                if (logArray) {
+                    for (int i = 0; i < size; i++) {
+                        TickVolumeData tick = ticks.get(i);
+                        System.out.println(" tick[" + i + "]: " + tick);
+                    }
+                }
+                return oldestTickTimestamp;
             }
         }.start();
     }
 
-    private static void execute() {
-        try {
+    private static List<TickVolumeData> execute(long timestamp) throws Exception {
             // https://bitfinex.readme.io/v2/reference#rest-public-trades
 //        QUERY           PARAMS
 //        limit   int32   Number of records       120
@@ -33,45 +97,44 @@ public class Bitfinex extends BaseExchImpl {
 //        end     int32   Millisecond end time    0
 //        sort    int32   if = 1 it sorts results returned with old > new     -1
 
-            Map<String, String> sArray = new HashMap<String, String>();
-            sArray.put("limit", "10");
+        Map<String, String> sArray = new HashMap<String, String>();
+        sArray.put("limit", Integer.toString(DEF_TICKS_TO_LOAD));
 //            sArray.put("sort", "1");
-            String postData = Post.createHttpPostString(sArray, false);
+        sArray.put("end", Long.toString(timestamp));
+        String postData = Post.createHttpPostString(sArray, false);
 
-            String pair = "tBTCUSD";
-            String address = "https://api.bitfinex.com/v2/trades/" + pair + "/hist?" + postData;
-            URL url = new URL(address);
-            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            try {
-                con.setRequestMethod("GET");
-                con.setUseCaches(false);
+        String pair = "tBTCUSD";
+        String address = "https://api.bitfinex.com/v2/trades/" + pair + "/hist?" + postData;
+        URL url = new URL(address);
+        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+        try {
+            con.setRequestMethod("GET");
+            con.setUseCaches(false);
 
-                int responseCode = con.getResponseCode();
-                int contentLength = con.getContentLength();
+            int responseCode = con.getResponseCode();
+            int contentLength = con.getContentLength();
 System.out.println("responseCode=" + responseCode + "; contentLength=" + contentLength);
 
-                if (responseCode == HttpsURLConnection.HTTP_OK) {
-                    readAll(con);
-                } else {
-                    throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
-                }
-            } finally {
-                con.disconnect();
+            if (responseCode == HttpsURLConnection.HTTP_OK) {
+                List<TickVolumeData> ticks = readAllTicks(con);
+                return ticks;
+            } else {
+                throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
             }
-        } catch (Exception e) {
-            System.out.println("error: " + e);
-            e.printStackTrace();
+        } finally {
+            con.disconnect();
         }
     }
 
-    protected static void readAll(HttpURLConnection con) throws IOException {
+    protected static List<TickVolumeData> readAllTicks(HttpURLConnection con) throws IOException {
         PushbackInputStream pbis = new PushbackInputStream(new BufferedInputStream(con.getInputStream()));
         // [[49448138,1501893566000,-0.74891095,2863.8],[49448101,1501893563000,-0.65,2863.8],   ,[49447948,1501893542000,0.03284317,2864.9]]
         try {
             if (readChar(pbis, '[')) {
+                List<TickVolumeData> ticks = new ArrayList<>();
                 while (true) {
                     TickVolumeData tvd = readTick(pbis);
-                    System.out.println(" tick: " + tvd);
+                    ticks.add(tvd);
 
                     int ch = pbis.read();
                     if (ch == ']') { // EndOfArray
@@ -81,6 +144,7 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
                         throw new RuntimeException("expected ,");
                     }
                 }
+                return ticks;
             } else {
                 throw new RuntimeException("expected [");
             }
@@ -89,10 +153,10 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
         }
     }
 
-    private static TickVolumeData readTick(PushbackInputStream pbis) throws IOException {
+    private static TradeTickData readTick(PushbackInputStream pbis) throws IOException {
         // [49448138,1501893566000,-0.74891095,2863.8]
         if(readChar(pbis, '[')) {
-            skipDigits(pbis); // trade number ?
+            long tradeId = readLong(pbis);
             if(readChar(pbis, ',')) {
                 long millis = readLong(pbis);
                 if(readChar(pbis, ',')) {
@@ -100,7 +164,7 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
                     if(readChar(pbis, ',')) {
                         float price = readFloat(pbis);
                         if(readChar(pbis, ']')) {
-                            TickVolumeData tvd = new TickVolumeData(millis, price, size);
+                            TradeTickData tvd = new TradeTickData(tradeId, millis, price, size);
                             return tvd;
                         } else {
                             throw new RuntimeException("expected ]");
@@ -115,6 +179,8 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
                 throw new RuntimeException("expected ,");
             }
         } else {
+            String line = readLine(pbis);
+            System.out.println("line=" + line);
             throw new RuntimeException("expected [");
         }
     }
@@ -154,6 +220,19 @@ System.out.println("responseCode=" + responseCode + "; contentLength=" + content
             sb.append((char)read);
         }
         return Long.parseLong(sb.toString());
+    }
+
+    private static String readLine(PushbackInputStream pbis) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int read;
+        while ((read = pbis.read()) != -1) {
+            if (read == '\n' || read == '\r' ) {
+                pbis.unread(read);
+                break;
+            }
+            sb.append((char)read);
+        }
+        return sb.toString();
     }
 
     private static boolean readChar(PushbackInputStream pbis, char c) throws IOException {
