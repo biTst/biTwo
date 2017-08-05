@@ -51,4 +51,17 @@ public class Utils {
         }
         return res.toString();
     }
+
+    public static String replaceAll(String str, String search, String replacement) {
+        if (str.contains(search)) {
+            int length = search.length();
+            StringBuilder sb = new StringBuilder(str);
+            int ind;
+            while ((ind = sb.indexOf(search)) != -1) {
+                sb.replace(ind, ind + length, replacement);
+            }
+            return sb.toString();
+        }
+        return str;
+    }
 }
