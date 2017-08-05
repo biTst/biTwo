@@ -3,6 +3,8 @@ package bi.two.chart;
 public class TradeTickData extends TickVolumeData {
     private final long m_tradeId;
 
+    public long getTradeId() { return m_tradeId; }
+
     public TradeTickData(long tradeId, long timestamp, float price, float volume) {
         super(timestamp, price, volume);
         m_tradeId = tradeId;

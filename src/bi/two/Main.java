@@ -336,9 +336,9 @@ Exchange exchange = Exchange.get("bitstamp");
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
                                         Runnable callback, ExchPairData pairData) throws Exception {
             TopData topData = pairData.m_topData;
-            List<TickVolumeData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
+            List<TradeTickData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
             for (int i = ticks.size() - 1; i >= 0; i--) {
-                TickVolumeData tick = ticks.get(i);
+                TradeTickData tick = ticks.get(i);
                 float price = tick.getPrice();
                 topData.init(price, price, price);
                 pairData.m_newestTick = tick;
