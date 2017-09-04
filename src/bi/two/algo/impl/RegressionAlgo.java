@@ -29,7 +29,7 @@ public class RegressionAlgo extends BaseAlgo {
 //    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
-    public final FadingAverager m_averager;
+    public final FadingBarAverager m_averager;
     public final SimpleAverager m_signaler;
     public final Powerer m_powerer;
     public final Adjuster m_adjuster;
@@ -90,7 +90,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_differ = new Differ(m_regressorBars);
         m_scaler = new Scaler(m_differ, tsd, 1000);
-        m_averager = new FadingAverager(m_scaler, slopeLength * barSize);
+        m_averager = new FadingBarAverager(m_scaler, slopeLength,  barSize);
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
         m_adjuster = new Adjuster(m_powerer, m_threshold);
@@ -306,13 +306,13 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class FadingAverager extends BufferBased<Float> {
+    public static class FadingBarAverager extends BufferBased<Float> {
         private long m_startTime;
         private double m_summ;
         private double m_weight;
 
-        public FadingAverager(ITimesSeriesData<ITickData> tsd, long period) {
-            super(tsd, period);
+        public FadingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+            super(tsd, length * barSize);
         }
 
         @Override public void start() {
@@ -440,14 +440,14 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
-        private final FadingAverager m_averager;
+        private final FadingBarAverager m_averager;
         private final SimpleAverager m_signaler;
         private final float m_rate;
         public boolean m_dirty;
         public ITickData m_tick;
         public float m_xxx;
 
-        public Powerer(FadingAverager averager, SimpleAverager signaler, float rate) {
+        public Powerer(FadingBarAverager averager, SimpleAverager signaler, float rate) {
             super(signaler);
             m_averager = averager;
             m_signaler = signaler;
