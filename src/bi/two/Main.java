@@ -29,16 +29,19 @@ public class Main {
 
         new Thread() {
             @Override public void run() {
-                loadData(frame, new BitfinexTickReader());
+                loadData(frame);
             }
         }.start();
     }
 
-    private static void loadData(final ChartFrame frame, ITickReader tickReader) {
+    private static void loadData(final ChartFrame frame) {
         MapConfig config = new MapConfig();
         try {
             config.load("vary.properties");
             s_prefillTicks = config.getInt("prefill.ticks");
+
+            String name = config.getString("tick.reader");
+            TickReader tickReader = TickReader.get(name);
 
             final boolean collectTicks = config.getBoolean("collect.ticks");
             final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
@@ -121,8 +124,15 @@ Exchange exchange = Exchange.get("bitstamp");
         float thresholdStep = config.getFloat("threshold.step");
         boolean collectValues = config.getBoolean("collect.values");
 
+        int slopeLen = config.getInt("slope.len");
+        String slopeLenStr = Integer.toString(slopeLen);
+        int signalLen = config.getInt("signal.len");
+        String signalLenStr = Integer.toString(signalLen);
+
         MapConfig algoConfig = new MapConfig();
         algoConfig.put(RegressionAlgo.COLLECT_LAVUES_KEY, Boolean.toString(collectValues));
+        algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, slopeLenStr);
+        algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, signalLenStr);
 
         RegressionAlgo algo = null;
         List<Watcher> watchers = new ArrayList<Watcher>();
@@ -263,16 +273,19 @@ Exchange exchange = Exchange.get("bitstamp");
         }
     }
 
-    private static void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws IOException {
+    private static void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback,
+                                      ExchPairData pairData, String dataFileType) throws IOException {
         TopData topData = pairData.m_topData;
         BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
         try {
             br.readLine(); // skip to the end of line
 
+            DataFileType type = DataFileType.get(dataFileType);
+
             String line;
             while ((line = br.readLine()) != null) {
                 // System.out.println("line = " + line);
-                TickVolumeData tickData = parseLine(line);
+                TickData tickData = type.parseLine(line);
 
                 float price = tickData.getPrice();
                 topData.init(price, price, price);
@@ -286,66 +299,130 @@ Exchange exchange = Exchange.get("bitstamp");
         }
     }
 
-    private static TickVolumeData parseLine(String line) {
-        int indx1 = line.indexOf(",");
-        if (indx1 > 0) {
-            int priceIndex = indx1 + 1;
-            int indx2 = line.indexOf(",", priceIndex);
-            if (indx2 > 0) {
-                String timestampStr = line.substring(0, indx1);
-                String priceStr = line.substring(priceIndex, indx2);
-                String volumeStr = line.substring(indx2 + 1);
+    //=============================================================================================
+    private enum TickReader {
+        FILE("file") {
+            @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+                String path = config.getProperty("dataFile");
+                File file = new File(path);
+                long fileLength = file.length();
+                System.out.println("fileLength = " + fileLength);
 
-                //System.out.println("timestampStr = " + timestampStr +"; priceStr = " + priceStr +"; volumeStr = " + volumeStr );
+                FileReader fileReader = new FileReader(file);
 
-                long timestampSeconds = Long.parseLong(timestampStr);
-                float price = Float.parseFloat(priceStr);
-                float volume = Float.parseFloat(volumeStr);
+                long lastBytesToProces = config.getLong("process.bytes");
+                if (lastBytesToProces > 0) {
+                    fileReader.skip(fileLength - lastBytesToProces);
+                }
 
-                long timestampMs= timestampSeconds * 1000;
-                TickVolumeData tickData = new TickVolumeData(timestampMs, price, volume);
+                String dataFileType = config.getProperty("dataFile.type");
+
+                readFileTicks(fileReader, ticksTs, callback, pairData, dataFileType);
+            }
+        },
+        BITFINEX("bitfinex") {
+            @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+                TopData topData = pairData.m_topData;
+                List<TradeTickData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
+                for (int i = ticks.size() - 1; i >= 0; i--) {
+                    TradeTickData tick = ticks.get(i);
+                    float price = tick.getPrice();
+                    topData.init(price, price, price);
+                    pairData.m_newestTick = tick;
+
+                    ticksTs.addNewestTick(tick);
+                    callback.run();
+                }
+            }
+        };
+
+        private final String m_name;
+
+        TickReader(String name) {
+            m_name = name;
+        }
+
+        public static TickReader get(String name) {
+            for (TickReader tickReader : values()) {
+                if (tickReader.m_name.equals(name)) {
+                    return tickReader;
+                }
+            }
+            throw new RuntimeException("Unknown TickReader '" + name + "'");
+        }
+
+        public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+            throw new RuntimeException("must be overridden");
+        }
+    }
+
+
+    //=============================================================================================
+    public enum DataFileType {
+        CSV("csv") {
+            @Override public TickData parseLine(String line) {
+                int indx1 = line.indexOf(",");
+                if (indx1 > 0) {
+                    int priceIndex = indx1 + 1;
+                    int indx2 = line.indexOf(",", priceIndex);
+                    if (indx2 > 0) {
+                        String timestampStr = line.substring(0, indx1);
+                        String priceStr = line.substring(priceIndex, indx2);
+                        String volumeStr = line.substring(indx2 + 1);
+
+                        //System.out.println("timestampStr = " + timestampStr +"; priceStr = " + priceStr +"; volumeStr = " + volumeStr );
+
+                        long timestampSeconds = Long.parseLong(timestampStr);
+                        float price = Float.parseFloat(priceStr);
+                        float volume = Float.parseFloat(volumeStr);
+
+                        long timestampMs= timestampSeconds * 1000;
+                        TickVolumeData tickData = new TickVolumeData(timestampMs, price, volume);
+                        return tickData;
+                    }
+                }
+                return null;
+            }
+        },
+        TABBED("tabbed") {
+            private final long STEP = TimeUnit.MINUTES.toMillis(5);
+            
+            private long m_time = 0;
+
+            @Override public TickData parseLine(String line) {
+                String[] extra = line.split("\t");
+                float price = Float.parseFloat(extra[0]);
+                m_time += STEP;
+                TickExtraData tickData = new TickExtraData(m_time, price, extra);
                 return tickData;
             }
+        };
+
+        private final String m_type;
+
+        DataFileType(String type) {
+            m_type = type;
         }
-        return null;
-    }
 
-    private interface ITickReader {
-        void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
-                       Runnable callback, ExchPairData pairData) throws Exception;
-    }
-
-    private static class FileTickReader implements ITickReader {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
-                                        Runnable callback, ExchPairData pairData) throws Exception {
-            String path = config.getProperty("dataFile");
-            File file = new File(path);
-            long fileLength = file.length();
-            System.out.println("fileLength = " + fileLength);
-
-            FileReader fileReader = new FileReader(file);
-
-            long lastBytesToProces = config.getLong("process.bytes");
-            fileReader.skip(fileLength - lastBytesToProces);
-
-            readFileTicks(fileReader, ticksTs, callback, pairData);
-        }
-    }
-
-    private static class BitfinexTickReader implements ITickReader {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs,
-                                        Runnable callback, ExchPairData pairData) throws Exception {
-            TopData topData = pairData.m_topData;
-            List<TradeTickData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
-            for (int i = ticks.size() - 1; i >= 0; i--) {
-                TradeTickData tick = ticks.get(i);
-                float price = tick.getPrice();
-                topData.init(price, price, price);
-                pairData.m_newestTick = tick;
-
-                ticksTs.addNewestTick(tick);
-                callback.run();
+        public static DataFileType get(String type) {
+            for (DataFileType dataFileType : values()) {
+                if (dataFileType.m_type.equals(type)) {
+                    return dataFileType;
+                }
             }
+            throw new RuntimeException("Unknown DataFileType '" + type + "'");
+        }
+
+        public TickData parseLine(String line) { throw new RuntimeException("must be overridden"); }
+    }
+
+    
+    public static class TickExtraData extends TickData {
+        public final String[] m_extra;
+
+        public TickExtraData(long time, float price, String[] extra) {
+            super(time, price);
+            m_extra = extra;
         }
     }
 }
