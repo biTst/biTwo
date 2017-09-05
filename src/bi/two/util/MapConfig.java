@@ -16,6 +16,10 @@ public class MapConfig extends Properties {
     }
 
     public int getInt(String key) {
+        return getIntOrDefault(key, null);
+    }
+
+    public int getIntOrDefault(String key, Integer def) {
         String property = getPropertyNoComment(key);
         if (property != null) {
             try {
@@ -24,16 +28,15 @@ public class MapConfig extends Properties {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Integer");
             }
         }
+        if (def != null) {
+            return def;
+        }
         throw new RuntimeException("property '" + key + "' not found");
     }
 
     public long getLong(String key) {
         String property = getPropertyNoComment(key);
         if (property != null) {
-            int indx = property.indexOf('#'); // remove comment
-            if (indx != -1) {
-                property = property.substring(0, indx).trim();
-            }
             try {
                 return Long.parseLong(property);
             } catch (NumberFormatException e) {

@@ -14,9 +14,14 @@ import java.util.concurrent.TimeUnit;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
+    public static final int DEF_SLOPE_LEN = 5;
+    public static final int DEF_SIGNAL_LEN = 13;
+
     public static final String COLLECT_LAVUES_KEY = "collect.values";
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
+    public static final String SLOPE_LEN_KEY = "regression.slopeLength";
+    public static final String SIGNAL_LEN_KEY = "regression.signalLength";
 
     public final HashMap<String,Regressor2> s_regressors = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBars = new HashMap<>();
@@ -53,8 +58,8 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
-        int slopeLength = 5;
-        int signalLength = 13;
+        int slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);
+        int signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);
         long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
 
         m_collectValues = config.getBoolean("collect.values");
