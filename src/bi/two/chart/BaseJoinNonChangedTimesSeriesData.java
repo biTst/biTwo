@@ -19,11 +19,11 @@ public abstract class BaseJoinNonChangedTimesSeriesData extends TimesSeriesData<
                 int size = ticks.size();
                 if (size > 0) {
                     TickData newestTick = ticks.get(0); // newest
-                    float newestTickPrice = newestTick.getPrice();
-                    float nowPrice = value.getPrice();
+                    float newestTickPrice = newestTick.getClosePrice();
+                    float nowPrice = value.getClosePrice();
                     if (newestTickPrice == nowPrice) {
                         TickData secondNewestTick = (size > 1) ? ticks.get(1) : null;
-                        float secondNewestTickPrice = (secondNewestTick == null) ? Float.NEGATIVE_INFINITY: secondNewestTick.getPrice();
+                        float secondNewestTickPrice = (secondNewestTick == null) ? Float.NEGATIVE_INFINITY: secondNewestTick.getClosePrice();
                         if (secondNewestTickPrice == nowPrice) {
                             newestTick.init(value); // just update newest added tick
                             notifyListeners(false);

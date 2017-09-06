@@ -82,7 +82,7 @@ public enum TickPainter {
     TRADE {
         @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
             TradeData trade = (TradeData) tick;
-            float price = trade.getPrice();
+            float price = trade.getClosePrice();
             if ((price != Utils.INVALID_PRICE) && (price != 0)) {
                 int y = yAxe.translateInt(price);
                 long timestamp = tick.getTimestamp();

@@ -15,7 +15,9 @@ public class TickVolumeData extends TickData {
         m_volume = volume;
     }
 
-    @Override public String toString() {
-        return "TickVolumeData[time=" + m_timestamp + "; price=" + m_price + "; volume=" + m_volume + "]";
+    @Override protected String getParams() {
+        return super.getParams() + "; volume=" + m_volume;
     }
+
+    @Override protected String getName() { return "TickVolumeData"; }
 }

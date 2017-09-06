@@ -1,11 +1,13 @@
 
 package bi.two.algo.impl;
 
+import bi.two.Main;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.*;
 import bi.two.ind.RegressionIndicator;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.util.HashMap;
@@ -23,7 +25,7 @@ public class RegressionAlgo extends BaseAlgo {
     public static final String SLOPE_LEN_KEY = "regression.slopeLength";
     public static final String SIGNAL_LEN_KEY = "regression.signalLength";
 
-    public final HashMap<String,Regressor2> s_regressors = new HashMap<>();
+    public final HashMap<String,Regressor2> s_regressorsCache = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBars = new HashMap<>();
 
     private final boolean m_collectValues;
@@ -66,18 +68,42 @@ public class RegressionAlgo extends BaseAlgo {
 
 //        long regressorPeriod = m_curveLength * barSize;
 //        String key = tsd.hashCode() + "." + regressorPeriod;
-//        Regressor regressor = s_regressors.get(key);
+//        Regressor regressor = s_regressorsCache.get(key);
 //        if (regressor == null) {
 //            regressor = new Regressor(tsd, regressorPeriod);
-//            s_regressors.put(key, regressor);
+//            s_regressorsCache.put(key, regressor);
 //        }
 //        m_regressor = regressor;
 
         String key = tsd.hashCode() + "." + m_curveLength + "." + barSize;
-        Regressor2 regressor = s_regressors.get(key);
+        Regressor2 regressor = s_regressorsCache.get(key);
         if (regressor == null) {
             regressor = new Regressor2(tsd, m_curveLength, barSize);
-            s_regressors.put(key, regressor);
+            s_regressorsCache.put(key, regressor);
+
+            final Regressor2 finalRegressor = regressor;
+            regressor.addListener(new ITimesSeriesListener() {
+                @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+                    // verifier
+                    ITickData latestTick = finalRegressor.getLatestTick();
+                    if(latestTick != null) {
+                        float regressVal = latestTick.getClosePrice();
+                        ITimesSeriesData parent = finalRegressor.m_parent;
+                        BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+                        Main.TickExtraData splitterLatestTick = (Main.TickExtraData) splitterLatestBar.getLatestTick().m_param;
+                        float closePrice = splitterLatestBar.getClosePrice();
+                        String expectStr = splitterLatestTick.m_extra[1];
+                        float expectVal = Float.parseFloat(expectStr);
+                        float err = (regressVal - expectVal) / expectVal;
+
+                        System.out.println("regressVal=" + regressVal
+                                + "; closePrice=" + closePrice
+                                + "; expectVal=" + expectVal
+                                + "; err=" + Utils.format8((double) err)
+                        );
+                    }
+                }
+            });
         }
         m_regressor = regressor;
 
@@ -176,7 +202,7 @@ public class RegressionAlgo extends BaseAlgo {
         }
     }
 
-    
+
     // -----------------------------------------------------------------------------
     public static class Regressor2 extends BaseTimesSeriesData<ITickData>
             implements ITicksProcessor<BarSplitter.BarHolder, Float> {
@@ -235,8 +261,8 @@ public class RegressionAlgo extends BaseAlgo {
                 if (!m_initialized) {
                     m_initialized = true;
                     m_splitter.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) {}
-                        @Override public void onTickExit(ITickData tickData) { m_filled = true; }
+                        @Override public void onTickEnter(ITickData tickData) { m_filled = true; }
+                        @Override public void onTickExit(ITickData tickData) {}
                     });
                 }
                 m_dirty = true;
@@ -474,8 +500,8 @@ public class RegressionAlgo extends BaseAlgo {
                 if (slrsTick != null) {
                     ITickData alrsTick = m_signaler.getLatestTick();
                     if (alrsTick != null) {
-                        float slrs = slrsTick.getPrice();
-                        float alrs = alrsTick.getPrice();
+                        float slrs = slrsTick.getClosePrice();
+                        float alrs = alrsTick.getClosePrice();
 
                         float diff = slrs - alrs;
                         m_xxx = slrs + diff * m_rate;
@@ -518,7 +544,7 @@ public class RegressionAlgo extends BaseAlgo {
             if (changed) {
                 ITickData tick = m_parent.getLatestTick();
                 if (tick != null) {
-                    float price = tick.getPrice();
+                    float price = tick.getClosePrice();
                     if ((price > m_min) && (price < m_max)) { // between
                         float delta = price - m_last;
                         if (delta > 0) {
@@ -581,8 +607,8 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
                 if (srcTick != null) {
                     ITickData scaleTick = m_scale.getLatestTick();
                     if (scaleTick != null) {
-                        float src = srcTick.getPrice();
-                        float scale = scaleTick.getPrice();
+                        float src = srcTick.getClosePrice();
+                        float scale = scaleTick.getClosePrice();
 
                         m_xxx = src / scale * m_multiplier;
                         iAmChanged = true;

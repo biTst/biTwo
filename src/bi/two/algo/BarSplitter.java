@@ -159,7 +159,13 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             return m_maxPrice;
         }
 
-        @Override public float getPrice() { throw new RuntimeException("not implemented"); }
+        @Override public float getClosePrice() {
+            if (m_latestTick != null) {
+                ITickData tickData = m_latestTick.m_param;
+                return tickData.getClosePrice();
+            }
+            return Float.NaN;
+        }
 
         private void recalcMinMax() {
             float minPrice = Utils.INVALID_PRICE;

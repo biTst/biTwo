@@ -23,7 +23,7 @@ public class TickData implements ITickData {
     }
 
     public void init(ITickData tickData) {
-        init(tickData.getTimestamp(), tickData.getPrice());
+        init(tickData.getTimestamp(), tickData.getClosePrice());
     }
 
     public void init(long timestamp, float price) {
@@ -32,7 +32,7 @@ public class TickData implements ITickData {
     }
 
     @Override public long getTimestamp() { return m_timestamp; }
-    @Override public float getPrice() { return m_price; }
+    @Override public float getClosePrice() { return m_price; }
     @Override public float getMinPrice() { return m_price; }
     @Override public float getMaxPrice() { return m_price; }
     @Override public TickPainter getTickPainter() {
@@ -47,7 +47,11 @@ public class TickData implements ITickData {
 
     @Override public boolean isValid() { return (m_price != Utils.INVALID_PRICE) && (m_price > 0); }
 
-    @Override public String toString() {
-        return "TickVolumeData[time=" + m_timestamp + "; price=" + m_price + "]";
+    @Override public String toString() { return getName() + "[" + getParams() + "]"; }
+
+    protected String getParams() {
+        return "time=" + m_timestamp + "; price=" + m_price;
     }
+
+    protected String getName() { return "TickData"; }
 }

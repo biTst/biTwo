@@ -49,7 +49,7 @@ public class Watcher extends TimesSeriesData<TradeData> {
     }
 
     private void process(ITickData tickAdjusted) {
-        float direction = tickAdjusted.getPrice(); // UP/DOWN
+        float direction = tickAdjusted.getClosePrice(); // UP/DOWN
 
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;

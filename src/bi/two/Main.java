@@ -49,7 +49,7 @@ public class Main {
                     if (collectTicks) {
                         super.addNewestTick(tickData);
                     } else {
-                        m_ticks.set(0, tickData); // always update last tick
+                        m_ticks.set(0, tickData); // always update only last tick
                         notifyListeners(true);
                     }
                 }
@@ -274,11 +274,13 @@ Exchange exchange = Exchange.get("bitstamp");
     }
 
     private static void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback,
-                                      ExchPairData pairData, String dataFileType) throws IOException {
+                                      ExchPairData pairData, String dataFileType, boolean skipBytes) throws IOException {
         TopData topData = pairData.m_topData;
         BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
         try {
-            br.readLine(); // skip to the end of line
+            if (skipBytes) { // after bytes skipping we may point to the middle of line
+                br.readLine(); // skip to the end of line
+            }
 
             DataFileType type = DataFileType.get(dataFileType);
 
@@ -287,7 +289,7 @@ Exchange exchange = Exchange.get("bitstamp");
                 // System.out.println("line = " + line);
                 TickData tickData = type.parseLine(line);
 
-                float price = tickData.getPrice();
+                float price = tickData.getClosePrice();
                 topData.init(price, price, price);
                 pairData.m_newestTick = tickData;
 
@@ -311,13 +313,14 @@ Exchange exchange = Exchange.get("bitstamp");
                 FileReader fileReader = new FileReader(file);
 
                 long lastBytesToProces = config.getLong("process.bytes");
-                if (lastBytesToProces > 0) {
+                boolean skipBytes = (lastBytesToProces > 0);
+                if (skipBytes) {
                     fileReader.skip(fileLength - lastBytesToProces);
                 }
 
                 String dataFileType = config.getProperty("dataFile.type");
 
-                readFileTicks(fileReader, ticksTs, callback, pairData, dataFileType);
+                readFileTicks(fileReader, ticksTs, callback, pairData, dataFileType, skipBytes);
             }
         },
         BITFINEX("bitfinex") {
@@ -326,7 +329,7 @@ Exchange exchange = Exchange.get("bitstamp");
                 List<TradeTickData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
                 for (int i = ticks.size() - 1; i >= 0; i--) {
                     TradeTickData tick = ticks.get(i);
-                    float price = tick.getPrice();
+                    float price = tick.getClosePrice();
                     topData.init(price, price, price);
                     pairData.m_newestTick = tick;
 
@@ -416,13 +419,18 @@ Exchange exchange = Exchange.get("bitstamp");
         public TickData parseLine(String line) { throw new RuntimeException("must be overridden"); }
     }
 
-    
+
+    //=============================================================================================
     public static class TickExtraData extends TickData {
         public final String[] m_extra;
 
         public TickExtraData(long time, float price, String[] extra) {
             super(time, price);
             m_extra = extra;
+        }
+
+        @Override protected String getName() {
+            return "TickExtraData";
         }
     }
 }

@@ -172,7 +172,7 @@ public class Bitfinex extends BaseExchImpl {
                     bw.write(volumeStr);
                     bw.write(',');
 
-                    float price = tick.getPrice();
+                    float price = tick.getClosePrice();
                     String priceStr = priceFormat.format(price);
                     bw.write(priceStr);
 

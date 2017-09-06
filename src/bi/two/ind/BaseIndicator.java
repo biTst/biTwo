@@ -19,7 +19,7 @@ public abstract class BaseIndicator extends BaseTimesSeriesData {
         if (changed) {
             TickData calcValue = calculateTickValue();
             if (calcValue != null) {
-                float value = calcValue.getPrice();
+                float value = calcValue.getClosePrice();
                 if (m_prevValue != null) {
                     if (value == m_prevValue) {
                         notifyListeners(false);

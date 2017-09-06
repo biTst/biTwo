@@ -2,7 +2,7 @@ package bi.two.chart;
 
 public interface ITickData {
     long getTimestamp();
-    float getPrice();
+    float getClosePrice();
     float getMinPrice();
     float getMaxPrice();
 
