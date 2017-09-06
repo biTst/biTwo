@@ -30,6 +30,10 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
         m_listeners.add(listener);
     }
 
+    @Override public void removeListener(ITimesSeriesListener listener) {
+        m_listeners.remove(listener);
+    }
+
     protected void notifyListeners(boolean changed) {
         for (ITimesSeriesListener listener : m_listeners) {
             listener.onChanged(this, changed);

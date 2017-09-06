@@ -81,29 +81,7 @@ public class RegressionAlgo extends BaseAlgo {
             regressor = new Regressor2(tsd, m_curveLength, barSize);
             s_regressorsCache.put(key, regressor);
 
-            final Regressor2 finalRegressor = regressor;
-            regressor.addListener(new ITimesSeriesListener() {
-                @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-                    // verifier
-                    ITickData latestTick = finalRegressor.getLatestTick();
-                    if(latestTick != null) {
-                        float regressVal = latestTick.getClosePrice();
-                        ITimesSeriesData parent = finalRegressor.m_parent;
-                        BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
-                        Main.TickExtraData splitterLatestTick = (Main.TickExtraData) splitterLatestBar.getLatestTick().m_param;
-                        float closePrice = splitterLatestBar.getClosePrice();
-                        String expectStr = splitterLatestTick.m_extra[1];
-                        float expectVal = Float.parseFloat(expectStr);
-                        float err = (regressVal - expectVal) / expectVal;
-
-                        System.out.println("regressVal=" + regressVal
-                                + "; closePrice=" + closePrice
-                                + "; expectVal=" + expectVal
-                                + "; err=" + Utils.format8((double) err)
-                        );
-                    }
-                }
-            });
+            regressor.addListener(new RegressorVerifier(regressor));
         }
         m_regressor = regressor;
 
@@ -617,6 +595,46 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
                 }
             }
             super.onChanged(ts, iAmChanged);
+        }
+    }
+
+    //=============================================================================================
+    private static class RegressorVerifier implements ITimesSeriesListener {
+        private final Regressor2 m_regressor;
+        boolean m_checkTickExtraData;
+
+        public RegressorVerifier(Regressor2 regressor) {
+            m_regressor = regressor;
+            m_checkTickExtraData = true;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            // verifier
+            ITimesSeriesData parent = m_regressor.m_parent;
+            BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+            ITickData splitterLatestTick = splitterLatestBar.getLatestTick().m_param;
+            if (m_checkTickExtraData) {
+                m_checkTickExtraData = false;
+                if (!(splitterLatestTick instanceof Main.TickExtraData)) {
+                    m_regressor.removeListener(this);
+                }
+            }
+
+            ITickData latestTick = m_regressor.getLatestTick();
+            if (latestTick != null) {
+                float regressVal = latestTick.getClosePrice();
+                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+                float closePrice = splitterLatestBar.getClosePrice();
+                String expectStr = splitterLatestData.m_extra[1];
+                float expectVal = Float.parseFloat(expectStr);
+                float err = (regressVal - expectVal) / expectVal;
+
+                System.out.println("regressVal=" + regressVal
+                        + "; closePrice=" + closePrice
+                        + "; expectVal=" + expectVal
+                        + "; err=" + Utils.format8((double) err)
+                );
+            }
         }
     }
 }
