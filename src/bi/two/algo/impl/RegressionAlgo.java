@@ -101,6 +101,8 @@ public class RegressionAlgo extends BaseAlgo {
         m_differ.addListener(new DifferVerifier(m_differ));
 
         m_scaler = new Scaler(m_differ, tsd, 1000);
+        m_scaler.addListener(new ScalerVerifier(m_scaler));
+
         m_averager = new FadingBarAverager(m_scaler, slopeLength,  barSize);
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
@@ -560,22 +562,22 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
 
     //----------------------------------------------------------
     public static class Scaler extends BaseTimesSeriesData<ITickData> {
-        private final BaseTimesSeriesData<ITickData> m_scale;
+        private final BaseTimesSeriesData<ITickData> m_price;
         private final float m_multiplier;
         public boolean m_dirty;
         public ITickData m_tick;
-        public float m_xxx;
+        public float m_scaled;
 
-        public Scaler(BaseTimesSeriesData<ITickData> tsd, BaseTimesSeriesData<ITickData> scale, float multiplier) {
-            super(tsd);
-            m_scale = scale;
+        public Scaler(BaseTimesSeriesData<ITickData> differ, BaseTimesSeriesData<ITickData> price, float multiplier) {
+            super(differ);
+            m_price = price;
             m_multiplier = multiplier;
         }
 
         @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 m_dirty = false;
-                m_tick = new TickData(m_parent.getLatestTick().getTimestamp(), m_xxx);
+                m_tick = new TickData(m_parent.getLatestTick().getTimestamp(), m_scaled);
             }
             return m_tick;
         }
@@ -583,14 +585,18 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             boolean iAmChanged = false;
             if (changed) {
-                ITickData srcTick = m_parent.getLatestTick();
-                if (srcTick != null) {
-                    ITickData scaleTick = m_scale.getLatestTick();
-                    if (scaleTick != null) {
-                        float src = srcTick.getClosePrice();
-                        float scale = scaleTick.getClosePrice();
+                ITickData differTick = m_parent.getLatestTick();
+                if (differTick != null) {
+                    ITickData priceTick = m_price.getLatestTick();
+                    if (priceTick != null) {
+                        float diff = differTick.getClosePrice();
+                        float price = priceTick.getClosePrice();
+                        m_scaled = diff / price * m_multiplier;
+//                        System.out.println("scaler: diff=" + Utils.format8((double) diff)
+//                                        + "; price=" + Utils.format8((double) price)
+//                                        + "; scaled=" + Utils.format8((double) m_scaled)
+//                        );
 
-                        m_xxx = src / scale * m_multiplier;
                         iAmChanged = true;
                         m_dirty = true;
                     }
@@ -603,7 +609,7 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
     //=============================================================================================
     private static class RegressorVerifier implements ITimesSeriesListener {
         private final Regressor2 m_regressor;
-        boolean m_checkTickExtraData;
+        private boolean m_checkTickExtraData;
 
         RegressorVerifier(Regressor2 regressor) {
             m_regressor = regressor;
@@ -667,13 +673,54 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
 
             ITickData latestTick = m_differ.getLatestTick();
             if (latestTick != null) {
-                float differVal = latestTick.getClosePrice();
-                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
-                String expectStr = splitterLatestData.m_extra[2];
-                float expectVal = Float.parseFloat(expectStr);
-                float err = differVal - expectVal;
+//                float differVal = latestTick.getClosePrice();
+//                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+//                String expectStr = splitterLatestData.m_extra[2];
+//                float expectVal = Float.parseFloat(expectStr);
+//                float err = differVal - expectVal;
 
-                System.out.println("differVal=" + Utils.format8((double) differVal)
+//                System.out.println("differVal=" + Utils.format8((double) differVal)
+//                        + "; expectVal=" + Utils.format8((double) expectVal)
+//                        + "; err=" + Utils.format8((double) err)
+//                );
+            }
+        }
+    }
+
+    private static class ScalerVerifier implements ITimesSeriesListener {
+        private final Scaler m_scaler;
+        private boolean m_checkTickExtraData;
+
+        ScalerVerifier(Scaler scaler) {
+            m_scaler = scaler;
+            m_checkTickExtraData = true;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            // verifier
+            ITimesSeriesData parentDiffer = m_scaler.getParent();
+            ITimesSeriesData parentSplitter = parentDiffer.getParent();
+            ITimesSeriesData parentRegressor = parentSplitter.getParent();
+            ITimesSeriesData parent = parentRegressor.getParent();
+            BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+            ITickData splitterLatestTick = splitterLatestBar.getLatestTick().m_param;
+            if (m_checkTickExtraData) {
+                m_checkTickExtraData = false;
+                if (!(splitterLatestTick instanceof Main.TickExtraData)) {
+                    m_scaler.removeListener(this);
+                    return;
+                }
+            }
+
+            ITickData latestTick = m_scaler.getLatestTick();
+            if (latestTick != null) {
+                float scalerVal = latestTick.getClosePrice();
+                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+                String expectStr = splitterLatestData.m_extra[3];
+                float expectVal = Float.parseFloat(expectStr);
+                float err = scalerVal - expectVal;
+
+                System.out.println("scalerVal=" + Utils.format8((double) scalerVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
