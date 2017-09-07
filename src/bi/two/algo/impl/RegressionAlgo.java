@@ -98,6 +98,8 @@ public class RegressionAlgo extends BaseAlgo {
 //        }
 
         m_differ = new Differ(m_regressorBars);
+        m_differ.addListener(new DifferVerifier(m_differ));
+
         m_scaler = new Scaler(m_differ, tsd, 1000);
         m_averager = new FadingBarAverager(m_scaler, slopeLength,  barSize);
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
@@ -603,7 +605,7 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         private final Regressor2 m_regressor;
         boolean m_checkTickExtraData;
 
-        public RegressorVerifier(Regressor2 regressor) {
+        RegressorVerifier(Regressor2 regressor) {
             m_regressor = regressor;
             m_checkTickExtraData = true;
         }
@@ -617,21 +619,62 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
                 m_checkTickExtraData = false;
                 if (!(splitterLatestTick instanceof Main.TickExtraData)) {
                     m_regressor.removeListener(this);
+                    return;
                 }
             }
 
             ITickData latestTick = m_regressor.getLatestTick();
             if (latestTick != null) {
-                float regressVal = latestTick.getClosePrice();
-                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
-                float closePrice = splitterLatestBar.getClosePrice();
-                String expectStr = splitterLatestData.m_extra[1];
-                float expectVal = Float.parseFloat(expectStr);
-                float err = (regressVal - expectVal) / expectVal;
+//                float regressVal = latestTick.getClosePrice();
+//                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+//                float closePrice = splitterLatestBar.getClosePrice();
+//                String expectStr = splitterLatestData.m_extra[1];
+//                float expectVal = Float.parseFloat(expectStr);
+//                float err = (regressVal - expectVal) / expectVal;
 
-                System.out.println("regressVal=" + regressVal
-                        + "; closePrice=" + closePrice
-                        + "; expectVal=" + expectVal
+//                System.out.println("regressVal=" + regressVal
+//                        + "; closePrice=" + closePrice
+//                        + "; expectVal=" + expectVal
+//                        + "; err=" + Utils.format8((double) err)
+//                );
+            }
+        }
+    }
+
+    //=============================================================================================
+    private static class DifferVerifier implements ITimesSeriesListener {
+        private final Differ m_differ;
+        private boolean m_checkTickExtraData = true;
+
+        DifferVerifier(Differ differ) {
+            m_differ = differ;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            // verifier
+            ITimesSeriesData parentSplitter = m_differ.getParent();
+            ITimesSeriesData parentRegressor = parentSplitter.getParent();
+            ITimesSeriesData parent = parentRegressor.getParent();
+            BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+            ITickData splitterLatestTick = splitterLatestBar.getLatestTick().m_param;
+            if (m_checkTickExtraData) {
+                m_checkTickExtraData = false;
+                if (!(splitterLatestTick instanceof Main.TickExtraData)) {
+                    m_differ.removeListener(this);
+                    return;
+                }
+            }
+
+            ITickData latestTick = m_differ.getLatestTick();
+            if (latestTick != null) {
+                float differVal = latestTick.getClosePrice();
+                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+                String expectStr = splitterLatestData.m_extra[2];
+                float expectVal = Float.parseFloat(expectStr);
+                float err = differVal - expectVal;
+
+                System.out.println("differVal=" + Utils.format8((double) differVal)
+                        + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
             }

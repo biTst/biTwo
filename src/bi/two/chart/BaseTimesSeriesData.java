@@ -8,6 +8,8 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     public ITimesSeriesData m_parent;
     private List<ITimesSeriesListener> m_listeners = new ArrayList<ITimesSeriesListener>();
 
+    public ITimesSeriesData getParent() { return m_parent; }
+
     public BaseTimesSeriesData() {
     }
 
