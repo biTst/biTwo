@@ -34,6 +34,7 @@ public class TimesSeriesData<T extends ITickData>
     }
 
     public <Ret> Ret iterateTicks(ITicksProcessor<T, Ret> iTicksProcessor) {
+        iTicksProcessor.init();
         for (T tick : m_ticks) {
             iTicksProcessor.processTick(tick);
         }
@@ -43,6 +44,7 @@ public class TimesSeriesData<T extends ITickData>
 
     //----------------------------------------------------------------------
     public interface ITicksProcessor<T extends ITickData, Ret> {
+        void init();
         void processTick(T tick);
         Ret done();
     }

@@ -10,6 +10,7 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -103,7 +104,9 @@ public class RegressionAlgo extends BaseAlgo {
         m_scaler = new Scaler(m_differ, tsd, 1000);
         m_scaler.addListener(new ScalerVerifier(m_scaler));
 
-        m_averager = new FadingBarAverager(m_scaler, slopeLength,  barSize);
+        m_averager = new FadingBarAverager(m_scaler, slopeLength, barSize, FadingBarAverager.THRESHOLD);
+        m_averager.addListener(new AveragerVerifier(m_averager));
+
         m_signaler = new SimpleAverager(m_averager, signalLength * barSize);
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
         m_adjuster = new Adjuster(m_powerer, m_threshold);
@@ -201,6 +204,11 @@ public class RegressionAlgo extends BaseAlgo {
             setParent(m_splitter);
         }
 
+        @Override public void init() {
+            m_simpleRegression.clear();
+            m_lastBarTickTime = 0;// reset
+        }
+
         @Override public void processTick(BarSplitter.BarHolder barHolder) {
             BarSplitter.TickNode latestTickNode = barHolder.getLatestTick();
             if(latestTickNode != null) { // have ticks in bar ?
@@ -224,8 +232,6 @@ public class RegressionAlgo extends BaseAlgo {
         @Override public ITickData getLatestTick() {
             if (m_filled) {
                 if (m_dirty) {
-                    m_simpleRegression.clear();
-                    m_lastBarTickTime = 0;// reset
                     Float regression = m_splitter.iterateTicks( this);
 
                     long timestamp = m_parent.getLatestTick().getTimestamp();
@@ -319,46 +325,98 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class FadingBarAverager extends BufferBased<Float> {
-        private long m_startTime;
-        private double m_summ;
-        private double m_weight;
+    public static class FadingBarAverager extends BaseTimesSeriesData<ITickData> {
+        public static final double THRESHOLD = 0.99657;
 
-        public FadingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
-            super(tsd, length * barSize);
-        }
+        private final List<Double> m_multipliers = new ArrayList<>();
+        private final BarSplitter m_averagerBars;
+        private final BarsProcessor m_barsProcessor = new BarsProcessor();
+        private boolean m_dirty;
+        private boolean m_filled;
+        private boolean m_initialized;
+        private TickData m_tickData;
 
-        @Override public void start() {
-            m_startTime = 0;// reset
-            m_summ = 0;
-            m_weight = 0;
-        }
-
-        @Override public void processTick(ITickData tick) {
-            long timestamp = tick.getTimestamp();
-            if (m_startTime == 0) {
-                m_startTime = timestamp - m_splitter.m_period;
+        FadingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
+            super();
+            int barsNum = 0;
+            double alpha = 2.0 / (length + 1); // 0.33
+            double rate = 1 - alpha; // 0.66
+            double sum = 0;
+            while (sum < threshold) {
+                double multiplier = alpha * Math.pow(rate, barsNum);
+                m_multipliers.add(multiplier);
+                barsNum++;
+                sum += multiplier;
             }
-
-            float price = tick.getMaxPrice();
-            long rate = timestamp - m_startTime;
-            m_summ += (price * rate);
-            m_weight += rate;
+            m_averagerBars = new BarSplitter(tsd, barsNum, barSize);
+            setParent(m_averagerBars);
         }
 
-        @Override public Float done() {
-            float ret = (float) (m_summ / m_weight);
-            return ret;
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                if (!m_initialized) {
+                    m_initialized = true;
+                    m_averagerBars.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_dirty = true;
+                        }
+                        @Override public void onTickExit(ITickData tickData) {}
+                    });
+
+                    m_averagerBars.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_filled = true;
+                        }
+                        @Override public void onTickExit(ITickData tickData){}
+                    });
+                }
+                iAmChanged = m_filled && m_dirty;
+            }
+            super.onChanged(this, iAmChanged); // notifyListeners
         }
 
-        @Override protected float calcTickValue(Float ret) {
-            return ret;
+        @Override public ITickData getLatestTick() {
+            if (m_filled) {
+                if (m_dirty) {
+                    Double ret = m_averagerBars.iterateTicks(m_barsProcessor);
+                    long timestamp = m_parent.getLatestTick().getTimestamp();
+                    m_tickData = new TickData(timestamp, ret.floatValue());
+                    m_dirty = false;
+                }
+                return m_tickData;
+            }
+            return null;
         }
 
         public String log() {
             return "FadingAverager["
-                    + "\n splitter=" + m_splitter.log()
+                    + "\n splitter=" + m_averagerBars.log()
                     + "\n]";
+        }
+
+        //-------------------------------------------------------------------------------------
+        private class BarsProcessor implements ITicksProcessor<BarSplitter.BarHolder, Double> {
+            private int index = 0;
+            private double ret = 0;
+
+            @Override public void init() {
+                index = 0;
+                ret = 0;
+            }
+
+            @Override public void processTick(BarSplitter.BarHolder barHolder) {
+                BarSplitter.TickNode latestNode = barHolder.getLatestTick();
+                ITickData latestTick = latestNode.m_param;
+                float closePrice = latestTick.getClosePrice();
+                double multiplier =  m_multipliers.get(index);
+                index++;
+                ret += closePrice*multiplier;
+            }
+
+            @Override public Double done() {
+                return ret;
+            }
         }
     }
 
@@ -451,6 +509,7 @@ public class RegressionAlgo extends BaseAlgo {
         }
     }
 
+
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
         private final FadingBarAverager m_averager;
@@ -495,6 +554,7 @@ public class RegressionAlgo extends BaseAlgo {
             super.onChanged(ts, iAmChanged);
         }
     }
+
 
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
@@ -560,6 +620,7 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         }
     }
 
+
     //----------------------------------------------------------
     public static class Scaler extends BaseTimesSeriesData<ITickData> {
         private final BaseTimesSeriesData<ITickData> m_price;
@@ -606,6 +667,7 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         }
     }
 
+
     //=============================================================================================
     private static class RegressorVerifier implements ITimesSeriesListener {
         private final Regressor2 m_regressor;
@@ -647,6 +709,7 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         }
     }
 
+
     //=============================================================================================
     private static class DifferVerifier implements ITimesSeriesListener {
         private final Differ m_differ;
@@ -687,9 +750,11 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
         }
     }
 
+    
+    //=============================================================================================
     private static class ScalerVerifier implements ITimesSeriesListener {
         private final Scaler m_scaler;
-        private boolean m_checkTickExtraData;
+        private boolean m_checkTickExtraData = true;
 
         ScalerVerifier(Scaler scaler) {
             m_scaler = scaler;
@@ -714,13 +779,57 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
 
             ITickData latestTick = m_scaler.getLatestTick();
             if (latestTick != null) {
-                float scalerVal = latestTick.getClosePrice();
-                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
-                String expectStr = splitterLatestData.m_extra[3];
-                float expectVal = Float.parseFloat(expectStr);
-                float err = scalerVal - expectVal;
+//                float scalerVal = latestTick.getClosePrice();
+//                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+//                String expectStr = splitterLatestData.m_extra[3];
+//                float expectVal = Float.parseFloat(expectStr);
+//                float err = scalerVal - expectVal;
+//
+//                System.out.println("scalerVal=" + Utils.format8((double) scalerVal)
+//                        + "; expectVal=" + Utils.format8((double) expectVal)
+//                        + "; err=" + Utils.format8((double) err)
+//                );
+            }
+        }
+    }
 
-                System.out.println("scalerVal=" + Utils.format8((double) scalerVal)
+
+    //=============================================================================================
+    private static class AveragerVerifier implements ITimesSeriesListener {
+        private final FadingBarAverager m_averager;
+        private boolean m_checkTickExtraData = true;
+
+        AveragerVerifier(FadingBarAverager averager) {
+            m_averager = averager;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            // verifier
+            ITimesSeriesData averagerSpitter = m_averager.getParent();
+            ITimesSeriesData parenScaler = averagerSpitter.getParent();
+            ITimesSeriesData parentDiffer = parenScaler.getParent();
+            ITimesSeriesData parentSplitter = parentDiffer.getParent();
+            ITimesSeriesData parentRegressor = parentSplitter.getParent();
+            ITimesSeriesData parent = parentRegressor.getParent();
+            BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+            ITickData splitterLatestTick = splitterLatestBar.getLatestTick().m_param;
+            if (m_checkTickExtraData) {
+                m_checkTickExtraData = false;
+                if (!(splitterLatestTick instanceof Main.TickExtraData)) {
+                    m_averager.removeListener(this);
+                    return;
+                }
+            }
+
+            ITickData latestTick = m_averager.getLatestTick();
+            if (latestTick != null) {
+                float averagerVal = latestTick.getClosePrice();
+                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+                String expectStr = splitterLatestData.m_extra[4];
+                float expectVal = Float.parseFloat(expectStr);
+                float err = averagerVal - expectVal;
+
+                System.out.println("averagerVal=" + Utils.format8((double) averagerVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
