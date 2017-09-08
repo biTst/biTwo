@@ -107,9 +107,11 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_averager.addListener(new AveragerVerifier(m_averager));
 
         m_signaler = new SimpleAverager(m_averager, signalLength, barSize);
-        m_averager.addListener(new SignalerVerifier(m_signaler));
+//        m_averager.addListener(new SignalerVerifier(m_signaler));
 
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
+        m_powerer.addListener(new PowererVerifier(m_powerer));
+
         m_adjuster = new Adjuster(m_powerer, m_threshold);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
@@ -924,6 +926,53 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
                 float err = signalerVal - expectVal;
 
                 System.out.println("signalerVal=" + Utils.format8((double) signalerVal)
+                        + "; expectVal=" + Utils.format8((double) expectVal)
+                        + "; err=" + Utils.format8((double) err)
+                );
+            }
+        }
+    }
+
+    
+    //=============================================================================================
+    private static class PowererVerifier implements ITimesSeriesListener {
+        private final Powerer m_powerer;
+        private boolean m_checkTickExtraData = true;
+
+        PowererVerifier(Powerer powerer) {
+            m_powerer = powerer;
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            // verifier
+            ITimesSeriesData signaler = m_powerer.getParent();
+            ITimesSeriesData signalerSpitter = signaler.getParent();
+            ITimesSeriesData fadingAverger = signalerSpitter.getParent();
+            ITimesSeriesData averagerSpitter = fadingAverger.getParent();
+            ITimesSeriesData parenScaler = averagerSpitter.getParent();
+            ITimesSeriesData parentDiffer = parenScaler.getParent();
+            ITimesSeriesData parentSplitter = parentDiffer.getParent();
+            ITimesSeriesData parentRegressor = parentSplitter.getParent();
+            ITimesSeriesData parent = parentRegressor.getParent();
+            BarSplitter.BarHolder splitterLatestBar = (BarSplitter.BarHolder) parent.getLatestTick();
+            ITickData splitterLatestTick = splitterLatestBar.getLatestTick().m_param;
+            if (m_checkTickExtraData) {
+                m_checkTickExtraData = false;
+                if (!(splitterLatestTick instanceof Main.TickExtraData)) {
+                    m_powerer.removeListener(this);
+                    return;
+                }
+            }
+
+            ITickData latestTick = m_powerer.getLatestTick();
+            if (latestTick != null) {
+                float powererVal = latestTick.getClosePrice();
+                Main.TickExtraData splitterLatestData = (Main.TickExtraData) splitterLatestTick;
+                String expectStr = splitterLatestData.m_extra[7];
+                float expectVal = Float.parseFloat(expectStr);
+                float err = powererVal - expectVal;
+
+                System.out.println("powererVal=" + Utils.format8((double) powererVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
