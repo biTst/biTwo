@@ -110,7 +110,7 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_averager.addListener(new SignalerVerifier(m_signaler));
 
         m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
-        m_powerer.addListener(new PowererVerifier(m_powerer));
+//        m_powerer.addListener(new PowererVerifier(m_powerer));
 
         m_adjuster = new Adjuster(m_powerer, m_threshold);
 
@@ -610,15 +610,16 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
-        public boolean m_dirty;
-        public ITickData m_tick;
-        public float m_threshold;
-        public float m_xxx;
-        private float m_max;
+        private boolean m_dirty;
+        private ITickData m_tick;
+        private float m_threshold;
+        private float m_xxx;
         private float m_min;
+        private float m_max;
+        private float m_zero = 0;
         private float m_last = 0;
 
-        public Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
+        Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
             super(parent);
             m_threshold = threshold;
             m_max = m_threshold;
@@ -638,34 +639,54 @@ public class RegressionAlgo extends BaseAlgo {
             if (changed) {
                 ITickData tick = m_parent.getLatestTick();
                 if (tick != null) {
-                    float price = tick.getClosePrice();
-                    if ((price > m_min) && (price < m_max)) { // between
-                        float delta = price - m_last;
-                        if (delta > 0) {
-                            m_max -= delta;
-                            m_max = Math.max(m_max, m_threshold); // not less than threshold
-                        } else if (delta < 0) {
-                            m_min -= delta;
-                            m_min = Math.min(m_min, -m_threshold); // mot more than -threshold
+                    float value = tick.getClosePrice();
+                    float delta = value - m_last;
+                    if (delta != 0) { // value changed
+System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+
+                        if ((value < m_max) && (value < m_min)) { // between
+                            if (delta > 0) { // going up
+                                m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
+                                if (value > 0) {
+                                    m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
+                                    m_zero += delta / 2;
+                                }
+                            } else if (delta < 0) { // going down
+                                m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
+                                if (value < 0) {
+                                    m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
+                                    m_zero += delta / 2;
+                                }
+                            }
                         }
-                    }
-                    if (price > m_max) {
-                        m_max = price;
-                        m_min = -m_threshold;
-                    } else if (price < m_min) {
-                        m_min = price;
-                        m_max = m_threshold;
-                    }
-                    m_last = price;
 
-                    m_xxx = ((price - m_min) / (m_max - m_min)) * 2 - 1; // [-1 .. 1]
+                        if (value > m_max) { // strong UP
+                            m_max = value; // ceil
+                            m_zero = m_max / 2;
+                            m_min = -m_threshold;
+                        } else if (value < m_min) { // strong DOWN
+                            m_min = value; // floor
+                            m_zero = m_min / 2;
+                            m_max = m_threshold;
+                        }
+                        m_last = value;
 
-                    if(Math.abs(m_xxx) > 1) {
-System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + price + "; m_max=" + m_max);
+
+                        if (value > m_zero) {
+                            m_xxx = (value - m_zero) / (m_max - m_zero); // [0 .. 1]
+                        } else {
+                            m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
+                        }
+System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
+
+
+                        if (Math.abs(m_xxx) > 1) {
+                            System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+                        }
+
+                        iAmChanged = true;
+                        m_dirty = true;
                     }
-
-                    iAmChanged = true;
-                    m_dirty = true;
                 }
             }
             super.onChanged(ts, iAmChanged);
@@ -677,11 +698,11 @@ System.out.println("ERROR: m_xxx=" + m_xxx + "; m_min=" + m_min + "; price=" + p
     public static class Scaler extends BaseTimesSeriesData<ITickData> {
         private final BaseTimesSeriesData<ITickData> m_price;
         private final float m_multiplier;
-        public boolean m_dirty;
-        public ITickData m_tick;
-        public float m_scaled;
+        private boolean m_dirty;
+        private ITickData m_tick;
+        private float m_scaled;
 
-        public Scaler(BaseTimesSeriesData<ITickData> differ, BaseTimesSeriesData<ITickData> price, float multiplier) {
+        Scaler(BaseTimesSeriesData<ITickData> differ, BaseTimesSeriesData<ITickData> price, float multiplier) {
             super(differ);
             m_price = price;
             m_multiplier = multiplier;

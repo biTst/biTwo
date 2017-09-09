@@ -70,7 +70,7 @@ Exchange exchange = Exchange.get("bitstamp");
                     if (m_counter == s_prefillTicks) {
                         System.out.println("PREFILLED: ticksCount=" + m_counter);
                     } else if (m_counter > s_prefillTicks) {
-                        if (m_counter % 20 == 0) {
+                        if (m_counter % 40 == 0) {
                             frame.repaint();
                             try {
                                 Thread.sleep(100);
