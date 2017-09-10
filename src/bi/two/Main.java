@@ -122,6 +122,9 @@ Exchange exchange = Exchange.get("bitstamp");
         float thresholdFrom = config.getFloat("threshold.from");
         float thresholdTo = config.getFloat("threshold.to");
         float thresholdStep = config.getFloat("threshold.step");
+        float smoothFrom = config.getFloat("smooth.from");
+        float smoothTo = config.getFloat("smooth.to");
+        float smoothStep = config.getFloat("smooth.step");
         boolean collectValues = config.getBoolean("collect.values");
 
         int slopeLen = config.getInt("slope.len");
@@ -143,12 +146,17 @@ Exchange exchange = Exchange.get("bitstamp");
 
                 for (float threshold = thresholdFrom; threshold <= thresholdTo; threshold += thresholdStep) {
                     algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(threshold));
-                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                    if (algo == null) {
-                        algo = nextAlgo;
+
+                    for (float smooth = smoothFrom; smooth <= smoothTo; smooth += smoothStep) {
+                        algoConfig.put(RegressionAlgo.SMOOTHER_KEY, Float.toString(smooth));
+
+                        RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                        if (algo == null) {
+                            algo = nextAlgo;
+                        }
+                        Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
+                        watchers.add(watcher);
                     }
-                    Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
-                    watchers.add(watcher);
                 }
             }
         }
@@ -167,6 +175,7 @@ Exchange exchange = Exchange.get("bitstamp");
 //            chartData.setTicksData("sig.buf", algo.m_signaler.m_splitter);
             chartData.setTicksData("signal.avg", algo.m_signaler.getJoinNonChangedTs());
             chartData.setTicksData("power", algo.m_powerer.getJoinNonChangedTs());
+            chartData.setTicksData("zlema", algo.m_smoother.getJoinNonChangedTs());
             chartData.setTicksData("value", algo.m_adjuster.getJoinNonChangedTs());
 
             // layout
@@ -189,10 +198,11 @@ Exchange exchange = Exchange.get("bitstamp");
 //                bottomLayers.add(new ChartAreaLayerSettings("diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE));
                 bottomLayers.add(new ChartAreaLayerSettings("slope", Colors.alpha(Colors.LIME, 60), TickPainter.LINE /*RIGHT_CIRCLE*/));
 //                bottomLayers.add(new ChartAreaLayerSettings("slope.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
-                bottomLayers.add(new ChartAreaLayerSettings("slope.avg", Color.RED, TickPainter.LINE));
+                bottomLayers.add(new ChartAreaLayerSettings("slope.avg", Colors.alpha(Color.RED, 60), TickPainter.LINE));
 //                bottomLayers.add(new ChartAreaLayerSettings("sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
-                bottomLayers.add(new ChartAreaLayerSettings("signal.avg", Color.GRAY, TickPainter.LINE));
+                bottomLayers.add(new ChartAreaLayerSettings("signal.avg", Colors.alpha(Color.GRAY,100), TickPainter.LINE));
                 bottomLayers.add(new ChartAreaLayerSettings("power", Color.CYAN, TickPainter.LINE));
+                bottomLayers.add(new ChartAreaLayerSettings("zlema", Color.ORANGE, TickPainter.LINE));
             }
 
             ChartAreaSettings value = new ChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
@@ -238,10 +248,11 @@ Exchange exchange = Exchange.get("bitstamp");
             }
 
             RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
+            float m_smootherLevel = ralgo.m_smootherLevel;
             float threshold = ralgo.m_threshold;
             int curveLength = ralgo.m_curveLength;
 
-            System.out.println("GAIN[" + curveLength + "," + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+            System.out.println("GAIN[" + curveLength + "," + threshold + "," + m_smootherLevel /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
 
@@ -252,9 +263,10 @@ Exchange exchange = Exchange.get("bitstamp");
         double gain = maxWatcher.totalPriceRatio(true);
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
         float threshold = ralgo.m_threshold;
+        float smootherLevel = ralgo.m_smootherLevel;
         int curveLength = ralgo.m_curveLength;
 
-        System.out.println("MAX GAIN[" + curveLength + ", " + threshold /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+        System.out.println("MAX GAIN[" + curveLength + ", " + threshold + ", " + smootherLevel/*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
@@ -264,7 +276,7 @@ Exchange exchange = Exchange.get("bitstamp");
         );
 
         System.out.println(maxWatcher.log());
-        System.out.println(ralgo.log());
+//        System.out.println(ralgo.log());
 
         try {
             Thread.sleep(TimeUnit.MINUTES.toMillis(5));
