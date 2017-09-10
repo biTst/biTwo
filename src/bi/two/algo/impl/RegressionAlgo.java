@@ -17,29 +17,38 @@ import java.util.concurrent.TimeUnit;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
+    public static final float DEF_SMOOTHER = 3.0f;
     public static final int DEF_SLOPE_LEN = 5;
     public static final int DEF_SIGNAL_LEN = 13;
 
     public static final String COLLECT_LAVUES_KEY = "collect.values";
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
+    public static final String SMOOTHER_KEY = "regression.smoother";
     public static final String SLOPE_LEN_KEY = "regression.slopeLength";
     public static final String SIGNAL_LEN_KEY = "regression.signalLength";
 
     public final HashMap<String,Regressor2> s_regressorsCache = new HashMap<>();
-    public final HashMap<String,BarSplitter> s_regressorBars = new HashMap<>();
+    public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
+    public final HashMap<String,Differ> s_differCache = new HashMap<>();
+    public final HashMap<String,Scaler> s_scalerCache = new HashMap<>();
+    public final HashMap<String,ExpotentialMovingBarAverager> s_averagerCache = new HashMap<>();
+    public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
+    public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
 
     private final boolean m_collectValues;
     public final int m_curveLength;
     public final float m_threshold;
+    public final float m_smootherLevel;
     public final Regressor2 m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
 //    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
-    public final FadingBarAverager m_averager;
-    public final SimpleAverager m_signaler;
+    public final ExpotentialMovingBarAverager m_averager;
+    public final SimpleMovingBarAverager m_signaler;
     public final Powerer m_powerer;
+    public final BaseTimesSeriesData m_smoother;
     public final Adjuster m_adjuster;
 
     public RegressionIndicator m_regressionIndicator;
@@ -61,6 +70,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
+        m_smootherLevel = config.getFloatOrDefault(SMOOTHER_KEY, DEF_SMOOTHER);
         int slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);
         int signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);
         long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
@@ -86,10 +96,10 @@ public class RegressionAlgo extends BaseAlgo {
         m_regressor = regressor;
 
         key = key + "." + barSize;
-        BarSplitter regressorBars = s_regressorBars.get(key);
+        BarSplitter regressorBars = s_regressorBarsCache.get(key);
         if (regressorBars == null) {
             regressorBars = new BarSplitter(m_regressor, m_collectValues ? 100 : 2, barSize);
-            s_regressorBars.put(key, regressorBars);
+            s_regressorBarsCache.put(key, regressorBars);
         }
         m_regressorBars = regressorBars;
 
@@ -97,22 +107,51 @@ public class RegressionAlgo extends BaseAlgo {
 //            m_regressorBarsAvg = new BarsSimpleAverager(m_regressorBars);
 //        }
 
-        m_differ = new Differ(m_regressorBars);
+        Differ differ = s_differCache.get(key);
+        if (differ == null) {
+            differ = new Differ(m_regressorBars);
+            s_differCache.put(key, differ);
+        }
+        m_differ = differ;
 //        m_differ.addListener(new DifferVerifier(m_differ));
 
-        m_scaler = new Scaler(m_differ, tsd, 1000);
+        Scaler scaler = s_scalerCache.get(key);
+        if (scaler == null) {
+            scaler = new Scaler(m_differ, tsd, 1000);
+            s_scalerCache.put(key, scaler);
+        }
+        m_scaler = scaler;
 //        m_scaler.addListener(new ScalerVerifier(m_scaler));
 
-        m_averager = new FadingBarAverager(m_scaler, slopeLength, barSize, FadingBarAverager.THRESHOLD);
+        ExpotentialMovingBarAverager averager = s_averagerCache.get(key);
+        if (averager == null) {
+            averager = new ExpotentialMovingBarAverager(m_scaler, slopeLength, barSize);
+            s_averagerCache.put(key, averager);
+        }
+        m_averager = averager;
 //        m_averager.addListener(new AveragerVerifier(m_averager));
 
-        m_signaler = new SimpleAverager(m_averager, signalLength, barSize);
+        SimpleMovingBarAverager signaler = s_signalerCache.get(key);
+        if (signaler == null) {
+            signaler = new SimpleMovingBarAverager(m_averager, signalLength, barSize);
+            s_signalerCache.put(key, signaler);
+        }
+        m_signaler = signaler;
 //        m_averager.addListener(new SignalerVerifier(m_signaler));
 
-        m_powerer = new Powerer(m_averager, m_signaler, 1.0f);
+        Powerer powerer = s_powererCache.get(key);
+        if (powerer == null) {
+            powerer = new Powerer(m_averager, m_signaler, 1.0f);
+            s_powererCache.put(key, powerer);
+        }
+        m_powerer = powerer;
 //        m_powerer.addListener(new PowererVerifier(m_powerer));
 
-        m_adjuster = new Adjuster(m_powerer, m_threshold);
+//        m_smoother = new ZeroLagExpotentialMovingBarAverager(m_powerer, 100, barSize/10);
+//        m_smoother = new Regressor2(m_powerer, 70, barSize/10);
+        m_smoother = new Regressor(m_powerer, (long) (m_smootherLevel * barSize));
+
+        m_adjuster = new Adjuster(m_smoother, m_threshold);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
 //        m_indicators.add(m_regressionIndicator);
@@ -198,7 +237,7 @@ public class RegressionAlgo extends BaseAlgo {
         private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
         private long m_lastBarTickTime;
         private boolean m_initialized;
-        private boolean m_filled;
+        protected boolean m_filled;
         private boolean m_dirty;
         private TickData m_tickData;
 
@@ -214,7 +253,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         @Override public void processTick(BarSplitter.BarHolder barHolder) {
             BarSplitter.TickNode latestTickNode = barHolder.getLatestTick();
-            if(latestTickNode != null) { // have ticks in bar ?
+            if (latestTickNode != null) { // have ticks in bar ?
                 ITickData latestTick = latestTickNode.m_param;
 
                 long timestamp = latestTick.getTimestamp();
@@ -235,15 +274,19 @@ public class RegressionAlgo extends BaseAlgo {
         @Override public ITickData getLatestTick() {
             if (m_filled) {
                 if (m_dirty) {
-                    Float regression = m_splitter.iterateTicks( this);
-
-                    long timestamp = m_parent.getLatestTick().getTimestamp();
-                    m_tickData = new TickData(timestamp, regression);
-                    m_dirty = false;
+                    calculateLatestTick();
                 }
                 return m_tickData;
             }
             return null;
+        }
+
+        protected void calculateLatestTick() {
+            Float regression = m_splitter.iterateTicks( this);
+
+            long timestamp = m_parent.getLatestTick().getTimestamp();
+            m_tickData = new TickData(timestamp, regression);
+            m_dirty = false;
         }
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -328,8 +371,8 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class FadingBarAverager extends BaseTimesSeriesData<ITickData> {
-        public static final double THRESHOLD = 0.99657;
+    public static class ExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
+        public static final double DEF_THRESHOLD = 0.99657;
 
         private final BarSplitter m_barSplitter;
         private final List<Double> m_multipliers = new ArrayList<>();
@@ -339,7 +382,11 @@ public class RegressionAlgo extends BaseAlgo {
         private boolean m_initialized;
         private TickData m_tickData;
 
-        FadingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
+        ExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+            this( tsd,  length,  barSize, DEF_THRESHOLD);
+        }
+
+        ExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
             super();
             int barsNum = 0;
             double alpha = 2.0 / (length + 1); // 0.33
@@ -410,11 +457,13 @@ public class RegressionAlgo extends BaseAlgo {
 
             @Override public void processTick(BarSplitter.BarHolder barHolder) {
                 BarSplitter.TickNode latestNode = barHolder.getLatestTick();
-                ITickData latestTick = latestNode.m_param;
-                float closePrice = latestTick.getClosePrice();
-                double multiplier =  m_multipliers.get(index);
-                index++;
-                ret += closePrice*multiplier;
+                if (latestNode != null) { // sometimes bars may have no ticks inside
+                    ITickData latestTick = latestNode.m_param;
+                    float closePrice = latestTick.getClosePrice();
+                    double multiplier = m_multipliers.get(index);
+                    index++;
+                    ret += closePrice * multiplier;
+                }
             }
 
             @Override public Double done() {
@@ -425,17 +474,15 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class SimpleAverager extends BaseTimesSeriesData<ITickData> {
+    public static class SimpleMovingBarAverager extends BaseTimesSeriesData<ITickData> {
         private final BarSplitter m_barSplitter;
-        private double m_summ;
-        private int m_weight;
         private boolean m_initialized;
         private boolean m_dirty;
         private boolean m_filled;
         private final BarsProcessor m_barsProcessor = new BarsProcessor();
         private TickData m_tickData;
 
-        public SimpleAverager(ITimesSeriesData<ITickData> tsd, int signalLength, long barSize) {
+        public SimpleMovingBarAverager(ITimesSeriesData<ITickData> tsd, int signalLength, long barSize) {
             super();
             m_barSplitter = new BarSplitter(tsd, signalLength, barSize);
             setParent(m_barSplitter);
@@ -497,10 +544,12 @@ public class RegressionAlgo extends BaseAlgo {
 
             @Override public void processTick(BarSplitter.BarHolder barHolder) {
                 BarSplitter.TickNode latestNode = barHolder.getLatestTick();
-                ITickData latestTick = latestNode.m_param;
-                float closePrice = latestTick.getClosePrice();
-                sum+=closePrice;
-                count++;
+                if (latestNode != null) { // sometimes bars may have no ticks inside
+                    ITickData latestTick = latestNode.m_param;
+                    float closePrice = latestTick.getClosePrice();
+                    sum += closePrice;
+                    count++;
+                }
             }
 
             @Override public Float done() {
@@ -514,7 +563,7 @@ public class RegressionAlgo extends BaseAlgo {
     public static abstract class BufferBased<R>
             extends BaseTimesSeriesData<ITickData>
             implements BarSplitter.BarHolder.ITicksProcessor<R> {
-        public final BarSplitter m_splitter;
+        final BarSplitter m_splitter;
         private boolean m_initialized;
         private boolean m_dirty;
         private boolean m_filled;
@@ -564,14 +613,14 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
-        private final FadingBarAverager m_averager;
-        private final SimpleAverager m_signaler;
+        private final ExpotentialMovingBarAverager m_averager;
+        private final SimpleMovingBarAverager m_signaler;
         private final float m_rate;
-        public boolean m_dirty;
-        public ITickData m_tick;
-        public float m_xxx;
+        private boolean m_dirty;
+        private ITickData m_tick;
+        private float m_xxx;
 
-        public Powerer(FadingBarAverager averager, SimpleAverager signaler, float rate) {
+        public Powerer(ExpotentialMovingBarAverager averager, SimpleMovingBarAverager signaler, float rate) {
             super(signaler);
             m_averager = averager;
             m_signaler = signaler;
@@ -642,7 +691,7 @@ public class RegressionAlgo extends BaseAlgo {
                     float value = tick.getClosePrice();
                     float delta = value - m_last;
                     if (delta != 0) { // value changed
-System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+//System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
 
                         if ((value < m_max) && (value < m_min)) { // between
                             if (delta > 0) { // going up
@@ -677,7 +726,7 @@ System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_mi
                         } else {
                             m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
                         }
-System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
+//System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
 
 
                         if (Math.abs(m_xxx) > 1) {
@@ -737,6 +786,49 @@ System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m
                 }
             }
             super.onChanged(ts, iAmChanged);
+        }
+    }
+
+
+    //----------------------------------------------------------
+    public static class ZeroLagExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
+        private final ExpotentialMovingBarAverager m_ema1;
+        private final ExpotentialMovingBarAverager m_ema2;
+        private TickData m_tickData;
+
+        ZeroLagExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+            super();
+            m_ema1 = new ExpotentialMovingBarAverager(tsd, length, barSize);
+            m_ema2 = new ExpotentialMovingBarAverager(m_ema1, length, barSize);
+            setParent(m_ema2);
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            boolean iAmChanged = false;
+            if (changed) {
+                ITickData ema1Tick = m_ema1.getLatestTick();
+                ITickData ema2Tick = m_ema2.getLatestTick();
+
+                float ema1 = ema1Tick.getClosePrice();
+                float ema2 = ema2Tick.getClosePrice();
+                float d = ema1 - ema2;
+                float zlema = ema1 + d;
+
+                if ((m_tickData == null) || (m_tickData.getClosePrice() != zlema)) {
+                    long timestamp = m_parent.getLatestTick().getTimestamp();
+                    m_tickData = new TickData(timestamp, zlema);
+                    iAmChanged = true;
+                }
+            }
+            super.onChanged(this, iAmChanged); // notifyListeners
+        }
+
+        @Override public ITickData getLatestTick() {
+            return m_tickData;
+        }
+
+        public String log() {
+            return "ZLEMA[]";
         }
     }
 
@@ -867,10 +959,10 @@ System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m
 
     //=============================================================================================
     private static class AveragerVerifier implements ITimesSeriesListener {
-        private final FadingBarAverager m_averager;
+        private final ExpotentialMovingBarAverager m_averager;
         private boolean m_checkTickExtraData = true;
 
-        AveragerVerifier(FadingBarAverager averager) {
+        AveragerVerifier(ExpotentialMovingBarAverager averager) {
             m_averager = averager;
         }
 
@@ -911,10 +1003,10 @@ System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m
 
     //=============================================================================================
     private static class SignalerVerifier implements ITimesSeriesListener {
-        private final SimpleAverager m_signaler;
+        private final SimpleMovingBarAverager m_signaler;
         private boolean m_checkTickExtraData = true;
 
-        SignalerVerifier(SimpleAverager signaler) {
+        SignalerVerifier(SimpleMovingBarAverager signaler) {
             m_signaler = signaler;
         }
 
