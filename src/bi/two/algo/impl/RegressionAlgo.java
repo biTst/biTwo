@@ -40,6 +40,9 @@ public class RegressionAlgo extends BaseAlgo {
     public final int m_curveLength;
     public final float m_threshold;
     public final float m_smootherLevel;
+    public final int m_slopeLength;
+    public final int m_signalLength;
+
     public final Regressor2 m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
 //    public BarsSimpleAverager m_regressorBarsAvg;
@@ -71,8 +74,8 @@ public class RegressionAlgo extends BaseAlgo {
         m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
         m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
         m_smootherLevel = config.getFloatOrDefault(SMOOTHER_KEY, DEF_SMOOTHER);
-        int slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);
-        int signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);
+        m_slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);
+        m_signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);
         long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
 
         m_collectValues = config.getBoolean("collect.values");
@@ -125,7 +128,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         ExpotentialMovingBarAverager averager = s_averagerCache.get(key);
         if (averager == null) {
-            averager = new ExpotentialMovingBarAverager(m_scaler, slopeLength, barSize);
+            averager = new ExpotentialMovingBarAverager(m_scaler, m_slopeLength, barSize);
             s_averagerCache.put(key, averager);
         }
         m_averager = averager;
@@ -133,7 +136,7 @@ public class RegressionAlgo extends BaseAlgo {
 
         SimpleMovingBarAverager signaler = s_signalerCache.get(key);
         if (signaler == null) {
-            signaler = new SimpleMovingBarAverager(m_averager, signalLength, barSize);
+            signaler = new SimpleMovingBarAverager(m_averager, m_signalLength, barSize);
             s_signalerCache.put(key, signaler);
         }
         m_signaler = signaler;
@@ -186,6 +189,10 @@ public class RegressionAlgo extends BaseAlgo {
     @Override public ITickData getAdjusted() {
         ITickData lastTick = m_adjuster.getLatestTick();
         return lastTick;
+    }
+
+    public String key() {
+        return m_curveLength + "," + m_threshold + "," + m_smootherLevel + "," + m_slopeLength + "," + m_signalLength /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
 

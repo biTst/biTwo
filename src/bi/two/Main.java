@@ -116,26 +116,31 @@ Exchange exchange = Exchange.get("bitstamp");
         long periodFrom = config.getPeriodInMillis("period.from");
         long periodTo = config.getPeriodInMillis("period.to");
         long periodStep = config.getPeriodInMillis("period.step");
+
         int barsFrom = config.getInt("bars.from");
         int barsTo = config.getInt("bars.to");
         int barsStep = config.getInt("bars.step");
+
         float thresholdFrom = config.getFloat("threshold.from");
         float thresholdTo = config.getFloat("threshold.to");
         float thresholdStep = config.getFloat("threshold.step");
+
         float smoothFrom = config.getFloat("smooth.from");
         float smoothTo = config.getFloat("smooth.to");
         float smoothStep = config.getFloat("smooth.step");
-        boolean collectValues = config.getBoolean("collect.values");
 
-        int slopeLen = config.getInt("slope.len");
-        String slopeLenStr = Integer.toString(slopeLen);
-        int signalLen = config.getInt("signal.len");
-        String signalLenStr = Integer.toString(signalLen);
+        int slopeFrom = config.getInt("slope.from");
+        int slopeTo = config.getInt("slope.to");
+        int slopeStep = config.getInt("slope.step");
+
+        int signalFrom = config.getInt("signal.from");
+        int signalTo = config.getInt("signal.to");
+        int signalStep = config.getInt("signal.step");
+
+        boolean collectValues = config.getBoolean("collect.values");
 
         MapConfig algoConfig = new MapConfig();
         algoConfig.put(RegressionAlgo.COLLECT_LAVUES_KEY, Boolean.toString(collectValues));
-        algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, slopeLenStr);
-        algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, signalLenStr);
 
         RegressionAlgo algo = null;
         List<Watcher> watchers = new ArrayList<Watcher>();
@@ -150,12 +155,21 @@ Exchange exchange = Exchange.get("bitstamp");
                     for (float smooth = smoothFrom; smooth <= smoothTo; smooth += smoothStep) {
                         algoConfig.put(RegressionAlgo.SMOOTHER_KEY, Float.toString(smooth));
 
-                        RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                        if (algo == null) {
-                            algo = nextAlgo;
+                        for (int slope = slopeFrom; slope <= slopeTo; slope += slopeStep) {
+                            algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, Integer.toString(slope));
+
+                            for (int signal = signalFrom; signal <= signalTo; signal += signalStep) {
+                                algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, Integer.toString(signal));
+
+                                RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                                if (algo == null) {
+                                    algo = nextAlgo;
+                                }
+                                Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
+                                watchers.add(watcher);
+                            }
                         }
-                        Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
-                        watchers.add(watcher);
+
                     }
                 }
             }
@@ -248,11 +262,8 @@ Exchange exchange = Exchange.get("bitstamp");
             }
 
             RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
-            float m_smootherLevel = ralgo.m_smootherLevel;
-            float threshold = ralgo.m_threshold;
-            int curveLength = ralgo.m_curveLength;
-
-            System.out.println("GAIN[" + curveLength + "," + threshold + "," + m_smootherLevel /*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+            String key = ralgo.key();
+            System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
 
@@ -262,11 +273,8 @@ Exchange exchange = Exchange.get("bitstamp");
 
         double gain = maxWatcher.totalPriceRatio(true);
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
-        float threshold = ralgo.m_threshold;
-        float smootherLevel = ralgo.m_smootherLevel;
-        int curveLength = ralgo.m_curveLength;
-
-        System.out.println("MAX GAIN[" + curveLength + ", " + threshold + ", " + smootherLevel/*+ ", " + Utils.millisToDHMSStr(period)*/ + "]: " + Utils.format8(gain)
+        String key = ralgo.key();
+        System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
