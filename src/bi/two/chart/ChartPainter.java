@@ -15,7 +15,7 @@ public class ChartPainter {
     public ChartPainter() {
     }
 
-    public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData) {
+    public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData, Point crossPoint) {
         List<ChartAreaSettings> chartAreasSettings = chartSetting.getChartAreasSettings();
 
         // calc maxPriceAxeWidth and init xAxe
@@ -119,6 +119,19 @@ public class ChartPainter {
             caps.initYAxe(minPrice, maxPrice);
 
             paintChartAreas(g2, cas, cps, caps, chartData);
+        }
+
+        paintCross(g2, crossPoint, width, height);
+    }
+
+    private void paintCross(Graphics2D g2, Point crossPoint, int width, int height) {
+        if (crossPoint != null) {
+            int x = (int) crossPoint.getX();
+            int y = (int) crossPoint.getY();
+
+            g2.setColor(Color.LIGHT_GRAY);
+            g2.drawLine(x, 0, x, height);
+            g2.drawLine(0, y, width, y);
         }
     }
 

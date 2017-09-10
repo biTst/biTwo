@@ -8,7 +8,7 @@ import bi.two.util.Utils;
 public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
-    private static final double MIN_MOVE = 0.015;
+    private static final double MIN_MOVE = 100; // 100usd
 
     public final BaseAlgo m_algo;
     private final Exchange m_exch;

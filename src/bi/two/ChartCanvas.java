@@ -18,6 +18,7 @@ class ChartCanvas extends JComponent {
     private ChartSetting m_chartSetting;
     private ChartPaintSetting m_cps = new ChartPaintSetting();
     private boolean m_recalcBounds = true;
+    private Point m_point; // point to highlight
 
     public ChartCanvas() {
         setMinimumSize(new Dimension(800, 500));
@@ -66,7 +67,7 @@ class ChartCanvas extends JComponent {
     }
 
     private void doPaint(Graphics2D g2) {
-        m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData);
+        m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData, m_point);
     }
 
     private Graphics2D initGraphics2D(Graphics2D g) {
@@ -91,7 +92,6 @@ class ChartCanvas extends JComponent {
 
         private Integer m_dragStartX;
         private Integer m_dragDeltaX;
-        private Point m_point; // point to highlight
         private float m_zoom = 1;
 
         @Override public void mouseEntered(MouseEvent e) { updatePoint(e.getPoint()); }
@@ -107,8 +107,7 @@ class ChartCanvas extends JComponent {
         @Override public void mousePressed(MouseEvent e) {
             int x = e.getX();
             m_dragStartX = x;
-            m_point = e.getPoint();
-            repaint(150);
+            updatePoint(e.getPoint());
         }
 
         @Override public void mouseDragged(MouseEvent e) {
@@ -118,16 +117,14 @@ class ChartCanvas extends JComponent {
 
             int drag = m_dragDeltaX - prevDragDeltaX;
             m_cps.shift(drag);
-            m_point = e.getPoint();
-            repaint(150);
+            updatePoint(e.getPoint());
         }
 
         @Override public void mouseReleased(MouseEvent e) {
             int x = e.getX();
             m_dragStartX = null;
             m_dragDeltaX = null;
-            m_point = e.getPoint();
-            repaint(150);
+            updatePoint(e.getPoint());
         }
 
         private void updatePoint(Point point) {
