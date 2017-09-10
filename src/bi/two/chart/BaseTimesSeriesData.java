@@ -1,12 +1,12 @@
 package bi.two.chart;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class BaseTimesSeriesData<T extends ITickData>
         implements ITimesSeriesData<T>, ITimesSeriesData.ITimesSeriesListener {
     public ITimesSeriesData m_parent;
-    private List<ITimesSeriesListener> m_listeners = new ArrayList<ITimesSeriesListener>();
+    private List<ITimesSeriesListener> m_listeners = new CopyOnWriteArrayList<ITimesSeriesListener>();
 
     public ITimesSeriesData getParent() { return m_parent; }
 

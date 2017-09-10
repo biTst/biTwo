@@ -60,6 +60,7 @@ Exchange exchange = Exchange.get("bitstamp");
 
             ChartCanvas chartCanvas = frame.getChartCanvas();
             List<Watcher> watchers = setup(ticksTs, config, chartCanvas, exchange, pair);
+            System.out.println("watchers.num=" + watchers.size());
 
             Runnable callback = new Runnable() {
                 private int m_counter = 0;
@@ -129,6 +130,10 @@ Exchange exchange = Exchange.get("bitstamp");
         float smoothTo = config.getFloat("smooth.to");
         float smoothStep = config.getFloat("smooth.step");
 
+        float powerFrom = config.getFloat("power.from");
+        float powerTo = config.getFloat("power.to");
+        float powerStep = config.getFloat("power.step");
+
         int slopeFrom = config.getInt("slope.from");
         int slopeTo = config.getInt("slope.to");
         int slopeStep = config.getInt("slope.step");
@@ -155,21 +160,24 @@ Exchange exchange = Exchange.get("bitstamp");
                     for (float smooth = smoothFrom; smooth <= smoothTo; smooth += smoothStep) {
                         algoConfig.put(RegressionAlgo.SMOOTHER_KEY, Float.toString(smooth));
 
-                        for (int slope = slopeFrom; slope <= slopeTo; slope += slopeStep) {
-                            algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, Integer.toString(slope));
+                        for (float power = powerFrom; power <= powerTo; power += powerStep) {
+                            algoConfig.put(RegressionAlgo.POWER_KEY, Float.toString(power));
 
-                            for (int signal = signalFrom; signal <= signalTo; signal += signalStep) {
-                                algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, Integer.toString(signal));
+                            for (int slope = slopeFrom; slope <= slopeTo; slope += slopeStep) {
+                                algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, Integer.toString(slope));
 
-                                RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                                if (algo == null) {
-                                    algo = nextAlgo;
+                                for (int signal = signalFrom; signal <= signalTo; signal += signalStep) {
+                                    algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, Integer.toString(signal));
+
+                                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                                    if (algo == null) {
+                                        algo = nextAlgo;
+                                    }
+                                    Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
+                                    watchers.add(watcher);
                                 }
-                                Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
-                                watchers.add(watcher);
                             }
                         }
-
                     }
                 }
             }
@@ -262,7 +270,7 @@ Exchange exchange = Exchange.get("bitstamp");
             }
 
             RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
-            String key = ralgo.key();
+            String key = ralgo.key(false);
             System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
                     + "   trades=" + watcher.m_tradesNum + " .....................................");
         }
@@ -273,7 +281,7 @@ Exchange exchange = Exchange.get("bitstamp");
 
         double gain = maxWatcher.totalPriceRatio(true);
         RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
-        String key = ralgo.key();
+        String key = ralgo.key(true);
         System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
 

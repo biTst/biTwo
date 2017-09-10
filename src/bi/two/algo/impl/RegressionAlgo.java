@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
     public static final float DEF_SMOOTHER = 3.0f;
+    public static final float DEF_POWER = 1.0f;
     public static final int DEF_SLOPE_LEN = 5;
     public static final int DEF_SIGNAL_LEN = 13;
 
@@ -25,6 +26,7 @@ public class RegressionAlgo extends BaseAlgo {
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
     public static final String SMOOTHER_KEY = "regression.smoother";
+    public static final String POWER_KEY = "regression.power";
     public static final String SLOPE_LEN_KEY = "regression.slopeLength";
     public static final String SIGNAL_LEN_KEY = "regression.signalLength";
 
@@ -35,11 +37,13 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,ExpotentialMovingBarAverager> s_averagerCache = new HashMap<>();
     public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
+    public final HashMap<String,Regressor> s_smootherCache = new HashMap<>();
 
     private final boolean m_collectValues;
     public final int m_curveLength;
     public final float m_threshold;
     public final float m_smootherLevel;
+    public final float m_powerLevel;
     public final int m_slopeLength;
     public final int m_signalLength;
 
@@ -71,11 +75,12 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;
+        m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;        //+
         m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
         m_smootherLevel = config.getFloatOrDefault(SMOOTHER_KEY, DEF_SMOOTHER);
-        m_slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);
-        m_signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);
+        m_powerLevel = config.getFloatOrDefault(POWER_KEY, DEF_POWER);               //+
+        m_slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);        //+
+        m_signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);     //+
         long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
 
         m_collectValues = config.getBoolean("collect.values");
@@ -126,6 +131,7 @@ public class RegressionAlgo extends BaseAlgo {
         m_scaler = scaler;
 //        m_scaler.addListener(new ScalerVerifier(m_scaler));
 
+        key = key + "." + m_slopeLength;
         ExpotentialMovingBarAverager averager = s_averagerCache.get(key);
         if (averager == null) {
             averager = new ExpotentialMovingBarAverager(m_scaler, m_slopeLength, barSize);
@@ -134,6 +140,7 @@ public class RegressionAlgo extends BaseAlgo {
         m_averager = averager;
 //        m_averager.addListener(new AveragerVerifier(m_averager));
 
+        key = key + "." + m_signalLength;
         SimpleMovingBarAverager signaler = s_signalerCache.get(key);
         if (signaler == null) {
             signaler = new SimpleMovingBarAverager(m_averager, m_signalLength, barSize);
@@ -142,9 +149,10 @@ public class RegressionAlgo extends BaseAlgo {
         m_signaler = signaler;
 //        m_averager.addListener(new SignalerVerifier(m_signaler));
 
+        key = key + "." + m_powerLevel;
         Powerer powerer = s_powererCache.get(key);
         if (powerer == null) {
-            powerer = new Powerer(m_averager, m_signaler, 1.0f);
+            powerer = new Powerer(m_averager, m_signaler, m_powerLevel);
             s_powererCache.put(key, powerer);
         }
         m_powerer = powerer;
@@ -152,7 +160,13 @@ public class RegressionAlgo extends BaseAlgo {
 
 //        m_smoother = new ZeroLagExpotentialMovingBarAverager(m_powerer, 100, barSize/10);
 //        m_smoother = new Regressor2(m_powerer, 70, barSize/10);
-        m_smoother = new Regressor(m_powerer, (long) (m_smootherLevel * barSize));
+        key = key + "." + m_smootherLevel;
+        Regressor smoother = s_smootherCache.get(key);
+        if (smoother == null) {
+            smoother = new Regressor(m_powerer, (long) (m_smootherLevel * barSize));
+            s_smootherCache.put(key, smoother);
+        }
+        m_smoother = smoother;
 
         m_adjuster = new Adjuster(m_smoother, m_threshold);
 
@@ -191,8 +205,14 @@ public class RegressionAlgo extends BaseAlgo {
         return lastTick;
     }
 
-    public String key() {
-        return m_curveLength + "," + m_threshold + "," + m_smootherLevel + "," + m_slopeLength + "," + m_signalLength /*+ ", " + Utils.millisToDHMSStr(period)*/;
+    public String key(boolean detailed) {
+        return (detailed ? "curve=" : "") + m_curveLength
+                + (detailed ? ",threshold=" : ",") + m_threshold
+                + (detailed ? ",smoother=" : ",") + m_smootherLevel
+                + (detailed ? ",slope=" : ",") + m_slopeLength
+                + (detailed ? ",signal=" : ",") + m_signalLength
+                + (detailed ? ",power=" : ",") + m_powerLevel
+                /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
 
@@ -301,8 +321,12 @@ public class RegressionAlgo extends BaseAlgo {
             if (changed) {
                 if (!m_initialized) {
                     m_initialized = true;
-                    m_splitter.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) { m_filled = true; }
+                    final BarSplitter.BarHolder oldestTick = m_splitter.getOldestTick();
+                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_filled = true;
+                            oldestTick.removeBarHolderListener(this);
+                        }
                         @Override public void onTickExit(ITickData tickData) {}
                     });
                 }
@@ -365,6 +389,7 @@ public class RegressionAlgo extends BaseAlgo {
                     m_secondBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                         @Override public void onTickEnter(ITickData tickData) {
                             m_filled = true;
+                            m_secondBar.removeBarHolderListener(this);
                         }
                         @Override public void onTickExit(ITickData tickData) {}
                     });
@@ -421,9 +446,11 @@ public class RegressionAlgo extends BaseAlgo {
                         @Override public void onTickExit(ITickData tickData) {}
                     });
 
-                    m_barSplitter.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                    final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
+                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                         @Override public void onTickEnter(ITickData tickData) {
                             m_filled = true;
+                            oldestTick.removeBarHolderListener(this);
                         }
                         @Override public void onTickExit(ITickData tickData){}
                     });
@@ -507,9 +534,11 @@ public class RegressionAlgo extends BaseAlgo {
                         @Override public void onTickExit(ITickData tickData) {}
                     });
 
-                    m_barSplitter.getOldestTick().addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                    final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
+                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                         @Override public void onTickEnter(ITickData tickData) {
                             m_filled = true;
+                            oldestTick.removeBarHolderListener(this);
                         }
                         @Override public void onTickExit(ITickData tickData){}
                     });

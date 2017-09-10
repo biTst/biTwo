@@ -6,8 +6,8 @@ import bi.two.chart.TickPainter;
 import bi.two.chart.TimesSeriesData;
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     public static final int BARS_NUM = 20;
@@ -136,7 +136,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         public long getTime() { return m_time; }
         public TickNode getLatestTick() { return m_latestTick; }
-        public void setOlderBar(BarHolder olderBar) { m_olderBar = olderBar; }
+        void setOlderBar(BarHolder olderBar) { m_olderBar = olderBar; }
         public boolean isValid() { return (m_latestTick != null) && (m_oldestTick != null); }
         public BarHolder getOlderBar() { return m_olderBar; }
         public long getTimestamp() { return m_time; }
@@ -198,7 +198,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             throw new RuntimeException("not implemented");
         }
 
-        public void put(ITickData tickData) {
+        void put(ITickData tickData) {
             TickNode tickNode = new TickNode(m_latestTick, tickData, null);
             if(m_latestTick != null) {
                 m_latestTick.m_next = tickNode;
@@ -221,7 +221,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
             m_ticksCount++;
         }
 
-        public void leave(long timeShift, BarHolder olderBarHolder) {
+        void leave(long timeShift, BarHolder olderBarHolder) {
             m_time += timeShift;
             m_oldestTime += timeShift;
 
@@ -282,9 +282,17 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         public void addBarHolderListener(IBarHolderListener listener) {
             if (m_listeners == null) {
-                m_listeners = new ArrayList<IBarHolderListener>();
+                m_listeners = new CopyOnWriteArrayList<IBarHolderListener>();
             }
             m_listeners.add(listener);
+        }
+        public void removeBarHolderListener(IBarHolderListener listener) {
+            if ((m_listeners == null) || !m_listeners.remove(listener)) {
+                throw new RuntimeException("removing non added listener: " + listener);
+            }
+            if(m_listeners.isEmpty()) {
+                m_listeners = null;
+            }
         }
 
         public String log() {
