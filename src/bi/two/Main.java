@@ -114,74 +114,24 @@ Exchange exchange = Exchange.get("bitstamp");
             ticksTs.addOlderTick(new TickData());
         }
 
-        long periodFrom = config.getPeriodInMillis("period.from");
-        long periodTo = config.getPeriodInMillis("period.to");
-        long periodStep = config.getPeriodInMillis("period.step");
-
-        int barsFrom = config.getInt("bars.from");
-        int barsTo = config.getInt("bars.to");
-        int barsStep = config.getInt("bars.step");
-
-        float thresholdFrom = config.getFloat("threshold.from");
-        float thresholdTo = config.getFloat("threshold.to");
-        float thresholdStep = config.getFloat("threshold.step");
-
-        float smoothFrom = config.getFloat("smooth.from");
-        float smoothTo = config.getFloat("smooth.to");
-        float smoothStep = config.getFloat("smooth.step");
-
-        float powerFrom = config.getFloat("power.from");
-        float powerTo = config.getFloat("power.to");
-        float powerStep = config.getFloat("power.step");
-
-        int slopeFrom = config.getInt("slope.from");
-        int slopeTo = config.getInt("slope.to");
-        int slopeStep = config.getInt("slope.step");
-
-        int signalFrom = config.getInt("signal.from");
-        int signalTo = config.getInt("signal.to");
-        int signalStep = config.getInt("signal.step");
-
         boolean collectValues = config.getBoolean("collect.values");
 
         MapConfig algoConfig = new MapConfig();
-        algoConfig.put(RegressionAlgo.COLLECT_LAVUES_KEY, Boolean.toString(collectValues));
+        algoConfig.put(RegressionAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
 
-        RegressionAlgo algo = null;
-        List<Watcher> watchers = new ArrayList<Watcher>();
-        for (long period = periodFrom; period <= periodTo; period += periodStep) {
-            for (int barsNum = barsFrom; barsNum <= barsTo; barsNum += barsStep) {
-                String barsNumStr = Integer.toString(barsNum);
-                algoConfig.put(RegressionAlgo.REGRESSION_BARS_NUM_KEY, barsNumStr);
-
-                for (float threshold = thresholdFrom; threshold <= thresholdTo; threshold += thresholdStep) {
-                    algoConfig.put(RegressionAlgo.THRESHOLD_KEY, Float.toString(threshold));
-
-                    for (float smooth = smoothFrom; smooth <= smoothTo; smooth += smoothStep) {
-                        algoConfig.put(RegressionAlgo.SMOOTHER_KEY, Float.toString(smooth));
-
-                        for (float power = powerFrom; power <= powerTo; power += powerStep) {
-                            algoConfig.put(RegressionAlgo.POWER_KEY, Float.toString(power));
-
-                            for (int slope = slopeFrom; slope <= slopeTo; slope += slopeStep) {
-                                algoConfig.put(RegressionAlgo.SLOPE_LEN_KEY, Integer.toString(slope));
-
-                                for (int signal = signalFrom; signal <= signalTo; signal += signalStep) {
-                                    algoConfig.put(RegressionAlgo.SIGNAL_LEN_KEY, Integer.toString(signal));
-
-                                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                                    if (algo == null) {
-                                        algo = nextAlgo;
-                                    }
-                                    Watcher watcher = new Watcher(config, nextAlgo, exchange, pair);
-                                    watchers.add(watcher);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        List<VaryItem> varies = new ArrayList<>();
+        for (Vary vary : Vary.values()) {
+            String name = vary.name();
+            String from = config.getString(name + ".from");
+            String to = config.getString(name + ".to");
+            String step = config.getString(name + ".step");
+            varies.add(new VaryItem(vary, from, to, step));
         }
+
+        List<Watcher> watchers = new ArrayList<Watcher>();
+        doVary(varies, 0, algoConfig, ticksTs, exchange, pair, watchers);
+        Watcher first = watchers.get(0);
+        RegressionAlgo algo = (RegressionAlgo) first.m_algo;
 
         ChartData chartData = chartCanvas.getChartData();
         if (collectTicks) {
@@ -257,6 +207,29 @@ Exchange exchange = Exchange.get("bitstamp");
         }
 
         return watchers;
+    }
+
+    private static void doVary(final List<VaryItem> varies, int index, final MapConfig algoConfig, final TimesSeriesData<TickData> ticksTs,
+                               final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
+        final int nextIndex = index + 1;
+        final VaryItem varyItem = varies.get(index);
+        String from = varyItem.m_from;
+        String to = varyItem.m_to;
+        String step = varyItem.m_step;
+
+        Vary.VaryType varyType = varyItem.m_vary.m_varyType;
+        varyType.iterate(from, to, step, new IParamIterator<String>() {
+            @Override public void doIteration(String value) {
+                algoConfig.put(varyItem.m_vary.m_key, value);
+                if (nextIndex < varies.size()) {
+                    doVary(varies, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
+                } else {
+                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
+                    Watcher watcher = new Watcher(algoConfig, nextAlgo, exchange, pair);
+                    watchers.add(watcher);
+                }
+            }
+        });
     }
 
     private static void logResults(List<Watcher> watchers, long startMillis, long endMillis) {
@@ -461,4 +434,34 @@ Exchange exchange = Exchange.get("bitstamp");
             return "TickExtraData";
         }
     }
+
+    //=============================================================================================
+    public interface IParamIterator<P> {
+        void doIteration(P param);
+    }
+
+    //=============================================================================================
+    static class VaryItem {
+        private final Vary m_vary;
+        public final String m_from;
+        public final String m_to;
+        public final String m_step;
+
+        public VaryItem(Vary vary, String from, String to, String step) {
+            m_vary = vary;
+            m_from = from;
+            m_to = to;
+            m_step = step;
+        }
+
+        @Override public String toString() {
+            return "VaryItem{" +
+                    "vary=" + m_vary +
+                    ", from='" + m_from + '\'' +
+                    ", to='" + m_to + '\'' +
+                    ", step='" + m_step + '\'' +
+                    '}';
+        }
+    }
+
 }

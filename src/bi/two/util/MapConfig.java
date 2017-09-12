@@ -35,6 +35,10 @@ public class MapConfig extends Properties {
     }
 
     public long getLong(String key) {
+        return getLongOrDefault(key, null);
+    }
+
+    public long getLongOrDefault(String key, Long def) {
         String property = getPropertyNoComment(key);
         if (property != null) {
             try {
@@ -42,6 +46,9 @@ public class MapConfig extends Properties {
             } catch (NumberFormatException e) {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Long");
             }
+        }
+        if (def != null) {
+            return def;
         }
         throw new RuntimeException("property '" + key + "' not found");
     }

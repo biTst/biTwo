@@ -13,7 +13,6 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
@@ -22,7 +21,9 @@ public class RegressionAlgo extends BaseAlgo {
     public static final int DEF_SLOPE_LEN = 5;
     public static final int DEF_SIGNAL_LEN = 13;
 
-    public static final String COLLECT_LAVUES_KEY = "collect.values";
+    public static final String COLLECT_VALUES_KEY = "collect.values";
+
+    public static final String BARS_SIZE_KEY = "regression.barSize";
     public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
     public static final String THRESHOLD_KEY = "regression.threshold";
     public static final String SMOOTHER_KEY = "regression.smoother";
@@ -40,6 +41,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,Regressor> s_smootherCache = new HashMap<>();
 
     private final boolean m_collectValues;
+    private final long m_barSize;
     public final int m_curveLength;
     public final float m_threshold;
     public final float m_smootherLevel;
@@ -75,13 +77,13 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
         super(null);
 
-        m_curveLength = config.getInt(REGRESSION_BARS_NUM_KEY); // def = 50;        //+
-        m_threshold = config.getFloatOrDefault(THRESHOLD_KEY, DEF_THRESHOLD);
-        m_smootherLevel = config.getFloatOrDefault(SMOOTHER_KEY, DEF_SMOOTHER);
-        m_powerLevel = config.getFloatOrDefault(POWER_KEY, DEF_POWER);               //+
-        m_slopeLength = config.getIntOrDefault(SLOPE_LEN_KEY, DEF_SLOPE_LEN);        //+
-        m_signalLength = config.getIntOrDefault(SIGNAL_LEN_KEY, DEF_SIGNAL_LEN);     //+
-        long barSize = TimeUnit.MINUTES.toMillis(5); // 5min
+        m_barSize = (long) config.getFloat(BARS_SIZE_KEY);
+        m_curveLength = (int) config.getFloat(REGRESSION_BARS_NUM_KEY);
+        m_slopeLength = (int) config.getFloat(SLOPE_LEN_KEY);
+        m_signalLength = (int) config.getFloat(SIGNAL_LEN_KEY);
+        m_powerLevel = config.getFloat(POWER_KEY);
+        m_smootherLevel = config.getFloat(SMOOTHER_KEY);
+        m_threshold = config.getFloat(THRESHOLD_KEY);
 
         m_collectValues = config.getBoolean("collect.values");
 
@@ -94,19 +96,19 @@ public class RegressionAlgo extends BaseAlgo {
 //        }
 //        m_regressor = regressor;
 
-        String key = tsd.hashCode() + "." + m_curveLength + "." + barSize;
+        String key = tsd.hashCode() + "." + m_curveLength + "." + m_barSize;
         Regressor2 regressor = s_regressorsCache.get(key);
         if (regressor == null) {
-            regressor = new Regressor2(tsd, m_curveLength, barSize);
+            regressor = new Regressor2(tsd, m_curveLength, m_barSize);
             s_regressorsCache.put(key, regressor);
 //            regressor.addListener(new RegressorVerifier(regressor));
         }
         m_regressor = regressor;
 
-        key = key + "." + barSize;
+        // TODO - move into Differ
         BarSplitter regressorBars = s_regressorBarsCache.get(key);
         if (regressorBars == null) {
-            regressorBars = new BarSplitter(m_regressor, m_collectValues ? 100 : 2, barSize);
+            regressorBars = new BarSplitter(m_regressor, m_collectValues ? 100 : 2, m_barSize);
             s_regressorBarsCache.put(key, regressorBars);
         }
         m_regressorBars = regressorBars;
@@ -134,7 +136,7 @@ public class RegressionAlgo extends BaseAlgo {
         key = key + "." + m_slopeLength;
         ExpotentialMovingBarAverager averager = s_averagerCache.get(key);
         if (averager == null) {
-            averager = new ExpotentialMovingBarAverager(m_scaler, m_slopeLength, barSize);
+            averager = new ExpotentialMovingBarAverager(m_scaler, m_slopeLength, m_barSize);
             s_averagerCache.put(key, averager);
         }
         m_averager = averager;
@@ -143,7 +145,7 @@ public class RegressionAlgo extends BaseAlgo {
         key = key + "." + m_signalLength;
         SimpleMovingBarAverager signaler = s_signalerCache.get(key);
         if (signaler == null) {
-            signaler = new SimpleMovingBarAverager(m_averager, m_signalLength, barSize);
+            signaler = new SimpleMovingBarAverager(m_averager, m_signalLength, m_barSize);
             s_signalerCache.put(key, signaler);
         }
         m_signaler = signaler;
@@ -163,7 +165,7 @@ public class RegressionAlgo extends BaseAlgo {
         key = key + "." + m_smootherLevel;
         Regressor smoother = s_smootherCache.get(key);
         if (smoother == null) {
-            smoother = new Regressor(m_powerer, (long) (m_smootherLevel * barSize));
+            smoother = new Regressor(m_powerer, (long) (m_smootherLevel * m_barSize));
             s_smootherCache.put(key, smoother);
         }
         m_smoother = smoother;
@@ -264,7 +266,7 @@ public class RegressionAlgo extends BaseAlgo {
         private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
         private long m_lastBarTickTime;
         private boolean m_initialized;
-        protected boolean m_filled;
+        private boolean m_filled;
         private boolean m_dirty;
         private TickData m_tickData;
 
