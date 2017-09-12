@@ -180,8 +180,8 @@ public class Watcher extends TimesSeriesData<TradeData> {
 
 
     //----------------------------------------------------------
-    public class GainTimesSeriesData extends BaseJoinNonChangedTimesSeriesData {
-        public GainTimesSeriesData(ITimesSeriesData parent) {
+    public class GainTimesSeriesData extends JoinNonChangedTimesSeriesData {
+        GainTimesSeriesData(ITimesSeriesData parent) {
             super(parent);
         }
 
@@ -195,5 +195,4 @@ public class Watcher extends TimesSeriesData<TradeData> {
             return null;
         }
     }
-
 }

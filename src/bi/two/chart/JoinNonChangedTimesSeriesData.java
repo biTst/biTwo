@@ -2,12 +2,14 @@ package bi.two.chart;
 
 import java.util.List;
 
-public abstract class BaseJoinNonChangedTimesSeriesData extends TimesSeriesData<TickData> {
+public class JoinNonChangedTimesSeriesData extends TimesSeriesData<TickData> {
 
     // to override
-    protected abstract ITickData getTickValue();
+    protected ITickData getTickValue() {
+        return m_parent.getLatestTick();
+    }
 
-    public BaseJoinNonChangedTimesSeriesData(ITimesSeriesData parent) {
+    public JoinNonChangedTimesSeriesData(ITimesSeriesData parent) {
         super(parent);
     }
 

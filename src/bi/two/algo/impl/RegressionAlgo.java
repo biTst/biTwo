@@ -209,11 +209,11 @@ public class RegressionAlgo extends BaseAlgo {
 
     public String key(boolean detailed) {
         return (detailed ? "curve=" : "") + m_curveLength
-                + (detailed ? ",threshold=" : ",") + m_threshold
-                + (detailed ? ",smoother=" : ",") + m_smootherLevel
                 + (detailed ? ",slope=" : ",") + m_slopeLength
                 + (detailed ? ",signal=" : ",") + m_signalLength
                 + (detailed ? ",power=" : ",") + m_powerLevel
+                + (detailed ? ",smoother=" : ",") + m_smootherLevel
+                + (detailed ? ",threshold=" : ",") + m_threshold
                 /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
@@ -703,8 +703,8 @@ public class RegressionAlgo extends BaseAlgo {
         private float m_xxx;
         private float m_min;
         private float m_max;
-        private float m_zero = 0;
-        private float m_last = 0;
+        private float m_zero;
+        private float m_last = Float.NaN;
 
         Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
             super(parent);
@@ -727,56 +727,103 @@ public class RegressionAlgo extends BaseAlgo {
                 ITickData tick = m_parent.getLatestTick();
                 if (tick != null) {
                     float value = tick.getClosePrice();
-                    float delta = value - m_last;
-                    if (delta != 0) { // value changed
+                    if (m_last != Float.NaN) { // not a first tick
+                        float delta = value - m_last;
+                        if (delta != 0) { // value changed
 //System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
 
-                        if ((value < m_max) && (value < m_min)) { // between
-                            if (delta > 0) { // going up
-                                m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
-                                if (value > 0) {
-                                    m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
-                                    m_zero += delta / 2;
-                                }
-                            } else if (delta < 0) { // going down
-                                m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
-                                if (value < 0) {
-                                    m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
-                                    m_zero += delta / 2;
+                            if ((m_max > value) && (value > m_min)) { // between
+                                if (delta > 0) { // going up
+                                    m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
+                                    if (value > 0) {
+                                        m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
+                                        m_zero += delta / 2;
+                                    }
+                                } else if (delta < 0) { // going down
+                                    m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
+                                    if (value < 0) {
+                                        m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
+                                        m_zero += delta / 2;
+                                    }
                                 }
                             }
-                        }
 
-                        if (value > m_max) { // strong UP
-                            m_max = value; // ceil
-                            m_zero = m_max / 2;
-                            m_min = -m_threshold;
-                        } else if (value < m_min) { // strong DOWN
-                            m_min = value; // floor
-                            m_zero = m_min / 2;
-                            m_max = m_threshold;
-                        }
-                        m_last = value;
+                            if (value > m_max) { // strong UP
+                                m_max = value; // ceil
+                                m_zero = value / 2;
+                                m_min = -m_threshold;
+                            } else if (value < m_min) { // strong DOWN
+                                m_min = value; // floor
+                                m_zero = value / 2;
+                                m_max = m_threshold;
+                            }
 
-
-                        if (value > m_zero) {
-                            m_xxx = (value - m_zero) / (m_max - m_zero); // [0 .. 1]
-                        } else {
-                            m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
-                        }
+                            if (value > m_zero) {
+                                m_xxx = (value - m_zero) / (m_max - m_zero); // [0 .. 1]
+                            } else {
+                                m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
+                            }
 //System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
 
 
-                        if (Math.abs(m_xxx) > 1) {
-                            System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
-                        }
+                            if (Math.abs(m_xxx) > 1) {
+                                System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+                            }
 
-                        iAmChanged = true;
-                        m_dirty = true;
+                            iAmChanged = true;
+                            m_dirty = true;
+                        }
                     }
+                    m_last = value;
                 }
             }
             super.onChanged(ts, iAmChanged);
+        }
+
+        public TimesSeriesData<TickData> getMinTs() {
+            return new AdjusterInnerTimesSeriesData(this) {
+                @Override protected float getValue() {
+                    return m_min;
+                }
+            };
+        }
+
+        public TimesSeriesData<TickData> getMaxTs() {
+            return new AdjusterInnerTimesSeriesData(this) {
+                @Override protected float getValue() {
+                    return m_max;
+                }
+            };
+        }
+
+        public TimesSeriesData<TickData> getZeroTs() {
+            return new AdjusterInnerTimesSeriesData(this) {
+                @Override protected float getValue() {
+                    return m_zero;
+                }
+            };
+        }
+
+        //----------------------------------------------------------
+        public abstract class AdjusterInnerTimesSeriesData extends JoinNonChangedTimesSeriesData {
+            protected abstract float getValue();
+
+            AdjusterInnerTimesSeriesData(ITimesSeriesData parent) {
+                super(parent);
+            }
+
+            @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+                super.onChanged(ts, changed);
+            }
+
+            @Override protected ITickData getTickValue() {
+                ITickData latestTick = getParent().getLatestTick();
+                if (latestTick != null) {
+                    long timestamp = latestTick.getTimestamp();
+                    return new TickData(timestamp, getValue());
+                }
+                return null;
+            }
         }
     }
 
