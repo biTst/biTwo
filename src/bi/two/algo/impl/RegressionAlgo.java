@@ -50,6 +50,8 @@ public class RegressionAlgo extends BaseAlgo {
     public final int m_signalLength;
 
     public final Regressor2 m_regressor;
+public final Regressor2 m_regressorDivided;
+public final Regressor2 m_regressorDivided2;
     public final BarSplitter m_regressorBars; // buffer to calc diff
 //    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
@@ -99,11 +101,14 @@ public class RegressionAlgo extends BaseAlgo {
         String key = tsd.hashCode() + "." + m_curveLength + "." + m_barSize;
         Regressor2 regressor = s_regressorsCache.get(key);
         if (regressor == null) {
-            regressor = new Regressor2(tsd, m_curveLength, m_barSize);
+            regressor = new Regressor2(tsd, m_curveLength, m_barSize, 1);
             s_regressorsCache.put(key, regressor);
 //            regressor.addListener(new RegressorVerifier(regressor));
         }
         m_regressor = regressor;
+
+m_regressorDivided = new Regressor2(tsd, m_curveLength, m_barSize, 5);
+m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 20);
 
         // TODO - move into Differ
         BarSplitter regressorBars = s_regressorBarsCache.get(key);
@@ -270,8 +275,8 @@ public class RegressionAlgo extends BaseAlgo {
         private boolean m_dirty;
         private TickData m_tickData;
 
-        public Regressor2(ITimesSeriesData<ITickData> tsd, int barsNum, long barSize) {
-            m_splitter = new BarSplitter(tsd, barsNum, barSize);
+        public Regressor2(ITimesSeriesData<ITickData> tsd, int barsNum, long barSize, float divider) {
+            m_splitter = new BarSplitter(tsd, (int) (barsNum * divider), (long) (barSize/divider));
             setParent(m_splitter);
         }
 
@@ -697,6 +702,7 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
+        private final DirectionTracker m_directionTracker;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_threshold;
@@ -704,13 +710,13 @@ public class RegressionAlgo extends BaseAlgo {
         private float m_min;
         private float m_max;
         private float m_zero;
-        private float m_last = Float.NaN;
 
         Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
             super(parent);
             m_threshold = threshold;
             m_max = m_threshold;
             m_min = - m_threshold;
+            m_directionTracker = new DirectionTracker(0.1f);
         }
 
         @Override public ITickData getLatestTick() {
@@ -727,54 +733,60 @@ public class RegressionAlgo extends BaseAlgo {
                 ITickData tick = m_parent.getLatestTick();
                 if (tick != null) {
                     float value = tick.getClosePrice();
-                    if (m_last != Float.NaN) { // not a first tick
-                        float delta = value - m_last;
-                        if (delta != 0) { // value changed
+                    float delta = m_directionTracker.update(value);
+
+                    if (delta != 0) { // value changed
 //System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
 
-                            if ((m_max > value) && (value > m_min)) { // between
-                                if (delta > 0) { // going up
-                                    m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
-                                    if (value > 0) {
-                                        m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
-                                        m_zero += delta / 2;
+                        if ((m_max > value) && (value > m_min)) { // between
+                            if (delta > 0) { // going up
+                                m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
+                                if (value > 0) {
+                                    if(m_min < -m_threshold) {
+                                        if(m_zero < 0) {
+                                            m_zero += delta * m_zero / m_min;
+                                        }
                                     }
-                                } else if (delta < 0) { // going down
-                                    m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
-                                    if (value < 0) {
-                                        m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
-                                        m_zero += delta / 2;
+                                    m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
+                                }
+                            } else if (delta < 0) { // going down
+                                m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
+                                if (value < 0) {
+                                    if(m_max > m_threshold) {
+                                        if(m_zero > 0) {
+                                            m_zero += delta * m_zero / m_max;
+                                        }
                                     }
+                                    m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
                                 }
                             }
+                        }
 
-                            if (value > m_max) { // strong UP
-                                m_max = value; // ceil
-                                m_zero = value / 2;
-                                m_min = -m_threshold;
-                            } else if (value < m_min) { // strong DOWN
-                                m_min = value; // floor
-                                m_zero = value / 2;
-                                m_max = m_threshold;
-                            }
+                        if (value > m_max) { // strong UP
+                            m_max = value; // ceil
+                            m_zero = value / 2;
+                            m_min = -m_threshold;
+                        } else if (value < m_min) { // strong DOWN
+                            m_min = value; // floor
+                            m_zero = value / 2;
+                            m_max = m_threshold;
+                        }
 
-                            if (value > m_zero) {
-                                m_xxx = (value - m_zero) / (m_max - m_zero); // [0 .. 1]
-                            } else {
-                                m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
-                            }
+                        if (value > m_zero) {
+                            m_xxx = (value - m_zero) / (m_max - m_zero); // [0 .. 1]
+                        } else {
+                            m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
+                        }
 //System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
 
 
-                            if (Math.abs(m_xxx) > 1) {
-                                System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
-                            }
-
-                            iAmChanged = true;
-                            m_dirty = true;
+                        if (Math.abs(m_xxx) > 1) {
+                            System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
                         }
+
+                        iAmChanged = true;
+                        m_dirty = true;
                     }
-                    m_last = value;
                 }
             }
             super.onChanged(ts, iAmChanged);
@@ -823,6 +835,68 @@ public class RegressionAlgo extends BaseAlgo {
                     return new TickData(timestamp, getValue());
                 }
                 return null;
+            }
+        }
+
+
+        //----------------------------------------------------------
+        private static class DirectionTracker {
+            private final float m_threshold;
+            private float m_prevValue = Float.NaN;
+            private float m_lastValue = Float.NaN;
+
+            public DirectionTracker(float threshold) {
+                m_threshold = threshold;
+            }
+
+            public float update(float value) {
+                if (Float.isNaN(m_prevValue)) {
+                    m_prevValue = value;
+                    return 0;
+                }
+
+                if (Float.isNaN(m_lastValue)) {
+                    float diffAbs = Math.abs(m_prevValue - value);
+                    if (diffAbs > m_threshold) {
+                        m_lastValue = value;
+                        return m_lastValue - m_prevValue;
+                    }
+                    return 0;
+                }
+
+                if (m_lastValue > m_prevValue) { // up
+                    if (value > m_lastValue) { // more up
+                        float diff = value - m_lastValue;
+                        m_lastValue = value;
+                        return diff;
+                    }
+                    // possible down ?
+                    float diff = m_lastValue - value;
+                    if (diff > m_threshold) {
+                        m_prevValue = m_lastValue;
+                        m_lastValue = value;
+                        return -diff;
+                    }
+                    return 0;
+                }
+
+                if (m_lastValue < m_prevValue) { // down
+                    if (value < m_lastValue) { // more down
+                        float diff = value - m_lastValue;
+                        m_lastValue = value;
+                        return diff;
+                    }
+                    // possible up ?
+                    float diff = value - m_lastValue;
+                    if (diff > m_threshold) {
+                        m_prevValue = m_lastValue;
+                        m_lastValue = value;
+                        return diff;
+                    }
+                    return 0;
+                }
+
+                return 0;
             }
         }
     }
