@@ -1,5 +1,6 @@
 package bi.two.chart;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +16,9 @@ public class ChartSetting {
         return 15;
     }
 
-    public void addChartAreaSettings(ChartAreaSettings cas) {
+    public ChartAreaSettings addChartAreaSettings(String name, float left, float top, float width, float height, Color color) {
+        ChartAreaSettings cas = new ChartAreaSettings(name, left, top, width, height, color);
         m_cas.add(cas);
+        return cas;
     }
 }
