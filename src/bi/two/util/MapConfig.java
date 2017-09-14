@@ -1,5 +1,7 @@
 package bi.two.util;
 
+import bi.two.Vary;
+
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -135,5 +137,9 @@ public class MapConfig extends Properties {
                 setProperty(name, property);
             }
         }
+    }
+
+    public float getFloat(Vary vary) {
+        return getFloat(vary.m_key);
     }
 }

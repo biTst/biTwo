@@ -191,7 +191,7 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
     }
 
-    private static void doVary(final List<VaryItem> varies, int index, final MapConfig algoConfig, final TimesSeriesData<TickData> ticksTs,
+    private static void doVary(final List<VaryItem> varies, int index, final MapConfig algoConfig, final ITimesSeriesData<TickData> ticksTs,
                                final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
         final int nextIndex = index + 1;
         final VaryItem varyItem = varies.get(index);

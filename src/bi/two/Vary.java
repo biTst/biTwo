@@ -1,17 +1,18 @@
 package bi.two;
 
-import bi.two.algo.impl.RegressionAlgo;
 import bi.two.util.Utils;
 
 public enum Vary {
-    period(RegressionAlgo.BARS_SIZE_KEY, VaryType.MILLIS),
-    bars(RegressionAlgo.REGRESSION_BARS_NUM_KEY, VaryType.INT),
-    threshold(RegressionAlgo.THRESHOLD_KEY, VaryType.FLOAT),
-    slope(RegressionAlgo.SLOPE_LEN_KEY, VaryType.INT),
-    signal(RegressionAlgo.SIGNAL_LEN_KEY, VaryType.INT),
-    power(RegressionAlgo.POWER_KEY, VaryType.FLOAT),
-    smooth(RegressionAlgo.SMOOTHER_KEY, VaryType.FLOAT),;
-
+    period("barSize", VaryType.MILLIS),
+    bars("barsNum", VaryType.INT),
+    divider("divider", VaryType.FLOAT),
+    slope("slopeLength", VaryType.INT),
+    signal("signalLength", VaryType.INT),
+    power("power", VaryType.FLOAT),
+    smooth("smoother", VaryType.FLOAT),
+    threshold("threshold", VaryType.FLOAT),
+    ;
+    
     public final String m_key;
     public final VaryType m_varyType;
 

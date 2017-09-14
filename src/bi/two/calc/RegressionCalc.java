@@ -1,7 +1,6 @@
 package bi.two.calc;
 
 import bi.two.algo.BarSplitter;
-import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.ITickData;
 import bi.two.chart.ITicksData;
 import bi.two.chart.TickData;
@@ -18,7 +17,7 @@ public class RegressionCalc {
     private final TickData m_shared = new TickData();
 
     public RegressionCalc(MapConfig config, BarSplitter bs) {
-        m_barsNum = config.getInt(RegressionAlgo.REGRESSION_BARS_NUM_KEY);
+        m_barsNum = config.getInt("??"  /* TODO */  /*RegressionAlgo.REGRESSION_BARS_NUM_KEY*/);
         bs.setBarsNum(m_barsNum);
         m_ts = bs;
     }

@@ -2,6 +2,7 @@
 package bi.two.algo.impl;
 
 import bi.two.Main;
+import bi.two.Vary;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.*;
@@ -16,20 +17,8 @@ import java.util.List;
 
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
-    public static final float DEF_SMOOTHER = 3.0f;
-    public static final float DEF_POWER = 1.0f;
-    public static final int DEF_SLOPE_LEN = 5;
-    public static final int DEF_SIGNAL_LEN = 13;
 
     public static final String COLLECT_VALUES_KEY = "collect.values";
-
-    public static final String BARS_SIZE_KEY = "regression.barSize";
-    public static final String REGRESSION_BARS_NUM_KEY = "regression.barsNum";
-    public static final String THRESHOLD_KEY = "regression.threshold";
-    public static final String SMOOTHER_KEY = "regression.smoother";
-    public static final String POWER_KEY = "regression.power";
-    public static final String SLOPE_LEN_KEY = "regression.slopeLength";
-    public static final String SIGNAL_LEN_KEY = "regression.signalLength";
 
     public final HashMap<String,Regressor2> s_regressorsCache = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
@@ -43,6 +32,7 @@ public class RegressionAlgo extends BaseAlgo {
     private final boolean m_collectValues;
     private final long m_barSize;
     public final int m_curveLength;
+    public final float m_divider;
     public final float m_threshold;
     public final float m_smootherLevel;
     public final float m_powerLevel;
@@ -50,8 +40,8 @@ public class RegressionAlgo extends BaseAlgo {
     public final int m_signalLength;
 
     public final Regressor2 m_regressor;
-public final Regressor2 m_regressorDivided;
-public final Regressor2 m_regressorDivided2;
+public Regressor2 m_regressorDivided;
+public Regressor2 m_regressorDivided2;
     public final BarSplitter m_regressorBars; // buffer to calc diff
 //    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
@@ -76,16 +66,17 @@ public final Regressor2 m_regressorDivided2;
     }
 
 
-    public RegressionAlgo(MapConfig config, TimesSeriesData tsd) {
+    public RegressionAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        m_barSize = (long) config.getFloat(BARS_SIZE_KEY);
-        m_curveLength = (int) config.getFloat(REGRESSION_BARS_NUM_KEY);
-        m_slopeLength = (int) config.getFloat(SLOPE_LEN_KEY);
-        m_signalLength = (int) config.getFloat(SIGNAL_LEN_KEY);
-        m_powerLevel = config.getFloat(POWER_KEY);
-        m_smootherLevel = config.getFloat(SMOOTHER_KEY);
-        m_threshold = config.getFloat(THRESHOLD_KEY);
+        m_barSize = (long)config.getFloat(Vary.period);
+        m_curveLength = (int) config.getFloat(Vary.bars);
+        m_divider = config.getFloat(Vary.divider);
+        m_slopeLength = (int) config.getFloat(Vary.slope);
+        m_signalLength = (int) config.getFloat(Vary.signal);
+        m_powerLevel = config.getFloat(Vary.power);
+        m_smootherLevel = config.getFloat(Vary.smooth);
+        m_threshold = config.getFloat(Vary.threshold);
 
         m_collectValues = config.getBoolean("collect.values");
 
@@ -98,17 +89,19 @@ public final Regressor2 m_regressorDivided2;
 //        }
 //        m_regressor = regressor;
 
-        String key = tsd.hashCode() + "." + m_curveLength + "." + m_barSize;
+        String key = tsd.hashCode() + "." + m_curveLength + "." + m_barSize + "." + m_divider;
         Regressor2 regressor = s_regressorsCache.get(key);
         if (regressor == null) {
-            regressor = new Regressor2(tsd, m_curveLength, m_barSize, 1);
+            regressor = new Regressor2(tsd, m_curveLength, m_barSize, m_divider);
             s_regressorsCache.put(key, regressor);
 //            regressor.addListener(new RegressorVerifier(regressor));
         }
         m_regressor = regressor;
 
-m_regressorDivided = new Regressor2(tsd, m_curveLength, m_barSize, 5);
-m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 20);
+if (m_collectValues) {
+    m_regressorDivided = new Regressor2(tsd, m_curveLength, m_barSize, 1);
+    m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 30);
+}
 
         // TODO - move into Differ
         BarSplitter regressorBars = s_regressorBarsCache.get(key);
@@ -215,6 +208,7 @@ m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 20);
     public String key(boolean detailed) {
         return (detailed ? "curve=" : "") + m_curveLength
                 + (detailed ? ",slope=" : ",") + m_slopeLength
+                + (detailed ? ",divider=" : ",") + m_divider
                 + (detailed ? ",signal=" : ",") + m_signalLength
                 + (detailed ? ",power=" : ",") + m_powerLevel
                 + (detailed ? ",smoother=" : ",") + m_smootherLevel
@@ -904,13 +898,13 @@ m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 20);
 
     //----------------------------------------------------------
     public static class Scaler extends BaseTimesSeriesData<ITickData> {
-        private final BaseTimesSeriesData<ITickData> m_price;
+        private final ITimesSeriesData<ITickData> m_price;
         private final float m_multiplier;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_scaled;
 
-        Scaler(BaseTimesSeriesData<ITickData> differ, BaseTimesSeriesData<ITickData> price, float multiplier) {
+        Scaler(ITimesSeriesData<ITickData> differ, ITimesSeriesData<ITickData> price, float multiplier) {
             super(differ);
             m_price = price;
             m_multiplier = multiplier;
