@@ -12,7 +12,7 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final Object m_emptyLock = new Object();
     private int m_emptyCount;
 
-    public ParallelTimesSeriesData(TimesSeriesData<TickData> ticksTs, int size) {
+    ParallelTimesSeriesData(TimesSeriesData<TickData> ticksTs, int size) {
         super(ticksTs);
         m_activeIndex = 0;
         m_size = size;
@@ -50,7 +50,7 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
-    public void waitSomeEmpty() {
+    private void waitSomeEmpty() {
         synchronized (m_emptyLock) {
             while (m_emptyCount == 0) {
                 try {
@@ -62,16 +62,16 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
-    public void waitAllEmpty() {
+    private void waitAllEmpty() {
         synchronized (m_emptyLock) {
-            System.out.println("waitAllEmpty() m_emptyCount=" + m_emptyCount + "; m_size=" + m_size);
+            System.out.println("waitAllEmpty() emptyCount=" + m_emptyCount + "; size=" + m_size);
             while (m_emptyCount != m_size) {
                 try {
                     m_emptyLock.wait();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(" waitAllEmpty: m_emptyCount=" + m_emptyCount + "; m_size=" + m_size);
+                System.out.println(" waitAllEmpty: emptyCount=" + m_emptyCount + "; size=" + m_size);
             }
         }
     }
@@ -144,7 +144,7 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        public void enqueue(ITickData latestTick) {
+        void enqueue(ITickData latestTick) {
             synchronized (m_lock) {
                 boolean wasEmpty = isEmpty();
                 if (m_oldestTickIndex > 10) { // shift
@@ -168,7 +168,7 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        public boolean isEmpty() {
+        boolean isEmpty() {
             synchronized (m_lock) {
                 boolean isEmpty = m_newestTickIndex < m_oldestTickIndex;
                 return isEmpty;

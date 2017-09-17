@@ -82,7 +82,7 @@ Exchange exchange = Exchange.get("bitstamp");
                         if (m_counter % 5000 == 0) {
                             long time = System.currentTimeMillis();
                             if (time - lastTime > 5000) {
-                                System.out.println("m_counter = " + m_counter);
+                                System.out.println("lines was read: " + m_counter);
                                 lastTime = time;
                             }
                         }
@@ -132,7 +132,7 @@ Exchange exchange = Exchange.get("bitstamp");
             varies.add(new Vary.VaryItem(vary, from, to, step));
         }
 
-        List<Watcher> watchers = new ArrayList<Watcher>();
+        List<Watcher> watchers = new ArrayList<>();
         doVary(varies, 0, algoConfig, ticksTs, exchange, pair, watchers);
         Watcher first = watchers.get(0);
         RegressionAlgo algo = (RegressionAlgo) first.m_algo;
@@ -268,7 +268,7 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
     public static class TickExtraData extends TickData {
         public final String[] m_extra;
 
-        public TickExtraData(long time, float price, String[] extra) {
+        TickExtraData(long time, float price, String[] extra) {
             super(time, price);
             m_extra = extra;
         }

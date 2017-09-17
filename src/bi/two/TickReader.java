@@ -6,11 +6,13 @@ import bi.two.chart.TradeTickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.CharBuffer;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -22,12 +24,64 @@ public enum TickReader {
             long fileLength = file.length();
             System.out.println("fileLength = " + fileLength);
 
-            FileReader fileReader = new FileReader(file);
+            final long lastBytesToProcess = config.getLong("process.bytes");
+            FileReader fileReader = new FileReader(file) {
+                private static final long BLOCK_SIZE = 10000;
+                
+                boolean m_mute;
+                private long m_wasRead = 0;
+                private long m_nextReport = BLOCK_SIZE;
+                private long m_startTime = System.currentTimeMillis();
 
-            long lastBytesToProcess = config.getLong("process.bytes");
+                @Override public int read() throws IOException {
+                    return super.read();
+                }
+
+                @Override public int read(char[] cbuf, int off, int len) throws IOException {
+                    int read = super.read(cbuf, off, len);
+                    if (!m_mute) {
+                        m_wasRead += read;
+                        if(m_wasRead > lastBytesToProcess) {
+                            System.out.println("too many reads");
+                        }
+                        if (m_wasRead > m_nextReport) {
+                            long took = System.currentTimeMillis() - m_startTime;
+                            double fraction = ((double) m_wasRead) / lastBytesToProcess;
+                            long projectedTotal = (long) (took / fraction);
+                            long projectedRemained = projectedTotal - took;
+                            System.out.println("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
+                                    + ": total: " + Utils.millisToDHMSStr(projectedTotal) + "; remained=" + Utils.millisToDHMSStr(projectedRemained));
+                            m_nextReport += BLOCK_SIZE;
+                        }
+                    }
+                    return read;
+                }
+
+                @Override public int read(CharBuffer target) throws IOException {
+                    return super.read(target);
+                }
+
+                @Override public int read(char[] cbuf) throws IOException {
+                    return super.read(cbuf);
+                }
+
+                @Override public long skip(long n) throws IOException {
+                    m_mute = true;
+                    try {
+                        return super.skip(n);
+                    } finally {
+                        m_mute = false;
+                    }
+                }
+            };
+
             boolean skipBytes = (lastBytesToProcess > 0);
             if (skipBytes) {
-                fileReader.skip(fileLength - lastBytesToProcess);
+                long start = System.currentTimeMillis();
+                long toSkipBytes = fileLength - lastBytesToProcess;
+                fileReader.skip(toSkipBytes);
+                long end = System.currentTimeMillis();
+                System.out.println("skip("+toSkipBytes+") took " + (end-start) + "ms");
             }
 
             String dataFileType = config.getProperty("dataFile.type");
