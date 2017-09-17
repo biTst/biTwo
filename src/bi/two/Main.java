@@ -126,10 +126,17 @@ Exchange exchange = Exchange.get("bitstamp");
         List<Vary.VaryItem> varies = new ArrayList<>();
         for (Vary vary : Vary.values()) {
             String name = vary.name();
-            String from = config.getString(name + ".from");
-            String to = config.getString(name + ".to");
-            String step = config.getString(name + ".step");
-            varies.add(new Vary.VaryItem(vary, from, to, step));
+            String prop = config.getProperty(name);
+            Vary.VaryItem varyItem;
+            if (prop == null) {
+                String from = config.getString(name + ".from");
+                String to = config.getString(name + ".to");
+                String step = config.getString(name + ".step");
+                varyItem = new Vary.VaryItem(vary, from, to, step);
+            } else {
+                varyItem = Vary.VaryItem.parseVary(prop, vary);
+            }
+            varies.add(varyItem);
         }
 
         List<Watcher> watchers = new ArrayList<>();

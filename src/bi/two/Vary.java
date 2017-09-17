@@ -1,5 +1,6 @@
 package bi.two;
 
+import bi.two.util.StringParser;
 import bi.two.util.Utils;
 
 public enum Vary {
@@ -84,6 +85,34 @@ public enum Vary {
             m_from = from;
             m_to = to;
             m_step = step;
+        }
+
+        static VaryItem parseVary(String config, Vary vary) {
+            // "15.5+-5*0.5"
+            StringParser parser = new StringParser(config);
+            Float center = parser.readFloat();
+            if (center != null) {
+                if (parser.atEnd()) {
+                    return new VaryItem(vary, config, config, "0");
+                }
+                if (parser.read("+-")) {
+                    Integer count = parser.readInteger();
+                    if (count != null) {
+                        if (parser.read("*")) {
+                            Float step = parser.readFloat();
+                            if (step != null) {
+                                float from = center - count * step;
+                                String fromStr = Float.toString(from);
+                                float to = center + count * step;
+                                String toStr = Float.toString(to);
+                                String stepStr = Float.toString(step);
+                                return new VaryItem(vary, fromStr, toStr, stepStr);
+                            }
+                        }
+                    }
+                }
+            }
+            throw new RuntimeException("invalid vary config: " + config);
         }
 
         @Override public String toString() {
