@@ -12,7 +12,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.CharBuffer;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -33,10 +32,6 @@ public enum TickReader {
                 private long m_nextReport = BLOCK_SIZE;
                 private long m_startTime = System.currentTimeMillis();
 
-                @Override public int read() throws IOException {
-                    return super.read();
-                }
-
                 @Override public int read(char[] cbuf, int off, int len) throws IOException {
                     int read = super.read(cbuf, off, len);
                     if (!m_mute) {
@@ -55,14 +50,6 @@ public enum TickReader {
                         }
                     }
                     return read;
-                }
-
-                @Override public int read(CharBuffer target) throws IOException {
-                    return super.read(target);
-                }
-
-                @Override public int read(char[] cbuf) throws IOException {
-                    return super.read(cbuf);
                 }
 
                 @Override public long skip(long n) throws IOException {
@@ -91,7 +78,7 @@ public enum TickReader {
 
         private void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback,
                                    String dataFileType, boolean skipBytes) throws IOException {
-            BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
+            BufferedReader br = new BufferedReader(fileReader, 256 * 1024);
             try {
                 if (skipBytes) { // after bytes skipping we may point to the middle of line
                     br.readLine(); // skip to the end of line
