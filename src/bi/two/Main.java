@@ -126,7 +126,7 @@ Exchange exchange = Exchange.get("bitstamp");
         List<Vary.VaryItem> varies = new ArrayList<>();
         for (Vary vary : Vary.values()) {
             String name = vary.name();
-            String prop = config.getProperty(name);
+            String prop = config.getPropertyNoComment(name);
             Vary.VaryItem varyItem;
             if (prop == null) {
                 String from = config.getString(name + ".from");

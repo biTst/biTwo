@@ -100,7 +100,7 @@ public class MapConfig extends Properties {
         throw new RuntimeException("property '" + key + "' not found");
     }
 
-    private String getPropertyNoComment(String key) {
+    public String getPropertyNoComment(String key) {
         String property = getProperty(key);
         if (property != null) {
             int indx = property.indexOf('#'); // remove comment

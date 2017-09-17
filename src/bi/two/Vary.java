@@ -4,13 +4,13 @@ import bi.two.util.StringParser;
 import bi.two.util.Utils;
 
 public enum Vary {
-    period("barSize", VaryType.MILLIS),
-    bars("barsNum", VaryType.INT),
+    period("period", VaryType.MILLIS),  // barSize
+    bars("bars", VaryType.INT),         // barsNum
     divider("divider", VaryType.FLOAT),
-    slope("slopeLength", VaryType.INT),
-    signal("signalLength", VaryType.INT),
+    slope("slope", VaryType.INT),       // slopeLength
+    signal("signal", VaryType.FLOAT),   // signalLength
     power("power", VaryType.FLOAT),
-    smooth("smoother", VaryType.FLOAT),
+    smooth("smooth", VaryType.FLOAT),   // smooth
     threshold("threshold", VaryType.FLOAT),
     ;
     
@@ -23,12 +23,13 @@ public enum Vary {
     }
 
 
+    //=============================================================================================
     public enum VaryType {
         INT {
             @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
                 Integer fromInt = Integer.parseInt(from);
                 Integer toInt = Integer.parseInt(to);
-                Integer stepInt = Integer.parseInt(step);
+                Integer stepInt = Math.max(1, Integer.parseInt(step));
                 for (int i = fromInt; i <= toInt; i += stepInt) {
                     String value = Integer.toString(i);
                     paramIterator.doIteration(value);
@@ -39,7 +40,7 @@ public enum Vary {
             @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
                 Float fromFloat = Float.parseFloat(from);
                 Float toFloat = Float.parseFloat(to);
-                Float stepFloat = Float.parseFloat(step);
+                Float stepFloat = fromFloat.equals(toFloat) ? 1 : Float.parseFloat(step);
                 for (float i = fromFloat; i <= toFloat; i += stepFloat) {
                     String value = Float.toString(i);
                     paramIterator.doIteration(value);
@@ -50,7 +51,7 @@ public enum Vary {
             @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
                 Long fromLong = Long.parseLong(from);
                 Long toLong = Long.parseLong(to);
-                Long stepLong = Long.parseLong(step);
+                Long stepLong = Math.max(1, Long.parseLong(step));
                 for (long i = fromLong; i <= toLong; i += stepLong) {
                     String value = Long.toString(i);
                     paramIterator.doIteration(value);
@@ -61,7 +62,7 @@ public enum Vary {
             @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
                 Long fromLong = Utils.toMillis(from);
                 Long toLong = Utils.toMillis(to);
-                Long stepLong = Utils.toMillis(step);
+                Long stepLong = Math.max(1, Utils.toMillis(step));
                 for (long i = fromLong; i <= toLong; i += stepLong) {
                     String value = Long.toString(i);
                     paramIterator.doIteration(value);

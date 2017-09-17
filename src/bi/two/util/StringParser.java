@@ -16,11 +16,9 @@ public class StringParser {
         int read = readDigits();
         if(read > 0) {
             read(".");
-            read = readDigits();
-            if(read > 0) {
-                int end = m_index;
-                return end - start;
-            }
+            readDigits();
+            int end = m_index;
+            return end - start;
         }
         return 0;
     }

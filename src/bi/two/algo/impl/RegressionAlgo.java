@@ -33,11 +33,11 @@ public class RegressionAlgo extends BaseAlgo {
     private final long m_barSize;
     public final int m_curveLength;
     public final float m_divider;
-    public final float m_threshold;
-    public final float m_smootherLevel;
-    public final float m_powerLevel;
     public final int m_slopeLength;
-    public final int m_signalLength;
+    public final float m_signalLength;
+    public final float m_powerLevel;
+    public final float m_smootherLevel;
+    public final float m_threshold;
 
     public final Regressor2 m_regressor;
 public Regressor2 m_regressorDivided;
@@ -73,7 +73,7 @@ public Regressor2 m_regressorDivided2;
         m_curveLength = (int) config.getFloat(Vary.bars);
         m_divider = config.getFloat(Vary.divider);
         m_slopeLength = (int) config.getFloat(Vary.slope);
-        m_signalLength = (int) config.getFloat(Vary.signal);
+        m_signalLength = config.getFloat(Vary.signal);
         m_powerLevel = config.getFloat(Vary.power);
         m_smootherLevel = config.getFloat(Vary.smooth);
         m_threshold = config.getFloat(Vary.threshold);
@@ -511,15 +511,20 @@ if (m_collectValues) {
     //----------------------------------------------------------
     public static class SimpleMovingBarAverager extends BaseTimesSeriesData<ITickData> {
         private final BarSplitter m_barSplitter;
+        private final float m_signalLength;
+        private final int m_fullBarsNum;
         private boolean m_initialized;
         private boolean m_dirty;
         private boolean m_filled;
         private final BarsProcessor m_barsProcessor = new BarsProcessor();
         private TickData m_tickData;
 
-        public SimpleMovingBarAverager(ITimesSeriesData<ITickData> tsd, int signalLength, long barSize) {
+        public SimpleMovingBarAverager(ITimesSeriesData<ITickData> tsd, float signalLength, long barSize) {
             super();
-            m_barSplitter = new BarSplitter(tsd, signalLength, barSize);
+            m_signalLength = signalLength;
+            m_fullBarsNum = (int) Math.floor(signalLength);
+            int barsNum = (int) Math.ceil(signalLength);
+            m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
             setParent(m_barSplitter);
         }
 
@@ -584,13 +589,18 @@ if (m_collectValues) {
                 if (latestNode != null) { // sometimes bars may have no ticks inside
                     ITickData latestTick = latestNode.m_param;
                     float closePrice = latestTick.getClosePrice();
-                    sum += closePrice;
+                    if(count == m_fullBarsNum) {
+                        float rate = m_signalLength - m_fullBarsNum;
+                        sum += closePrice * rate;
+                    } else {
+                        sum += closePrice;
+                    }
                     count++;
                 }
             }
 
             @Override public Float done() {
-                return sum/count;
+                return sum/m_signalLength;
             }
         }
     }
