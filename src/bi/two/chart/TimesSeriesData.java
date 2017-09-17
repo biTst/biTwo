@@ -7,7 +7,7 @@ import java.util.List;
 // will hold ALL ticks
 public class TimesSeriesData<T extends ITickData>
         extends BaseTimesSeriesData
-        implements ITicksData, ITimesSeriesData.ITimesSeriesListener {
+        implements ITicksData {
     protected List<T> m_ticks = Collections.synchronizedList(new ArrayList<T>()); // CopyOnWriteArrayList<T>();
 
     public TimesSeriesData(ITimesSeriesData parent) {

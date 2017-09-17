@@ -2,10 +2,7 @@ package bi.two.exch;
 
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.*;
 
 public class AccountData {
     private static final boolean VERBOSE = false;
@@ -14,6 +11,7 @@ public class AccountData {
     private final Exchange m_exch;
     private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
     private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<Currency,Double>();
+    public Map<Pair,TopData> m_topDatas = new HashMap<>();
 
     public AccountData(Exchange exch) {
         m_exch = exch;
@@ -52,8 +50,7 @@ public class AccountData {
         } else {
             Pair pair = m_exch.getPair(from, to);
             if (pair != null) {
-                ExchPairData pairData = m_exch.getPairData(pair);
-                TopData topData = pairData.m_topData;
+                TopData topData = m_topDatas.get(pair);
                 boolean forward = (pair.m_from == from);
                 rate = forward ? topData.m_bid : topData.m_ask;
                 if (!forward) {

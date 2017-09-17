@@ -1024,6 +1024,8 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
@@ -1064,6 +1066,8 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 
     
@@ -1107,6 +1111,8 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
@@ -1151,6 +1157,8 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
@@ -1197,6 +1205,8 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 
     
@@ -1244,5 +1254,7 @@ if (m_collectValues) {
                 );
             }
         }
+
+        @Override public void waitWhenFinished() { /* noop */ }
     }
 }

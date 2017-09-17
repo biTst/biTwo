@@ -1,18 +1,17 @@
 package bi.two;
 
+import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.*;
-import bi.two.exch.*;
-import bi.two.exch.impl.Bitfinex;
+import bi.two.exch.ExchPairData;
+import bi.two.exch.Exchange;
+import bi.two.exch.MarketConfig;
+import bi.two.exch.Pair;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.awt.*;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -95,6 +94,8 @@ Exchange exchange = Exchange.get("bitstamp");
             long startMillis = System.currentTimeMillis();
             tickReader.readTicks(config, ticksTs, callback, pairData);
 
+            ticksTs.waitAllFinished();
+
             long endMillis = System.currentTimeMillis();
 
             logResults(watchers, startMillis, endMillis);
@@ -107,11 +108,14 @@ Exchange exchange = Exchange.get("bitstamp");
         }
     }
 
-    private static List<Watcher> setup(TimesSeriesData<TickData> ticksTs, MapConfig config,
+    private static List<Watcher> setup(TimesSeriesData<TickData> ticksTs0, MapConfig config,
                                        ChartCanvas chartCanvas, Exchange exchange, Pair pair) throws Exception {
+        int parallel = config.getInt("parallel");
+        BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(ticksTs0, parallel);
+
         final boolean collectTicks = config.getBoolean("collect.ticks");
         if (!collectTicks) { // add initial tick to update
-            ticksTs.addOlderTick(new TickData());
+            ticksTs0.addOlderTick(new TickData());
         }
 
         boolean collectValues = config.getBoolean("collect.values");
@@ -119,13 +123,13 @@ Exchange exchange = Exchange.get("bitstamp");
         MapConfig algoConfig = new MapConfig();
         algoConfig.put(RegressionAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
 
-        List<VaryItem> varies = new ArrayList<>();
+        List<Vary.VaryItem> varies = new ArrayList<>();
         for (Vary vary : Vary.values()) {
             String name = vary.name();
             String from = config.getString(name + ".from");
             String to = config.getString(name + ".to");
             String step = config.getString(name + ".step");
-            varies.add(new VaryItem(vary, from, to, step));
+            varies.add(new Vary.VaryItem(vary, from, to, step));
         }
 
         List<Watcher> watchers = new ArrayList<Watcher>();
@@ -141,7 +145,7 @@ Exchange exchange = Exchange.get("bitstamp");
             ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.4f, Color.RED);
             List<ChartAreaLayerSettings> topLayers = top.getLayers();
             {
-                addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
+                addChart(chartData, ticksTs0, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
                 addChart(chartData, algo.m_regressor.m_splitter, topLayers, "price.buff", Colors.alpha(Color.BLUE, 100), TickPainter.BAR); // regressor price buffer
                 addChart(chartData, algo.m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.PINK, TickPainter.LINE); // Linear Regression Curve
 addChart(chartData, algo.m_regressorDivided.getJoinNonChangedTs(), topLayers, "regressor.divided", Color.ORANGE, TickPainter.LINE);
@@ -191,10 +195,10 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
     }
 
-    private static void doVary(final List<VaryItem> varies, int index, final MapConfig algoConfig, final ITimesSeriesData<TickData> ticksTs,
+    private static void doVary(final List<Vary.VaryItem> varies, int index, final MapConfig algoConfig, final ITimesSeriesData<TickData> ticksTs,
                                final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
         final int nextIndex = index + 1;
-        final VaryItem varyItem = varies.get(index);
+        final Vary.VaryItem varyItem = varies.get(index);
         String from = varyItem.m_from;
         String to = varyItem.m_to;
         String step = varyItem.m_step;
@@ -206,8 +210,12 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
                 if (nextIndex < varies.size()) {
                     doVary(varies, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                 } else {
-                    RegressionAlgo nextAlgo = new RegressionAlgo(algoConfig, ticksTs);
-                    Watcher watcher = new Watcher(algoConfig, nextAlgo, exchange, pair);
+                    ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive();
+                    Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
+                        @Override protected BaseAlgo createAlgo(ITimesSeriesData parent) {
+                            return new RegressionAlgo(algoConfig, parent);
+                        }
+                    };
                     watchers.add(watcher);
                 }
             }
@@ -256,153 +264,6 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
         }
     }
 
-    private static void readFileTicks(FileReader fileReader, TimesSeriesData<TickData> ticksTs, Runnable callback,
-                                      ExchPairData pairData, String dataFileType, boolean skipBytes) throws IOException {
-        TopData topData = pairData.m_topData;
-        BufferedReader br = new BufferedReader(fileReader, 1024 * 1024);
-        try {
-            if (skipBytes) { // after bytes skipping we may point to the middle of line
-                br.readLine(); // skip to the end of line
-            }
-
-            DataFileType type = DataFileType.get(dataFileType);
-
-            String line;
-            while ((line = br.readLine()) != null) {
-                // System.out.println("line = " + line);
-                TickData tickData = type.parseLine(line);
-
-                float price = tickData.getClosePrice();
-                topData.init(price, price, price);
-                pairData.m_newestTick = tickData;
-
-                ticksTs.addNewestTick(tickData);
-                callback.run();
-            }
-        } finally {
-            br.close();
-        }
-    }
-
-    //=============================================================================================
-    private enum TickReader {
-        FILE("file") {
-            @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-                String path = config.getProperty("dataFile");
-                File file = new File(path);
-                long fileLength = file.length();
-                System.out.println("fileLength = " + fileLength);
-
-                FileReader fileReader = new FileReader(file);
-
-                long lastBytesToProces = config.getLong("process.bytes");
-                boolean skipBytes = (lastBytesToProces > 0);
-                if (skipBytes) {
-                    fileReader.skip(fileLength - lastBytesToProces);
-                }
-
-                String dataFileType = config.getProperty("dataFile.type");
-
-                readFileTicks(fileReader, ticksTs, callback, pairData, dataFileType, skipBytes);
-            }
-        },
-        BITFINEX("bitfinex") {
-            @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-                TopData topData = pairData.m_topData;
-                List<TradeTickData> ticks = Bitfinex.readTicks(TimeUnit.MINUTES.toMillis(5 * 100));
-                for (int i = ticks.size() - 1; i >= 0; i--) {
-                    TradeTickData tick = ticks.get(i);
-                    float price = tick.getClosePrice();
-                    topData.init(price, price, price);
-                    pairData.m_newestTick = tick;
-
-                    ticksTs.addNewestTick(tick);
-                    callback.run();
-                }
-            }
-        };
-
-        private final String m_name;
-
-        TickReader(String name) {
-            m_name = name;
-        }
-
-        public static TickReader get(String name) {
-            for (TickReader tickReader : values()) {
-                if (tickReader.m_name.equals(name)) {
-                    return tickReader;
-                }
-            }
-            throw new RuntimeException("Unknown TickReader '" + name + "'");
-        }
-
-        public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-            throw new RuntimeException("must be overridden");
-        }
-    }
-
-
-    //=============================================================================================
-    public enum DataFileType {
-        CSV("csv") {
-            @Override public TickData parseLine(String line) {
-                int indx1 = line.indexOf(",");
-                if (indx1 > 0) {
-                    int priceIndex = indx1 + 1;
-                    int indx2 = line.indexOf(",", priceIndex);
-                    if (indx2 > 0) {
-                        String timestampStr = line.substring(0, indx1);
-                        String priceStr = line.substring(priceIndex, indx2);
-                        String volumeStr = line.substring(indx2 + 1);
-
-                        //System.out.println("timestampStr = " + timestampStr +"; priceStr = " + priceStr +"; volumeStr = " + volumeStr );
-
-                        long timestampSeconds = Long.parseLong(timestampStr);
-                        float price = Float.parseFloat(priceStr);
-                        float volume = Float.parseFloat(volumeStr);
-
-                        long timestampMs= timestampSeconds * 1000;
-                        TickVolumeData tickData = new TickVolumeData(timestampMs, price, volume);
-                        return tickData;
-                    }
-                }
-                return null;
-            }
-        },
-        TABBED("tabbed") {
-            private final long STEP = TimeUnit.MINUTES.toMillis(5);
-            
-            private long m_time = 0;
-
-            @Override public TickData parseLine(String line) {
-                String[] extra = line.split("\t");
-                float price = Float.parseFloat(extra[0]);
-                m_time += STEP;
-                TickExtraData tickData = new TickExtraData(m_time, price, extra);
-                return tickData;
-            }
-        };
-
-        private final String m_type;
-
-        DataFileType(String type) {
-            m_type = type;
-        }
-
-        public static DataFileType get(String type) {
-            for (DataFileType dataFileType : values()) {
-                if (dataFileType.m_type.equals(type)) {
-                    return dataFileType;
-                }
-            }
-            throw new RuntimeException("Unknown DataFileType '" + type + "'");
-        }
-
-        public TickData parseLine(String line) { throw new RuntimeException("must be overridden"); }
-    }
-
-
     //=============================================================================================
     public static class TickExtraData extends TickData {
         public final String[] m_extra;
@@ -417,33 +278,9 @@ addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "
         }
     }
 
+
     //=============================================================================================
     public interface IParamIterator<P> {
         void doIteration(P param);
     }
-
-    //=============================================================================================
-    static class VaryItem {
-        private final Vary m_vary;
-        public final String m_from;
-        public final String m_to;
-        public final String m_step;
-
-        public VaryItem(Vary vary, String from, String to, String step) {
-            m_vary = vary;
-            m_from = from;
-            m_to = to;
-            m_step = step;
-        }
-
-        @Override public String toString() {
-            return "VaryItem{" +
-                    "vary=" + m_vary +
-                    ", from='" + m_from + '\'' +
-                    ", to='" + m_to + '\'' +
-                    ", step='" + m_step + '\'' +
-                    '}';
-        }
-    }
-
 }

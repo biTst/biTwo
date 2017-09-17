@@ -8,6 +8,7 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     public ITimesSeriesData m_parent;
     private List<ITimesSeriesListener> m_listeners = new CopyOnWriteArrayList<ITimesSeriesListener>();
 
+    public ITimesSeriesData getActive() { return this; }
     public ITimesSeriesData getParent() { return m_parent; }
 
     public BaseTimesSeriesData() {
@@ -18,9 +19,11 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     }
 
     public void setParent(ITimesSeriesData parent) {
-        m_parent = parent;
         if (parent != null) {
-            parent.addListener(this);
+            m_parent = parent.getActive();
+            m_parent.addListener(this);
+        } else {
+            m_parent = null;
         }
     }
 
@@ -39,6 +42,14 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     protected void notifyListeners(boolean changed) {
         for (ITimesSeriesListener listener : m_listeners) {
             listener.onChanged(this, changed);
+        }
+    }
+
+    @Override public void waitWhenFinished() { /* noop */ }
+
+    public void waitAllFinished() {
+        for (ITimesSeriesListener listener : m_listeners) {
+            listener.waitWhenFinished();
         }
     }
 

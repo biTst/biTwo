@@ -5,8 +5,10 @@ public interface ITimesSeriesData<T extends ITickData> {
     T getLatestTick();
     void addListener(ITimesSeriesListener listener);
     void removeListener(ITimesSeriesListener listener);
+    ITimesSeriesData getActive(); // this or inner enabled
 
     interface ITimesSeriesListener {
         void onChanged(ITimesSeriesData ts, boolean changed);
+        void waitWhenFinished();
     }
 }

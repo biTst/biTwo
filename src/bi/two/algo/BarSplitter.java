@@ -13,7 +13,6 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     public static final int BARS_NUM = 20;
     private static final long DEF_PERIOD = 60000L;
 
-    private final ITimesSeriesData m_source;
     public int m_barsNum;
     public final long m_period;
     public long m_lastTickTime;
@@ -25,7 +24,6 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
     public BarSplitter(ITimesSeriesData<ITickData> iTicksData, int barsNum, long period) {
         super(iTicksData);
-        m_source = iTicksData;
         m_barsNum = barsNum;
         m_period = period;
     }
@@ -46,7 +44,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        ITickData tick = changed ? m_source.getLatestTick() : null;
+        ITickData tick = changed ? m_parent.getLatestTick() : null;
         onTick(changed, tick);
     }
 

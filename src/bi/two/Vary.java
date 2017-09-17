@@ -70,4 +70,29 @@ public enum Vary {
 
         public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) { }
     }
+
+    
+    //=============================================================================================
+    public static class VaryItem {
+        final Vary m_vary;
+        public final String m_from;
+        public final String m_to;
+        public final String m_step;
+
+        public VaryItem(Vary vary, String from, String to, String step) {
+            m_vary = vary;
+            m_from = from;
+            m_to = to;
+            m_step = step;
+        }
+
+        @Override public String toString() {
+            return "VaryItem{" +
+                    "vary=" + m_vary +
+                    ", from='" + m_from + '\'' +
+                    ", to='" + m_to + '\'' +
+                    ", step='" + m_step + '\'' +
+                    '}';
+        }
+    }
 }

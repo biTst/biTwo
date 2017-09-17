@@ -10,14 +10,16 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
     private static final double MIN_MOVE = 100; // 100usd
 
-    public final BaseAlgo m_algo;
     private final Exchange m_exch;
     private final Pair m_pair;
     private final ExchPairData m_exchPairData;
     private final double m_commission;
+    public final BaseAlgo m_algo;
     private final boolean m_collectValues;
+    private final ITimesSeriesData<TickData> m_priceTs;
     private AccountData m_initAcctData;
     private AccountData m_accountData;
+    public TopData m_topData = new TopData(0,0,0);
     private TopData m_initTopData;
     private double m_valuateToInit;
     private double m_valuateFromInit;
@@ -25,19 +27,30 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private long m_lastMillis;
     public int m_tradesNum;
 
-    public Watcher(MapConfig config, BaseAlgo algo, Exchange exch, Pair pair) {
-        super(algo);
-        m_algo = algo;
+    public Watcher(MapConfig config, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
+        super(null);
+        m_priceTs = ts;
         m_exch = exch;
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
         m_commission = m_exchPairData.m_commission;
         m_collectValues = config.getBoolean("collect.values");
+        m_algo = createAlgo(ts);
+        setParent(m_algo);
+    }
+
+    protected BaseAlgo createAlgo(ITimesSeriesData parent) {
+        return null;
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if (changed) {
-            if (m_initAcctData == null) { // first run
+            float closePrice = m_priceTs.getLatestTick().getClosePrice();
+            m_topData.m_last = closePrice;
+            m_topData.m_bid = closePrice;
+            m_topData.m_ask = closePrice;
+
+            if (m_initAcctData == null) { // first tick
                 init();
             } else {
                 ITickData adjusted = m_algo.getAdjusted();
@@ -68,7 +81,8 @@ public class Watcher extends TimesSeriesData<TradeData> {
         log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
 
         double exchMinOrderToCreate = m_exch.minOrderToCreate(m_pair);
-        long timestamp = m_exchPairData.m_newestTick.getTimestamp();
+        TickData latestPriceTick = m_priceTs.getLatestTick();
+        long timestamp = latestPriceTick.getTimestamp();
         if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
 
             double amountFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
@@ -85,7 +99,7 @@ public class Watcher extends TimesSeriesData<TradeData> {
             logMove("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
 
             if (m_collectValues) {
-                double price = m_exchPairData.m_topData.m_last;
+                double price = latestPriceTick.getClosePrice();
                 addNewestTick(new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide));
             }
         }
@@ -131,29 +145,26 @@ public class Watcher extends TimesSeriesData<TradeData> {
 
 
     private void init() {
-        m_startMillis = m_exchPairData.m_newestTick.getTimestamp();
-        TopData topData = m_exchPairData.m_topData;
-        log("init() topData = " + topData);
+        m_startMillis = m_priceTs.getLatestTick().getTimestamp();
+        log("init() topData = " + m_topData);
 
-        if (topData != null) {
-            m_initTopData = new TopData(topData);
-//            double bid = topData.m_bid;
-//            double ask = topData.m_ask;
-            double lastPrice = topData.m_last;
+        m_initTopData = new TopData(m_topData);
+        double lastPrice = m_topData.m_last;
 
-            Currency currencyFrom = m_pair.m_from;
-            Currency currencyTo = m_pair.m_to;
+        Currency currencyFrom = m_pair.m_from;
+        Currency currencyTo = m_pair.m_to;
 
-            m_initAcctData = new AccountData(m_exch);
-            m_initAcctData.setAvailable(currencyFrom, 1);
-            m_initAcctData.setAvailable(currencyTo, lastPrice);
+        m_initAcctData = new AccountData(m_exch);
+        m_initAcctData.m_topDatas.put(m_pair, m_initTopData);
+        m_initAcctData.setAvailable(currencyFrom, 1);
+        m_initAcctData.setAvailable(currencyTo, lastPrice);
 
-            m_accountData = m_initAcctData.copy();
+        m_accountData = m_initAcctData.copy();
+        m_accountData.m_topDatas.put(m_pair, m_topData);
 
-            m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
-            m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
-            log(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
-        }
+        m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
+        m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
+        log(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
     }
 
     private void log(String s) {
