@@ -155,8 +155,6 @@ Exchange exchange = Exchange.get("bitstamp");
                 addChart(chartData, ticksTs0, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
                 addChart(chartData, algo.m_regressor.m_splitter, topLayers, "price.buff", Colors.alpha(Color.BLUE, 100), TickPainter.BAR); // regressor price buffer
                 addChart(chartData, algo.m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.PINK, TickPainter.LINE); // Linear Regression Curve
-addChart(chartData, algo.m_regressorDivided.getJoinNonChangedTs(), topLayers, "regressor.divided", Color.ORANGE, TickPainter.LINE);
-addChart(chartData, algo.m_regressorDivided2.getJoinNonChangedTs(), topLayers, "regressor.divided2", Colors.LIGHT_BLUE, TickPainter.LINE);
                 addChart(chartData, algo.m_regressorBars, topLayers, "regressor.bars", Color.ORANGE, TickPainter.BAR);
             }
 

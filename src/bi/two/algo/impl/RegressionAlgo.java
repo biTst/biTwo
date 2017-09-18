@@ -24,7 +24,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
     public final HashMap<String,Differ> s_differCache = new HashMap<>();
     public final HashMap<String,Scaler> s_scalerCache = new HashMap<>();
-    public final HashMap<String,ExpotentialMovingBarAverager> s_averagerCache = new HashMap<>();
+    public final HashMap<String,ExponentialMovingBarAverager> s_averagerCache = new HashMap<>();
     public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
     public final HashMap<String,Regressor> s_smootherCache = new HashMap<>();
@@ -38,15 +38,14 @@ public class RegressionAlgo extends BaseAlgo {
     public final float m_powerLevel;
     public final float m_smootherLevel;
     public final float m_threshold;
+    public final float m_dropLevel;
+    public final float m_directionThreshold;
 
     public final Regressor2 m_regressor;
-public Regressor2 m_regressorDivided;
-public Regressor2 m_regressorDivided2;
     public final BarSplitter m_regressorBars; // buffer to calc diff
-//    public BarsSimpleAverager m_regressorBarsAvg;
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
-    public final ExpotentialMovingBarAverager m_averager;
+    public final ExponentialMovingBarAverager m_averager;
     public final SimpleMovingBarAverager m_signaler;
     public final Powerer m_powerer;
     public final BaseTimesSeriesData m_smoother;
@@ -77,6 +76,8 @@ public Regressor2 m_regressorDivided2;
         m_powerLevel = config.getFloat(Vary.power);
         m_smootherLevel = config.getFloat(Vary.smooth);
         m_threshold = config.getFloat(Vary.threshold);
+        m_dropLevel = config.getFloat(Vary.drop);
+        m_directionThreshold = config.getFloat(Vary.reverse);
 
         m_collectValues = config.getBoolean("collect.values");
 
@@ -97,11 +98,6 @@ public Regressor2 m_regressorDivided2;
 //            regressor.addListener(new RegressorVerifier(regressor));
         }
         m_regressor = regressor;
-
-if (m_collectValues) {
-    m_regressorDivided = new Regressor2(tsd, m_curveLength, m_barSize, 1);
-    m_regressorDivided2 = new Regressor2(tsd, m_curveLength, m_barSize, 30);
-}
 
         // TODO - move into Differ
         BarSplitter regressorBars = s_regressorBarsCache.get(key);
@@ -132,9 +128,9 @@ if (m_collectValues) {
 //        m_scaler.addListener(new ScalerVerifier(m_scaler));
 
         key = key + "." + m_slopeLength;
-        ExpotentialMovingBarAverager averager = s_averagerCache.get(key);
+        ExponentialMovingBarAverager averager = s_averagerCache.get(key);
         if (averager == null) {
-            averager = new ExpotentialMovingBarAverager(m_scaler, m_slopeLength, m_barSize);
+            averager = new ExponentialMovingBarAverager(m_scaler, m_slopeLength, m_barSize);
             s_averagerCache.put(key, averager);
         }
         m_averager = averager;
@@ -168,7 +164,7 @@ if (m_collectValues) {
         }
         m_smoother = smoother;
 
-        m_adjuster = new Adjuster(m_smoother, m_threshold);
+        m_adjuster = new Adjuster(m_smoother, m_threshold, m_dropLevel, m_directionThreshold);
 
 //        m_regressionIndicator = new RegressionIndicator(config, bs);
 //        m_indicators.add(m_regressionIndicator);
@@ -176,14 +172,6 @@ if (m_collectValues) {
 //        m_regressionIndicator.addListener(this);
         m_adjuster.addListener(this);
     }
-
-//    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-//        super.onChanged(ts, changed);
-////        if (m_collectValues) {
-////            TickData adjusted = getAdjusted();
-////            addNewestTick(adjusted);
-////        }
-//    }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
         Double value = m_regressionIndicator.getValue();
@@ -213,6 +201,8 @@ if (m_collectValues) {
                 + (detailed ? ",power=" : ",") + m_powerLevel
                 + (detailed ? ",smoother=" : ",") + m_smootherLevel
                 + (detailed ? ",threshold=" : ",") + m_threshold
+                + (detailed ? ",drop=" : ",") + m_dropLevel
+                + (detailed ? ",reverse=" : ",") + m_directionThreshold
                 /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
@@ -404,7 +394,7 @@ if (m_collectValues) {
 
 
     //----------------------------------------------------------
-    public static class ExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
+    public static class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
         public static final double DEF_THRESHOLD = 0.99657;
 
         private final BarSplitter m_barSplitter;
@@ -415,11 +405,11 @@ if (m_collectValues) {
         private boolean m_initialized;
         private TickData m_tickData;
 
-        ExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
-            this( tsd,  length,  barSize, DEF_THRESHOLD);
+        ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+            this(tsd, length, barSize, DEF_THRESHOLD);
         }
 
-        ExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
+        ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
             super();
             int barsNum = 0;
             double alpha = 2.0 / (length + 1); // 0.33
@@ -660,14 +650,14 @@ if (m_collectValues) {
 
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
-        private final ExpotentialMovingBarAverager m_averager;
+        private final ExponentialMovingBarAverager m_averager;
         private final SimpleMovingBarAverager m_signaler;
         private final float m_rate;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_xxx;
 
-        public Powerer(ExpotentialMovingBarAverager averager, SimpleMovingBarAverager signaler, float rate) {
+        public Powerer(ExponentialMovingBarAverager averager, SimpleMovingBarAverager signaler, float rate) {
             super(signaler);
             m_averager = averager;
             m_signaler = signaler;
@@ -707,20 +697,22 @@ if (m_collectValues) {
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
         private final DirectionTracker m_directionTracker;
+        private final float m_dropLevel;
         private boolean m_dirty;
         private ITickData m_tick;
-        private float m_threshold;
+        private float m_strongThreshold;
         private float m_xxx;
         private float m_min;
         private float m_max;
         private float m_zero;
 
-        Adjuster(BaseTimesSeriesData<ITickData> parent, float threshold) {
+        Adjuster(BaseTimesSeriesData<ITickData> parent, float strongThreshold, float dropLevel, float directionThreshold) {
             super(parent);
-            m_threshold = threshold;
-            m_max = m_threshold;
-            m_min = - m_threshold;
-            m_directionTracker = new DirectionTracker(0.1f);
+            m_strongThreshold = strongThreshold;
+            m_max = m_strongThreshold;
+            m_min = -m_strongThreshold;
+            m_dropLevel = dropLevel;
+            m_directionTracker = new DirectionTracker(directionThreshold);
         }
 
         @Override public ITickData getLatestTick() {
@@ -744,36 +736,36 @@ if (m_collectValues) {
 
                         if ((m_max > value) && (value > m_min)) { // between
                             if (delta > 0) { // going up
-                                m_max = Math.max(m_max - delta, m_threshold); // lower ceil, not less than threshold
+                                m_max = Math.max(m_max - delta, m_strongThreshold); // lower ceil, not less than threshold
                                 if (value > 0) {
-                                    if(m_min < -m_threshold) {
+                                    if(m_min < -m_strongThreshold) {
                                         if(m_zero < 0) {
                                             m_zero += delta * m_zero / m_min;
                                         }
                                     }
-                                    m_min = Math.min(m_min + delta, -m_threshold); // not more than -threshold
+                                    m_min = Math.min(m_min + delta, -m_strongThreshold); // not more than -threshold
                                 }
                             } else if (delta < 0) { // going down
-                                m_min = Math.min(m_min - delta, -m_threshold); // raise floor, not more than -threshold
+                                m_min = Math.min(m_min - delta, -m_strongThreshold); // raise floor, not more than -threshold
                                 if (value < 0) {
-                                    if(m_max > m_threshold) {
+                                    if(m_max > m_strongThreshold) {
                                         if(m_zero > 0) {
                                             m_zero += delta * m_zero / m_max;
                                         }
                                     }
-                                    m_max = Math.max(m_max + delta, m_threshold); // not less than threshold
+                                    m_max = Math.max(m_max + delta, m_strongThreshold); // not less than threshold
                                 }
                             }
                         }
 
                         if (value > m_max) { // strong UP
                             m_max = value; // ceil
-                            m_zero = value / 2;
-                            m_min = -m_threshold;
+                            m_zero = value * m_dropLevel;
+                            m_min = -m_strongThreshold;
                         } else if (value < m_min) { // strong DOWN
                             m_min = value; // floor
-                            m_zero = value / 2;
-                            m_max = m_threshold;
+                            m_zero = value * m_dropLevel;
+                            m_max = m_strongThreshold;
                         }
 
                         if (value > m_zero) {
@@ -955,14 +947,14 @@ if (m_collectValues) {
 
     //----------------------------------------------------------
     public static class ZeroLagExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-        private final ExpotentialMovingBarAverager m_ema1;
-        private final ExpotentialMovingBarAverager m_ema2;
+        private final ExponentialMovingBarAverager m_ema1;
+        private final ExponentialMovingBarAverager m_ema2;
         private TickData m_tickData;
 
         ZeroLagExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
             super();
-            m_ema1 = new ExpotentialMovingBarAverager(tsd, length, barSize);
-            m_ema2 = new ExpotentialMovingBarAverager(m_ema1, length, barSize);
+            m_ema1 = new ExponentialMovingBarAverager(tsd, length, barSize);
+            m_ema2 = new ExponentialMovingBarAverager(m_ema1, length, barSize);
             setParent(m_ema2);
         }
 
@@ -1128,10 +1120,10 @@ if (m_collectValues) {
 
     //=============================================================================================
     private static class AveragerVerifier implements ITimesSeriesListener {
-        private final ExpotentialMovingBarAverager m_averager;
+        private final ExponentialMovingBarAverager m_averager;
         private boolean m_checkTickExtraData = true;
 
-        AveragerVerifier(ExpotentialMovingBarAverager averager) {
+        AveragerVerifier(ExponentialMovingBarAverager averager) {
             m_averager = averager;
         }
 

@@ -11,7 +11,9 @@ public enum Vary {
     signal("signal", VaryType.FLOAT),   // signalLength
     power("power", VaryType.FLOAT),
     smooth("smooth", VaryType.FLOAT),   // smooth
-    threshold("threshold", VaryType.FLOAT),
+    threshold("threshold", VaryType.FLOAT), // strong trend threshold
+    drop("drop", VaryType.FLOAT),           // trend drop level
+    reverse("reverse", VaryType.FLOAT),        // direction threshold
     ;
     
     public final String m_key;
