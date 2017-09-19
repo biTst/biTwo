@@ -5,6 +5,8 @@ import bi.two.exch.*;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
+
 public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
@@ -34,12 +36,12 @@ public class Watcher extends TimesSeriesData<TradeData> {
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
         m_commission = m_exchPairData.m_commission;
-        m_collectValues = config.getBoolean("collect.values");
-        m_algo = createAlgo(ts);
+        m_collectValues = config.getBoolean(COLLECT_VALUES_KEY);
+        m_algo = createAlgo(ts, config);
         setParent(m_algo);
     }
 
-    protected BaseAlgo createAlgo(ITimesSeriesData parent) {
+    protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig config) {
         return null;
     }
 

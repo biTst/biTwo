@@ -18,8 +18,6 @@ import java.util.List;
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
 
-    public static final String COLLECT_VALUES_KEY = "collect.values";
-
     public final HashMap<String,Regressor2> s_regressorsCache = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
     public final HashMap<String,Differ> s_differCache = new HashMap<>();
@@ -68,16 +66,16 @@ public class RegressionAlgo extends BaseAlgo {
     public RegressionAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        m_barSize = (long)config.getFloat(Vary.period);
-        m_curveLength = (int) config.getFloat(Vary.bars);
-        m_divider = config.getFloat(Vary.divider);
-        m_slopeLength = (int) config.getFloat(Vary.slope);
-        m_signalLength = config.getFloat(Vary.signal);
-        m_powerLevel = config.getFloat(Vary.power);
-        m_smootherLevel = config.getFloat(Vary.smooth);
-        m_threshold = config.getFloat(Vary.threshold);
-        m_dropLevel = config.getFloat(Vary.drop);
-        m_directionThreshold = config.getFloat(Vary.reverse);
+        m_barSize = config.getNumber(Vary.period).longValue();
+        m_curveLength = config.getNumber(Vary.bars).intValue();
+        m_divider = config.getNumber(Vary.divider).floatValue();
+        m_slopeLength = config.getNumber(Vary.slope).intValue();
+        m_signalLength = config.getNumber(Vary.signal).floatValue();
+        m_powerLevel = config.getNumber(Vary.power).floatValue();
+        m_smootherLevel = config.getNumber(Vary.smooth).floatValue();
+        m_threshold = config.getNumber(Vary.threshold).floatValue();
+        m_dropLevel = config.getNumber(Vary.drop).floatValue();
+        m_directionThreshold = config.getNumber(Vary.reverse).floatValue();
 
         m_collectValues = config.getBoolean("collect.values");
 

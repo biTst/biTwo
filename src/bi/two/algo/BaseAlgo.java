@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
+    public static final String COLLECT_VALUES_KEY = "collect.values";
+    
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
 
     public BaseAlgo(BaseTimesSeriesData parent) {

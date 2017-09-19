@@ -10,7 +10,7 @@ public class StringParser {
         m_str = str;
     }
 
-    public int readFloatLight() {
+    public int readFractionalLight() {
         int start = m_index;
         read("-");
         int read = readDigits();
@@ -25,10 +25,21 @@ public class StringParser {
 
     public Float readFloat() {
         int start = m_index;
-        int len = readFloatLight();
+        int len = readFractionalLight();
         if (len > 0) {
             String str = m_str.substring(start, start + len);
             float ret = Float.parseFloat(str);
+            return ret;
+        }
+        return null;
+    }
+
+    public Double readDouble() {
+        int start = m_index;
+        int len = readFractionalLight();
+        if (len > 0) {
+            String str = m_str.substring(start, start + len);
+            double ret = Double.parseDouble(str);
             return ret;
         }
         return null;
@@ -51,6 +62,17 @@ public class StringParser {
         if (len > 0) {
             String str = m_str.substring(start, start + len);
             int ret = Integer.parseInt(str);
+            return ret;
+        }
+        return null;
+    }
+
+    public Long readLong() {
+        int start = m_index;
+        int len = readIntegerLight();
+        if (len > 0) {
+            String str = m_str.substring(start, start + len);
+            long ret = Long.parseLong(str);
             return ret;
         }
         return null;

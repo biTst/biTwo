@@ -139,7 +139,16 @@ public class MapConfig extends Properties {
         }
     }
 
-    public float getFloat(Vary vary) {
-        return getFloat(vary.m_key);
+    public Number getNumber(Vary vary) {
+        String str = getPropertyNoComment(vary.m_key);
+        if (str == null) {
+            Object obj = get(vary.m_key);
+            if (obj instanceof Number) {
+                return (Number) obj;
+            }
+            return null;
+        }
+        Number number = vary.m_varyType.fromString(str);
+        return number;
     }
 }

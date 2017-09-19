@@ -25,107 +25,78 @@ public enum Vary {
         m_varyType = varyType;
     }
 
-
     //=============================================================================================
     public enum VaryType {
         INT {
-            @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
-                Integer fromInt = Integer.parseInt(from);
-                Integer toInt = Integer.parseInt(to);
-                Integer stepInt = Math.max(1, Integer.parseInt(step));
+            @Override public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) {
+                Integer fromInt = iterateConfig.m_from.intValue();
+                Integer toInt = iterateConfig.m_to.intValue();
+                Integer stepInt = Math.max(1, iterateConfig.m_step.intValue());
                 for (int i = fromInt; i <= toInt; i += stepInt) {
-                    String value = Integer.toString(i);
-                    paramIterator.doIteration(value);
+                    paramIterator.doIteration(i);
                 }
             }
+            @Override public Number fromString(String str) { return Integer.parseInt(str); }
+            @Override public Number fromParser(StringParser parser) { return parser.readInteger(); }
+            @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.intValue() * mul2 + add.intValue(); }
         },
         FLOAT {
-            @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
-                Float fromFloat = Float.parseFloat(from);
-                Float toFloat = Float.parseFloat(to);
-                Float stepFloat = fromFloat.equals(toFloat) ? 1 : Float.parseFloat(step);
+            @Override public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) {
+                Float fromFloat = iterateConfig.m_from.floatValue();
+                Float toFloat = iterateConfig.m_to.floatValue();
+                Float stepFloat = fromFloat.equals(toFloat) ? 1 : iterateConfig.m_step.floatValue();;
                 for (float i = fromFloat; i <= toFloat; i += stepFloat) {
-                    String value = Float.toString(i);
-                    paramIterator.doIteration(value);
+                    paramIterator.doIteration(i);
                 }
             }
+            @Override public Number fromString(String str) { return Float.parseFloat(str); }
+            @Override public Number fromParser(StringParser parser) { return parser.readFloat(); }
+            @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.floatValue() * mul2 + add.floatValue(); }
+        },
+        DOUBLE {
+            @Override public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) {
+                Double fromFloat = iterateConfig.m_from.doubleValue();
+                Double toFloat = iterateConfig.m_to.doubleValue();
+                Double stepFloat = fromFloat.equals(toFloat) ? 1 : iterateConfig.m_step.doubleValue();;
+                for (double i = fromFloat; i <= toFloat; i += stepFloat) {
+                    paramIterator.doIteration(i);
+                }
+            }
+            @Override public Number fromString(String str) { return Double.parseDouble(str); }
+            @Override public Number fromParser(StringParser parser) { return parser.readDouble(); }
+            @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.doubleValue() * mul2 + add.doubleValue(); }
         },
         LONG {
-            @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
-                Long fromLong = Long.parseLong(from);
-                Long toLong = Long.parseLong(to);
-                Long stepLong = Math.max(1, Long.parseLong(step));
+            @Override public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) {
+                Long fromLong = iterateConfig.m_from.longValue();
+                Long toLong = iterateConfig.m_to.longValue();
+                Long stepLong = Math.max(1, iterateConfig.m_step.longValue());
                 for (long i = fromLong; i <= toLong; i += stepLong) {
-                    String value = Long.toString(i);
-                    paramIterator.doIteration(value);
+                    paramIterator.doIteration(i);
                 }
             }
+            @Override public Number fromString(String str) { return Long.parseLong(str); }
+            @Override public Number fromParser(StringParser parser) { return parser.readLong(); }
+            @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.longValue() * mul2 + add.longValue(); }
         },
         MILLIS {
-            @Override public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) {
-                Long fromLong = Utils.toMillis(from);
-                Long toLong = Utils.toMillis(to);
-                Long stepLong = Math.max(1, Utils.toMillis(step));
+            @Override public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) {
+                Long fromLong = iterateConfig.m_from.longValue();
+                Long toLong = iterateConfig.m_to.longValue();
+                Long stepLong = Math.max(1, iterateConfig.m_step.longValue());
                 for (long i = fromLong; i <= toLong; i += stepLong) {
-                    String value = Long.toString(i);
-                    paramIterator.doIteration(value);
+                    paramIterator.doIteration(i);
                 }
             }
-        },;
+            @Override public Number fromString(String str) { return Utils.toMillis(str); }
+            @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.longValue() * mul2 + add.longValue(); }
+        },
+        ;
 
-        public void iterate(String from, String to, String step, Main.IParamIterator<String> paramIterator) { }
-    }
+        public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) { }
 
-    
-    //=============================================================================================
-    public static class VaryItem {
-        public final Vary m_vary;
-        public final String m_from;
-        public final String m_to;
-        public final String m_step;
-
-        public VaryItem(Vary vary, String from, String to, String step) {
-            m_vary = vary;
-            m_from = from;
-            m_to = to;
-            m_step = step;
-        }
-
-        public static VaryItem parseVary(String config, Vary vary) {
-            // "15.5+-5*0.5"
-            StringParser parser = new StringParser(config);
-            Float center = parser.readFloat();
-            if (center != null) {
-                if (parser.atEnd()) {
-                    return new VaryItem(vary, config, config, "0");
-                }
-                if (parser.read("+-")) {
-                    Integer count = parser.readInteger();
-                    if (count != null) {
-                        if (parser.read("*")) {
-                            Float step = parser.readFloat();
-                            if (step != null) {
-                                float from = center - count * step;
-                                String fromStr = Float.toString(from);
-                                float to = center + count * step;
-                                String toStr = Float.toString(to);
-                                String stepStr = Float.toString(step);
-                                return new VaryItem(vary, fromStr, toStr, stepStr);
-                            }
-                        }
-                    }
-                }
-            }
-            throw new RuntimeException("invalid vary config: " + config);
-        }
-
-        @Override public String toString() {
-            return "VaryItem{" +
-                    "vary=" + m_vary +
-                    ", from='" + m_from + '\'' +
-                    ", to='" + m_to + '\'' +
-                    ", step='" + m_step + '\'' +
-                    '}';
-        }
+        public Number fromString(String str) { throw new RuntimeException("should be overridden"); }
+        public Number fromParser(StringParser parser) { throw new RuntimeException("should be overridden"); }
+        public Number mulAdd(Number mul1, int mul2, Number add) { throw new RuntimeException("should be overridden"); }
     }
 }
