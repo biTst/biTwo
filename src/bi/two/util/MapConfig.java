@@ -1,6 +1,6 @@
 package bi.two.util;
 
-import bi.two.Vary;
+import bi.two.opt.Vary;
 
 import java.io.File;
 import java.io.FileReader;

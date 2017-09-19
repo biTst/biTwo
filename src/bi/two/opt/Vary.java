@@ -1,5 +1,6 @@
-package bi.two;
+package bi.two.opt;
 
+import bi.two.Main;
 import bi.two.util.StringParser;
 import bi.two.util.Utils;
 
@@ -78,7 +79,7 @@ public enum Vary {
     
     //=============================================================================================
     public static class VaryItem {
-        final Vary m_vary;
+        public final Vary m_vary;
         public final String m_from;
         public final String m_to;
         public final String m_step;
@@ -90,7 +91,7 @@ public enum Vary {
             m_step = step;
         }
 
-        static VaryItem parseVary(String config, Vary vary) {
+        public static VaryItem parseVary(String config, Vary vary) {
             // "15.5+-5*0.5"
             StringParser parser = new StringParser(config);
             Float center = parser.readFloat();

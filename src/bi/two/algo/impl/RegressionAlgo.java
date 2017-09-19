@@ -2,11 +2,11 @@
 package bi.two.algo.impl;
 
 import bi.two.Main;
-import bi.two.Vary;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.*;
 import bi.two.ind.RegressionIndicator;
+import bi.two.opt.Vary;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;

@@ -8,6 +8,7 @@ import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
+import bi.two.opt.Vary;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -208,10 +209,11 @@ Exchange exchange = Exchange.get("bitstamp");
         String to = varyItem.m_to;
         String step = varyItem.m_step;
 
-        Vary.VaryType varyType = varyItem.m_vary.m_varyType;
+        final Vary vary = varyItem.m_vary;
+        Vary.VaryType varyType = vary.m_varyType;
         varyType.iterate(from, to, step, new IParamIterator<String>() {
             @Override public void doIteration(String value) {
-                algoConfig.put(varyItem.m_vary.m_key, value);
+                algoConfig.put(vary.m_key, value);
                 if (nextIndex < varies.size()) {
                     doVary(varies, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                 } else {
