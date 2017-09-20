@@ -149,20 +149,93 @@ Exchange exchange = Exchange.get("bitstamp");
         }
 
         List<Watcher> watchers = new ArrayList<>();
-
-        ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
-        Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
-            @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
-                return new RegressionAlgo(algoConfig, parent);
-            }
-        };
-        watchers.add(watcher);
-
-//        doVary(varies, 0, algoConfig, ticksTs, exchange, pair, watchers);
+        String iterateCfgStr = config.getPropertyNoComment("iterate");
+        if (iterateCfgStr != null) {
+            List<List<IterateConfig>> iterateConfigs = parseIterateConfigs(iterateCfgStr, config);
+            doIterate(iterateConfigs, algoConfig, ticksTs, exchange, pair, watchers);
+        } else { // single Watcher
+            ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
+            Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
+                @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
+                    return new RegressionAlgo(algoConfig, parent);
+                }
+            };
+            watchers.add(watcher);
+        }
 
         setupChart(collectTicks, collectValues, chartCanvas, ticksTs0, watchers);
 
         return watchers;
+    }
+
+    private static void doIterate(List<List<IterateConfig>> iterateConfigs, MapConfig algoConfig, BaseTimesSeriesData ticksTs,
+                                  Exchange exchange, Pair pair, List<Watcher> watchers) {
+        for (List<IterateConfig> iterateConfig : iterateConfigs) {
+            MapConfig localAlgoConfig = new MapConfig();
+            localAlgoConfig.putAll(algoConfig);
+            doIterate(iterateConfig, 0, localAlgoConfig, ticksTs, exchange, pair, watchers);
+        }
+    }
+
+    private static void doIterate(final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
+                                  final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
+        final int nextIndex = index + 1;
+        final IterateConfig iterateConfig = iterateConfigs.get(index);
+        final Vary vary = iterateConfig.m_vary;
+        vary.m_varyType.iterate(iterateConfig, new IParamIterator<Number>() {
+            @Override public void doIteration(Number value) {
+                algoConfig.put(vary.m_key, value);
+                if (nextIndex < iterateConfigs.size()) {
+                    doIterate(iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
+                } else {
+                    ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
+                    Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
+                        @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
+                            return new RegressionAlgo(algoConfig, parent);
+                        }
+                    };
+                    watchers.add(watcher);
+                }
+            }
+        });
+    }
+
+    private static List<List<IterateConfig>> parseIterateConfigs(String iterateCfgStr, MapConfig config) {
+        List<List<IterateConfig>> iterateConfigs = new ArrayList<>();
+        String[] split = iterateCfgStr.split("\\|");
+        for (String s : split) {
+            String namedIterateCfgStr = config.getPropertyNoComment(s);
+            if (namedIterateCfgStr != null) {
+                s = namedIterateCfgStr;
+            }
+            List<IterateConfig> ic = parseIterateConfig(s);
+            if (!ic.isEmpty()) {
+                iterateConfigs.add(ic);
+            }
+        }
+        return iterateConfigs;
+    }
+
+    private static List<IterateConfig> parseIterateConfig(String iterateCfg) { // smooth=2.158+-5*0.01&threshold=0.158+-5*0.001
+        List<IterateConfig> ret = new ArrayList<>();
+        String[] split = iterateCfg.split("\\&"); // [ "smooth=2.158+-5*0.01", "threshold=0.158+-5*0.001" ]
+        for (String s : split) { // "smooth=2.158+-5*0.01"
+            String[] split2 = s.split("\\=");
+            if (split2.length == 2) {
+                String name = split2[0];
+                String cfg = split2[1];
+                Vary vary = Vary.valueOf(name);
+                if (vary != null) {
+                    IterateConfig iterateConfig = IterateConfig.parseIterate(cfg, vary);
+                    ret.add(iterateConfig);
+                } else {
+                    throw new RuntimeException("vary not found with name " + name + " for config: " + s);
+                }
+            } else {
+                System.out.println("IterateConfig '" + s + "' is invalid");
+            }
+        }
+        return ret;
     }
 
     private static void setupChart(boolean collectTicks, boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs0, List<Watcher> watchers) {
@@ -221,30 +294,6 @@ Exchange exchange = Exchange.get("bitstamp");
     private static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
         chartData.setTicksData(name, ticksData);
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
-    }
-
-    private static void doVary(final List<IterateConfig> varies, int index, final MapConfig algoConfig, final ITimesSeriesData<TickData> ticksTs,
-                               final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
-        final int nextIndex = index + 1;
-        final IterateConfig iterateConfig = varies.get(index);
-
-        final Vary vary = iterateConfig.m_vary;
-        vary.m_varyType.iterate(iterateConfig, new IParamIterator<Number>() {
-            @Override public void doIteration(Number value) {
-                algoConfig.put(vary.m_key, value);
-                if (nextIndex < varies.size()) {
-                    doVary(varies, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
-                } else {
-                    ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
-                    Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
-                        @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
-                            return new RegressionAlgo(algoConfig, parent);
-                        }
-                    };
-                    watchers.add(watcher);
-                }
-            }
-        });
     }
 
     private static void logResults(List<Watcher> watchers, long startMillis, long endMillis) {

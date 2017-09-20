@@ -77,7 +77,7 @@ public class RegressionAlgo extends BaseAlgo {
         m_dropLevel = config.getNumber(Vary.drop).floatValue();
         m_directionThreshold = config.getNumber(Vary.reverse).floatValue();
 
-        m_collectValues = config.getBoolean("collect.values");
+        m_collectValues = config.getBoolean(COLLECT_VALUES_KEY);
 
 //        long regressorPeriod = m_curveLength * barSize;
 //        String key = tsd.hashCode() + "." + regressorPeriod;
