@@ -91,7 +91,9 @@ public enum TickReader {
                     // System.out.println("line = " + line);
                     TickData tickData = type.parseLine(line);
                     ticksTs.addNewestTick(tickData);
-                    callback.run();
+                    if (callback != null) {
+                        callback.run();
+                    }
                 }
             } finally {
                 br.close();
@@ -104,7 +106,9 @@ public enum TickReader {
             for (int i = ticks.size() - 1; i >= 0; i--) {
                 TradeTickData tick = ticks.get(i);
                 ticksTs.addNewestTick(tick);
-                callback.run();
+                if (callback != null) {
+                    callback.run();
+                }
             }
         }
     };

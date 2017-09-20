@@ -9,6 +9,7 @@ import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
 import bi.two.opt.IterateConfig;
+import bi.two.opt.OptimizeConfig;
 import bi.two.opt.Vary;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -19,8 +20,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
-
-    private static int s_prefillTicks = Integer.MAX_VALUE;
 
     public static void main(String[] args) {
         MarketConfig.initMarkets();
@@ -39,63 +38,34 @@ public class Main {
         MapConfig config = new MapConfig();
         try {
             config.load("vary.properties");
-            s_prefillTicks = config.getInt("prefill.ticks");
 
             String name = config.getString("tick.reader");
             TickReader tickReader = TickReader.get(name);
 
             final boolean collectTicks = config.getBoolean("collect.ticks");
-            final TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null) {
-                @Override public void addNewestTick(TickData tickData) {
-                    if (collectTicks) {
-                        super.addNewestTick(tickData);
-                    } else {
-                        m_ticks.set(0, tickData); // always update only last tick
-                        notifyListeners(true);
-                    }
-                }
-            };
+            boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
 
-Exchange exchange = Exchange.get("bitstamp");
+            TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
+
+            Exchange exchange = Exchange.get("bitstamp");
             Pair pair = Pair.getByName("btc_usd");
 
-            ChartCanvas chartCanvas = frame.getChartCanvas();
-            List<Watcher> watchers = setup(ticksTs, config, chartCanvas, exchange, pair);
+            if (!collectTicks) { // add initial tick to update
+                ticksTs.addOlderTick(new TickData());
+            }
+            List<Watcher> watchers = setup(ticksTs, config, exchange, pair, collectValues);
             System.out.println("watchers.num=" + watchers.size());
 
-            Runnable callback = new Runnable() {
-                private int m_counter = 0;
-                private long lastTime = 0;
+            ChartCanvas chartCanvas = frame.getChartCanvas();
+            setupChart(collectTicks, collectValues, chartCanvas, ticksTs, watchers);
 
-                @Override public void run() {
-                    m_counter++;
-                    if (m_counter == s_prefillTicks) {
-                        System.out.println("PREFILLED: ticksCount=" + m_counter);
-                    } else if (m_counter > s_prefillTicks) {
-                        if (m_counter % 40 == 0) {
-                            frame.repaint();
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    } else {
-                        if (m_counter % 10000 == 0) {
-                            long time = System.currentTimeMillis();
-                            if (time - lastTime > 5000) {
-                                System.out.println("lines was read: " + m_counter);
-                                lastTime = time;
-                            }
-                        }
-                    }
-                }
-            };
+            int prefillTicks = config.getInt("prefill.ticks");
+            Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
 
             ExchPairData pairData = exchange.getPairData(pair);
             long startMillis = System.currentTimeMillis();
-            tickReader.readTicks(config, ticksTs, callback, pairData);
 
+            tickReader.readTicks(config, ticksTs, callback, pairData);
             ticksTs.waitAllFinished();
 
             long endMillis = System.currentTimeMillis();
@@ -111,41 +81,21 @@ Exchange exchange = Exchange.get("bitstamp");
     }
 
     private static List<Watcher> setup(TimesSeriesData<TickData> ticksTs0, MapConfig config,
-                                       ChartCanvas chartCanvas, Exchange exchange, Pair pair) throws Exception {
+                                       Exchange exchange, Pair pair, boolean collectValues) throws Exception {
         int parallel = config.getInt("parallel");
         BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(ticksTs0, parallel);
-
-        final boolean collectTicks = config.getBoolean("collect.ticks");
-        if (!collectTicks) { // add initial tick to update
-            ticksTs0.addOlderTick(new TickData());
-        }
-
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
 
         MapConfig algoConfig = new MapConfig();
         algoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
 
-        List<IterateConfig> varies = new ArrayList<>();
+        // read default config
         for (Vary vary : Vary.values()) {
             String name = vary.name();
             Number number = config.getNumber(vary);
             if (number == null) {
                 throw new RuntimeException("def config not specified for " + vary);
             }
-
             algoConfig.put(name, number);
-
-//            String prop = config.getPropertyNoComment(name);
-//            IterateConfig iterateConfig;
-//            if (prop == null) {
-//                double from = config.getDouble(name + ".from");
-//                double to = config.getDouble(name + ".to");
-//                double step = config.getDouble(name + ".step");
-//                iterateConfig = new IterateConfig(vary, from, to, step);
-//            } else {
-//                iterateConfig = IterateConfig.parseIterate(prop, vary);
-//            }
-//            varies.add(iterateConfig);
         }
 
         List<Watcher> watchers = new ArrayList<>();
@@ -153,17 +103,22 @@ Exchange exchange = Exchange.get("bitstamp");
         if (iterateCfgStr != null) {
             List<List<IterateConfig>> iterateConfigs = parseIterateConfigs(iterateCfgStr, config);
             doIterate(iterateConfigs, algoConfig, ticksTs, exchange, pair, watchers);
-        } else { // single Watcher
-            ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
-            Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
-                @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
-                    return new RegressionAlgo(algoConfig, parent);
-                }
-            };
-            watchers.add(watcher);
+        } else {
+            String optimizeCfgStr = config.getPropertyNoComment("opt");
+            if (optimizeCfgStr != null) {
+                List<List<OptimizeConfig>> optimizeConfigs = parseOptimizeConfigs(optimizeCfgStr, config);
+                
+            } else {
+                // single Watcher
+                ITimesSeriesData<TickData> activeTicksTs = ticksTs.getActive(); // get next active TS for paralleler
+                Watcher watcher = new Watcher(algoConfig, exchange, pair, activeTicksTs) {
+                    @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
+                        return new RegressionAlgo(algoConfig, parent);
+                    }
+                };
+                watchers.add(watcher);
+            }
         }
-
-        setupChart(collectTicks, collectValues, chartCanvas, ticksTs0, watchers);
 
         return watchers;
     }
@@ -224,11 +179,49 @@ Exchange exchange = Exchange.get("bitstamp");
             if (split2.length == 2) {
                 String name = split2[0];
                 String cfg = split2[1];
-                Vary vary = Vary.valueOf(name);
-                if (vary != null) {
+                try {
+                    Vary vary = Vary.valueOf(name);
                     IterateConfig iterateConfig = IterateConfig.parseIterate(cfg, vary);
                     ret.add(iterateConfig);
-                } else {
+                } catch (IllegalArgumentException e) {
+                    throw new RuntimeException("vary not found with name " + name + " for config: " + s);
+                }
+            } else {
+                System.out.println("IterateConfig '" + s + "' is invalid");
+            }
+        }
+        return ret;
+    }
+
+    private static List<List<OptimizeConfig>> parseOptimizeConfigs(String optimizeCfgStr, MapConfig config) {
+        List<List<OptimizeConfig>> optimizeConfigs = new ArrayList<>();
+        String[] split = optimizeCfgStr.split("\\|");
+        for (String s : split) {
+            String namedOptimizeCfgStr = config.getPropertyNoComment(s);
+            if (namedOptimizeCfgStr != null) {
+                s = namedOptimizeCfgStr;
+            }
+            List<OptimizeConfig> oc = parseOptimizeConfig(s);
+            if (!oc.isEmpty()) {
+                optimizeConfigs.add(oc);
+            }
+        }
+        return optimizeConfigs;
+    }
+
+    private static List<OptimizeConfig> parseOptimizeConfig(String optimizeCfgStr) { // smooth=2.158+-5*0.01&threshold=0.158+-5*0.001
+        List<OptimizeConfig> ret = new ArrayList<>();
+        String[] split = optimizeCfgStr.split("\\&"); // [ "divider=26.985[3,40]", "reverse=0.0597[0.01,1.0]" ]
+        for (String s : split) { // "reverse=0.0597[0.01,1.0]"
+            String[] split2 = s.split("\\=");
+            if (split2.length == 2) {
+                String name = split2[0];
+                String cfg = split2[1];
+                try {
+                    Vary vary = Vary.valueOf(name);
+                    OptimizeConfig optimizeConfig = OptimizeConfig.parseOptimize(cfg, vary);
+                    ret.add(optimizeConfig);
+                } catch (IllegalArgumentException e) {
                     throw new RuntimeException("vary not found with name " + name + " for config: " + s);
                 }
             } else {
@@ -356,5 +349,61 @@ Exchange exchange = Exchange.get("bitstamp");
     //=============================================================================================
     public interface IParamIterator<P> {
         void doIteration(P param);
+    }
+
+    //=============================================================================================
+    private static class ReadProgressCallback implements Runnable {
+        private final ChartFrame m_frame;
+        private final int m_prefillTicks;
+        private int m_counter = 0;
+        private long lastTime = 0;
+
+        public ReadProgressCallback(ChartFrame frame, int prefillTicks) {
+            m_frame = frame;
+            m_prefillTicks = prefillTicks;
+        }
+
+        @Override public void run() {
+            m_counter++;
+            if (m_counter == m_prefillTicks) {
+                System.out.println("PREFILLED: ticksCount=" + m_counter);
+            } else if (m_counter > m_prefillTicks) {
+                if (m_counter % 40 == 0) {
+                    m_frame.repaint();
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                if (m_counter % 10000 == 0) {
+                    long time = System.currentTimeMillis();
+                    if (time - lastTime > 5000) {
+                        System.out.println("lines was read: " + m_counter);
+                        lastTime = time;
+                    }
+                }
+            }
+        }
+    }
+
+    //=============================================================================================
+    private static class TicksTimesSeriesData extends TimesSeriesData<TickData> {
+        private final boolean m_collectTicks;
+
+        public TicksTimesSeriesData(boolean collectTicks) {
+            super(null);
+            m_collectTicks = collectTicks;
+        }
+
+        @Override public void addNewestTick(TickData tickData) {
+            if (m_collectTicks) {
+                super.addNewestTick(tickData);
+            } else {
+                m_ticks.set(0, tickData); // always update only last tick
+                notifyListeners(true);
+            }
+        }
     }
 }
