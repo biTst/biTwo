@@ -1,18 +1,19 @@
-package bi.two;
+package bi.two.ts;
 
-import bi.two.chart.*;
+import bi.two.chart.ITickData;
+import bi.two.chart.TickData;
 
 import java.util.ArrayList;
 import java.util.List;
 
-class ParallelTimesSeriesData extends BaseTimesSeriesData {
+public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final int m_size;
     private final List<InnerTimesSeriesData> m_array = new ArrayList<>();
     private int m_activeIndex;
     private final Object m_emptyLock = new Object();
     private int m_emptyCount;
 
-    ParallelTimesSeriesData(TimesSeriesData<TickData> ticksTs, int size) {
+    public ParallelTimesSeriesData(TimesSeriesData<TickData> ticksTs, int size) {
         super(ticksTs);
         m_activeIndex = 0;
         m_size = size;
@@ -50,6 +51,12 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
+    @Override public void notifyFinished() {
+        for (InnerTimesSeriesData inner : m_array) {
+            inner.notifyFinished();
+        }
+    }
+
     private void waitSomeEmpty() {
         synchronized (m_emptyLock) {
             while (m_emptyCount == 0) {
@@ -64,14 +71,14 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     private void waitAllEmpty() {
         synchronized (m_emptyLock) {
-            System.out.println("waitAllEmpty() emptyCount=" + m_emptyCount + "; size=" + m_size);
+//            System.out.println("waitAllEmpty() emptyCount=" + m_emptyCount + "; size=" + m_size);
             while (m_emptyCount != m_size) {
                 try {
                     m_emptyLock.wait();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(" waitAllEmpty: emptyCount=" + m_emptyCount + "; size=" + m_size);
+//                System.out.println(" waitAllEmpty: emptyCount=" + m_emptyCount + "; size=" + m_size);
             }
         }
     }
@@ -103,6 +110,7 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
         private int m_newestTickIndex = -1;
         private int m_oldestTickIndex = 0;
         private ITickData m_currentTickData;
+        private boolean m_outerFinished;
 
         @Override public String toString() {
             return "Inner-" + m_index;
@@ -122,7 +130,13 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 while (true) {
                     boolean changed;
                     synchronized (m_lock) {
-                        if (m_newestTickIndex >= m_oldestTickIndex) { // non-empty
+                        if (isEmpty()) { // empty
+                            if (m_outerFinished) {
+                                break;
+                            }
+                            m_lock.wait();
+                            continue; // restart cycle, but do not notify
+                        } else { // non-empty
                             ITickData currentTickData = m_ticks.get(m_oldestTickIndex);
                             m_oldestTickIndex++;
                             changed = (currentTickData != null);
@@ -132,16 +146,15 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
                             if (isEmpty()) {
                                 onEmpty(this);
                             }
-                        } else { // empty
-                            m_lock.wait();
-                            continue; // do not notify
                         }
                     }
                     notifyListeners(changed);
                 }
+                super.notifyFinished();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+//            System.out.println("parallel.inner: thread finished");
         }
 
         void enqueue(ITickData latestTick) {
@@ -172,6 +185,14 @@ class ParallelTimesSeriesData extends BaseTimesSeriesData {
             synchronized (m_lock) {
                 boolean isEmpty = m_newestTickIndex < m_oldestTickIndex;
                 return isEmpty;
+            }
+        }
+
+        @Override public void notifyFinished() {
+            m_outerFinished = true;
+            System.out.println("parallel.inner: all ticks was read");
+            synchronized (m_lock) {
+                m_lock.notify();
             }
         }
     }

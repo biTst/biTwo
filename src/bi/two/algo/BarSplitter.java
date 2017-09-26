@@ -1,9 +1,9 @@
 package bi.two.algo;
 
 import bi.two.chart.ITickData;
-import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickPainter;
-import bi.two.chart.TimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.Utils;
 
 import java.util.List;

@@ -4,9 +4,14 @@ package bi.two.algo.impl;
 import bi.two.Main;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
-import bi.two.chart.*;
+import bi.two.chart.ITickData;
+import bi.two.chart.JoinNonChangedTimesSeriesData;
+import bi.two.chart.TickData;
 import bi.two.ind.RegressionIndicator;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
@@ -987,7 +992,14 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //=============================================================================================
-    private static class RegressorVerifier implements ITimesSeriesListener {
+    private static abstract class BaseVerifier implements ITimesSeriesListener {
+        @Override public void waitWhenFinished() { /* noop */ }
+        @Override public void notifyFinished() { /* noop */ }
+    }
+
+    
+    //=============================================================================================
+    private static class RegressorVerifier extends BaseVerifier {
         private final Regressor2 m_regressor;
         private boolean m_checkTickExtraData;
 
@@ -1024,13 +1036,11 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
     //=============================================================================================
-    private static class DifferVerifier implements ITimesSeriesListener {
+    private static class DifferVerifier extends BaseVerifier {
         private final Differ m_differ;
         private boolean m_checkTickExtraData = true;
 
@@ -1066,13 +1076,11 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 
     
     //=============================================================================================
-    private static class ScalerVerifier implements ITimesSeriesListener {
+    private static class ScalerVerifier extends BaseVerifier {
         private final Scaler m_scaler;
         private boolean m_checkTickExtraData = true;
 
@@ -1111,13 +1119,11 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
     //=============================================================================================
-    private static class AveragerVerifier implements ITimesSeriesListener {
+    private static class AveragerVerifier extends BaseVerifier {
         private final ExponentialMovingBarAverager m_averager;
         private boolean m_checkTickExtraData = true;
 
@@ -1157,13 +1163,11 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 
 
     //=============================================================================================
-    private static class SignalerVerifier implements ITimesSeriesListener {
+    private static class SignalerVerifier extends BaseVerifier {
         private final SimpleMovingBarAverager m_signaler;
         private boolean m_checkTickExtraData = true;
 
@@ -1205,13 +1209,11 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 
     
     //=============================================================================================
-    private static class PowererVerifier implements ITimesSeriesListener {
+    private static class PowererVerifier extends BaseVerifier {
         private final Powerer m_powerer;
         private boolean m_checkTickExtraData = true;
 
@@ -1254,7 +1256,5 @@ public class RegressionAlgo extends BaseAlgo {
                 );
             }
         }
-
-        @Override public void waitWhenFinished() { /* noop */ }
     }
 }

@@ -9,6 +9,14 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class MapConfig extends Properties {
+    public MapConfig() {
+
+    }
+
+    public MapConfig(MapConfig algoConfig) {
+        putAll(algoConfig);
+    }
+
     public String getString(String key) {
         String property = getPropertyNoComment(key);
         if (property != null) {
@@ -150,5 +158,9 @@ public class MapConfig extends Properties {
         }
         Number number = vary.m_varyType.fromString(str);
         return number;
+    }
+
+    public MapConfig copy() {
+        return new MapConfig(this);
     }
 }

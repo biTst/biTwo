@@ -1,4 +1,7 @@
-package bi.two.chart;
+package bi.two.ts;
+
+import bi.two.chart.ITickData;
+import bi.two.chart.ITicksData;
 
 import java.util.ArrayList;
 import java.util.Collections;

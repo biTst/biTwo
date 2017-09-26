@@ -1,7 +1,11 @@
 package bi.two.algo;
 
-import bi.two.chart.*;
+import bi.two.chart.ITickData;
+import bi.two.chart.TickData;
 import bi.two.ind.BaseIndicator;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 
 import java.util.ArrayList;
 import java.util.List;

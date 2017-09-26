@@ -1,8 +1,8 @@
 package bi.two.ind;
 
-import bi.two.chart.BaseTimesSeriesData;
-import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
 
 public abstract class BaseIndicator extends BaseTimesSeriesData {
     private Float m_prevValue;

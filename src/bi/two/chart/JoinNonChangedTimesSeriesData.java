@@ -1,5 +1,8 @@
 package bi.two.chart;
 
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
+
 import java.util.List;
 
 public class JoinNonChangedTimesSeriesData extends TimesSeriesData<TickData> {

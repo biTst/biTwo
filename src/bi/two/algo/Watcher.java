@@ -1,7 +1,12 @@
 package bi.two.algo;
 
-import bi.two.chart.*;
+import bi.two.chart.ITickData;
+import bi.two.chart.JoinNonChangedTimesSeriesData;
+import bi.two.chart.TickData;
+import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 

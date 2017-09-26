@@ -1,9 +1,9 @@
 package bi.two.calc;
 
 import bi.two.algo.BarSplitter;
-import bi.two.chart.ITimesSeriesData;
 import bi.two.chart.TickData;
-import bi.two.chart.TimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 
 import java.util.List;
 

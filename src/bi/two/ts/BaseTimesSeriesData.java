@@ -1,4 +1,8 @@
-package bi.two.chart;
+package bi.two.ts;
+
+import bi.two.chart.ITickData;
+import bi.two.chart.JoinNonChangedTimesSeriesData;
+import bi.two.chart.TickData;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -42,6 +46,12 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     protected void notifyListeners(boolean changed) {
         for (ITimesSeriesListener listener : m_listeners) {
             listener.onChanged(this, changed);
+        }
+    }
+
+    @Override public void notifyFinished() {
+        for (ITimesSeriesListener listener : m_listeners) {
+            listener.notifyFinished();
         }
     }
 
