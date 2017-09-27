@@ -15,5 +15,7 @@ public abstract class BaseProducer {
 
     abstract void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
 
-    public abstract void logResults();
+    public abstract double logResults();
+
+    public void logResultsEx() { }
 }

@@ -15,7 +15,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     protected Object m_sync = new Object();
     State m_state = State.optimizerCalculation;
     double m_totalPriceRatio;
-    private WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
+    protected WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
 
 
     public OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
@@ -53,8 +53,9 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
         watchers.add(m_lastWatcher);
     }
 
-    @Override public void logResults() {
+    @Override public double logResults() {
         System.out.println("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_totalPriceRatio);
+        return m_totalPriceRatio;
     }
 
     //--------------------------------------------------------------------------

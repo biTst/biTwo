@@ -8,6 +8,7 @@ import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
+import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
 import bi.two.ts.TimesSeriesData;
@@ -51,6 +52,7 @@ public class Main {
             defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
+            long allStartMillis = System.currentTimeMillis();
 
             for (int i = 1; producer.isActive(); i++) {
                 System.out.println("## iteration " + i);
@@ -84,12 +86,14 @@ public class Main {
                 frame.repaint();
             }
 
-            producer.logResults();
+            BaseProducer bestProducer = producer.logResults();
+            bestProducer.logResultsEx();
 
-            System.out.println("all DONE");
+            long allEndMillis = System.currentTimeMillis();
+            System.out.println("all DONE in " + Utils.millisToDHMSStr(allEndMillis - allStartMillis));
 
             try {
-                Thread.sleep(TimeUnit.MINUTES.toMillis(5));
+                Thread.sleep(TimeUnit.HOURS.toMillis(5));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

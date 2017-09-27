@@ -1,5 +1,6 @@
 package bi.two.opt;
 
+import bi.two.algo.impl.RegressionAlgo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -11,6 +12,7 @@ import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
 import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class SingleDimensionalOptimizeProducer extends OptimizeProducer implements UnivariateFunction {
     public static final int MAX_EVALS_COUNT = 200;
@@ -82,7 +84,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
                 GoalType.MAXIMIZE,
                 new SearchInterval(m_min / multiplier, m_max / multiplier, m_start / multiplier));
         System.out.println("BrentOptimizer result for " + m_fieldConfig.m_vary.m_key
-                + ": point=" + m_optimizePoint.getPoint()
+                + ": point=" + (m_optimizePoint.getPoint() * multiplier)
                 + "; value=" + m_optimizePoint.getValue()
                 + "; iterations=" + m_optimizer.getIterations()
         );
@@ -95,12 +97,28 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         }
     }
 
-    @Override public void logResults() {
-        System.out.println("SingleDimensionalOptimizeProducer result: field=" + m_fieldConfig.m_vary.m_key
-                + ": point=" + m_optimizePoint.getPoint()
-                + "; value=" + m_optimizePoint.getValue()
+    @Override public double logResults() {
+        System.out.println("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.m_key
+                + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
                 + "; iterations=" + m_optimizer.getIterations()
-                + "; totalPriceRatio=" + m_totalPriceRatio);
+                + "; totalPriceRatio=" + Utils.format8(m_totalPriceRatio));
+        return m_totalPriceRatio;
     }
 
+    @Override public void logResultsEx() {
+        double gain = m_lastWatcher.totalPriceRatio(true);
+        RegressionAlgo ralgo = (RegressionAlgo) m_lastWatcher.m_algo;
+        String key = ralgo.key(true);
+        System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
+                    + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
+
+        long processedPeriod = m_lastWatcher.getProcessedPeriod();
+        System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod) );
+
+        double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
+        System.out.println(" processedDays=" + processedDays
+                + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
+                + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+        );
+    }
 }

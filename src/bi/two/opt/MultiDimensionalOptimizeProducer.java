@@ -104,4 +104,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         return startPoint;
     }
 
+    @Override public double logResults() {
+        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_totalPriceRatio);
+        return m_totalPriceRatio;
+    }
 }

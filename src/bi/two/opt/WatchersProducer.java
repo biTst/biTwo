@@ -138,16 +138,23 @@ public class WatchersProducer {
         return watchers;
     }
 
-    public void logResults() {
+    public BaseProducer logResults() {
+        BaseProducer bestProducer = null;
+        double bestTotalPriceRatio = 0;
         for (BaseProducer producer : m_producers) {
-            producer.logResults();
+            double totalPriceRatio = producer.logResults();
+            if(totalPriceRatio > bestTotalPriceRatio) {
+                bestTotalPriceRatio = totalPriceRatio;
+                bestProducer = producer;
+            }
         }
+        return bestProducer;
     }
 
     //=============================================================================================
     private static class IterateProducer extends BaseProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
-        private RegressionAlgoWatcher m_lastWatcher;
+        private List<RegressionAlgoWatcher> m_watchers = new ArrayList<>();
 
         public IterateProducer(List<List<IterateConfig>> iterateConfigs) {
             m_iterateConfigs = iterateConfigs;
@@ -172,15 +179,31 @@ public class WatchersProducer {
                     if (nextIndex < iterateConfigs.size()) {
                         doIterate(iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                     } else {
-                        m_lastWatcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
-                        watchers.add(m_lastWatcher);
+                        RegressionAlgoWatcher watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
+                        m_watchers.add(watcher);
+                        watchers.add(watcher);
                     }
                 }
             });
         }
 
-        @Override public void logResults() {
-            System.out.println("IterateProducer result: " + m_lastWatcher);
+        @Override public double logResults() {
+            RegressionAlgoWatcher bestWatcher = findBestWatcher();
+            System.out.println("IterateProducer result: " + bestWatcher);
+            return bestWatcher.totalPriceRatio();
+        }
+
+        private RegressionAlgoWatcher findBestWatcher() {
+            RegressionAlgoWatcher bestWatcher = null;
+            double bestTotalPriceRatio = 0;
+            for (RegressionAlgoWatcher watcher : m_watchers) {
+                double totalPriceRatio = watcher.totalPriceRatio();
+                if(totalPriceRatio > bestTotalPriceRatio) {
+                    bestTotalPriceRatio = totalPriceRatio;
+                    bestWatcher = watcher;
+                }
+            }
+            return bestWatcher;
         }
     }
 
@@ -195,8 +218,9 @@ public class WatchersProducer {
             m_active = false;
         }
 
-        @Override public void logResults() {
+        @Override public double logResults() {
             System.out.println("SingleProducer result: " + m_watcher);
+            return m_watcher.totalPriceRatio();
         }
     }
 
