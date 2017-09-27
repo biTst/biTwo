@@ -145,18 +145,7 @@ public class WatchersProducer {
     }
 
     //=============================================================================================
-    public abstract static class BaseProducer {
-        protected boolean m_active = true;
-
-        public boolean isActive() { return m_active; }
-
-        abstract boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
-
-        public abstract void logResults();
-    }
-
-    //=============================================================================================
-    private static class IterateProducer extends WatchersProducer.BaseProducer {
+    private static class IterateProducer extends BaseProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
         private RegressionAlgoWatcher m_lastWatcher;
 
@@ -164,13 +153,12 @@ public class WatchersProducer {
             m_iterateConfigs = iterateConfigs;
         }
 
-        @Override public boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+        @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             for (List<IterateConfig> iterateConfig : m_iterateConfigs) {
                 MapConfig localAlgoConfig = algoConfig.copy();
                 doIterate(iterateConfig, 0, localAlgoConfig, ticksTs, exchange, pair, watchers);
             }
             m_active = false;
-            return false; // one pass
         }
 
         private void doIterate(final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
@@ -197,15 +185,14 @@ public class WatchersProducer {
     }
 
     //=============================================================================================
-    private static class SingleProducer extends WatchersProducer.BaseProducer {
+    private static class SingleProducer extends BaseProducer {
         private RegressionAlgoWatcher m_watcher;
 
-        @Override public boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+        @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             // single Watcher
             m_watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
             watchers.add(m_watcher);
             m_active = false;
-            return false; // one pass
         }
 
         @Override public void logResults() {

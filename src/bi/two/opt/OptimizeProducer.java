@@ -8,7 +8,7 @@ import bi.two.util.MapConfig;
 
 import java.util.List;
 
-public abstract class OptimizeProducer extends WatchersProducer.BaseProducer implements Runnable {
+public abstract class OptimizeProducer extends BaseProducer implements Runnable {
     final List<OptimizeConfig> m_optimizeConfigs;
     final MapConfig m_algoConfig;
     private Thread m_thread;
@@ -28,7 +28,7 @@ public abstract class OptimizeProducer extends WatchersProducer.BaseProducer imp
         m_thread.start();
     }
 
-    @Override public boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+    @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
         synchronized (m_sync) {
             while (m_state == State.optimizerCalculation) {
                 try {
@@ -38,7 +38,7 @@ public abstract class OptimizeProducer extends WatchersProducer.BaseProducer imp
                 }
             }
             if (m_state == State.finished) {
-                return false;
+                return;
             }
         }
         m_lastWatcher = new WatchersProducer.RegressionAlgoWatcher(m_algoConfig, exchange, pair, ticksTs) {
@@ -51,8 +51,6 @@ public abstract class OptimizeProducer extends WatchersProducer.BaseProducer imp
             }
         };
         watchers.add(m_lastWatcher);
-
-        return true;
     }
 
     @Override public void logResults() {
