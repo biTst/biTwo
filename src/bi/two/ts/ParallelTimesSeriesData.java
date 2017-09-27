@@ -190,7 +190,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         @Override public void notifyFinished() {
             m_outerFinished = true;
-            System.out.println("parallel.inner: all ticks was read");
+//            System.out.println("parallel.inner: all ticks was read");
             synchronized (m_lock) {
                 m_lock.notify();
             }

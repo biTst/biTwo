@@ -64,6 +64,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     }
 
     @Override public void run() {
+        //...
+        m_active = false;
     }
 
     private SimpleBounds buildBounds(List<OptimizeConfig> optimizeConfigs) {
@@ -75,11 +77,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             Vary field = fieldConfig.m_vary;
             double min = fieldConfig.m_min.doubleValue();
             double max = fieldConfig.m_max.doubleValue();
-            double minim = min / fieldConfig.m_multiplier;
-            double maxim = max / fieldConfig.m_multiplier;
+            double multiplier = fieldConfig.m_multiplier;
+            double minim = min / multiplier;
+            double maxim = max / multiplier;
             mins[i] = minim;
             maxs[i] = maxim;
-            System.out.println("field[" + field.m_key + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
+            System.out.println("buildBounds field[" + field.m_key + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
         return new SimpleBounds(mins, maxs);
     }

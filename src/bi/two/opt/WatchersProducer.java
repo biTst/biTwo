@@ -15,24 +15,23 @@ import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 
 public class WatchersProducer {
-    private List<IProducer> m_producers = new ArrayList<>();
+    private List<BaseProducer> m_producers = new ArrayList<>();
 
     public WatchersProducer(MapConfig config, MapConfig algoConfig) {
         String optimizeCfgStr = config.getPropertyNoComment("opt");
         if (optimizeCfgStr != null) {
             List<List<OptimizeConfig>> optimizeConfigs = parseOptimizeConfigs(optimizeCfgStr, config);
             for (List<OptimizeConfig> optimizeConfig : optimizeConfigs) {
-                IProducer optimizeProducer = new SingleDimensionalOptimizeProducer(optimizeConfig, algoConfig);
+                BaseProducer optimizeProducer = new SingleDimensionalOptimizeProducer(optimizeConfig, algoConfig);
                 m_producers.add(optimizeProducer);
             }
         } else {
             String iterateCfgStr = config.getPropertyNoComment("iterate");
             if (iterateCfgStr != null) {
                 List<List<IterateConfig>> iterateConfigs = parseIterateConfigs(iterateCfgStr, config);
-                IProducer iterateProducer = new IterateProducer(iterateConfigs);
+                BaseProducer iterateProducer = new IterateProducer(iterateConfigs);
                 m_producers.add(iterateProducer);
             } else {
                 m_producers.add(new SingleProducer());
@@ -117,7 +116,12 @@ public class WatchersProducer {
     }
 
     public boolean isActive() {
-        return !m_producers.isEmpty();
+        for (BaseProducer producer : m_producers) {
+            if (producer.isActive()) {
+                return true;
+            }
+        }
+        return false; // all inactive
     }
 
     public List<Watcher> getWatchers(MapConfig algoConfig, TimesSeriesData<TickData> ticksTs0, MapConfig config, Exchange exchange, Pair pair) {
@@ -125,25 +129,36 @@ public class WatchersProducer {
         BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(ticksTs0, parallel);
 
         List<Watcher> watchers = new ArrayList<>();
-        for(ListIterator<IProducer> listIterator = m_producers.listIterator(); listIterator.hasNext(); ) {
-            IProducer producer = listIterator.next();
-            boolean active = producer.getWatchers(algoConfig, ticksTs, exchange, pair, watchers);
-            if(!active) {
-                listIterator.remove(); // remove once done
+        for (BaseProducer producer : m_producers) {
+            if (producer.isActive()) {
+                producer.getWatchers(algoConfig, ticksTs, exchange, pair, watchers);
             }
         }
 
         return watchers;
     }
 
-    //=============================================================================================
-    public interface IProducer {
-        boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
+    public void logResults() {
+        for (BaseProducer producer : m_producers) {
+            producer.logResults();
+        }
     }
 
     //=============================================================================================
-    private static class IterateProducer implements IProducer {
+    public abstract static class BaseProducer {
+        protected boolean m_active = true;
+
+        public boolean isActive() { return m_active; }
+
+        abstract boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
+
+        public abstract void logResults();
+    }
+
+    //=============================================================================================
+    private static class IterateProducer extends WatchersProducer.BaseProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
+        private RegressionAlgoWatcher m_lastWatcher;
 
         public IterateProducer(List<List<IterateConfig>> iterateConfigs) {
             m_iterateConfigs = iterateConfigs;
@@ -154,10 +169,11 @@ public class WatchersProducer {
                 MapConfig localAlgoConfig = algoConfig.copy();
                 doIterate(iterateConfig, 0, localAlgoConfig, ticksTs, exchange, pair, watchers);
             }
+            m_active = false;
             return false; // one pass
         }
 
-        private static void doIterate(final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
+        private void doIterate(final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
                                       final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
             final int nextIndex = index + 1;
             final IterateConfig iterateConfig = iterateConfigs.get(index);
@@ -168,21 +184,32 @@ public class WatchersProducer {
                     if (nextIndex < iterateConfigs.size()) {
                         doIterate(iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                     } else {
-                        Watcher watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
-                        watchers.add(watcher);
+                        m_lastWatcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
+                        watchers.add(m_lastWatcher);
                     }
                 }
             });
         }
+
+        @Override public void logResults() {
+            System.out.println("IterateProducer result: " + m_lastWatcher);
+        }
     }
 
     //=============================================================================================
-    private static class SingleProducer implements IProducer {
+    private static class SingleProducer extends WatchersProducer.BaseProducer {
+        private RegressionAlgoWatcher m_watcher;
+
         @Override public boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             // single Watcher
-            Watcher watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
-            watchers.add(watcher);
+            m_watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
+            watchers.add(m_watcher);
+            m_active = false;
             return false; // one pass
+        }
+
+        @Override public void logResults() {
+            System.out.println("SingleProducer result: " + m_watcher);
         }
     }
 

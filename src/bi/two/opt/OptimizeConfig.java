@@ -19,8 +19,8 @@ public class OptimizeConfig {
         m_min = min;
         m_max = max;
 
-        double minimum = Math.min(min.doubleValue(), Math.min(max.doubleValue(), start.doubleValue()));
-        double log10 = Math.log10(minimum);
+        double maximum = Math.max(min.doubleValue(), Math.max(max.doubleValue(), start.doubleValue()));
+        double log10 = Math.log10(maximum);
         int pow = (int) log10;
         m_multiplier = Math.pow(10, pow);
     }

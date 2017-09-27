@@ -8,12 +8,14 @@ import bi.two.util.MapConfig;
 
 import java.util.List;
 
-public abstract class OptimizeProducer implements WatchersProducer.IProducer, Runnable {
+public abstract class OptimizeProducer extends WatchersProducer.BaseProducer implements Runnable {
     final List<OptimizeConfig> m_optimizeConfigs;
     final MapConfig m_algoConfig;
     private Thread m_thread;
+    protected Object m_sync = new Object();
     State m_state = State.optimizerCalculation;
     double m_totalPriceRatio;
+    private WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
 
 
     public OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
@@ -27,10 +29,10 @@ public abstract class OptimizeProducer implements WatchersProducer.IProducer, Ru
     }
 
     @Override public boolean getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
-        synchronized (this) {
+        synchronized (m_sync) {
             while (m_state == State.optimizerCalculation) {
                 try {
-                    wait();
+                    m_sync.wait();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -39,20 +41,23 @@ public abstract class OptimizeProducer implements WatchersProducer.IProducer, Ru
                 return false;
             }
         }
-        Watcher watcher = new WatchersProducer.RegressionAlgoWatcher(m_algoConfig, exchange, pair, ticksTs) {
+        m_lastWatcher = new WatchersProducer.RegressionAlgoWatcher(m_algoConfig, exchange, pair, ticksTs) {
             @Override public void notifyFinished() {
                 super.notifyFinished();
                 m_totalPriceRatio = totalPriceRatio();
-                synchronized (OptimizeProducer.this) {
-                    OptimizeProducer.this.notify();
+                synchronized (m_sync) {
+                    m_sync.notify();
                 }
             }
         };
-        watchers.add(watcher);
+        watchers.add(m_lastWatcher);
 
         return true;
     }
 
+    @Override public void logResults() {
+        System.out.println("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_totalPriceRatio);
+    }
 
     //--------------------------------------------------------------------------
     protected enum State {

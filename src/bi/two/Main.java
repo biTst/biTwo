@@ -47,10 +47,10 @@ public class Main {
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
             int prefillTicks = config.getInt("prefill.ticks");
 
-            MapConfig algoConfig = getDefaultConfig(config);
-            algoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
+            MapConfig defAlgoConfig = getDefaultConfig(config);
+            defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
 
-            WatchersProducer producer = new WatchersProducer(config, algoConfig);
+            WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
 
             for (int i = 1; producer.isActive(); i++) {
                 System.out.println("## iteration " + i);
@@ -60,8 +60,12 @@ public class Main {
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                List<Watcher> watchers = producer.getWatchers(algoConfig, ticksTs, config, exchange, pair);
+                List<Watcher> watchers = producer.getWatchers(defAlgoConfig, ticksTs, config, exchange, pair);
                 System.out.println(" watchers.num=" + watchers.size());
+
+                if (watchers.isEmpty()) {
+                    continue;
+                }
 
                 if (collectTicks) {
                     ChartCanvas chartCanvas = frame.getChartCanvas();
@@ -75,12 +79,12 @@ public class Main {
                 tickReader.readTicks(config, ticksTs, callback, pairData);
                 ticksTs.waitAllFinished();
 
-                long endMillis = System.currentTimeMillis();
-
-                logResults(watchers, startMillis, endMillis);
+                logResults(watchers, startMillis);
 
                 frame.repaint();
             }
+
+            producer.logResults();
 
             System.out.println("all DONE");
 
@@ -165,39 +169,44 @@ public class Main {
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
     }
 
-    private static void logResults(List<Watcher> watchers, long startMillis, long endMillis) {
-        double maxGain = 0;
-        Watcher maxWatcher = null;
-        for (Watcher watcher : watchers) {
-            double gain = watcher.totalPriceRatio(true);
-            if (gain > maxGain) {
-                maxGain = gain;
-                maxWatcher = watcher;
+    private static void logResults(List<Watcher> watchers, long startMillis) {
+        int watchersNum = watchers.size();
+        if (watchersNum > 0) {
+            double maxGain = 0;
+            Watcher maxWatcher = null;
+            for (Watcher watcher : watchers) {
+                double gain = watcher.totalPriceRatio(true);
+                if (gain > maxGain) {
+                    maxGain = gain;
+                    maxWatcher = watcher;
+                }
+
+                RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
+                String key = ralgo.key(false);
+                System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
+                        + "   trades=" + watcher.m_tradesNum + " .....................................");
             }
 
-            RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
-            String key = ralgo.key(false);
-            System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
-                    + "   trades=" + watcher.m_tradesNum + " .....................................");
+            Watcher lastWatcher = watchers.get(watchersNum - 1);
+            long processedPeriod = lastWatcher.getProcessedPeriod();
+            long endMillis = System.currentTimeMillis();
+            System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
+                    + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
+
+            double gain = maxWatcher.totalPriceRatio(true);
+            RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
+            String key = ralgo.key(true);
+            System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
+                    + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
+
+            double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
+            System.out.println(" processedDays=" + processedDays
+                    + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
+                    + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+            );
         }
 
-        long processedPeriod = watchers.get(watchers.size() - 1).getProcessedPeriod();
-        System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
-                + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
-
-        double gain = maxWatcher.totalPriceRatio(true);
-        RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
-        String key = ralgo.key(true);
-        System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
-                + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
-
-        double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
-        System.out.println(" processedDays=" + processedDays
-                + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
-                + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
-        );
-
-        System.out.println(maxWatcher.log());
+//        System.out.println(maxWatcher.log());
 //        System.out.println(ralgo.log());
     }
 
