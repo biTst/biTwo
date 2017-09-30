@@ -12,10 +12,10 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     final List<OptimizeConfig> m_optimizeConfigs;
     final MapConfig m_algoConfig;
     private Thread m_thread;
-    protected Object m_sync = new Object();
+    final Object m_sync = new Object();
     State m_state = State.optimizerCalculation;
     double m_totalPriceRatio;
-    protected WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
+    WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
 
 
     public OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {

@@ -45,11 +45,11 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         double val = value * multiplier;
         if (val < m_min) {
             System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + m_min);
-            val = m_min;
+            val = m_min / multiplier;
         }
         if (val > m_max) {
             System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + m_max);
-            val = m_max;
+            val = m_max / multiplier;
         }
 
         m_algoConfig.put(fieldName, val);

@@ -1,14 +1,29 @@
 package bi.two.opt;
 
+import bi.two.algo.impl.RegressionAlgo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.MultivariateFunction;
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.PointValuePair;
 import org.apache.commons.math3.optim.SimpleBounds;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
+    public static final int MAX_EVALS_COUNT = 200;
+    public static final double RELATIVE_TOLERANCE = 1e-7;
+    public static final double ABSOLUTE_TOLERANCE = 1e-10;
+
     private final MultivariateFunction m_function;
+    private final double[] m_startPoint;
+    private final SimpleBounds m_bounds;
 
     public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
@@ -16,8 +31,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 //            for (OptimizeConfig optimizeConfig : m_optimizeConfigs) {
 //
 //            }
-        double[] startPoint = buildStartPoint(m_optimizeConfigs);
-        SimpleBounds bounds = buildBounds(m_optimizeConfigs);
+        m_startPoint = buildStartPoint(m_optimizeConfigs);
+        m_bounds = buildBounds(m_optimizeConfigs);
 
         m_function = new MultivariateFunction() {
             @Override public double value(double[] point) {
@@ -29,43 +44,78 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     OptimizeConfig fieldConfig = m_optimizeConfigs.get(i);
                     Vary vary = fieldConfig.m_vary;
                     String fieldName = vary.m_key;
-                    double val = value * fieldConfig.m_multiplier;
+                    double multiplier = fieldConfig.m_multiplier;
+                    double val = value * multiplier;
                     double min = fieldConfig.m_min.doubleValue();
                     if (val < min) {
                         System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
-                        val = min;
+                        val = min / multiplier;
                     }
                     double max = fieldConfig.m_max.doubleValue();
                     if (val > max) {
                         System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
-                        val = max;
+                        val = max / multiplier;
                     }
 
-                    m_algoConfig.put(fieldName, value);
+                    m_algoConfig.put(fieldName, val);
                     sb.append(fieldName).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ");
                 }
-                sb.append(")...");
+                sb.append(") => ");
+
+                synchronized (m_sync) {
+                    m_state = State.waitingResult;
+                    m_sync.notify();
+
+                    try {
+//                System.out.println("BrentOptimizer start waiting for result");
+                        m_sync.wait();
+//                System.out.println("BrentOptimizer waiting for done");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    m_state = State.optimizerCalculation;
+                }
+
+                sb.append(m_totalPriceRatio);
                 System.out.println(sb.toString());
 
-                double value;
-//                    try {
-//                        Map<String, Double> averageProjected = processAllTicks(datas);
-//                        log("averageProjected: " + averageProjected);
-//                        value = averageProjected.get(algoName);
-//                    } catch (Exception e) {
-//                        err("error in optimize.function: " + e, e);
-                value = 0;
-//                    }
-                System.out.println("...averageProjected=" + Utils.format5(value));
-                return value;
+                return m_totalPriceRatio;
             }
         };
         startThread();
     }
 
     @Override public void run() {
-        //...
+        Thread.currentThread().setName("PowellOptimizer");
+
+        System.out.println("PowellOptimizer thread started");
+
+        PowellOptimizer optimize = new PowellOptimizer(
+                RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
+        );
+        try {
+            PointValuePair pair1 = optimize.optimize(
+                    new ObjectiveFunction(m_function),
+                    new MaxEval(MAX_EVALS_COUNT),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(m_startPoint),
+                    m_bounds
+            );
+
+            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
+        } catch (Exception e) {
+            System.out.println("error: " + e);
+            e.printStackTrace();
+        }
+
         m_active = false;
+
+        synchronized (m_sync) {
+            m_state = State.finished;
+            m_sync.notify();
+        }
     }
 
     private SimpleBounds buildBounds(List<OptimizeConfig> optimizeConfigs) {
@@ -107,5 +157,22 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     @Override public double logResults() {
         System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_totalPriceRatio);
         return m_totalPriceRatio;
+    }
+
+    @Override public void logResultsEx() {
+        double gain = m_lastWatcher.totalPriceRatio(true);
+        RegressionAlgo ralgo = (RegressionAlgo) m_lastWatcher.m_algo;
+        String key = ralgo.key(true);
+        System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
+                + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
+
+        long processedPeriod = m_lastWatcher.getProcessedPeriod();
+        System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod) );
+
+        double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
+        System.out.println(" processedDays=" + processedDays
+                + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
+                + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+        );
     }
 }
