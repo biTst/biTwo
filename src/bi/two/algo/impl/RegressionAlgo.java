@@ -1,12 +1,15 @@
 
 package bi.two.algo.impl;
 
+import bi.two.ChartCanvas;
+import bi.two.Colors;
 import bi.two.Main;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
-import bi.two.chart.ITickData;
-import bi.two.chart.JoinNonChangedTimesSeriesData;
-import bi.two.chart.TickData;
+import bi.two.algo.Watcher;
+import bi.two.calc.ExponentialMovingBarAverager;
+import bi.two.calc.TicksBufferBased;
+import bi.two.chart.*;
 import bi.two.ind.RegressionIndicator;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -16,7 +19,7 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
-import java.util.ArrayList;
+import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 
@@ -196,6 +199,58 @@ public class RegressionAlgo extends BaseAlgo {
         return lastTick;
     }
 
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+        ChartData chartData = chartCanvas.getChartData();
+        ChartSetting chartSetting = chartCanvas.getChartSetting();
+
+        // layout
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.4f, Color.RED);
+        List<ChartAreaLayerSettings> topLayers = top.getLayers();
+        {
+            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
+            addChart(chartData, m_regressor.m_splitter, topLayers, "price.buff", Colors.alpha(Color.BLUE, 100), TickPainter.BAR); // regressor price buffer
+            addChart(chartData, m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.PINK, TickPainter.LINE); // Linear Regression Curve
+            addChart(chartData, m_regressorBars, topLayers, "regressor.bars", Color.ORANGE, TickPainter.BAR);
+        }
+
+        ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
+        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
+        {
+            ////addChart(chartData, algo.m_differ.getJoinNonChangedTs(), bottomLayers, "diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE); // diff = Linear Regression Slope
+            //addChart(chartData, algo.m_scaler.getJoinNonChangedTs(), bottomLayers, "slope", Colors.alpha(Colors.LIME, 60), TickPainter.LINE /*RIGHT_CIRCLE*/); // diff (Linear Regression Slope) scaled by price
+            ////addChart(chartData, algo.m_averager.m_splitter, bottomLayers, "slope.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
+            //addChart(chartData, algo.m_averager.getJoinNonChangedTs(), bottomLayers, "slope.avg", Colors.alpha(Color.RED, 60), TickPainter.LINE);
+            ////addChart(chartData, algo.m_averager.m_splitteralgo.m_signaler.m_splitter, bottomLayers, "sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
+            //addChart(chartData, algo.m_signaler.getJoinNonChangedTs(), bottomLayers, "signal.avg", Colors.alpha(Color.GRAY,100), TickPainter.LINE);
+            addChart(chartData, m_powerer.getJoinNonChangedTs(), bottomLayers, "power", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, m_adjuster.getMinTs(), bottomLayers, "min", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_smoother.getJoinNonChangedTs(), bottomLayers, "zlema", Color.ORANGE, TickPainter.LINE);
+            addChart(chartData, m_adjuster.getMaxTs(), bottomLayers, "max", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_adjuster.getZeroTs(), bottomLayers, "zero", Colors.alpha(Color.green, 100), TickPainter.LINE);
+        }
+
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        {
+            addChart(chartData, m_adjuster.getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+        }
+
+        if (collectValues) {
+            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+        }
+    }
+
+    private static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
+        chartData.setTicksData(name, ticksData);
+        layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
+    }
+
     public String key(boolean detailed) {
         return (detailed ? "curve=" : "") + m_curveLength
                 + (detailed ? ",slope=" : ",") + m_slopeLength
@@ -211,7 +266,7 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     // -----------------------------------------------------------------------------
-    public static class Regressor extends BufferBased<Boolean> {
+    public static class Regressor extends TicksBufferBased<Boolean> {
         private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
         private long m_lastBarTickTime;
 
@@ -397,111 +452,6 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-        public static final double DEF_THRESHOLD = 0.99657;
-
-        private final BarSplitter m_barSplitter;
-        private final List<Double> m_multipliers = new ArrayList<>();
-        private final BarsProcessor m_barsProcessor = new BarsProcessor();
-        private boolean m_dirty;
-        private boolean m_filled;
-        private boolean m_initialized;
-        private TickData m_tickData;
-
-        ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
-            this(tsd, length, barSize, DEF_THRESHOLD);
-        }
-
-        ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
-            super();
-            int barsNum = 0;
-            double alpha = 2.0 / (length + 1); // 0.33
-            double rate = 1 - alpha; // 0.66
-            double sum = 0;
-            while (sum < threshold) {
-                double multiplier = alpha * Math.pow(rate, barsNum);
-                m_multipliers.add(multiplier);
-                barsNum++;
-                sum += multiplier;
-            }
-            m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
-            setParent(m_barSplitter);
-        }
-
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            boolean iAmChanged = false;
-            if (changed) {
-                if (!m_initialized) {
-                    m_initialized = true;
-                    m_barSplitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) {
-                            m_dirty = true;
-                        }
-                        @Override public void onTickExit(ITickData tickData) {}
-                    });
-
-                    final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
-                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) {
-                            m_filled = true;
-                            oldestTick.removeBarHolderListener(this);
-                        }
-                        @Override public void onTickExit(ITickData tickData){}
-                    });
-                }
-                iAmChanged = m_filled && m_dirty;
-            }
-            super.onChanged(this, iAmChanged); // notifyListeners
-        }
-
-        @Override public ITickData getLatestTick() {
-            if (m_filled) {
-                if (m_dirty) {
-                    Double ret = m_barSplitter.iterateTicks(m_barsProcessor);
-                    long timestamp = m_parent.getLatestTick().getTimestamp();
-                    m_tickData = new TickData(timestamp, ret.floatValue());
-                    m_dirty = false;
-                }
-                return m_tickData;
-            }
-            return null;
-        }
-
-        public String log() {
-            return "FadingAverager["
-                    + "\n splitter=" + m_barSplitter.log()
-                    + "\n]";
-        }
-
-        //-------------------------------------------------------------------------------------
-        private class BarsProcessor implements ITicksProcessor<BarSplitter.BarHolder, Double> {
-            private int index = 0;
-            private double ret = 0;
-
-            @Override public void init() {
-                index = 0;
-                ret = 0;
-            }
-
-            @Override public void processTick(BarSplitter.BarHolder barHolder) {
-                BarSplitter.TickNode latestNode = barHolder.getLatestTick();
-                if (latestNode != null) { // sometimes bars may have no ticks inside
-                    ITickData latestTick = latestNode.m_param;
-                    float closePrice = latestTick.getClosePrice();
-                    double multiplier = m_multipliers.get(index);
-                    index++;
-                    ret += closePrice * multiplier;
-                }
-            }
-
-            @Override public Double done() {
-                return ret;
-            }
-        }
-    }
-
-
-    //----------------------------------------------------------
     public static class SimpleMovingBarAverager extends BaseTimesSeriesData<ITickData> {
         private final BarSplitter m_barSplitter;
         private final float m_signalLength;
@@ -595,58 +545,6 @@ public class RegressionAlgo extends BaseAlgo {
             @Override public Float done() {
                 return sum/m_signalLength;
             }
-        }
-    }
-
-
-    //----------------------------------------------------------
-    public static abstract class BufferBased<R>
-            extends BaseTimesSeriesData<ITickData>
-            implements BarSplitter.BarHolder.ITicksProcessor<R> {
-        final BarSplitter m_splitter;
-        private boolean m_initialized;
-        private boolean m_dirty;
-        private boolean m_filled;
-        private TickData m_tickData;
-
-        protected abstract float calcTickValue(R ret);
-
-        public BufferBased(ITimesSeriesData<ITickData> tsd, long period) {
-            m_splitter = new BarSplitter(tsd, 1, period);
-            setParent(m_splitter);
-        }
-
-        @Override public ITickData getLatestTick() {
-            if (m_filled) {
-                if (m_dirty) {
-                    R ret = m_splitter.m_newestBar.iterateTicks(this);
-                    long timestamp = m_parent.getLatestTick().getTimestamp();
-                    m_tickData = new TickData(timestamp, calcTickValue(ret));
-                    m_dirty = false;
-                }
-                return m_tickData;
-            }
-            return null;
-        }
-
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            boolean iAmChanged = false;
-            if (changed) {
-                if (!m_initialized) {
-                    m_initialized = true;
-                    m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) {
-                            m_dirty = true;
-                        }
-
-                        @Override public void onTickExit(ITickData tickData) {
-                            m_filled = true;
-                        }
-                    });
-                }
-                iAmChanged = m_filled && m_dirty;
-            }
-            super.onChanged(this, iAmChanged); // notifyListeners
         }
     }
 

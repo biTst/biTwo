@@ -1,0 +1,115 @@
+package bi.two.calc;
+
+import bi.two.algo.BarSplitter;
+import bi.two.chart.ITickData;
+import bi.two.chart.TickData;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TimesSeriesData;
+
+import java.util.ArrayList;
+import java.util.List;
+
+// EMA
+public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
+    public static final double DEF_THRESHOLD = 0.99657;
+
+    private final BarSplitter m_barSplitter;
+    private final List<Double> m_multipliers = new ArrayList<>();
+    private final BarsProcessor m_barsProcessor = new BarsProcessor();
+    private boolean m_dirty;
+    private boolean m_filled;
+    private boolean m_initialized;
+    private TickData m_tickData;
+
+    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+        this(tsd, length, barSize, DEF_THRESHOLD);
+    }
+
+    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
+        super();
+        int barsNum = 0;
+        double alpha = 2.0 / (length + 1); // 0.33
+        double rate = 1 - alpha; // 0.66
+        double sum = 0;
+        while (sum < threshold) {
+            double multiplier = alpha * Math.pow(rate, barsNum);
+            m_multipliers.add(multiplier);
+            barsNum++;
+            sum += multiplier;
+        }
+        m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
+        setParent(m_barSplitter);
+    }
+
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+        boolean iAmChanged = false;
+        if (changed) {
+            if (!m_initialized) {
+                m_initialized = true;
+                m_barSplitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                    @Override public void onTickEnter(ITickData tickData) {
+                        m_dirty = true;
+                    }
+                    @Override public void onTickExit(ITickData tickData) {}
+                });
+
+                final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
+                oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                    @Override public void onTickEnter(ITickData tickData) {
+                        m_filled = true;
+                        oldestTick.removeBarHolderListener(this);
+                    }
+                    @Override public void onTickExit(ITickData tickData){}
+                });
+            }
+            iAmChanged = m_filled && m_dirty;
+        }
+        super.onChanged(this, iAmChanged); // notifyListeners
+    }
+
+    @Override public ITickData getLatestTick() {
+        if (m_filled) {
+            if (m_dirty) {
+                Double ret = m_barSplitter.iterateTicks(m_barsProcessor);
+                long timestamp = m_parent.getLatestTick().getTimestamp();
+                m_tickData = new TickData(timestamp, ret.floatValue());
+                m_dirty = false;
+            }
+            return m_tickData;
+        }
+        return null;
+    }
+
+    public String log() {
+        return "EmaAverager["
+                + "\n splitter=" + m_barSplitter.log()
+                + "\n]";
+    }
+
+    //-------------------------------------------------------------------------------------
+    private class BarsProcessor implements TimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Double> {
+        private int index = 0;
+        private double ret = 0;
+
+        @Override public void init() {
+            index = 0;
+            ret = 0;
+        }
+
+        @Override public void processTick(BarSplitter.BarHolder barHolder) {
+            BarSplitter.TickNode latestNode = barHolder.getLatestTick();
+            if (latestNode != null) { // sometimes bars may have no ticks inside
+                ITickData latestTick = latestNode.m_param;
+                float closePrice = latestTick.getClosePrice();
+                double multiplier = m_multipliers.get(index);
+                index++;
+                ret += closePrice * multiplier;
+            }
+        }
+
+        @Override public Double done() {
+            return ret;
+        }
+    }
+}

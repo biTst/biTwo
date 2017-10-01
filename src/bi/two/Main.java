@@ -3,7 +3,7 @@ package bi.two;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.algo.impl.RegressionAlgo;
-import bi.two.chart.*;
+import bi.two.chart.TickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
@@ -15,7 +15,6 @@ import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.awt.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -117,60 +116,9 @@ public class Main {
         return algoConfig;
     }
 
-    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs0, List<Watcher> watchers) {
-        Watcher first = watchers.get(0);
-        RegressionAlgo algo = (RegressionAlgo) first.m_algo;
-
-        ChartData chartData = chartCanvas.getChartData();
-        ChartSetting chartSetting = chartCanvas.getChartSetting();
-
-        // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.4f, Color.RED);
-        List<ChartAreaLayerSettings> topLayers = top.getLayers();
-        {
-            addChart(chartData, ticksTs0, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
-            addChart(chartData, algo.m_regressor.m_splitter, topLayers, "price.buff", Colors.alpha(Color.BLUE, 100), TickPainter.BAR); // regressor price buffer
-            addChart(chartData, algo.m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.PINK, TickPainter.LINE); // Linear Regression Curve
-            addChart(chartData, algo.m_regressorBars, topLayers, "regressor.bars", Color.ORANGE, TickPainter.BAR);
-        }
-
-        ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
-        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
-        {
-            ////addChart(chartData, algo.m_differ.getJoinNonChangedTs(), bottomLayers, "diff", Colors.alpha(Color.GREEN, 100), TickPainter.LINE); // diff = Linear Regression Slope
-            //addChart(chartData, algo.m_scaler.getJoinNonChangedTs(), bottomLayers, "slope", Colors.alpha(Colors.LIME, 60), TickPainter.LINE /*RIGHT_CIRCLE*/); // diff (Linear Regression Slope) scaled by price
-            ////addChart(chartData, algo.m_averager.m_splitter, bottomLayers, "slope.buf", Colors.alpha(Color.YELLOW, 100), TickPainter.BAR));
-            //addChart(chartData, algo.m_averager.getJoinNonChangedTs(), bottomLayers, "slope.avg", Colors.alpha(Color.RED, 60), TickPainter.LINE);
-            ////addChart(chartData, algo.m_averager.m_splitteralgo.m_signaler.m_splitter, bottomLayers, "sig.buf", Colors.alpha(Color.DARK_GRAY, 100), TickPainter.BAR));
-            //addChart(chartData, algo.m_signaler.getJoinNonChangedTs(), bottomLayers, "signal.avg", Colors.alpha(Color.GRAY,100), TickPainter.LINE);
-            addChart(chartData, algo.m_powerer.getJoinNonChangedTs(), bottomLayers, "power", Color.CYAN, TickPainter.LINE);
-            addChart(chartData, algo.m_smoother.getJoinNonChangedTs(), bottomLayers, "zlema", Color.ORANGE, TickPainter.LINE);
-            addChart(chartData, algo.m_adjuster.getMinTs(), bottomLayers, "min", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, algo.m_adjuster.getMaxTs(), bottomLayers, "max", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, algo.m_adjuster.getZeroTs(), bottomLayers, "zero", Colors.alpha(Color.green, 100), TickPainter.LINE);
-        }
-
-        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
-        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-        {
-            addChart(chartData, algo.m_adjuster.getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-        }
-
-        if (collectValues) {
-            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-            gain.setHorizontalLineValue(1);
-
-            Watcher watcher = watchers.get(0);
-            addChart(chartData, watcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-
-            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-            addChart(chartData, watcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-        }
-    }
-
-    private static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
-        chartData.setTicksData(name, ticksData);
-        layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
+    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs, List<Watcher> watchers) {
+        Watcher firstWatcher = watchers.get(0);
+        firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }
 
     private static void logResults(List<Watcher> watchers, long startMillis) {

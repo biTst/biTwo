@@ -1,5 +1,6 @@
 package bi.two.algo;
 
+import bi.two.ChartCanvas;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.ind.BaseIndicator;
@@ -10,7 +11,7 @@ import bi.two.ts.TimesSeriesData;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
+public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
     
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
@@ -22,6 +23,7 @@ public class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
     public ITickData getAdjusted() { return null; }
+    public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs, Watcher firstWatcher) { /*noop*/ }
 
     public TimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
         return new AlgoTimesSeriesData(this, joinNonChangedValues);

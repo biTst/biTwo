@@ -11,7 +11,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 
-class ChartCanvas extends JComponent {
+public class ChartCanvas extends JComponent {
     private final ChartPainter m_chartPainter;
     private Font m_font;
     private ChartData m_chartData;
