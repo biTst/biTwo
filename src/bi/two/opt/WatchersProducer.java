@@ -1,9 +1,9 @@
 package bi.two.opt;
 
 import bi.two.Main;
+import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
@@ -17,10 +17,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WatchersProducer {
+    public static final String OPT_KEY = "opt";
+    public static final String ITERATE_KEY = "iterate";
+
     private List<BaseProducer> m_producers = new ArrayList<>();
 
     public WatchersProducer(MapConfig config, MapConfig algoConfig) {
-        String optimizeCfgStr = config.getPropertyNoComment("opt");
+        String optimizeCfgStr = config.getPropertyNoComment(OPT_KEY);
         if (optimizeCfgStr != null) {
             List<List<OptimizeConfig>> optimizeConfigs = parseOptimizeConfigs(optimizeCfgStr, config);
             for (List<OptimizeConfig> optimizeConfig : optimizeConfigs) {
@@ -28,7 +31,7 @@ public class WatchersProducer {
                 m_producers.add(optimizeProducer);
             }
         } else {
-            String iterateCfgStr = config.getPropertyNoComment("iterate");
+            String iterateCfgStr = config.getPropertyNoComment(ITERATE_KEY);
             if (iterateCfgStr != null) {
                 List<List<IterateConfig>> iterateConfigs = parseIterateConfigs(iterateCfgStr, config);
                 BaseProducer iterateProducer = new IterateProducer(iterateConfigs);
@@ -154,7 +157,7 @@ public class WatchersProducer {
     //=============================================================================================
     private static class IterateProducer extends BaseProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
-        private List<RegressionAlgoWatcher> m_watchers = new ArrayList<>();
+        private List<AlgoWatcher> m_watchers = new ArrayList<>();
 
         public IterateProducer(List<List<IterateConfig>> iterateConfigs) {
             m_iterateConfigs = iterateConfigs;
@@ -179,7 +182,7 @@ public class WatchersProducer {
                     if (nextIndex < iterateConfigs.size()) {
                         doIterate(iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                     } else {
-                        RegressionAlgoWatcher watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
+                        AlgoWatcher watcher = new AlgoWatcher(algoConfig, exchange, pair, ticksTs);
                         m_watchers.add(watcher);
                         watchers.add(watcher);
                     }
@@ -188,15 +191,15 @@ public class WatchersProducer {
         }
 
         @Override public double logResults() {
-            RegressionAlgoWatcher bestWatcher = findBestWatcher();
+            AlgoWatcher bestWatcher = findBestWatcher();
             System.out.println("IterateProducer result: " + bestWatcher);
             return bestWatcher.totalPriceRatio();
         }
 
-        private RegressionAlgoWatcher findBestWatcher() {
-            RegressionAlgoWatcher bestWatcher = null;
+        private AlgoWatcher findBestWatcher() {
+            AlgoWatcher bestWatcher = null;
             double bestTotalPriceRatio = 0;
-            for (RegressionAlgoWatcher watcher : m_watchers) {
+            for (AlgoWatcher watcher : m_watchers) {
                 double totalPriceRatio = watcher.totalPriceRatio();
                 if(totalPriceRatio > bestTotalPriceRatio) {
                     bestTotalPriceRatio = totalPriceRatio;
@@ -209,11 +212,11 @@ public class WatchersProducer {
 
     //=============================================================================================
     private static class SingleProducer extends BaseProducer {
-        private RegressionAlgoWatcher m_watcher;
+        private AlgoWatcher m_watcher;
 
         @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             // single Watcher
-            m_watcher = new RegressionAlgoWatcher(algoConfig, exchange, pair, ticksTs);
+            m_watcher = new AlgoWatcher(algoConfig, exchange, pair, ticksTs);
             watchers.add(m_watcher);
             m_active = false;
         }
@@ -225,14 +228,17 @@ public class WatchersProducer {
     }
 
     //=============================================================================================
-    protected static class RegressionAlgoWatcher extends Watcher {
-        public RegressionAlgoWatcher(MapConfig algoConfig, Exchange exchange, Pair pair, BaseTimesSeriesData ticksTs) {
-            super(algoConfig, exchange, pair,
-                    ticksTs.getActive()); // get next active TS for paralleler
+    protected static class AlgoWatcher extends Watcher {
+
+        public AlgoWatcher(MapConfig algoConfig, Exchange exchange, Pair pair, BaseTimesSeriesData ticksTs) {
+            super(algoConfig, exchange, pair, ticksTs.getActive()); // get next active TS for paralleler
         }
 
         @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
-            return new RegressionAlgo(algoConfig, parent);
+            String algoName = algoConfig.getPropertyNoComment(BaseAlgo.ALGO_NAME_KEY);
+            Algo algo = Algo.valueOf(algoName);
+            BaseAlgo algoImpl = algo.createAlgo(algoConfig, parent);
+            return algoImpl;
         }
     }
 }

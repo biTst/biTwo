@@ -4,6 +4,7 @@ import bi.two.algo.Watcher;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
 import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.util.List;
@@ -14,8 +15,8 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     private Thread m_thread;
     final Object m_sync = new Object();
     State m_state = State.optimizerCalculation;
-    double m_totalPriceRatio;
-    WatchersProducer.RegressionAlgoWatcher m_lastWatcher;
+    double m_onFinishTotalPriceRatio;
+    WatchersProducer.AlgoWatcher m_lastWatcher;
 
 
     public OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
@@ -41,21 +42,23 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
                 return;
             }
         }
-        m_lastWatcher = new WatchersProducer.RegressionAlgoWatcher(m_algoConfig, exchange, pair, ticksTs) {
+        m_lastWatcher = new WatchersProducer.AlgoWatcher(m_algoConfig, exchange, pair, ticksTs);
+        m_lastWatcher.addListener(new ITimesSeriesData.ITimesSeriesListener() {
+            @Override public void onChanged(ITimesSeriesData ts, boolean changed) { }
+            @Override public void waitWhenFinished() { }
             @Override public void notifyFinished() {
-                super.notifyFinished();
-                m_totalPriceRatio = totalPriceRatio();
+                m_onFinishTotalPriceRatio = m_lastWatcher.totalPriceRatio();
                 synchronized (m_sync) {
                     m_sync.notify();
                 }
             }
-        };
+        });
         watchers.add(m_lastWatcher);
     }
 
     @Override public double logResults() {
-        System.out.println("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_totalPriceRatio);
-        return m_totalPriceRatio;
+        System.out.println("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_onFinishTotalPriceRatio);
+        return m_onFinishTotalPriceRatio;
     }
 
     //--------------------------------------------------------------------------

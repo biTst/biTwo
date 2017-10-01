@@ -49,6 +49,7 @@ public class Main {
 
             MapConfig defAlgoConfig = getDefaultConfig(config);
             defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
+            defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
             long allStartMillis = System.currentTimeMillis();

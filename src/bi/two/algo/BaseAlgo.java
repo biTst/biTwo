@@ -1,19 +1,20 @@
 package bi.two.algo;
 
 import bi.two.ChartCanvas;
-import bi.two.chart.ITickData;
-import bi.two.chart.TickData;
+import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
-    
+    public static final String ALGO_NAME_KEY = "algoName";
+
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
 
     public BaseAlgo(BaseTimesSeriesData parent) {
@@ -24,6 +25,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
     public ITickData getAdjusted() { return null; }
     public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs, Watcher firstWatcher) { /*noop*/ }
+    public abstract String key(boolean detailed);
 
     public TimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
         return new AlgoTimesSeriesData(this, joinNonChangedValues);
@@ -33,7 +35,12 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
         m_indicators.add(indicator);
     }
 
+    protected static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
+        chartData.setTicksData(name, ticksData);
+        layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
+    }
 
+    
     //----------------------------------------------------------
     public class AlgoTimesSeriesData extends TimesSeriesData<TickData> {
 

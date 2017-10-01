@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit;
 
 public class SingleDimensionalOptimizeProducer extends OptimizeProducer implements UnivariateFunction {
     public static final int MAX_EVALS_COUNT = 200;
-    public static final double RELATIVE_TOLERANCE = 1e-7;
-    public static final double ABSOLUTE_TOLERANCE = 1e-10;
+    public static final double RELATIVE_TOLERANCE = 1e-6;
+    public static final double ABSOLUTE_TOLERANCE = 1e-9;
 
     private final OptimizeConfig m_fieldConfig;
     private final double m_start;
@@ -70,8 +70,8 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         }
 
         System.out.println("BrentOptimizer value calculated for " + fieldName + "=" + Utils.format8(val) + "(" + Utils.format8(value)
-                + ") mult=" + multiplier + " => " + m_totalPriceRatio);
-        return m_totalPriceRatio;
+                + ") mult=" + multiplier + " => " + m_onFinishTotalPriceRatio);
+        return m_onFinishTotalPriceRatio;
     }
 
     @Override public void run() {
@@ -101,8 +101,8 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         System.out.println("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.m_key
                 + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
                 + "; iterations=" + m_optimizer.getIterations()
-                + "; totalPriceRatio=" + Utils.format8(m_totalPriceRatio));
-        return m_totalPriceRatio;
+                + "; totalPriceRatio=" + Utils.format8(m_onFinishTotalPriceRatio));
+        return m_onFinishTotalPriceRatio;
     }
 
     @Override public void logResultsEx() {

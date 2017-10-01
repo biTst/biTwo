@@ -76,10 +76,10 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_state = State.optimizerCalculation;
                 }
 
-                sb.append(m_totalPriceRatio);
+                sb.append(m_onFinishTotalPriceRatio);
                 System.out.println(sb.toString());
 
-                return m_totalPriceRatio;
+                return m_onFinishTotalPriceRatio;
             }
         };
         startThread();
@@ -155,8 +155,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     }
 
     @Override public double logResults() {
-        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_totalPriceRatio);
-        return m_totalPriceRatio;
+        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_onFinishTotalPriceRatio);
+        return m_onFinishTotalPriceRatio;
     }
 
     @Override public void logResultsEx() {

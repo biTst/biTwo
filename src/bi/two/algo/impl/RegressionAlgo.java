@@ -246,12 +246,7 @@ public class RegressionAlgo extends BaseAlgo {
         }
     }
 
-    private static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
-        chartData.setTicksData(name, ticksData);
-        layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
-    }
-
-    public String key(boolean detailed) {
+    @Override public String key(boolean detailed) {
         return (detailed ? "curve=" : "") + m_curveLength
                 + (detailed ? ",slope=" : ",") + m_slopeLength
                 + (detailed ? ",divider=" : ",") + m_divider
