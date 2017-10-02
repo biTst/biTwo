@@ -18,22 +18,30 @@ import java.util.List;
 
 public class EmaTrendAlgo extends BaseAlgo {
     private final long m_barSize;
-    private final int m_length;
-    private final int m_shortLength = 2;
+    private final float m_length;
+    private final float m_shortLength;
     private final ExponentialMovingBarAverager m_ema;
     private final FadingTicksAverager m_emaShort;
+    private final Differ m_differ;
     private final Adjuster m_adjuster;
+//    private final RegressionAlgo.Regressor2 m_regressor;
+    private final RegressionAlgo.Regressor m_regressor;
 
     public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
         m_barSize = config.getNumber(Vary.period).longValue();
-        m_length = config.getNumber(Vary.bars).intValue();
+        m_length = config.getNumber(Vary.emaLen).floatValue();
+        m_shortLength = config.getNumber(Vary.shortEmaLen).floatValue();
 
         m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
-        m_emaShort = new FadingTicksAverager(tsd, m_shortLength * m_barSize);
+        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
+//m_regressor = new RegressionAlgo.Regressor2(tsd, m_length, m_barSize, 1);
+m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSize));
 
-        m_adjuster = new Adjuster(m_ema, m_emaShort);
+//        m_differ = new Differ(m_ema, m_emaShort);
+m_differ = new Differ(m_ema, m_regressor);
+        m_adjuster = new Adjuster(m_differ);
         m_adjuster.addListener(this);
     }
 
@@ -44,6 +52,7 @@ public class EmaTrendAlgo extends BaseAlgo {
 
     @Override public String key(boolean detailed) {
         return (detailed ? "len=" : "") + m_length
+                + (detailed ? "slen=" : "") + m_shortLength
                 /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
@@ -58,13 +67,14 @@ public class EmaTrendAlgo extends BaseAlgo {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
             addChart(chartData, m_ema.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
             addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
-//            addChart(chartData, m_regressorBars, topLayers, "regressor.bars", Color.ORANGE, TickPainter.BAR);
+            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
+            addChart(chartData, m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
         }
 
         ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
         java.util.List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
         {
-//            addChart(chartData, m_powerer.getJoinNonChangedTs(), bottomLayers, "power", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, m_differ.getJoinNonChangedTs(), bottomLayers, "differ", Color.CYAN, TickPainter.LINE);
 //            addChart(chartData, m_adjuster.getMinTs(), bottomLayers, "min", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, m_smoother.getJoinNonChangedTs(), bottomLayers, "zlema", Color.ORANGE, TickPainter.LINE);
 //            addChart(chartData, m_adjuster.getMaxTs(), bottomLayers, "max", Color.MAGENTA, TickPainter.LINE);
@@ -89,13 +99,13 @@ public class EmaTrendAlgo extends BaseAlgo {
     }
 
     //----------------------------------------------------------
-    public static class Adjuster extends BaseTimesSeriesData<ITickData> {
-        private final BaseTimesSeriesData<ITickData> m_ema;
-        private final FadingTicksAverager m_emaShort;
+    public static class Differ extends BaseTimesSeriesData<ITickData> {
+        private final ITimesSeriesData<ITickData> m_ema;
+        private final ITimesSeriesData<ITickData> m_emaShort;
         private boolean m_dirty;
         private TickData m_tickData;
 
-        Adjuster(BaseTimesSeriesData<ITickData> ema, FadingTicksAverager emaShort) {
+        Differ(BaseTimesSeriesData<ITickData> ema, ITimesSeriesData<ITickData> emaShort) {
             super(null);
             m_ema = ema;
             m_emaShort = emaShort;
@@ -121,12 +131,47 @@ public class EmaTrendAlgo extends BaseAlgo {
                         float ema = latestEma.getClosePrice();
                         float emaShort = latestEmaShort.getClosePrice();
                         float diff = emaShort - ema;
-                        diff = Math.min(diff, 1f);
-                        diff = Math.max(diff, -1f);
                         long timestamp = Math.max(latestEma.getTimestamp(), latestEmaShort.getTimestamp());
                         m_tickData = new TickData(timestamp, diff);
                         m_dirty = false;
                     }
+                }
+            }
+            return m_tickData;
+        }
+    }
+
+    //----------------------------------------------------------
+    public static class Adjuster extends BaseTimesSeriesData<ITickData> {
+        public static final float THREAHOLD = 2f;
+
+        private boolean m_dirty;
+        private TickData m_tickData;
+
+        Adjuster(Differ differ) {
+            super(differ);
+        }
+
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            if (changed) {
+                m_dirty = true;
+            }
+            super.onChanged(this, changed); // notifyListeners
+        }
+
+
+        @Override public ITickData getLatestTick() {
+            if (m_dirty) {
+                ITimesSeriesData parent = getParent();
+                ITickData latestDiff = parent.getLatestTick();
+                if (latestDiff != null) {
+                    float diff = latestDiff.getClosePrice();
+                    diff = Math.min(diff, THREAHOLD);
+                    diff = Math.max(diff, -THREAHOLD);
+                    long timestamp = latestDiff.getTimestamp();
+                    float scaled = diff / THREAHOLD;
+                    m_tickData = new TickData(timestamp, scaled);
+                    m_dirty = false;
                 }
             }
             return m_tickData;

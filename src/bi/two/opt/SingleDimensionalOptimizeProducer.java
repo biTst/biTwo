@@ -1,6 +1,6 @@
 package bi.two.opt;
 
-import bi.two.algo.impl.RegressionAlgo;
+import bi.two.algo.BaseAlgo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -107,8 +107,8 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
 
     @Override public void logResultsEx() {
         double gain = m_lastWatcher.totalPriceRatio(true);
-        RegressionAlgo ralgo = (RegressionAlgo) m_lastWatcher.m_algo;
-        String key = ralgo.key(true);
+        BaseAlgo algo = m_lastWatcher.m_algo;
+        String key = algo.key(true);
         System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
                     + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
 

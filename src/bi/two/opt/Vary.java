@@ -8,13 +8,16 @@ public enum Vary {
     period("period", VaryType.MILLIS),  // barSize
     bars("bars", VaryType.INT),         // barsNum
     divider("divider", VaryType.FLOAT),
-    slope("slope", VaryType.INT),       // slopeLength
+    slope("slope", VaryType.FLOAT),     // slopeLength
     signal("signal", VaryType.FLOAT),   // signalLength
     power("power", VaryType.FLOAT),
     smooth("smooth", VaryType.FLOAT),   // smooth
     threshold("threshold", VaryType.FLOAT), // strong trend threshold
     drop("drop", VaryType.FLOAT),           // trend drop level
-    reverse("reverse", VaryType.FLOAT),        // direction threshold
+    reverse("reverse", VaryType.FLOAT),     // direction threshold
+
+    emaLen("emaLen", VaryType.FLOAT),         // ema trend len
+    shortEmaLen("shortEmaLen", VaryType.FLOAT),         // short ema trend len
     ;
     
     public final String m_key;

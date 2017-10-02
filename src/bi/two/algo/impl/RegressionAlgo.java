@@ -39,7 +39,7 @@ public class RegressionAlgo extends BaseAlgo {
     private final long m_barSize;
     public final int m_curveLength;
     public final float m_divider;
-    public final int m_slopeLength;
+    public final float m_slopeLength;
     public final float m_signalLength;
     public final float m_powerLevel;
     public final float m_smootherLevel;
@@ -77,7 +77,7 @@ public class RegressionAlgo extends BaseAlgo {
         m_barSize = config.getNumber(Vary.period).longValue();
         m_curveLength = config.getNumber(Vary.bars).intValue();
         m_divider = config.getNumber(Vary.divider).floatValue();
-        m_slopeLength = config.getNumber(Vary.slope).intValue();
+        m_slopeLength = config.getNumber(Vary.slope).floatValue();
         m_signalLength = config.getNumber(Vary.signal).floatValue();
         m_powerLevel = config.getNumber(Vary.power).floatValue();
         m_smootherLevel = config.getNumber(Vary.smooth).floatValue();

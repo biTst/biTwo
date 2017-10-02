@@ -2,7 +2,6 @@ package bi.two;
 
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.algo.impl.RegressionAlgo;
 import bi.two.chart.TickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
@@ -20,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         MarketConfig.initMarkets();
 
         final ChartFrame frame = new ChartFrame();
@@ -28,19 +27,23 @@ public class Main {
 
         new Thread("MAIN") {
             @Override public void run() {
-                loadData(frame);
+                loadData(frame, args);
             }
         }.start();
     }
 
-    private static void loadData(final ChartFrame frame) {
+    private static void loadData(final ChartFrame frame, String[] args) {
         MapConfig config = new MapConfig();
         try {
             Exchange exchange = Exchange.get("bitstamp");
             Pair pair = Pair.getByName("btc_usd");
             ExchPairData pairData = exchange.getPairData(pair);
 
-            config.load("vary.properties");
+            String file = "vary.properties";
+            if (args.length > 0) {
+                file = args[0];
+            }
+            config.load(file);
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
@@ -54,6 +57,7 @@ public class Main {
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
             long allStartMillis = System.currentTimeMillis();
 
+            boolean chartNotLoaded = true;
             for (int i = 1; producer.isActive(); i++) {
                 System.out.println("## iteration " + i);
 
@@ -69,9 +73,10 @@ public class Main {
                     continue;
                 }
 
-                if (collectTicks) {
+                if (collectTicks && chartNotLoaded) {
                     ChartCanvas chartCanvas = frame.getChartCanvas();
                     setupChart(collectValues, chartCanvas, ticksTs, watchers);
+                    chartNotLoaded = false;
                 }
 
                 long startMillis = System.currentTimeMillis();
@@ -134,8 +139,8 @@ public class Main {
                     maxWatcher = watcher;
                 }
 
-                RegressionAlgo ralgo = (RegressionAlgo) watcher.m_algo;
-                String key = ralgo.key(false);
+                BaseAlgo algo = watcher.m_algo;
+                String key = algo.key(false);
                 System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
                         + "   trades=" + watcher.m_tradesNum + " .....................................");
             }
@@ -147,8 +152,8 @@ public class Main {
                     + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
 
             double gain = maxWatcher.totalPriceRatio(true);
-            RegressionAlgo ralgo = (RegressionAlgo) maxWatcher.m_algo;
-            String key = ralgo.key(true);
+            BaseAlgo algo = maxWatcher.m_algo;
+            String key = algo.key(true);
             System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
                     + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
 

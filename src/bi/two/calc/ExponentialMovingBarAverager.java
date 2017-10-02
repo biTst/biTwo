@@ -12,7 +12,7 @@ import java.util.List;
 
 // EMA
 public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-    public static final double DEF_THRESHOLD = 0.99657;
+    private static final double DEF_THRESHOLD = 0.99;
 
     private final BarSplitter m_barSplitter;
     private final List<Double> m_multipliers = new ArrayList<>();
@@ -22,11 +22,11 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
     private boolean m_initialized;
     private TickData m_tickData;
 
-    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
         this(tsd, length, barSize, DEF_THRESHOLD);
     }
 
-    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize, double threshold) {
+    public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
         super();
         int barsNum = 0;
         double alpha = 2.0 / (length + 1); // 0.33

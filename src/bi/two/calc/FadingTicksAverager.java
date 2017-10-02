@@ -15,6 +15,8 @@ public class FadingTicksAverager extends TicksBufferBased<Double> {
     @Override public void start() {
         // reset
         m_oldestTime = 0L;
+        m_sum = 0;
+        m_weight = 0;
     }
 
     @Override public void processTick(ITickData tick) {

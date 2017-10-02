@@ -9,7 +9,7 @@ import bi.two.ts.ITimesSeriesData;
 public abstract class TicksBufferBased<R>
         extends BaseTimesSeriesData<ITickData>
         implements BarSplitter.BarHolder.ITicksProcessor<R> {
-    protected final BarSplitter m_splitter;
+    public final BarSplitter m_splitter;
     private boolean m_initialized;
     private boolean m_dirty;
     private boolean m_filled;
