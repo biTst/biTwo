@@ -41,8 +41,8 @@ public class EmaTrendAlgo extends BaseAlgo {
 m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSize));
 
 //        m_differ = new Differ(m_ema, m_emaShort);
-m_differ = new Differ(m_ema, m_regressor);
-        m_adjuster = new Adjuster(m_differ, m_emaDiffThreshold);
+        m_differ = new Differ(m_ema, m_regressor);
+        m_adjuster = new Adjuster(m_differ, tsd, m_emaDiffThreshold);
         m_adjuster.addListener(this);
     }
 
@@ -145,11 +145,13 @@ m_differ = new Differ(m_ema, m_regressor);
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
         private final float m_threshold;
+        private final ITimesSeriesData m_priceTsd;
         private boolean m_dirty;
         private TickData m_tickData;
 
-        Adjuster(Differ differ, float threshold) {
+        Adjuster(Differ differ, ITimesSeriesData tsd, float threshold) {
             super(differ);
+            m_priceTsd = tsd;
             m_threshold = threshold;
         }
 
@@ -160,16 +162,19 @@ m_differ = new Differ(m_ema, m_regressor);
             super.onChanged(this, changed); // notifyListeners
         }
 
-
         @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 ITimesSeriesData parent = getParent();
                 ITickData latestDiff = parent.getLatestTick();
                 if (latestDiff != null) {
                     float diff = latestDiff.getClosePrice();
-                    diff = Math.min(diff, m_threshold);
-                    diff = Math.max(diff, -m_threshold);
-                    float scaled = diff / m_threshold;
+
+                    float lastPrice = m_priceTsd.getLatestTick().getClosePrice();
+                    float threshold = m_threshold * lastPrice / 100;
+                    diff = Math.min(diff, threshold);
+                    diff = Math.max(diff, -threshold);
+                    float scaled = diff / threshold;
+
                     long timestamp = latestDiff.getTimestamp();
                     m_tickData = new TickData(timestamp, scaled);
                     m_dirty = false;
