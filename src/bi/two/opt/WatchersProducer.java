@@ -53,7 +53,7 @@ public class WatchersProducer {
             if (namedOptimizeCfgStr != null) {
                 s = namedOptimizeCfgStr;
             }
-            List<OptimizeConfig> oc = parseOptimizeConfig(s);
+            List<OptimizeConfig> oc = parseOptimizeConfig(s, config);
             if (!oc.isEmpty()) {
                 optimizeConfigs.add(oc);
             }
@@ -61,10 +61,14 @@ public class WatchersProducer {
         return optimizeConfigs;
     }
 
-    private static List<OptimizeConfig> parseOptimizeConfig(String optimizeCfgStr) { // smooth=2.158+-5*0.01&threshold=0.158+-5*0.001
+    private static List<OptimizeConfig> parseOptimizeConfig(String optimizeCfgStr, MapConfig config) { // smooth=2.158+-5*0.01&threshold=0.158+-5*0.001
         List<OptimizeConfig> ret = new ArrayList<>();
         String[] split = optimizeCfgStr.split("\\&"); // [ "divider=26.985[3,40]", "reverse=0.0597[0.01,1.0]" ]
         for (String s : split) { // "reverse=0.0597[0.01,1.0]"
+            String namedOptimizeCfgStr = config.getPropertyNoComment(s);
+            if (namedOptimizeCfgStr != null) {
+                s = namedOptimizeCfgStr;
+            }
             String[] split2 = s.split("\\=");
             if (split2.length == 2) {
                 String name = split2[0];

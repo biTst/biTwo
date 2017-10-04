@@ -28,9 +28,6 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
 
-//            for (OptimizeConfig optimizeConfig : m_optimizeConfigs) {
-//
-//            }
         m_startPoint = buildStartPoint(m_optimizeConfigs);
         m_bounds = buildBounds(m_optimizeConfigs);
 

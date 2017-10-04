@@ -53,8 +53,8 @@ m_differ = new Differ(m_ema, m_regressor);
 
     @Override public String key(boolean detailed) {
         return (detailed ? "len=" : "") + m_length
-                + (detailed ? ",slen=" : "") + m_shortLength
-                + (detailed ? ",thr=" : "") + m_emaDiffThreshold
+                + (detailed ? ",slen=" : ",") + m_shortLength
+                + (detailed ? ",thr=" : ",") + m_emaDiffThreshold
                 /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
@@ -123,7 +123,6 @@ m_differ = new Differ(m_ema, m_regressor);
             super.onChanged(this, changed); // notifyListeners
         }
 
-
         @Override public ITickData getLatestTick() {
             if (m_dirty) {
                 ITickData latestEma = m_ema.getLatestTick();
@@ -170,8 +169,8 @@ m_differ = new Differ(m_ema, m_regressor);
                     float diff = latestDiff.getClosePrice();
                     diff = Math.min(diff, m_threshold);
                     diff = Math.max(diff, -m_threshold);
-                    long timestamp = latestDiff.getTimestamp();
                     float scaled = diff / m_threshold;
+                    long timestamp = latestDiff.getTimestamp();
                     m_tickData = new TickData(timestamp, scaled);
                     m_dirty = false;
                 }
