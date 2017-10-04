@@ -1,6 +1,6 @@
 package bi.two.opt;
 
-import bi.two.algo.impl.RegressionAlgo;
+import bi.two.algo.BaseAlgo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.MultivariateFunction;
@@ -98,8 +98,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     new ObjectiveFunction(m_function),
                     new MaxEval(MAX_EVALS_COUNT),
                     GoalType.MAXIMIZE,
-                    new InitialGuess(m_startPoint),
-                    m_bounds
+                    new InitialGuess(m_startPoint)/*,
+                    m_bounds*/
             );
 
             System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
@@ -161,7 +161,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
     @Override public void logResultsEx() {
         double gain = m_lastWatcher.totalPriceRatio(true);
-        RegressionAlgo ralgo = (RegressionAlgo) m_lastWatcher.m_algo;
+        BaseAlgo ralgo = m_lastWatcher.m_algo;
         String key = ralgo.key(true);
         System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");

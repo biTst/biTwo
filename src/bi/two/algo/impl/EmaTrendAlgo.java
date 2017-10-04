@@ -5,7 +5,6 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.ExponentialMovingBarAverager;
-import bi.two.calc.FadingTicksAverager;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -20,8 +19,9 @@ public class EmaTrendAlgo extends BaseAlgo {
     private final long m_barSize;
     private final float m_length;
     private final float m_shortLength;
+    private final float m_emaDiffThreshold;
     private final ExponentialMovingBarAverager m_ema;
-    private final FadingTicksAverager m_emaShort;
+//    private final FadingTicksAverager m_emaShort;
     private final Differ m_differ;
     private final Adjuster m_adjuster;
 //    private final RegressionAlgo.Regressor2 m_regressor;
@@ -33,15 +33,16 @@ public class EmaTrendAlgo extends BaseAlgo {
         m_barSize = config.getNumber(Vary.period).longValue();
         m_length = config.getNumber(Vary.emaLen).floatValue();
         m_shortLength = config.getNumber(Vary.shortEmaLen).floatValue();
+        m_emaDiffThreshold = config.getNumber(Vary.emaDiffThreshold).floatValue();
 
         m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
-        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
+//        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
 //m_regressor = new RegressionAlgo.Regressor2(tsd, m_length, m_barSize, 1);
 m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSize));
 
 //        m_differ = new Differ(m_ema, m_emaShort);
 m_differ = new Differ(m_ema, m_regressor);
-        m_adjuster = new Adjuster(m_differ);
+        m_adjuster = new Adjuster(m_differ, m_emaDiffThreshold);
         m_adjuster.addListener(this);
     }
 
@@ -52,7 +53,8 @@ m_differ = new Differ(m_ema, m_regressor);
 
     @Override public String key(boolean detailed) {
         return (detailed ? "len=" : "") + m_length
-                + (detailed ? "slen=" : "") + m_shortLength
+                + (detailed ? ",slen=" : "") + m_shortLength
+                + (detailed ? ",thr=" : "") + m_emaDiffThreshold
                 /*+ ", " + Utils.millisToDHMSStr(period)*/;
     }
 
@@ -66,8 +68,8 @@ m_differ = new Differ(m_ema, m_regressor);
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
             addChart(chartData, m_ema.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
-            addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
-            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
+//            addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
+//            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
             addChart(chartData, m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
         }
 
@@ -143,13 +145,13 @@ m_differ = new Differ(m_ema, m_regressor);
 
     //----------------------------------------------------------
     public static class Adjuster extends BaseTimesSeriesData<ITickData> {
-        public static final float THREAHOLD = 2f;
-
+        private final float m_threshold;
         private boolean m_dirty;
         private TickData m_tickData;
 
-        Adjuster(Differ differ) {
+        Adjuster(Differ differ, float threshold) {
             super(differ);
+            m_threshold = threshold;
         }
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -166,10 +168,10 @@ m_differ = new Differ(m_ema, m_regressor);
                 ITickData latestDiff = parent.getLatestTick();
                 if (latestDiff != null) {
                     float diff = latestDiff.getClosePrice();
-                    diff = Math.min(diff, THREAHOLD);
-                    diff = Math.max(diff, -THREAHOLD);
+                    diff = Math.min(diff, m_threshold);
+                    diff = Math.max(diff, -m_threshold);
                     long timestamp = latestDiff.getTimestamp();
-                    float scaled = diff / THREAHOLD;
+                    float scaled = diff / m_threshold;
                     m_tickData = new TickData(timestamp, scaled);
                     m_dirty = false;
                 }

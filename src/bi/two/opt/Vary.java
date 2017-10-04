@@ -16,8 +16,9 @@ public enum Vary {
     drop("drop", VaryType.FLOAT),           // trend drop level
     reverse("reverse", VaryType.FLOAT),     // direction threshold
 
-    emaLen("emaLen", VaryType.FLOAT),         // ema trend len
-    shortEmaLen("shortEmaLen", VaryType.FLOAT),         // short ema trend len
+    emaLen("emaLen", VaryType.FLOAT),           // ema trend len
+    shortEmaLen("shortEmaLen", VaryType.FLOAT), // short ema trend len
+    emaDiffThreshold("emaDiffThreshold", VaryType.FLOAT),     // ema-diff threshold
     ;
     
     public final String m_key;
