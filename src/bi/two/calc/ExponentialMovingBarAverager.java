@@ -13,7 +13,7 @@ import java.util.List;
 // EMA
 public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
     private static final double DEF_THRESHOLD = 0.995;
-    public static final int MIN_LEN = 3;
+    private static final int MIN_LEN = 3;
 
     private final BarSplitter m_barSplitter;
     private final List<Double> m_multipliers = new ArrayList<>();
@@ -82,7 +82,8 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
         if (m_filled) {
             if (m_dirty) {
                 Double ret = m_barSplitter.iterateTicks(m_barsProcessor);
-                long timestamp = m_parent.getLatestTick().getTimestamp();
+                ITickData latestTick = m_parent.getLatestTick();
+                long timestamp = latestTick.getTimestamp();
                 m_tickData = new TickData(timestamp, ret.floatValue());
                 m_dirty = false;
             }
@@ -101,10 +102,12 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
     private class BarsProcessor implements TimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Double> {
         private int index = 0;
         private double ret = 0;
+        private double weight = 0;
 
         @Override public void init() {
             index = 0;
             ret = 0;
+            weight = 0;
         }
 
         @Override public void processTick(BarSplitter.BarHolder barHolder) {
@@ -114,12 +117,15 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
                 float closePrice = latestTick.getClosePrice();
                 double multiplier = m_multipliers.get(index);
                 index++;
-                ret += closePrice * multiplier;
+                double val = closePrice * multiplier;
+                ret += val;
+                weight += multiplier;
             }
         }
 
         @Override public Double done() {
-            return ret;
+            double res = ret / weight;
+            return res;
         }
     }
 }
