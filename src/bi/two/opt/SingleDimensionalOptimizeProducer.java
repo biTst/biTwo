@@ -20,9 +20,9 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
     public static final double ABSOLUTE_TOLERANCE = 1e-9;
 
     private final OptimizeConfig m_fieldConfig;
-    private final double m_start;
-    private final double m_min;
-    private final double m_max;
+    private final double m_start; // multiplied
+    private final double m_min; // multiplied
+    private final double m_max; // multiplied
     private BrentOptimizer m_optimizer;
     private UnivariatePointValuePair m_optimizePoint;
 
@@ -30,9 +30,10 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         super(optimizeConfigs, algoConfig);
         m_fieldConfig = m_optimizeConfigs.get(0);
 
-        m_start = m_fieldConfig.m_start.doubleValue() ;
-        m_min = m_fieldConfig.m_min.doubleValue();
-        m_max = m_fieldConfig.m_max.doubleValue();
+        double multiplier = m_fieldConfig.m_multiplier;
+        m_start = m_fieldConfig.m_start.doubleValue() / multiplier;
+        m_min = m_fieldConfig.m_min.doubleValue() / multiplier;
+        m_max = m_fieldConfig.m_max.doubleValue() / multiplier;
 
         startThread();
     }
@@ -43,13 +44,13 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         String fieldName = vary.m_key;
         double multiplier = m_fieldConfig.m_multiplier;
         double val = value * multiplier;
-        if (val < m_min) {
-            System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + m_min);
-            val = m_min / multiplier;
+        if (value < m_min) {
+            val = m_fieldConfig.m_min.doubleValue();
+            System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + val);
         }
-        if (val > m_max) {
-            System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + m_max);
-            val = m_max / multiplier;
+        if (value > m_max) {
+            val = m_fieldConfig.m_max.doubleValue();
+            System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + val);
         }
 
         m_algoConfig.put(fieldName, val);
@@ -82,7 +83,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         m_optimizePoint = m_optimizer.optimize(new MaxEval(MAX_EVALS_COUNT),
                 new UnivariateObjectiveFunction(this),
                 GoalType.MAXIMIZE,
-                new SearchInterval(m_min / multiplier, m_max / multiplier, m_start / multiplier));
+                new SearchInterval(m_min, m_max, m_start));
         System.out.println("BrentOptimizer result for " + m_fieldConfig.m_vary.m_key
                 + ": point=" + (m_optimizePoint.getPoint() * multiplier)
                 + "; value=" + m_optimizePoint.getValue()

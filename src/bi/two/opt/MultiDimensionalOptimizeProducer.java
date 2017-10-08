@@ -22,14 +22,14 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     public static final double ABSOLUTE_TOLERANCE = 1e-10;
 
     private final MultivariateFunction m_function;
-    private final double[] m_startPoint;
-    private final SimpleBounds m_bounds;
+    private final double[] m_startPoint; // multiplied
+    // private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
 
     public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
 
         m_startPoint = buildStartPoint(m_optimizeConfigs);
-        m_bounds = buildBounds(m_optimizeConfigs);
+        // m_bounds = buildBounds(m_optimizeConfigs); // PowellOptimizer not supports bounds
 
         m_function = new MultivariateFunction() {
             @Override public double value(double[] point) {
@@ -46,12 +46,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     double min = fieldConfig.m_min.doubleValue();
                     if (val < min) {
                         System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
-                        val = min / multiplier;
+                        val = min;
                     }
                     double max = fieldConfig.m_max.doubleValue();
                     if (val > max) {
                         System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
-                        val = max / multiplier;
+                        val = max;
                     }
 
                     m_algoConfig.put(fieldName, val);
@@ -96,7 +96,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     new MaxEval(MAX_EVALS_COUNT),
                     GoalType.MAXIMIZE,
                     new InitialGuess(m_startPoint)/*,
-                    m_bounds*/
+                    m_bounds*/    // PowellOptimizer not supports bounds
             );
 
             System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
