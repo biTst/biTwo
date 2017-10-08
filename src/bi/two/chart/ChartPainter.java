@@ -69,7 +69,7 @@ public class ChartPainter {
         int timeAxeHeight = cps.getTimeAxeHeight();
         int chartsHeight = height - timeAxeHeight;
 
-        // init Y axe
+        // paint areas
         for (ChartAreaSettings cas : chartAreasSettings) {
             int paintLeft = (int) (cas.getLeft() * width);
             int paintWidth = (int) (cas.getWidth() * width);
@@ -103,6 +103,9 @@ public class ChartPainter {
                                     if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
                                         maxPrice = Math.max(maxPrice, max);
                                         minPrice = Math.min(minPrice, min);
+if(Float.isNaN(maxPrice) || Float.isNaN(minPrice)) {
+    System.out.println("nan");
+}
                                     }
                                 }
                             }
@@ -118,7 +121,7 @@ public class ChartPainter {
             }
             caps.initYAxe(minPrice, maxPrice);
 
-            paintChartAreas(g2, cas, cps, caps, chartData);
+            paintChartArea(g2, cas, cps, caps, chartData);
         }
 
         paintCross(g2, crossPoint, width, height);
@@ -135,7 +138,7 @@ public class ChartPainter {
         }
     }
 
-    private void paintChartAreas(Graphics2D g2, ChartAreaSettings cas, ChartPaintSetting cps, ChartAreaPaintSetting caps, ChartData chartData) {
+    private void paintChartArea(Graphics2D g2, ChartAreaSettings cas, ChartPaintSetting cps, ChartAreaPaintSetting caps, ChartData chartData) {
         int paintLeft = caps.getPaintLeft();
         int paintWidth = caps.getPaintWidth();
         int paintTop = caps.getPaintTop();
@@ -147,7 +150,8 @@ public class ChartPainter {
         g2.setColor(color);
 
         g2.drawRect(paintLeft, paintTop, paintWidth - 1, paintHeight - 1);
-        g2.drawString(cas.getName(), paintLeft + 10, paintBottom - 2);
+        int fontHeight = g2.getFontMetrics().getHeight();
+        g2.drawString(cas.getName(), paintLeft + 10, paintTop + fontHeight);
 
         // paint PriceAxe
         int paintRight = paintLeft + paintWidth - 1;
@@ -175,7 +179,7 @@ public class ChartPainter {
             long timeMin = (long) xAxe.translateReverse(0);
             long timeMax = (long) xAxe.translateReverse(priceRight);
 
-            // paint ticks
+            // paint layers
             List<ChartAreaLayerSettings> layers = cas.getLayers();
             for (ChartAreaLayerSettings ls : layers) {
                 String name = ls.getName();
