@@ -55,7 +55,7 @@ m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSi
         return (detailed ? "len=" : "") + m_length
                 + (detailed ? ",slen=" : ",") + m_shortLength
                 + (detailed ? ",thr=" : ",") + m_emaDiffThreshold
-                /*+ ", " + Utils.millisToDHMSStr(period)*/;
+                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {

@@ -164,7 +164,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                 + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
 
         long processedPeriod = m_lastWatcher.getProcessedPeriod();
-        System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod) );
+        System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
         System.out.println(" processedDays=" + processedDays

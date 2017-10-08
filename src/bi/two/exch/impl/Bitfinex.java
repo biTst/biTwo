@@ -37,7 +37,7 @@ public class Bitfinex extends BaseExchImpl {
     }
 
     public static List<TradeTickData> readTicks(long period) throws Exception {
-        System.out.println("readTicks() period=" + Utils.millisToDHMSStr(period));
+        System.out.println("readTicks() period=" + Utils.millisToYDHMSStr(period));
 
         long newestCacheTickTime = 0;
         List<TradeTickData> cacheTicks = readCache(period);
@@ -232,7 +232,7 @@ public class Bitfinex extends BaseExchImpl {
         TickVolumeData oldestTick = ticks.get(size - 1);
         long oldestTickTimestamp = oldestTick.getTimestamp();
         long newestTickTimestamp = newestTick.getTimestamp();
-        String timePeriod = Utils.millisToDHMSStr(newestTickTimestamp - oldestTickTimestamp);
+        String timePeriod = Utils.millisToYDHMSStr(newestTickTimestamp - oldestTickTimestamp);
         System.out.println(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
         if (logArray) {
             for (int i = 0; i < size; i++) {

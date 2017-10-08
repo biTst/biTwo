@@ -95,7 +95,7 @@ public class Main {
             bestProducer.logResultsEx();
 
             long allEndMillis = System.currentTimeMillis();
-            System.out.println("all DONE in " + Utils.millisToDHMSStr(allEndMillis - allStartMillis));
+            System.out.println("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
 
             try {
                 Thread.sleep(TimeUnit.HOURS.toMillis(5));
@@ -148,8 +148,8 @@ public class Main {
             Watcher lastWatcher = watchers.get(watchersNum - 1);
             long processedPeriod = lastWatcher.getProcessedPeriod();
             long endMillis = System.currentTimeMillis();
-            System.out.println("   processedPeriod=" + Utils.millisToDHMSStr(processedPeriod)
-                    + "   spent=" + Utils.millisToDHMSStr(endMillis - startMillis) + " .....................................");
+            System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
+                    + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
 
             double gain = maxWatcher.totalPriceRatio(true);
             BaseAlgo algo = maxWatcher.m_algo;

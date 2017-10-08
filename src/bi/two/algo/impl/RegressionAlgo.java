@@ -256,7 +256,7 @@ public class RegressionAlgo extends BaseAlgo {
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",drop=" : ",") + m_dropLevel
                 + (detailed ? ",reverse=" : ",") + m_directionThreshold
-                /*+ ", " + Utils.millisToDHMSStr(period)*/;
+                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
 
 

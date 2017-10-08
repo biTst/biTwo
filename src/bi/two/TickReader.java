@@ -59,7 +59,7 @@ public enum TickReader {
                             long projectedTotal = (long) (took / fraction);
                             long projectedRemained = projectedTotal - took;
                             System.out.println("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
-                                    + ": total: " + Utils.millisToDHMSStr(projectedTotal) + "; remained=" + Utils.millisToDHMSStr(projectedRemained));
+                                    + ": total: " + Utils.millisToYDHMSStr(projectedTotal) + "; remained=" + Utils.millisToYDHMSStr(projectedRemained));
                             m_lastReportTime = currentTimeMillis;
                         }
                         m_nextReport += REPORT_BLOCK_SIZE;
@@ -67,58 +67,6 @@ public enum TickReader {
                 return read;
                 }
             };
-
-//            Reader reader = new FileReader(file) {
-//                private static final long REPORT_BLOCK_SIZE = 10000;
-//
-//                boolean m_mute;
-//                private long m_wasRead = 0;
-//                private long m_nextReport = REPORT_BLOCK_SIZE;
-//                private long m_startTime = System.currentTimeMillis();
-//                private long m_lastReportTime;
-//
-//                @Override public int read(char[] cbuf, int off, int len) throws IOException {
-//                    int read = super.read(cbuf, off, len);
-//                    if (!m_mute) {
-//                        m_wasRead += read;
-//                        if(m_wasRead > lastBytesToProcess) {
-//                            System.out.println("too many reads");
-//                        }
-//                        if (m_wasRead > m_nextReport) {
-//                            long currentTimeMillis = System.currentTimeMillis();
-//                            if(currentTimeMillis - m_lastReportTime > 20000) {
-//                                long took = currentTimeMillis - m_startTime;
-//                                double fraction = ((double) m_wasRead) / lastBytesToProcess;
-//                                long projectedTotal = (long) (took / fraction);
-//                                long projectedRemained = projectedTotal - took;
-//                                System.out.println("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
-//                                        + ": total: " + Utils.millisToDHMSStr(projectedTotal) + "; remained=" + Utils.millisToDHMSStr(projectedRemained));
-//                                m_lastReportTime = currentTimeMillis;
-//                            }
-//                            m_nextReport += REPORT_BLOCK_SIZE;
-//                        }
-//                    }
-//                    return read;
-//                }
-//
-//                @Override public long skip(long n) throws IOException {
-//                    m_mute = true;
-//                    try {
-//                        return super.skip(n);
-//                    } finally {
-//                        m_mute = false;
-//                    }
-//                }
-//            };
-//
-//            boolean skipBytes = (lastBytesToProcess > 0);
-//            if (skipBytes) {
-//                long start = System.currentTimeMillis();
-//                long toSkipBytes = fileLength - lastBytesToProcess;
-//                reader.skip(toSkipBytes);
-//                long end = System.currentTimeMillis();
-////                System.out.println("skip("+toSkipBytes+") took " + (end-start) + "ms");
-//            }
 
             String dataFileType = config.getProperty("dataFile.type");
 
@@ -135,10 +83,21 @@ public enum TickReader {
 
                 DataFileType type = DataFileType.get(dataFileType);
 
+                float lastClosePrice = 0;
                 String line;
                 while ((line = br.readLine()) != null) {
                     // System.out.println("line = " + line);
                     TickData tickData = type.parseLine(line);
+
+                    float closePrice = tickData.getClosePrice();
+                    if (lastClosePrice != 0) {
+                        float rate = closePrice / lastClosePrice;
+                        if (rate < 0.5 || rate > 1.5) {
+                            continue; // skip too big price drops
+                        }
+                    }
+                    lastClosePrice = closePrice;
+
                     ticksTs.addNewestTick(tickData);
                     if (callback != null) {
                         callback.run();
