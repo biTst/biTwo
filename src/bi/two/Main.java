@@ -216,7 +216,7 @@ public class Main {
             } else {
                 if (m_counter % 10000 == 0) {
                     long time = System.currentTimeMillis();
-                    if (time - lastTime > 5000) {
+                    if (time - lastTime > 10000) {
                         System.out.println("lines was read: " + m_counter);
                         lastTime = time;
                     }
