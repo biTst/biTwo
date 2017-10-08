@@ -33,6 +33,7 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private long m_startMillis;
     private long m_lastMillis;
     public int m_tradesNum;
+    private ITickData m_lastAdjusted; // saved direction from last tick processing
 
     public Watcher(MapConfig config, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
@@ -51,19 +52,22 @@ public class Watcher extends TimesSeriesData<TradeData> {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        if (changed) {
-            float closePrice = m_priceTs.getLatestTick().getClosePrice();
-            m_topData.m_last = closePrice;
-            m_topData.m_bid = closePrice;
-            m_topData.m_ask = closePrice;
+        float closePrice = m_priceTs.getLatestTick().getClosePrice();
+        m_topData.m_last = closePrice;
+        m_topData.m_bid = closePrice;
+        m_topData.m_ask = closePrice;
 
+        if ((m_lastAdjusted != null) && (m_initAcctData != null)) {
+            process(m_lastAdjusted);
+            m_lastAdjusted = null;
+        }
+
+        if (changed) {
             if (m_initAcctData == null) { // first tick
                 init();
             } else {
                 ITickData adjusted = m_algo.getAdjusted();
-                if (adjusted != null) {
-                    process(adjusted);
-                }
+                m_lastAdjusted = adjusted; // save to process on next tick
             }
         }
     }
@@ -80,8 +84,6 @@ public class Watcher extends TimesSeriesData<TradeData> {
         log(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
 
         needBuyTo *= 0.95;
-
-//        double orderPrice = (needBuyTo > 0) ? ask: bid;
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
