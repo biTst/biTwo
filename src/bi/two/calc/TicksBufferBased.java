@@ -9,7 +9,7 @@ import bi.two.ts.ITimesSeriesData;
 public abstract class TicksBufferBased<R>
         extends BaseTimesSeriesData<ITickData>
         implements BarSplitter.BarHolder.ITicksProcessor<R> {
-    public final BarSplitter m_splitter;
+    protected final BarSplitter m_splitter;
     private boolean m_initialized;
     private boolean m_dirty;
     private boolean m_filled;
@@ -27,7 +27,12 @@ public abstract class TicksBufferBased<R>
             if (m_dirty) {
                 R ret = m_splitter.m_newestBar.iterateTicks(this);
                 long timestamp = m_parent.getLatestTick().getTimestamp();
-                m_tickData = new TickData(timestamp, calcTickValue(ret));
+                float price = calcTickValue(ret);
+                if (!Float.isNaN(price)) {
+                    m_tickData = new TickData(timestamp, price);
+                } else {
+                    return null; // can be when not enough ticks in bar to calc regression  - should be at lest 2 ticks
+                }
                 m_dirty = false;
             }
             return m_tickData;
@@ -41,16 +46,16 @@ public abstract class TicksBufferBased<R>
             if (!m_initialized) {
                 m_initialized = true;
                 m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                    @Override public void onTickEnter(ITickData tickData) {
-                        m_dirty = true;
-                    }
+                    @Override public void onTickEnter(ITickData tickData) {}
 
                     @Override public void onTickExit(ITickData tickData) {
                         m_filled = true;
+                        m_splitter.m_newestBar.removeBarHolderListener(this);
                     }
                 });
             }
-            iAmChanged = m_filled && m_dirty;
+            m_dirty = m_filled;
+            iAmChanged = m_dirty;
         }
         super.onChanged(this, iAmChanged); // notifyListeners
     }
