@@ -12,7 +12,8 @@ import java.util.List;
 
 // EMA
 public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-    private static final double DEF_THRESHOLD = 0.99;
+    private static final double DEF_THRESHOLD = 0.995;
+    public static final int MIN_LEN = 3;
 
     private final BarSplitter m_barSplitter;
     private final List<Double> m_multipliers = new ArrayList<>();
@@ -28,6 +29,9 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
 
     public ExponentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
         super();
+        if (length <= MIN_LEN) {
+            throw new RuntimeException("ExponentialMovingBarAverager.length should be bigger than " + MIN_LEN);
+        }
         int barsNum = 0;
         double alpha = 2.0 / (length + 1); // 0.33
         double rate = 1 - alpha; // 0.66
@@ -37,6 +41,12 @@ public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData>
             m_multipliers.add(multiplier);
             barsNum++;
             sum += multiplier;
+        }
+        List<Double> multipliers = new ArrayList<>(m_multipliers);
+        m_multipliers.clear();
+        double rest = 1.0d - sum;
+        for (Double multiplier : multipliers) {
+            m_multipliers.add(multiplier + rest * multiplier);
         }
         m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
         setParent(m_barSplitter);
