@@ -7,7 +7,7 @@ import bi.two.Main;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.ExponentialMovingBarAverager;
+import bi.two.calc.BarsExponentialAverager;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
@@ -29,7 +29,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
     public final HashMap<String,Differ> s_differCache = new HashMap<>();
     public final HashMap<String,Scaler> s_scalerCache = new HashMap<>();
-    public final HashMap<String,ExponentialMovingBarAverager> s_averagerCache = new HashMap<>();
+    public final HashMap<String,BarsExponentialAverager> s_averagerCache = new HashMap<>();
     public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
     public final HashMap<String,TicksRegressor> s_smootherCache = new HashMap<>();
@@ -50,7 +50,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final BarSplitter m_regressorBars; // buffer to calc diff
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
-    public final ExponentialMovingBarAverager m_averager;
+    public final BarsExponentialAverager m_averager;
     public final SimpleMovingBarAverager m_signaler;
     public final Powerer m_powerer;
     public final BaseTimesSeriesData m_smoother;
@@ -131,9 +131,9 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_scaler.addListener(new ScalerVerifier(m_scaler));
 
         key = key + "." + m_slopeLength;
-        ExponentialMovingBarAverager averager = s_averagerCache.get(key);
+        BarsExponentialAverager averager = s_averagerCache.get(key);
         if (averager == null) {
-            averager = new ExponentialMovingBarAverager(m_scaler, m_slopeLength, m_barSize);
+            averager = new BarsExponentialAverager(m_scaler, m_slopeLength, m_barSize);
             s_averagerCache.put(key, averager);
         }
         m_averager = averager;
@@ -501,14 +501,14 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
-        private final ExponentialMovingBarAverager m_averager;
+        private final BarsExponentialAverager m_averager;
         private final SimpleMovingBarAverager m_signaler;
         private final float m_rate;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_xxx;
 
-        public Powerer(ExponentialMovingBarAverager averager, SimpleMovingBarAverager signaler, float rate) {
+        public Powerer(BarsExponentialAverager averager, SimpleMovingBarAverager signaler, float rate) {
             super(signaler);
             m_averager = averager;
             m_signaler = signaler;
@@ -798,14 +798,14 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class ZeroLagExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-        private final ExponentialMovingBarAverager m_ema1;
-        private final ExponentialMovingBarAverager m_ema2;
+        private final BarsExponentialAverager m_ema1;
+        private final BarsExponentialAverager m_ema2;
         private TickData m_tickData;
 
         ZeroLagExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
             super();
-            m_ema1 = new ExponentialMovingBarAverager(tsd, length, barSize);
-            m_ema2 = new ExponentialMovingBarAverager(m_ema1, length, barSize);
+            m_ema1 = new BarsExponentialAverager(tsd, length, barSize);
+            m_ema2 = new BarsExponentialAverager(m_ema1, length, barSize);
             setParent(m_ema2);
         }
 
@@ -972,10 +972,10 @@ public class RegressionAlgo extends BaseAlgo {
 
     //=============================================================================================
     private static class AveragerVerifier extends BaseVerifier {
-        private final ExponentialMovingBarAverager m_averager;
+        private final BarsExponentialAverager m_averager;
         private boolean m_checkTickExtraData = true;
 
-        AveragerVerifier(ExponentialMovingBarAverager averager) {
+        AveragerVerifier(BarsExponentialAverager averager) {
             m_averager = averager;
         }
 
