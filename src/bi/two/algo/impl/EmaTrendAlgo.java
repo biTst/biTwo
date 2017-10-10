@@ -4,7 +4,9 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.calc.Differ;
 import bi.two.calc.TicksRegressor;
+import bi.two.calc.TicksSimpleAverager;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -20,14 +22,17 @@ public class EmaTrendAlgo extends BaseAlgo {
 //    private final float m_length;
     private final float m_longLength;
     private final float m_shortLength;
-    private final float m_emaDiffThreshold;
+    private final float m_signalLength; // macD signal len
+    private final float m_threshold;
 //    private final ExponentialMovingBarAverager m_ema;
 //    private final FadingTicksAverager m_emaShort;
-    private final Differ m_differ;
+    private final Differ m_macD;
     private final Adjuster m_adjuster;
 //    private final RegressionAlgo.Regressor2 m_regressor;
     private final TicksRegressor m_regressorSlow;
     private final TicksRegressor m_regressorFast;
+    private final TicksSimpleAverager m_signal;
+    private final Differ m_hist;
 
     public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -36,7 +41,8 @@ public class EmaTrendAlgo extends BaseAlgo {
 //        m_length = config.getNumber(Vary.emaLen).floatValue();
         m_longLength = config.getNumber(Vary.longEmaLen).floatValue();
         m_shortLength = config.getNumber(Vary.shortEmaLen).floatValue();
-        m_emaDiffThreshold = config.getNumber(Vary.emaDiffThreshold).floatValue();
+        m_signalLength = config.getNumber(Vary.signal).floatValue();
+        m_threshold = config.getNumber(Vary.threshold).floatValue();
 
 //        m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
 //        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
@@ -46,8 +52,11 @@ public class EmaTrendAlgo extends BaseAlgo {
 
 //        m_differ = new Differ(m_ema, m_emaShort);
 //        m_differ = new Differ(m_ema, m_regressor);
-        m_differ = new Differ(m_regressorSlow, m_regressorFast);
-        m_adjuster = new Adjuster(m_differ, tsd, m_emaDiffThreshold);
+        m_macD = new Differ(m_regressorFast, m_regressorSlow);
+        m_signal = new TicksSimpleAverager(m_macD, (long) (m_signalLength *  m_barSize));
+        m_hist = new Differ(m_macD, m_signal);
+
+        m_adjuster = new Adjuster(m_hist, tsd, m_threshold);
         m_adjuster.addListener(this);
     }
 
@@ -61,7 +70,8 @@ public class EmaTrendAlgo extends BaseAlgo {
 //                (detailed ? "len=" : "") + m_length
                 (detailed ? "lLen=" : "") + m_longLength
                 + (detailed ? ",sLen=" : ",") + m_shortLength
-                + (detailed ? ",thr=" : ",") + m_emaDiffThreshold
+                + (detailed ? ",sig=" : ",") + m_signalLength
+                + (detailed ? ",thr=" : ",") + m_threshold
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
 
@@ -74,20 +84,18 @@ public class EmaTrendAlgo extends BaseAlgo {
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
-            addChart(chartData, m_regressorSlow.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
-//            addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
-//            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
-            addChart(chartData, m_regressorFast.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_regressorSlow.getJoinNonChangedTs(), topLayers, "slow", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
+            addChart(chartData, m_regressorFast.getJoinNonChangedTs(), topLayers, "fast", Colors.alpha(Color.CYAN, 100), TickPainter.LINE);
         }
 
         ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
         java.util.List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
         {
-            addChart(chartData, m_differ.getJoinNonChangedTs(), bottomLayers, "differ", Color.CYAN, TickPainter.LINE);
-//            addChart(chartData, m_adjuster.getMinTs(), bottomLayers, "min", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_smoother.getJoinNonChangedTs(), bottomLayers, "zlema", Color.ORANGE, TickPainter.LINE);
-//            addChart(chartData, m_adjuster.getMaxTs(), bottomLayers, "max", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_adjuster.getZeroTs(), bottomLayers, "zero", Colors.alpha(Color.green, 100), TickPainter.LINE);
+            // Color.CYAN
+            addChart(chartData, m_macD.getJoinNonChangedTs(), bottomLayers, "macD", Color.PINK, TickPainter.LINE);
+            addChart(chartData, m_signal.getJoinNonChangedTs(), bottomLayers, "signal", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_hist.getJoinNonChangedTs(), bottomLayers, "hist", Color.green, TickPainter.LINE);
+            // Color.ORANGE
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
@@ -108,50 +116,9 @@ public class EmaTrendAlgo extends BaseAlgo {
     }
 
     //----------------------------------------------------------
-    public static class Differ extends BaseTimesSeriesData<ITickData> {
-        private final ITimesSeriesData<ITickData> m_ema;
-        private final ITimesSeriesData<ITickData> m_emaShort;
-        private boolean m_dirty;
-        private TickData m_tickData;
-
-        Differ(ITimesSeriesData<ITickData> ema, ITimesSeriesData<ITickData> emaShort) {
-            super(null);
-            m_ema = ema;
-            m_emaShort = emaShort;
-
-            ema.getActive().addListener(this);
-            emaShort.getActive().addListener(this);
-        }
-
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            if (changed) {
-                m_dirty = true;
-            }
-            super.onChanged(this, changed); // notifyListeners
-        }
-
-        @Override public ITickData getLatestTick() {
-            if (m_dirty) {
-                ITickData latestEma = m_ema.getLatestTick();
-                if(latestEma != null) {
-                    ITickData latestEmaShort = m_emaShort.getLatestTick();
-                    if(latestEmaShort != null) {
-                        float ema = latestEma.getClosePrice();
-                        float emaShort = latestEmaShort.getClosePrice();
-                        float diff = emaShort - ema;
-                        long timestamp = Math.max(latestEma.getTimestamp(), latestEmaShort.getTimestamp());
-                        m_tickData = new TickData(timestamp, diff);
-                        m_dirty = false;
-                    }
-                }
-            }
-            return m_tickData;
-        }
-    }
-
-    //----------------------------------------------------------
-    public static class Adjuster extends BaseTimesSeriesData<ITickData> {
-        private final float m_threshold;
+    // threshold relative to price
+    private static class Adjuster extends BaseTimesSeriesData<ITickData> {
+        private final float m_thresholdRate;
         private final ITimesSeriesData m_priceTsd;
         private boolean m_dirty;
         private TickData m_tickData;
@@ -159,7 +126,7 @@ public class EmaTrendAlgo extends BaseAlgo {
         Adjuster(Differ differ, ITimesSeriesData tsd, float threshold) {
             super(differ);
             m_priceTsd = tsd;
-            m_threshold = threshold;
+            m_thresholdRate = threshold;
         }
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -177,10 +144,10 @@ public class EmaTrendAlgo extends BaseAlgo {
                     float diff = latestDiff.getClosePrice();
 
                     float lastPrice = m_priceTsd.getLatestTick().getClosePrice();
-                    float threshold = m_threshold * lastPrice / 100;
+                    float threshold = m_thresholdRate * lastPrice / 100;
                     diff = Math.min(diff, threshold);
-                    diff = Math.max(diff, -threshold);
-                    float scaled = diff / threshold;
+                    diff = Math.max(diff, -threshold); // [-threshold; threshold]
+                    float scaled = diff / threshold; // [-1; 1]
 
                     long timestamp = latestDiff.getTimestamp();
                     m_tickData = new TickData(timestamp, scaled);
