@@ -4,7 +4,6 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.ExponentialMovingBarAverager;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -17,31 +16,36 @@ import java.util.List;
 
 public class EmaTrendAlgo extends BaseAlgo {
     private final long m_barSize;
-    private final float m_length;
+//    private final float m_length;
+    private final float m_longLength;
     private final float m_shortLength;
     private final float m_emaDiffThreshold;
-    private final ExponentialMovingBarAverager m_ema;
+//    private final ExponentialMovingBarAverager m_ema;
 //    private final FadingTicksAverager m_emaShort;
     private final Differ m_differ;
     private final Adjuster m_adjuster;
 //    private final RegressionAlgo.Regressor2 m_regressor;
+    private final RegressionAlgo.Regressor m_regressor0;
     private final RegressionAlgo.Regressor m_regressor;
 
     public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
         m_barSize = config.getNumber(Vary.period).longValue();
-        m_length = config.getNumber(Vary.emaLen).floatValue();
+//        m_length = config.getNumber(Vary.emaLen).floatValue();
+        m_longLength = config.getNumber(Vary.longEmaLen).floatValue();
         m_shortLength = config.getNumber(Vary.shortEmaLen).floatValue();
         m_emaDiffThreshold = config.getNumber(Vary.emaDiffThreshold).floatValue();
 
-        m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
+//        m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
 //        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
 //m_regressor = new RegressionAlgo.Regressor2(tsd, m_length, m_barSize, 1);
+m_regressor0 = new RegressionAlgo.Regressor(tsd, (long) (m_longLength *  m_barSize));
 m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSize));
 
 //        m_differ = new Differ(m_ema, m_emaShort);
-        m_differ = new Differ(m_ema, m_regressor);
+//        m_differ = new Differ(m_ema, m_regressor);
+        m_differ = new Differ(m_regressor0, m_regressor);
         m_adjuster = new Adjuster(m_differ, tsd, m_emaDiffThreshold);
         m_adjuster.addListener(this);
     }
@@ -52,8 +56,10 @@ m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSi
     }
 
     @Override public String key(boolean detailed) {
-        return (detailed ? "len=" : "") + m_length
-                + (detailed ? ",slen=" : ",") + m_shortLength
+        return
+//                (detailed ? "len=" : "") + m_length
+                (detailed ? "lLen=" : "") + m_longLength
+                + (detailed ? ",sLen=" : ",") + m_shortLength
                 + (detailed ? ",thr=" : ",") + m_emaDiffThreshold
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
@@ -67,7 +73,7 @@ m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSi
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
-            addChart(chartData, m_ema.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
+            addChart(chartData, m_regressor0.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
 //            addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
 //            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
             addChart(chartData, m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
@@ -107,7 +113,7 @@ m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSi
         private boolean m_dirty;
         private TickData m_tickData;
 
-        Differ(BaseTimesSeriesData<ITickData> ema, ITimesSeriesData<ITickData> emaShort) {
+        Differ(ITimesSeriesData<ITickData> ema, ITimesSeriesData<ITickData> emaShort) {
             super(null);
             m_ema = ema;
             m_emaShort = emaShort;
