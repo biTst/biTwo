@@ -23,6 +23,7 @@ public class Bitfinex extends BaseExchImpl {
 
         new Thread() {
             @Override public void run() {
+                setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
                 try {
                     List<TradeTickData> allTicks = readTicks(TimeUnit.MINUTES.toMillis(5));
 

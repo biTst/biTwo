@@ -26,6 +26,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
 
     void startThread() {
         m_thread = new Thread(this);
+        m_thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
         m_thread.start();
     }
 

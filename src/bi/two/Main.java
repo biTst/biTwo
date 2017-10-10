@@ -27,6 +27,7 @@ public class Main {
 
         new Thread("MAIN") {
             @Override public void run() {
+                setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
                 loadData(frame, args);
             }
         }.start();

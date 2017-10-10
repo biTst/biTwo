@@ -118,7 +118,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         InnerTimesSeriesData(int index) {
             m_index = index;
-            new Thread(this, "parallel-" + index).start();
+            String name = "parallel-" + index;
+            Thread thread = new Thread(this, name);
+            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+            thread.start();
         }
 
         @Override public ITickData getLatestTick() {
