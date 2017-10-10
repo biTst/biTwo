@@ -8,9 +8,8 @@ import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.ExponentialMovingBarAverager;
-import bi.two.calc.TicksBufferBased;
+import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
-import bi.two.ind.RegressionIndicator;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
@@ -33,7 +32,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,ExponentialMovingBarAverager> s_averagerCache = new HashMap<>();
     public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
-    public final HashMap<String,Regressor> s_smootherCache = new HashMap<>();
+    public final HashMap<String,TicksRegressor> s_smootherCache = new HashMap<>();
 
     private final boolean m_collectValues;
     private final long m_barSize;
@@ -56,8 +55,6 @@ public class RegressionAlgo extends BaseAlgo {
     public final Powerer m_powerer;
     public final BaseTimesSeriesData m_smoother;
     public final Adjuster m_adjuster;
-
-    public RegressionIndicator m_regressionIndicator;
 
     public String log() {
         List ticks = getTicks();
@@ -163,9 +160,9 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_smoother = new ZeroLagExpotentialMovingBarAverager(m_powerer, 100, barSize/10);
 //        m_smoother = new Regressor2(m_powerer, 70, barSize/10);
         key = key + "." + m_smootherLevel;
-        Regressor smoother = s_smootherCache.get(key);
+        TicksRegressor smoother = s_smootherCache.get(key);
         if (smoother == null) {
-            smoother = new Regressor(m_powerer, (long) (m_smootherLevel * m_barSize));
+            smoother = new TicksRegressor(m_powerer, (long) (m_smootherLevel * m_barSize));
             s_smootherCache.put(key, smoother);
         }
         m_smoother = smoother;
@@ -180,8 +177,7 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
     @Override public double getDirectionAdjusted() { // [-1 ... 1]
-        Double value = m_regressionIndicator.getValue();
-        return getDirectionAdjusted(value);
+        throw new RuntimeException("getDirectionAdjusted");
     }
 
     private static double getDirectionAdjusted(Double value) {
@@ -257,47 +253,6 @@ public class RegressionAlgo extends BaseAlgo {
                 + (detailed ? ",drop=" : ",") + m_dropLevel
                 + (detailed ? ",reverse=" : ",") + m_directionThreshold
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
-    }
-
-
-    // -----------------------------------------------------------------------------
-    public static class Regressor extends TicksBufferBased<Boolean> {
-        private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
-        private long m_lastBarTickTime;
-
-        public Regressor(ITimesSeriesData<ITickData> tsd, long period) {
-            super(tsd, period);
-        }
-
-        @Override public void start() {
-            m_simpleRegression.clear();
-            m_lastBarTickTime = 0;// reset
-        }
-
-        @Override public void processTick(ITickData tick) {
-            long timestamp = tick.getTimestamp();
-            if (m_lastBarTickTime == 0) {
-                m_lastBarTickTime = timestamp;
-            }
-
-            float price = tick.getMaxPrice();
-            m_simpleRegression.addData(m_lastBarTickTime - timestamp, price);
-        }
-
-        @Override public Boolean done() {
-            return null;
-        }
-
-        @Override protected float calcTickValue(Boolean ret) {
-            double value = m_simpleRegression.getIntercept();
-            return (float) value;
-        }
-
-        public String log() {
-            return "Regressor["
-                    + "\nsplitter=" + m_splitter.log()
-                    + "\n]";
-        }
     }
 
 

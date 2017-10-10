@@ -4,6 +4,7 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -25,8 +26,8 @@ public class EmaTrendAlgo extends BaseAlgo {
     private final Differ m_differ;
     private final Adjuster m_adjuster;
 //    private final RegressionAlgo.Regressor2 m_regressor;
-    private final RegressionAlgo.Regressor m_regressor0;
-    private final RegressionAlgo.Regressor m_regressor;
+    private final TicksRegressor m_regressorSlow;
+    private final TicksRegressor m_regressorFast;
 
     public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -40,12 +41,12 @@ public class EmaTrendAlgo extends BaseAlgo {
 //        m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
 //        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));
 //m_regressor = new RegressionAlgo.Regressor2(tsd, m_length, m_barSize, 1);
-m_regressor0 = new RegressionAlgo.Regressor(tsd, (long) (m_longLength *  m_barSize));
-m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSize));
+        m_regressorSlow = new TicksRegressor(tsd, (long) (m_longLength *  m_barSize));
+        m_regressorFast = new TicksRegressor(tsd, (long) (m_shortLength *  m_barSize));
 
 //        m_differ = new Differ(m_ema, m_emaShort);
 //        m_differ = new Differ(m_ema, m_regressor);
-        m_differ = new Differ(m_regressor0, m_regressor);
+        m_differ = new Differ(m_regressorSlow, m_regressorFast);
         m_adjuster = new Adjuster(m_differ, tsd, m_emaDiffThreshold);
         m_adjuster.addListener(this);
     }
@@ -73,10 +74,10 @@ m_regressor = new RegressionAlgo.Regressor(tsd, (long) (m_shortLength *  m_barSi
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
-            addChart(chartData, m_regressor0.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
+            addChart(chartData, m_regressorSlow.getJoinNonChangedTs(), topLayers, "ema", Colors.alpha(Color.BLUE, 100), TickPainter.LINE);
 //            addChart(chartData, m_emaShort.getJoinNonChangedTs(), topLayers, "short.ema", Color.PINK, TickPainter.LINE);
 //            addChart(chartData, m_emaShort.m_splitter, topLayers, "short.ema.spl", Color.ORANGE, TickPainter.BAR);
-            addChart(chartData, m_regressor.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_regressorFast.getJoinNonChangedTs(), topLayers, "regressor", Color.MAGENTA, TickPainter.LINE);
         }
 
         ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);

@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // EMA
+// todo - switch t0 'extends BarsBasedCalculator'
 public class ExponentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
     private static final double DEF_THRESHOLD = 0.995;
     private static final int MIN_LEN = 3;

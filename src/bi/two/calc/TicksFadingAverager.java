@@ -3,12 +3,12 @@ package bi.two.calc;
 import bi.two.chart.ITickData;
 import bi.two.ts.ITimesSeriesData;
 
-public class FadingTicksAverager extends TicksBufferBased<Double> {
+public class TicksFadingAverager extends TicksBufferBased<Double> {
     private long m_oldestTime;
     private double m_sum;
     private double m_weight;
 
-    public FadingTicksAverager(ITimesSeriesData tsd, long period) {
+    public TicksFadingAverager(ITimesSeriesData tsd, long period) {
         super(tsd, period);
     }
 
