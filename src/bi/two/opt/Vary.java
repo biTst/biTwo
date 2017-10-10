@@ -17,6 +17,7 @@ public enum Vary {
     reverse("reverse", VaryType.FLOAT),     // direction threshold
 
     emaLen("emaLen", VaryType.FLOAT),           // ema trend len
+    longEmaLen("longEmaLen", VaryType.FLOAT), // long ema trend len
     shortEmaLen("shortEmaLen", VaryType.FLOAT), // short ema trend len
     emaDiffThreshold("emaDiffThreshold", VaryType.FLOAT),     // ema-diff threshold
     ;
