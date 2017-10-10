@@ -45,7 +45,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         ITickData tick = changed ? m_parent.getLatestTick() : null;
-        onTick(changed, tick);
+        onTick(changed && (tick != null), tick);
     }
 
     public String log() {
