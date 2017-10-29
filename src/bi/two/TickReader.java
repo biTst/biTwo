@@ -27,14 +27,9 @@ public enum TickReader {
 
             boolean skipBytes = (lastBytesToProcess > 0);
             if (skipBytes) {
-                long start = System.currentTimeMillis();
                 long toSkipBytes = fileLength - lastBytesToProcess;
                 randomAccessFile.seek(toSkipBytes);
-                long end = System.currentTimeMillis();
-                System.out.println("randomAccessFile.seek("+toSkipBytes+") took " + (end-start) + "ms");
             }
-
-//            Reader reader = Channels.newReader(randomAccessFile.getChannel(), Charset.forName("UTF-8"));
 
             InputStream is = Channels.newInputStream(randomAccessFile.getChannel());
             Reader reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
