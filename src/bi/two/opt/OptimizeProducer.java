@@ -17,9 +17,11 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     State m_state = State.optimizerCalculation;
     double m_onFinishTotalPriceRatio;
     WatchersProducer.AlgoWatcher m_lastWatcher;
+    double m_maxTotalPriceRatio;
+    WatchersProducer.AlgoWatcher m_maxWatcher;
 
 
-    public OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
+    OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         m_optimizeConfigs = optimizeConfigs;
         m_algoConfig = algoConfig.copy();
     }

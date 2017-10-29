@@ -76,6 +76,11 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                 sb.append(m_onFinishTotalPriceRatio);
                 System.out.println(sb.toString());
 
+                if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
+                    m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;
+                    m_maxWatcher = m_lastWatcher;
+                }
+
                 return m_onFinishTotalPriceRatio;
             }
         };
@@ -152,18 +157,18 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     }
 
     @Override public double logResults() {
-        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_onFinishTotalPriceRatio);
-        return m_onFinishTotalPriceRatio;
+        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio);
+        return m_maxTotalPriceRatio;
     }
 
     @Override public void logResultsEx() {
-        double gain = m_lastWatcher.totalPriceRatio(true);
-        BaseAlgo ralgo = m_lastWatcher.m_algo;
+        double gain = m_maxWatcher.totalPriceRatio(true);
+        BaseAlgo ralgo = m_maxWatcher.m_algo;
         String key = ralgo.key(true);
         System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
-                + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
+                + "   trades=" + m_maxWatcher.m_tradesNum + " .....................................");
 
-        long processedPeriod = m_lastWatcher.getProcessedPeriod();
+        long processedPeriod = m_maxWatcher.getProcessedPeriod();
         System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);

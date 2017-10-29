@@ -72,6 +72,12 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
 
         System.out.println("BrentOptimizer value calculated for " + fieldName + "=" + Utils.format8(val) + "(" + Utils.format8(value)
                 + ") mult=" + multiplier + " => " + m_onFinishTotalPriceRatio);
+
+        if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
+            m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;
+            m_maxWatcher = m_lastWatcher;
+        }
+
         return m_onFinishTotalPriceRatio;
     }
 
@@ -102,18 +108,18 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         System.out.println("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.m_key
                 + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
                 + "; iterations=" + m_optimizer.getIterations()
-                + "; totalPriceRatio=" + Utils.format8(m_onFinishTotalPriceRatio));
-        return m_onFinishTotalPriceRatio;
+                + "; totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio));
+        return m_maxTotalPriceRatio;
     }
 
     @Override public void logResultsEx() {
-        double gain = m_lastWatcher.totalPriceRatio(true);
-        BaseAlgo algo = m_lastWatcher.m_algo;
+        double gain = m_maxWatcher.totalPriceRatio(true);
+        BaseAlgo algo = m_maxWatcher.m_algo;
         String key = algo.key(true);
         System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
-                    + "   trades=" + m_lastWatcher.m_tradesNum + " .....................................");
+                    + "   trades=" + m_maxWatcher.m_tradesNum + " .....................................");
 
-        long processedPeriod = m_lastWatcher.getProcessedPeriod();
+        long processedPeriod = m_maxWatcher.getProcessedPeriod();
         System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
