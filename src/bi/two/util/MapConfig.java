@@ -9,9 +9,9 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class MapConfig extends Properties {
-    public MapConfig() {
+    private static final String INCLUDE_KEY = "include";
 
-    }
+    public MapConfig() {}
 
     public MapConfig(MapConfig algoConfig) {
         putAll(algoConfig);
@@ -121,6 +121,11 @@ public class MapConfig extends Properties {
 
     public void load(String file) throws IOException {
         load(new File(file));
+        String include = (String) remove(INCLUDE_KEY);
+        if (include != null) {
+System.out.println("loading include = " + include);
+            load(include);
+        }
     }
 
     public void load(File file) throws IOException {
