@@ -75,7 +75,7 @@ public class WatchersProducer {
                 String cfg = split2[1];
                 try {
                     Vary vary = Vary.valueOf(name);
-                    OptimizeConfig optimizeConfig = OptimizeConfig.parseOptimize(cfg, vary);
+                    OptimizeConfig optimizeConfig = OptimizeConfig.parseOptimize(cfg, vary, config);
                     ret.add(optimizeConfig);
                 } catch (IllegalArgumentException e) {
                     throw new RuntimeException("vary not found with name " + name + " for config: " + s);
