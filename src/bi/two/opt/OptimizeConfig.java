@@ -1,5 +1,6 @@
 package bi.two.opt;
 
+import bi.two.util.MapConfig;
 import bi.two.util.StringParser;
 
 public class OptimizeConfig {
@@ -25,11 +26,16 @@ public class OptimizeConfig {
         m_multiplier = Math.pow(10, pow);
     }
 
-    public static OptimizeConfig parseOptimize(String config, Vary vary) {
+    public static OptimizeConfig parseOptimize(String config, Vary vary, MapConfig mapConfig) {
         // "26.985[3,40]"
         StringParser parser = new StringParser(config);
         Vary.VaryType varyType = vary.m_varyType;
         Number start = varyType.fromParser(parser);
+        if (start == null) {
+            if (parser.read("*")) {
+                start = mapConfig.getNumber(vary);
+            }
+        }
         if (start != null) {
             if (parser.read("[")) {
                 Number min = varyType.fromParser(parser);
