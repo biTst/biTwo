@@ -17,7 +17,7 @@ public class TimesSeriesData<T extends ITickData>
         super(parent);
     }
 
-    public T getLatestTick() { return m_ticks.get(0); }
+    public T getLatestTick() { return m_ticks.isEmpty() ? null : m_ticks.get(0); }
     public T getOldestTick() { return m_ticks.get(m_ticks.size() - 1); }
     public List<T> getTicks() { return m_ticks; }
 
