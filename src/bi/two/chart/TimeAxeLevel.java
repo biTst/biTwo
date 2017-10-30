@@ -21,7 +21,7 @@ public enum TimeAxeLevel {
     _30_MIN(30 * Utils.MIN_IN_MILLIS, Calendar.MINUTE, 30, RoundDown.TO_MINUTE, Format.MINUTE),
     _15_MIN(15 * Utils.MIN_IN_MILLIS, Calendar.MINUTE, 15, RoundDown.TO_MINUTE, Format.MINUTE),
     _5_MIN(5 * Utils.MIN_IN_MILLIS, Calendar.MINUTE, 5, RoundDown.TO_MINUTE, Format.MINUTE),
-//    _1_MIN(Utils.MIN_IN_MILLIS, Calendar.MINUTE, 1, RoundDown.TO_MINUTE, Format.MINUTE),
+    _1_MIN(Utils.MIN_IN_MILLIS, Calendar.MINUTE, 1, RoundDown.TO_MINUTE, Format.MINUTE),
     ;
 
     private static final Calendar SHARED_CALENDAR = new GregorianCalendar();

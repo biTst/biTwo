@@ -115,10 +115,9 @@ public class Main {
         for (Vary vary : Vary.values()) {
             String name = vary.name();
             Number number = config.getNumber(vary);
-            if (number == null) {
-                throw new RuntimeException("def config not specified for " + vary);
+            if (number != null) {
+                algoConfig.put(name, number);
             }
-            algoConfig.put(name, number);
         }
         return algoConfig;
     }

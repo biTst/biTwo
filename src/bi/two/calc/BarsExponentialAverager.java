@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // EMA
-// todo - switch t0 'extends BarsBasedCalculator'
+// todo - switch to 'extends BarsBasedCalculator'
 public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
     private static final double DEF_THRESHOLD = 0.995;
     private static final int MIN_LEN = 3;
@@ -67,11 +67,11 @@ public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
 
                 final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
                 oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                    @Override public void onTickEnter(ITickData tickData) {
+                    @Override public void onTickEnter(ITickData tickData) { }
+                    @Override public void onTickExit(ITickData tickData){
                         m_filled = true;
                         oldestTick.removeBarHolderListener(this);
                     }
-                    @Override public void onTickExit(ITickData tickData){}
                 });
             }
             iAmChanged = m_filled && m_dirty;
@@ -94,7 +94,7 @@ public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
     }
 
     public String log() {
-        return "EmaAverager["
+        return "BarsEmaAverager["
                 + "\n splitter=" + m_barSplitter.log()
                 + "\n]";
     }
@@ -117,11 +117,11 @@ public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
                 ITickData latestTick = latestNode.m_param;
                 float closePrice = latestTick.getClosePrice();
                 double multiplier = m_multipliers.get(index);
-                index++;
                 double val = closePrice * multiplier;
                 ret += val;
                 weight += multiplier;
             }
+            index++;
         }
 
         @Override public Double done() {
