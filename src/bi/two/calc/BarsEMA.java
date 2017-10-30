@@ -31,7 +31,7 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     public BarsEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
         super();
         if (length < MIN_LEN) {
-            throw new RuntimeException("EMA.length should be " + MIN_LEN + " or bigger");
+            throw new RuntimeException("EMA.length passed " + length + "; should be " + MIN_LEN + " or bigger");
         }
         int barsNum = 0;
         double alpha = 2.0 / (length + 1); // 0.33
