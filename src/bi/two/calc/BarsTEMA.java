@@ -14,7 +14,7 @@ public class BarsTEMA extends BaseTimesSeriesData<ITickData> {
     private final BarsEMA m_ema3;
     private TickData m_tickData;
 
-    BarsTEMA(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+    public BarsTEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
         super();
         m_ema1 = new BarsEMA(tsd, length, barSize);
         m_ema2 = new BarsEMA(m_ema1, length, barSize);

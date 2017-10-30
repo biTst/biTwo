@@ -18,7 +18,7 @@ public class BarsDEMA extends BaseTimesSeriesData<ITickData> {
     private final BarsEMA m_ema2;
     private TickData m_tickData;
 
-    BarsDEMA(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
+    public BarsDEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
         super();
         m_ema1 = new BarsEMA(tsd, length, barSize);
         m_ema2 = new BarsEMA(m_ema1, length, barSize);
