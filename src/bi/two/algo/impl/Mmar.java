@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Mmar extends BaseAlgo {
-    private final long m_barSize;
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -26,23 +25,24 @@ public class Mmar extends BaseAlgo {
     private final List<TicksRegressor> m_emasSm = new ArrayList<>(); //smooched
     private final TicksRegressor m_firstEmaSm;
     private TickData m_tickData; // latest tick
-//    private final TicksRegressor m_first;
 
     public Mmar(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        m_barSize = config.getNumber(Vary.period).longValue();
+        long barSize = config.getNumber(Vary.period).longValue();
         m_start = config.getNumber(Vary.start).floatValue();
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
         m_smooth = config.getNumber(Vary.smooth).floatValue();
 
+        long smoothLen = (long) (m_smooth * barSize);
         TicksRegressor first = null;
         float length = m_start;
-        for (int i = 0; i < m_count; i++) {
-            BarsTEMA ema = new BarsTEMA(tsd, length, m_barSize);
+        int countFloor = (int) m_count;
+        for (int i = 0; i < countFloor; i++) {
+            BarsTEMA ema = new BarsTEMA(tsd, length, barSize);
             m_emas.add(ema);
-            TicksRegressor emaSm = new TicksRegressor(ema, (long) (m_smooth *  m_barSize));
+            TicksRegressor emaSm = new TicksRegressor(ema, smoothLen);
             m_emasSm.add(emaSm);
 
             length += m_step;
@@ -50,9 +50,14 @@ public class Mmar extends BaseAlgo {
                 first = emaSm;
             }
         }
-        m_firstEmaSm = first;
 
-//        m_first = new TicksRegressor(firstEma, 5 *  m_barSize);
+        float fraction = m_count - countFloor;
+        BarsTEMA ema = new BarsTEMA(tsd, length - m_step + m_step * fraction, barSize);
+        m_emas.add(ema);
+        TicksRegressor emaSm = new TicksRegressor(ema, smoothLen);
+        m_emasSm.add(emaSm);
+
+        m_firstEmaSm = first;
 
         setParent(m_firstEmaSm);
     }
