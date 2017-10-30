@@ -4,7 +4,7 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.BarsEMA;
+import bi.two.calc.BarsTEMA;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
@@ -21,8 +21,11 @@ public class Mmar extends BaseAlgo {
     private final float m_start;
     private final float m_step;
     private final float m_count;
-    private final List<BarsEMA> m_emas = new ArrayList<>();
+    private final float m_smooth;
+    private final List<BarsTEMA> m_emas = new ArrayList<>();
     private final List<TicksRegressor> m_emasSm = new ArrayList<>(); //smooched
+    private final TicksRegressor m_firstEmaSm;
+    private TickData m_tickData; // latest tick
 //    private final TicksRegressor m_first;
 
     public Mmar(MapConfig config, ITimesSeriesData tsd) {
@@ -32,27 +35,57 @@ public class Mmar extends BaseAlgo {
         m_start = config.getNumber(Vary.start).floatValue();
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
+        m_smooth = config.getNumber(Vary.smooth).floatValue();
 
-        BarsEMA firstEma = null;
+        TicksRegressor first = null;
         float length = m_start;
         for (int i = 0; i < m_count; i++) {
-            BarsEMA ema = new BarsEMA(tsd, length, m_barSize);
+            BarsTEMA ema = new BarsTEMA(tsd, length, m_barSize);
             m_emas.add(ema);
-            TicksRegressor emaSm = new TicksRegressor(ema, 3 *  m_barSize);
+            TicksRegressor emaSm = new TicksRegressor(ema, (long) (m_smooth *  m_barSize));
             m_emasSm.add(emaSm);
 
             length += m_step;
             if (i == 0) {
-                firstEma = ema;
+                first = emaSm;
             }
         }
+        m_firstEmaSm = first;
 
 //        m_first = new TicksRegressor(firstEma, 5 *  m_barSize);
 
+        setParent(m_firstEmaSm);
     }
 
     @Override public ITickData getAdjusted() {
-        return null;
+        ITickData latestTick = m_firstEmaSm.getLatestTick();
+        if (latestTick == null) {
+            return null; // not yet defined/filled
+        }
+        double firstValue = latestTick.getClosePrice();
+        double minValue = Double.POSITIVE_INFINITY;
+        double maxValue = Double.NEGATIVE_INFINITY;
+        for (TicksRegressor emaSm : m_emasSm) {
+            latestTick = emaSm.getLatestTick();
+            if (latestTick == null) {
+                return null; // not yet defined/filled
+            }
+            double value = latestTick.getClosePrice();
+            minValue = Math.min(minValue, value);
+            maxValue = Math.max(maxValue, value);
+        }
+
+        double spread = maxValue - minValue;
+        double adj = (firstValue - minValue) / spread * 2 - 1; // [-1;1]
+        long timestamp = getParent().getLatestTick().getTimestamp();
+
+        float adjFloat = (float) adj;
+        m_tickData = new TickData(timestamp, adjFloat);
+        return m_tickData;
+    }
+
+    @Override public ITickData getLatestTick() {
+        return m_tickData;
     }
 
     @Override public String key(boolean detailed) {
@@ -60,6 +93,7 @@ public class Mmar extends BaseAlgo {
                         + (detailed ? ",start=" : ",") + m_start
                         + (detailed ? ",step=" : ",") + m_step
                         + (detailed ? ",count=" : ",") + m_count
+                        + (detailed ? ",smooth=" : ",") + m_smooth
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
         ;
     }
@@ -69,7 +103,7 @@ public class Mmar extends BaseAlgo {
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
         // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.99f, Color.RED);
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
@@ -77,7 +111,7 @@ public class Mmar extends BaseAlgo {
             Color emaSmColor = Colors.alpha(Color.PINK, 50);
             int size = m_emas.size();
             for (int i = 0; i < size; i++) {
-                BarsEMA ema = m_emas.get(i);
+                BarsTEMA ema = m_emas.get(i);
                 Color color = (i == 0) ? Color.BLUE : (i == size - 1) ? Colors.alpha(Color.GRAY, 100) : emaColor;
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
 
@@ -99,20 +133,20 @@ public class Mmar extends BaseAlgo {
 //            // Color.ORANGE
 //        }
 //
-//        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
-//        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-//        {
-//            addChart(chartData, m_adjuster.getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-//        }
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        {
+            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+        }
 
-//        if (collectValues) {
-//            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-//            gain.setHorizontalLineValue(1);
-//
-//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-//
-//            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-//            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-//        }
+        if (collectValues) {
+            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+        }
     }
 }
