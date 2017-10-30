@@ -21,7 +21,7 @@ public enum Vary {
 
     start("start", VaryType.FLOAT),
     step("step", VaryType.FLOAT),
-    count("count", VaryType.INT),
+    count("count", VaryType.FLOAT),
     ;
     
     public final String m_key;
