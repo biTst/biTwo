@@ -3,11 +3,11 @@ package bi.two.calc;
 import bi.two.chart.ITickData;
 import bi.two.ts.ITimesSeriesData;
 
-public class TicksSimpleAverager extends TicksBufferBased<Double> {
+public class TicksSMA extends TicksBufferBased<Double> {
     private double m_sum;
     private int m_count;
 
-    public TicksSimpleAverager(ITimesSeriesData tsd, long period) {
+    public TicksSMA(ITimesSeriesData tsd, long period) {
         super(tsd, period);
     }
 

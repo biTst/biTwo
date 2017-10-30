@@ -4,7 +4,7 @@ import bi.two.algo.BarSplitter;
 import bi.two.chart.ITickData;
 
 //----------------------------------------------------------
-public class BarsSimpleAverager extends BarsBasedCalculator {
+public class BarsSMA extends BarsBasedCalculator {
 
     @Override protected BarTicksProcessor createBarTicksProcessor() {
         return new BarTicksProcessor() {
@@ -28,7 +28,7 @@ public class BarsSimpleAverager extends BarsBasedCalculator {
         };
     }
 
-    public BarsSimpleAverager(final BarSplitter barSplitter) {
+    public BarsSMA(final BarSplitter barSplitter) {
         super(barSplitter);
     }
 }

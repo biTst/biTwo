@@ -7,7 +7,7 @@ import bi.two.Main;
 import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.BarsExponentialAverager;
+import bi.two.calc.BarsEMA;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
@@ -18,7 +18,7 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,7 +29,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
     public final HashMap<String,Differ> s_differCache = new HashMap<>();
     public final HashMap<String,Scaler> s_scalerCache = new HashMap<>();
-    public final HashMap<String,BarsExponentialAverager> s_averagerCache = new HashMap<>();
+    public final HashMap<String,BarsEMA> s_averagerCache = new HashMap<>();
     public final HashMap<String,SimpleMovingBarAverager> s_signalerCache = new HashMap<>();
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
     public final HashMap<String,TicksRegressor> s_smootherCache = new HashMap<>();
@@ -50,7 +50,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final BarSplitter m_regressorBars; // buffer to calc diff
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
-    public final BarsExponentialAverager m_averager;
+    public final BarsEMA m_averager;
     public final SimpleMovingBarAverager m_signaler;
     public final Powerer m_powerer;
     public final BaseTimesSeriesData m_smoother;
@@ -131,9 +131,9 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_scaler.addListener(new ScalerVerifier(m_scaler));
 
         key = key + "." + m_slopeLength;
-        BarsExponentialAverager averager = s_averagerCache.get(key);
+        BarsEMA averager = s_averagerCache.get(key);
         if (averager == null) {
-            averager = new BarsExponentialAverager(m_scaler, m_slopeLength, m_barSize);
+            averager = new BarsEMA(m_scaler, m_slopeLength, m_barSize);
             s_averagerCache.put(key, averager);
         }
         m_averager = averager;
@@ -501,14 +501,14 @@ public class RegressionAlgo extends BaseAlgo {
 
     //----------------------------------------------------------
     public static class Powerer extends BaseTimesSeriesData<ITickData> {
-        private final BarsExponentialAverager m_averager;
+        private final BarsEMA m_averager;
         private final SimpleMovingBarAverager m_signaler;
         private final float m_rate;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_xxx;
 
-        public Powerer(BarsExponentialAverager averager, SimpleMovingBarAverager signaler, float rate) {
+        public Powerer(BarsEMA averager, SimpleMovingBarAverager signaler, float rate) {
             super(signaler);
             m_averager = averager;
             m_signaler = signaler;
@@ -796,49 +796,6 @@ public class RegressionAlgo extends BaseAlgo {
     }
 
 
-    //----------------------------------------------------------
-    public static class ZeroLagExpotentialMovingBarAverager extends BaseTimesSeriesData<ITickData> {
-        private final BarsExponentialAverager m_ema1;
-        private final BarsExponentialAverager m_ema2;
-        private TickData m_tickData;
-
-        ZeroLagExpotentialMovingBarAverager(ITimesSeriesData<ITickData> tsd, int length, long barSize) {
-            super();
-            m_ema1 = new BarsExponentialAverager(tsd, length, barSize);
-            m_ema2 = new BarsExponentialAverager(m_ema1, length, barSize);
-            setParent(m_ema2);
-        }
-
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            boolean iAmChanged = false;
-            if (changed) {
-                ITickData ema1Tick = m_ema1.getLatestTick();
-                ITickData ema2Tick = m_ema2.getLatestTick();
-
-                float ema1 = ema1Tick.getClosePrice();
-                float ema2 = ema2Tick.getClosePrice();
-                float d = ema1 - ema2;
-                float zlema = ema1 + d;
-
-                if ((m_tickData == null) || (m_tickData.getClosePrice() != zlema)) {
-                    long timestamp = m_parent.getLatestTick().getTimestamp();
-                    m_tickData = new TickData(timestamp, zlema);
-                    iAmChanged = true;
-                }
-            }
-            super.onChanged(this, iAmChanged); // notifyListeners
-        }
-
-        @Override public ITickData getLatestTick() {
-            return m_tickData;
-        }
-
-        public String log() {
-            return "ZLEMA[]";
-        }
-    }
-
-
     //=============================================================================================
     private static abstract class BaseVerifier implements ITimesSeriesListener {
         @Override public void waitWhenFinished() { /* noop */ }
@@ -972,10 +929,10 @@ public class RegressionAlgo extends BaseAlgo {
 
     //=============================================================================================
     private static class AveragerVerifier extends BaseVerifier {
-        private final BarsExponentialAverager m_averager;
+        private final BarsEMA m_averager;
         private boolean m_checkTickExtraData = true;
 
-        AveragerVerifier(BarsExponentialAverager averager) {
+        AveragerVerifier(BarsEMA averager) {
             m_averager = averager;
         }
 

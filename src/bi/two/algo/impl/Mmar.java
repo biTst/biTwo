@@ -4,7 +4,7 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.BarsExponentialAverager;
+import bi.two.calc.BarsEMA;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
@@ -21,7 +21,7 @@ public class Mmar extends BaseAlgo {
     private final float m_start;
     private final float m_step;
     private final float m_count;
-    private final List<BarsExponentialAverager> m_emas = new ArrayList<>();
+    private final List<BarsEMA> m_emas = new ArrayList<>();
     private final List<TicksRegressor> m_emasSm = new ArrayList<>(); //smooched
 //    private final TicksRegressor m_first;
 
@@ -33,10 +33,10 @@ public class Mmar extends BaseAlgo {
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
 
-        BarsExponentialAverager firstEma = null;
+        BarsEMA firstEma = null;
         float length = m_start;
         for (int i = 0; i < m_count; i++) {
-            BarsExponentialAverager ema = new BarsExponentialAverager(tsd, length, m_barSize);
+            BarsEMA ema = new BarsEMA(tsd, length, m_barSize);
             m_emas.add(ema);
             TicksRegressor emaSm = new TicksRegressor(ema, 3 *  m_barSize);
             m_emasSm.add(emaSm);
@@ -77,7 +77,7 @@ public class Mmar extends BaseAlgo {
             Color emaSmColor = Colors.alpha(Color.PINK, 50);
             int size = m_emas.size();
             for (int i = 0; i < size; i++) {
-                BarsExponentialAverager ema = m_emas.get(i);
+                BarsEMA ema = m_emas.get(i);
                 Color color = (i == 0) ? Color.BLUE : (i == size - 1) ? Colors.alpha(Color.GRAY, 100) : emaColor;
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
 

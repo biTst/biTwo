@@ -6,7 +6,7 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.Differ;
 import bi.two.calc.TicksRegressor;
-import bi.two.calc.TicksSimpleAverager;
+import bi.two.calc.TicksSMA;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -14,7 +14,7 @@ import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.List;
 
 public class EmaTrendAlgo extends BaseAlgo {
@@ -31,7 +31,7 @@ public class EmaTrendAlgo extends BaseAlgo {
 //    private final RegressionAlgo.Regressor2 m_regressor;
     private final TicksRegressor m_regressorSlow;
     private final TicksRegressor m_regressorFast;
-    private final TicksSimpleAverager m_signal;
+    private final TicksSMA m_signal;
     private final Differ m_hist;
 
     public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
@@ -53,7 +53,7 @@ public class EmaTrendAlgo extends BaseAlgo {
 //        m_differ = new Differ(m_ema, m_emaShort);
 //        m_differ = new Differ(m_ema, m_regressor);
         m_macD = new Differ(m_regressorFast, m_regressorSlow);
-        m_signal = new TicksSimpleAverager(m_macD, (long) (m_signalLength *  m_barSize));
+        m_signal = new TicksSMA(m_macD, (long) (m_signalLength *  m_barSize));
         m_hist = new Differ(m_macD, m_signal);
 
         m_adjuster = new Adjuster(m_hist, tsd, m_threshold);

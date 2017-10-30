@@ -12,7 +12,7 @@ import java.util.List;
 
 // EMA
 // todo - switch to 'extends BarsBasedCalculator'
-public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
+public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     private static final double DEF_THRESHOLD = 0.995;
     private static final int MIN_LEN = 3;
 
@@ -24,14 +24,14 @@ public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
     private boolean m_initialized;
     private TickData m_tickData;
 
-    public BarsExponentialAverager(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
+    public BarsEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
         this(tsd, length, barSize, DEF_THRESHOLD);
     }
 
-    public BarsExponentialAverager(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
+    public BarsEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
         super();
         if (length <= MIN_LEN) {
-            throw new RuntimeException("ExponentialMovingBarAverager.length should be bigger than " + MIN_LEN);
+            throw new RuntimeException("EMA.length should be bigger than " + MIN_LEN);
         }
         int barsNum = 0;
         double alpha = 2.0 / (length + 1); // 0.33
@@ -94,7 +94,7 @@ public class BarsExponentialAverager extends BaseTimesSeriesData<ITickData> {
     }
 
     public String log() {
-        return "BarsEmaAverager["
+        return "BarsEMA["
                 + "\n splitter=" + m_barSplitter.log()
                 + "\n]";
     }
