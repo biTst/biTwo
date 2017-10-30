@@ -26,9 +26,9 @@ public abstract class TicksBufferBased<R>
         if (m_filled) {
             if (m_dirty) {
                 R ret = m_splitter.m_newestBar.iterateTicks(this);
-                long timestamp = m_parent.getLatestTick().getTimestamp();
                 float price = calcTickValue(ret);
                 if (!Float.isNaN(price)) {
+                    long timestamp = m_parent.getLatestTick().getTimestamp();
                     m_tickData = new TickData(timestamp, price);
                 } else {
                     return null; // can be when not enough ticks in bar to calc regression  - should be at lest 2 ticks
@@ -37,7 +37,7 @@ public abstract class TicksBufferBased<R>
             }
             return m_tickData;
         }
-        return null;
+        return null; // not yet filled
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
