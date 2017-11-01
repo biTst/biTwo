@@ -1,9 +1,6 @@
 package bi.two.exch;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Exchange {
     public static final List<Exchange> s_exchanges = new ArrayList<Exchange>();
@@ -13,6 +10,7 @@ public class Exchange {
     public final Currency m_baseCurrency;
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
+    public Schedule m_schedule;
 
     public Exchange(String name, Currency baseCurrency) {
         m_name = name;
@@ -62,5 +60,16 @@ public class Exchange {
     public double minOrderToCreate(Pair pair) {
         ExchPairData pairData = getPairData(pair);
         return pairData.minOrderToCreate();
+    }
+
+    public Date getNextTradeCloseTime(long tickTime) {
+        if (m_schedule != null) {
+            return m_schedule.getNextTradeCloseTime(tickTime);
+        }
+        return null;
+    }
+
+    public boolean hasSchedule() {
+        return (m_schedule != null);
     }
 }

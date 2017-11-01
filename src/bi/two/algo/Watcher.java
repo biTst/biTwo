@@ -10,11 +10,16 @@ import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
 
 public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
+    private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
 
     private final Exchange m_exch;
     private final Pair m_pair;
@@ -35,6 +40,7 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private long m_lastMillis;
     public int m_tradesNum;
     private ITickData m_lastAdjusted; // saved direction from last tick processing
+    private Date m_nextTradeCloseTime;
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
@@ -65,20 +71,18 @@ public class Watcher extends TimesSeriesData<TradeData> {
         m_topData.m_bid = closePrice;
         m_topData.m_ask = closePrice;
 
-        if ((m_lastAdjusted != null) && (m_initAcctData != null)) {
-            process(m_lastAdjusted);
-            m_lastAdjusted = null;
-        }
+        if (m_initAcctData == null) { // very first tick
+            init();
+        } else {
+            if (m_lastAdjusted != null) { // process delayed first
+                process(m_lastAdjusted);
+                m_lastAdjusted = null;
+            }
 
-        if (changed) {
-            if (m_initAcctData == null) { // first tick
-                init();
-            } else {
-                ITickData adjusted = m_algo.getAdjusted();
+            ITickData adjusted = m_algo.getAdjusted();
+            if (adjusted != null) {
                 if (m_priceAtSameTick) {
-                    if ((adjusted != null) && (m_initAcctData != null)) {
-                        process(adjusted);
-                    }
+                    process(adjusted);
                 } else {
                     m_lastAdjusted = adjusted; // save to process on next tick
                 }
@@ -89,8 +93,25 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private void process(ITickData tickAdjusted) {
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
 
-// TODO
-//        direction = m_exch.postProcessDirection(direction, tickAdjusted.getTimestamp());
+        if (m_exch.hasSchedule()) {
+            long tickTime = tickAdjusted.getTimestamp();
+            if ((m_nextTradeCloseTime == null) || (m_nextTradeCloseTime.getTime() < tickTime)) {
+                m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
+            }
+            long tradeCloseTime = m_nextTradeCloseTime.getTime();
+            long timeToTradeClose = tradeCloseTime - tickTime;
+if (timeToTradeClose < 0) {
+    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; m_nextTradeCloseTime=" + m_nextTradeCloseTime + "; tickTime=" + tickTime);
+}
+            if (timeToTradeClose < ONE_HOUR_MILLIS) {
+                if (timeToTradeClose < ONE_MIN_MILLIS) {
+                    direction = 0; // do not trade last minute
+                } else {
+                    float rate = ((float) timeToTradeClose) / ONE_HOUR_MILLIS;
+                    direction *= rate;
+                }
+            }
+        }
 
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;

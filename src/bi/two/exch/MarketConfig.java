@@ -50,6 +50,12 @@ public class MarketConfig {
             System.out.println("   baseCurrency=" + baseCurrency);
             if (baseCurrency != null) {
                 Exchange ex = new Exchange(name, baseCurrency);
+                String scheduleStr = prop.getProperty(prefix + ".schedule");
+                if (scheduleStr != null) {
+                    Schedule schedule = Schedule.valueOf(scheduleStr);
+                    System.out.println("  schedule=" + scheduleStr + " => " + schedule);
+                    ex.m_schedule = schedule;
+                }
                 String pairsStr = prop.getProperty(prefix + ".pairs");
                 System.out.println("  pairs=" + pairsStr);
                 if (pairsStr != null) {
