@@ -36,15 +36,17 @@ public class Main {
     private static void loadData(final ChartFrame frame, String[] args) {
         MapConfig config = new MapConfig();
         try {
-            Exchange exchange = Exchange.get("bitstamp");
-            Pair pair = Pair.getByName("btc_usd");
-            ExchPairData pairData = exchange.getPairData(pair);
-
             String file = "vary.properties";
             if (args.length > 0) {
                 file = args[0];
             }
             config.load(file);
+
+            String exchangeName = config.getString("exchange");
+            Exchange exchange = Exchange.get(exchangeName);
+            String pairName = config.getString("pair");
+            Pair pair = Pair.getByName(pairName);
+            ExchPairData pairData = exchange.getPairData(pair);
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
