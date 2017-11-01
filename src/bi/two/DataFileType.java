@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 public enum DataFileType {
@@ -43,7 +44,36 @@ public enum DataFileType {
             Main.TickExtraData tickData = new Main.TickExtraData(m_time, price, extra);
             return tickData;
         }
-    };
+    },
+    FOREX("forex") {
+//        #<TICKER>,<DTYYYYMMDD>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>
+//        EURUSD,20010102,230100,0.9507,0.9507,0.9507,0.9507,4
+        @Override public TickData parseLine(String line) {
+            String[] tokens = line.split(",");
+            String date = tokens[1];
+            String yearStr = date.substring(0, 4);
+            String monthStr = date.substring(4, 6);
+            String dayStr = date.substring(6, 8);
+            String time = tokens[2];
+            String hourStr = time.substring(0, 2);
+            String minStr = time.substring(2, 4);
+
+            int year = Integer.parseInt(yearStr) - 1900;
+            int month = Integer.parseInt(monthStr);
+            int day = Integer.parseInt(dayStr);
+            int hour = Integer.parseInt(hourStr);
+            int min = Integer.parseInt(minStr);
+
+            Date parsed = new Date(year, month, day, hour, min, 0);
+            long millis = parsed.getTime();
+
+            String close = tokens[6];
+            float price = Float.parseFloat(close);
+            TickData tickData = new TickData(millis, price);
+            return tickData;
+        }
+    },
+    ;
 
     private final String m_type;
 
