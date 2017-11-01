@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 public enum Currency {
     USD("usd"),
+    EUR("eur"),
     BTC("btc"),
     CNH("cnh"),
     ;
