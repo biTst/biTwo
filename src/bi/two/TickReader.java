@@ -28,7 +28,9 @@ public enum TickReader {
             boolean skipBytes = (lastBytesToProcess > 0);
             if (skipBytes) {
                 long toSkipBytes = fileLength - lastBytesToProcess;
-                randomAccessFile.seek(toSkipBytes);
+                if (toSkipBytes > 0) {
+                    randomAccessFile.seek(toSkipBytes);
+                }
             }
 
             InputStream is = Channels.newInputStream(randomAccessFile.getChannel());
