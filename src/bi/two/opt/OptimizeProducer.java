@@ -32,7 +32,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
         m_thread.start();
     }
 
-    @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+    @Override public void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
         synchronized (m_sync) {
             while (m_state == State.optimizerCalculation) {
                 try {
@@ -45,7 +45,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
                 return;
             }
         }
-        m_lastWatcher = new WatchersProducer.AlgoWatcher(m_algoConfig, exchange, pair, ticksTs);
+        m_lastWatcher = new WatchersProducer.AlgoWatcher(config, m_algoConfig, exchange, pair, ticksTs);
         m_lastWatcher.addListener(new ITimesSeriesData.ITimesSeriesListener() {
             @Override public void onChanged(ITimesSeriesData ts, boolean changed) { }
             @Override public void waitWhenFinished() { }

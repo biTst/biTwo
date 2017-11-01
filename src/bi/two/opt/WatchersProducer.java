@@ -141,7 +141,7 @@ public class WatchersProducer {
         List<Watcher> watchers = new ArrayList<>();
         for (BaseProducer producer : m_producers) {
             if (producer.isActive()) {
-                producer.getWatchers(algoConfig, ticksTs, exchange, pair, watchers);
+                producer.getWatchers(config, algoConfig, ticksTs, exchange, pair, watchers);
             }
         }
 
@@ -170,16 +170,16 @@ public class WatchersProducer {
             m_iterateConfigs = iterateConfigs;
         }
 
-        @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+        @Override public void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             for (List<IterateConfig> iterateConfig : m_iterateConfigs) {
                 MapConfig localAlgoConfig = algoConfig.copy();
-                doIterate(iterateConfig, 0, localAlgoConfig, ticksTs, exchange, pair, watchers);
+                doIterate(config, iterateConfig, 0, localAlgoConfig, ticksTs, exchange, pair, watchers);
             }
             m_active = false;
         }
 
-        private void doIterate(final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
-                                      final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
+        private void doIterate(MapConfig config, final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
+                               final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
             final int nextIndex = index + 1;
             final IterateConfig iterateConfig = iterateConfigs.get(index);
             final Vary vary = iterateConfig.m_vary;
@@ -187,9 +187,9 @@ public class WatchersProducer {
                 @Override public void doIteration(Number value) {
                     algoConfig.put(vary.m_key, value);
                     if (nextIndex < iterateConfigs.size()) {
-                        doIterate(iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
+                        doIterate(config, iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                     } else {
-                        AlgoWatcher watcher = new AlgoWatcher(algoConfig, exchange, pair, ticksTs);
+                        AlgoWatcher watcher = new AlgoWatcher(config, algoConfig, exchange, pair, ticksTs);
                         m_watchers.add(watcher);
                         watchers.add(watcher);
                     }
@@ -221,9 +221,9 @@ public class WatchersProducer {
     private static class SingleProducer extends BaseProducer {
         private AlgoWatcher m_watcher;
 
-        @Override public void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
+        @Override public void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             // single Watcher
-            m_watcher = new AlgoWatcher(algoConfig, exchange, pair, ticksTs);
+            m_watcher = new AlgoWatcher(config, algoConfig, exchange, pair, ticksTs);
             watchers.add(m_watcher);
             m_active = false;
         }
@@ -237,8 +237,8 @@ public class WatchersProducer {
     //=============================================================================================
     protected static class AlgoWatcher extends Watcher {
 
-        public AlgoWatcher(MapConfig algoConfig, Exchange exchange, Pair pair, BaseTimesSeriesData ticksTs) {
-            super(algoConfig, exchange, pair, ticksTs.getActive()); // get next active TS for paralleler
+        public AlgoWatcher(MapConfig config, MapConfig algoConfig, Exchange exchange, Pair pair, BaseTimesSeriesData ticksTs) {
+            super(config, algoConfig, exchange, pair, ticksTs.getActive()); // get next active TS for paralleler
         }
 
         @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {

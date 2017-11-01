@@ -13,7 +13,7 @@ public abstract class BaseProducer {
 
     public boolean isActive() { return m_active; }
 
-    abstract void getWatchers(MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
+    abstract void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
 
     public abstract double logResults();
 
