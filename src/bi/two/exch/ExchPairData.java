@@ -3,6 +3,7 @@ package bi.two.exch;
 public class ExchPairData {
     public double m_minOrderToCreate = 0;
     public double m_commission = 0;
+    public double m_initBalance;
 
 
     public ExchPairData() {

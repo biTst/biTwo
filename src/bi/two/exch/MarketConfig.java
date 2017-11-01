@@ -82,6 +82,9 @@ public class MarketConfig {
                         String minOrderStr = prop.getProperty(pairPrefix + ".minOrder");
                         System.out.println("    minOrderStr: " + minOrderStr);
                         exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
+                        String initBalanceStr = prop.getProperty(pairPrefix + ".initBalance");
+                        System.out.println("    initBalanceStr: " + initBalanceStr);
+                        exchPairData.m_initBalance = Double.parseDouble(initBalanceStr);
 
                         String commissionStr = prop.getProperty(pairPrefix + ".commission");
                         System.out.println("    commissionStr: " + commissionStr);
