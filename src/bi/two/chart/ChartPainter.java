@@ -2,15 +2,22 @@ package bi.two.chart;
 
 import bi.two.util.Utils;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.Point;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 public class ChartPainter {
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("y MM dd HH:mm:ss.S");
     private static final Date SHARED_DATE = new Date();
+    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("y MM dd HH:mm:ss.S z");
+    {
+        DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
+    }
 
     public ChartPainter() {
     }

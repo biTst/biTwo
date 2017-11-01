@@ -5,6 +5,8 @@ import bi.two.util.Utils;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public enum TimeAxeLevel {
     _YEAR(Utils.YEAR_IN_MILLIS, Calendar.YEAR, 1, RoundDown.TO_YEAR, Format.YEAR),
@@ -24,7 +26,7 @@ public enum TimeAxeLevel {
     _1_MIN(Utils.MIN_IN_MILLIS, Calendar.MINUTE, 1, RoundDown.TO_MINUTE, Format.MINUTE),
     ;
 
-    private static final Calendar SHARED_CALENDAR = new GregorianCalendar();
+    private static final Calendar SHARED_CALENDAR = new GregorianCalendar(TimeZone.getTimeZone("GMT"), Locale.getDefault());
 
     private final long m_period;
     private final int m_field;
@@ -182,6 +184,7 @@ public enum TimeAxeLevel {
 
         Format(String pattern) {
             m_format = new SimpleDateFormat(pattern);
+            m_format.setTimeZone(TimeZone.getTimeZone("GMT"));
         }
 
         public String format(long time) {
