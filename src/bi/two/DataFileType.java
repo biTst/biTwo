@@ -73,6 +73,40 @@ public enum DataFileType {
             return tickData;
         }
     },
+    FOREX2("forex2") {
+        @Override public TickData parseLine(String line) {
+            // 20170901 000000727,1.190130,1.190170,0
+            String[] tokens = line.split(",");
+            String dateTime = tokens[0]; // "20170901 000000727"
+            String date = dateTime.substring(0, 8); // "20170901"
+            String yearStr = date.substring(0, 4);
+            String monthStr = date.substring(4, 6);
+            String dayStr = date.substring(6, 8);
+            String time = dateTime.substring(9, 18); // "000000727"
+            String hourStr = time.substring(0, 2);
+            String minStr = time.substring(2, 4);
+            String secStr = time.substring(4, 6);
+            String millisStr = time.substring(6, 9);
+
+            int year = Integer.parseInt(yearStr) - 1900;
+            int month = Integer.parseInt(monthStr);
+            int day = Integer.parseInt(dayStr);
+            int hour = Integer.parseInt(hourStr);
+            int min = Integer.parseInt(minStr);
+            int sec = Integer.parseInt(secStr);
+            int mil = Integer.parseInt(millisStr);
+
+            Date parsed = new Date(year, month, day, hour, min, sec);
+            long millis = parsed.getTime();
+
+            String bidStr = tokens[1];
+            float bid = Float.parseFloat(bidStr);
+            String askStr = tokens[2];
+            float ask = Float.parseFloat(askStr);
+            TickData tickData = new TickData(millis + mil, (bid + ask) / 2);
+            return tickData;
+        }
+    },
     ;
 
     private final String m_type;
