@@ -3,7 +3,7 @@ package bi.two;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 
-import java.util.Date;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public enum DataFileType {
@@ -74,6 +74,8 @@ public enum DataFileType {
         }
     },
     FOREX2("forex2") {
+        private GregorianCalendar m_gmtCalendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"), Locale.getDefault());
+
         @Override public TickData parseLine(String line) {
             // 20170901 000000727,1.190130,1.190170,0
             String[] tokens = line.split(",");
@@ -88,7 +90,7 @@ public enum DataFileType {
             String secStr = time.substring(4, 6);
             String millisStr = time.substring(6, 9);
 
-            int year = Integer.parseInt(yearStr) - 1900;
+            int year = Integer.parseInt(yearStr);
             int month = Integer.parseInt(monthStr);
             int day = Integer.parseInt(dayStr);
             int hour = Integer.parseInt(hourStr);
@@ -96,8 +98,9 @@ public enum DataFileType {
             int sec = Integer.parseInt(secStr);
             int mil = Integer.parseInt(millisStr);
 
-            Date parsed = new Date(year, month, day, hour, min, sec);
-            long millis = parsed.getTime();
+            m_gmtCalendar.set(year, month - 1, day, hour, min, sec); // month is zero-based
+            m_gmtCalendar.set(Calendar.MILLISECOND, mil);
+            long millis = m_gmtCalendar.getTimeInMillis();
 
             String bidStr = tokens[1];
             float bid = Float.parseFloat(bidStr);
