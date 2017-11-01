@@ -7,13 +7,14 @@ import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
     public static final String ALGO_NAME_KEY = "algoName";
+    public static final String COMMISSION_KEY = "commission";
 
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
 

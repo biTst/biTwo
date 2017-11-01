@@ -15,7 +15,6 @@ import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
 public class Watcher extends TimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
-    private static final double MIN_MOVE = 100; // 100usd
 
     private final Exchange m_exch;
     private final Pair m_pair;
@@ -24,6 +23,8 @@ public class Watcher extends TimesSeriesData<TradeData> {
     public final BaseAlgo m_algo;
     private final boolean m_collectValues;
     private final ITimesSeriesData<TickData> m_priceTs;
+    private final double m_minOrderToCreate;
+    private final boolean m_priceAtSameTick; // apply price from same tick or from the next
     private AccountData m_initAcctData;
     private AccountData m_accountData;
     public TopData m_topData = new TopData(0,0,0);
@@ -35,15 +36,22 @@ public class Watcher extends TimesSeriesData<TradeData> {
     public int m_tradesNum;
     private ITickData m_lastAdjusted; // saved direction from last tick processing
 
-    public Watcher(MapConfig config, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
+    public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
         m_priceTs = ts;
         m_exch = exch;
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
-        m_commission = m_exchPairData.m_commission;
-        m_collectValues = config.getBoolean(COLLECT_VALUES_KEY);
-        m_algo = createAlgo(ts, config);
+        double commission = config.getDoubleOrDefault(BaseAlgo.COMMISSION_KEY, Double.POSITIVE_INFINITY);
+        if (Double.isInfinite(commission)) {
+            m_commission = m_exchPairData.m_commission;
+        } else { // override from local config
+            m_commission = commission;
+        }
+        m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE);
+        m_minOrderToCreate = m_exchPairData.m_minOrderToCreate;
+        m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
+        m_algo = createAlgo(ts, algoConfig);
         setParent(m_algo);
     }
 
@@ -67,7 +75,13 @@ public class Watcher extends TimesSeriesData<TradeData> {
                 init();
             } else {
                 ITickData adjusted = m_algo.getAdjusted();
-                m_lastAdjusted = adjusted; // save to process on next tick
+                if (m_priceAtSameTick) {
+                    if ((adjusted != null) && (m_initAcctData != null)) {
+                        process(adjusted);
+                    }
+                } else {
+                    m_lastAdjusted = adjusted; // save to process on next tick
+                }
             }
         }
     }
@@ -75,37 +89,50 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private void process(ITickData tickAdjusted) {
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
 
+// TODO
+//        direction = m_exch.postProcessDirection(direction, tickAdjusted.getTimestamp());
+
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;
         String pairToName = currencyTo.m_name;
 
-        log("Watcher.process() direction=" + direction);
+        if (LOG_ALL) {
+            System.out.println("Watcher.process() direction=" + direction);
+        }
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
-        log(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
+        if (LOG_ALL) {
+            System.out.println(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
+        }
 
         needBuyTo *= 0.95;
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
-        log("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+        if (LOG_ALL) {
+            System.out.println("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+        }
 
         double exchMinOrderToCreate = m_exch.minOrderToCreate(m_pair);
         TickData latestPriceTick = m_priceTs.getLatestTick();
         long timestamp = latestPriceTick.getTimestamp();
-        if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= MIN_MOVE)) {
+        if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= m_minOrderToCreate)) {
 
             double amountFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
-            logMove("Watcher.process() direction=" + direction
-                    + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
-                    + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
-                    + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+            if (LOG_MOVE || LOG_ALL) {
+                System.out.println("Watcher.process() direction=" + direction
+                        + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
+                        + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
+                        + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+            }
 
             m_accountData.move(m_pair, needBuyTo, m_commission);
             m_tradesNum++;
 
-            double gain = totalPriceRatio(true);
-            logMove("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
+            if (LOG_MOVE || LOG_ALL) {
+                double gain = totalPriceRatio(true);
+                System.out.println("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
+            }
 
             if (m_collectValues) {
                 double price = latestPriceTick.getClosePrice();
@@ -138,16 +165,18 @@ public class Watcher extends TimesSeriesData<TradeData> {
         double gainAvg = (gainTo + gainFrom) / 2;
 
         if (toLog) {
-            logMove("totalPriceRatio() accountData=" + m_accountData
-                    + "; from=" + currencyFrom.m_name
-                    + ": valuateInit=" + m_valuateFromInit
-                    + ", valuateNow=" + valuateFromNow
-                    + ", gain=" + gainFrom
-                    + "; to=" + currencyTo.m_name
-                    + ": valuateToInit=" + m_valuateToInit
-                    + ", valuateToNow=" + valuateToNow
-                    + ", gainTo=" + gainTo
-                    + "; gainAvg=" + gainAvg);
+            if (LOG_MOVE || LOG_ALL) {
+                System.out.println("totalPriceRatio() accountData=" + m_accountData
+                        + "; from=" + currencyFrom.m_name
+                        + ": valuateInit=" + m_valuateFromInit
+                        + ", valuateNow=" + valuateFromNow
+                        + ", gain=" + gainFrom
+                        + "; to=" + currencyTo.m_name
+                        + ": valuateToInit=" + m_valuateToInit
+                        + ", valuateToNow=" + valuateToNow
+                        + ", gainTo=" + gainTo
+                        + "; gainAvg=" + gainAvg);
+            }
         }
         return gainAvg;
     }
@@ -155,7 +184,9 @@ public class Watcher extends TimesSeriesData<TradeData> {
 
     private void init() {
         m_startMillis = m_priceTs.getLatestTick().getTimestamp();
-        log("init() topData = " + m_topData);
+        if (LOG_ALL) {
+            System.out.println("init() topData = " + m_topData);
+        }
 
         m_initTopData = new TopData(m_topData);
         double lastPrice = m_topData.m_last;
@@ -165,26 +196,18 @@ public class Watcher extends TimesSeriesData<TradeData> {
 
         m_initAcctData = new AccountData(m_exch);
         m_initAcctData.m_topDatas.put(m_pair, m_initTopData);
-        m_initAcctData.setAvailable(currencyFrom, 1);
-        m_initAcctData.setAvailable(currencyTo, lastPrice);
+
+        double initBalance = m_exchPairData.m_initBalance;
+        m_initAcctData.setAvailable(currencyFrom, initBalance); // like btc in btc_usd pair
+        m_initAcctData.setAvailable(currencyTo, initBalance * lastPrice);
 
         m_accountData = m_initAcctData.copy();
         m_accountData.m_topDatas.put(m_pair, m_topData);
 
         m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
         m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
-        log(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
-    }
-
-    private void log(String s) {
         if (LOG_ALL) {
-            System.out.println(s);
-        }
-    }
-
-    private void logMove(String s) {
-        if (LOG_MOVE || LOG_ALL) {
-            System.out.println(s);
+            System.out.println(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
         }
     }
 
