@@ -89,6 +89,10 @@ public class MapConfig extends Properties {
     }
 
     public double getDouble(String key) {
+        return getDoubleOrDefault(key, null);
+    }
+    
+    public double getDoubleOrDefault(String key, Double def) {
         String property = getPropertyNoComment(key);
         if (property != null) {
             try {
@@ -97,13 +101,23 @@ public class MapConfig extends Properties {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Double");
             }
         }
+        if (def != null) {
+            return def;
+        }
         throw new RuntimeException("property '" + key + "' not found");
     }
 
     public boolean getBoolean(String key) {
+        return getBooleanOrDefault(key, null);
+    }
+    
+    public boolean getBooleanOrDefault(String key, Boolean def) {
         String property = getPropertyNoComment(key);
         if (property != null) {
             return property.equals("true") || property.equals("yes");
+        }
+        if (def != null) {
+            return def;
         }
         throw new RuntimeException("property '" + key + "' not found");
     }
