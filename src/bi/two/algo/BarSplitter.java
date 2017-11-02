@@ -95,7 +95,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                         BarHolder newerBar = barHolders.get(index);
                         int nextIndex = index + 1;
                         BarHolder olderBar = (nextIndex == m_barsNum) ? null : barHolders.get(nextIndex);
-                        newerBar.leave(timeShift, olderBar);
+                        newerBar.shiftTime(timeShift, olderBar);
                     }
                 }
             }
@@ -198,7 +198,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         void put(ITickData tickData) {
             TickNode tickNode = new TickNode(m_latestTick, tickData, null);
-            if(m_latestTick != null) {
+            if (m_latestTick != null) {
                 m_latestTick.m_next = tickNode;
             }
             put(tickNode);
@@ -206,20 +206,20 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         private void put(TickNode tickNode) {
             m_latestTick = tickNode;
-            if(m_oldestTick == null) {
+            if (m_oldestTick == null) {
                 m_oldestTick = tickNode;
             }
             m_dirty = true;
+            m_ticksCount++;
             if (m_listeners != null) {
                 ITickData param = tickNode.m_param;
                 for (IBarHolderListener listener : m_listeners) {
                     listener.onTickEnter(param);
                 }
             }
-            m_ticksCount++;
         }
 
-        void leave(long timeShift, BarHolder olderBarHolder) {
+        void shiftTime(long timeShift, BarHolder olderBarHolder) {
             m_time += timeShift;
             m_oldestTime += timeShift;
 
@@ -228,8 +228,29 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                 long timestamp = oldestTickData.getTimestamp();
                 long diff = m_oldestTime - timestamp;
                 if (diff <= 0L) {
-                    break;
+                    break; // oldest bar tick still in bar frame
                 }
+
+                // oldest bar tick is out of bar frame
+                TickNode tickToLeave = m_oldestTick;
+
+                if (m_oldestTick == m_latestTick) { // it was only 1 tick in bar
+                    m_oldestTick = null; // now no ticks in bar
+                    m_latestTick = null;
+                } else { // update bar oldest tick
+                    m_oldestTick = (TickNode) m_oldestTick.m_next;
+                }
+
+                if (olderBarHolder == null) { // tick leaves all holders - destroy cross links
+                    Node<ITickData> next = tickToLeave.m_next;
+                    if (next != null) {
+                        next.m_prev = null;
+                        tickToLeave.m_next = null;
+                    }
+                }
+
+                m_ticksCount--;
+                m_dirty = true;
 
                 if (m_listeners != null) {
                     for (IBarHolderListener listener : m_listeners) {
@@ -237,26 +258,8 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                     }
                 }
 
-                if (olderBarHolder != null) {
-                    olderBarHolder.put(m_oldestTick);
-                }
-
-                m_ticksCount--;
-
-                m_dirty = true;
-
-                if (m_oldestTick == m_latestTick) {
-                    m_oldestTick = null;
-                    m_latestTick = null;
-                    break;
-                }
-
-                TickNode oldestTick = m_oldestTick;
-                m_oldestTick = (TickNode) m_oldestTick.m_next;
-
-                if (olderBarHolder == null) { // tick leaves all holders - destroy links
-                    oldestTick.m_next = null;
-                    m_oldestTick.m_prev = null;
+                if (olderBarHolder != null) { // move tick into older bar
+                    olderBarHolder.put(tickToLeave);
                 }
             }
         }
