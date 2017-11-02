@@ -17,8 +17,8 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     private static final int MIN_LEN = 3;
 
     private final BarSplitter m_barSplitter;
-    private final List<Double> m_multipliers = new ArrayList<>();
     private final BarsProcessor m_barsProcessor = new BarsProcessor();
+    private final double[] m_multipliers;
     private boolean m_dirty;
     private boolean m_filled;
     private boolean m_initialized;
@@ -37,17 +37,19 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
         double alpha = 2.0 / (length + 1); // 0.33
         double rate = 1 - alpha; // 0.66
         double sum = 0;
+        List<Double> multipliers = new ArrayList<>();
         while (sum < threshold) {
             double multiplier = alpha * Math.pow(rate, barsNum);
-            m_multipliers.add(multiplier);
+            multipliers.add(multiplier);
             barsNum++;
             sum += multiplier;
         }
-        List<Double> multipliers = new ArrayList<>(m_multipliers);
-        m_multipliers.clear();
         double rest = 1.0d - sum;
-        for (Double multiplier : multipliers) {
-            m_multipliers.add(multiplier + rest * multiplier);
+        int size = multipliers.size();
+        m_multipliers = new double[size];
+        for (int i = 0; i < size; i++) {
+            Double multiplier = multipliers.get(i);
+            m_multipliers[i] = multiplier + rest * multiplier;
         }
         m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
         setParent(m_barSplitter);
@@ -116,7 +118,7 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
             if (latestNode != null) { // sometimes bars may have no ticks inside
                 ITickData latestTick = latestNode.m_param;
                 float closePrice = latestTick.getClosePrice();
-                double multiplier = m_multipliers.get(index);
+                double multiplier = m_multipliers[index];
                 double val = closePrice * multiplier;
                 ret += val;
                 weight += multiplier;
