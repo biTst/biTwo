@@ -1,7 +1,7 @@
 package bi.two.algo;
 
 import bi.two.algo.impl.EmaTrendAlgo;
-import bi.two.algo.impl.Mmar;
+import bi.two.algo.impl.MmarAlgo;
 import bi.two.algo.impl.RegressionAlgo;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.util.MapConfig;
@@ -19,7 +19,7 @@ public enum Algo {
     },
     mmar {
         @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {
-            return new Mmar(algoConfig, parent);
+            return new MmarAlgo(algoConfig, parent);
         }
     },
     ;

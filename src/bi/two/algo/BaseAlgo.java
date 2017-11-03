@@ -77,4 +77,26 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
             notifyListeners(false);
         }
     }
+
+
+    //----------------------------------------------------------
+    public static abstract class JoinNonChangedInnerTimesSeriesData extends JoinNonChangedTimesSeriesData {
+        protected abstract Float getValue();
+
+        protected JoinNonChangedInnerTimesSeriesData(ITimesSeriesData parent) {
+            super(parent);
+        }
+
+        @Override protected ITickData getTickValue() {
+            ITickData latestTick = getParent().getLatestTick();
+            if (latestTick != null) {
+                Float value = getValue();
+                if (value != null) {
+                    long timestamp = latestTick.getTimestamp();
+                    return new TickData(timestamp, value);
+                }
+            }
+            return null;
+        }
+    }
 }

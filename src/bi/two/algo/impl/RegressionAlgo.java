@@ -180,16 +180,6 @@ public class RegressionAlgo extends BaseAlgo {
         throw new RuntimeException("getDirectionAdjusted");
     }
 
-    private static double getDirectionAdjusted(Double value) {
-        return (value == null)
-                ? 0
-                : (value > DEF_THRESHOLD)
-                    ? 1
-                    : (value < -DEF_THRESHOLD)
-                        ? -1
-                        : 0;
-    }
-
     @Override public ITickData getAdjusted() {
         ITickData lastTick = m_adjuster.getLatestTick();
         return lastTick;
@@ -640,49 +630,27 @@ public class RegressionAlgo extends BaseAlgo {
         }
 
         public TimesSeriesData<TickData> getMinTs() {
-            return new AdjusterInnerTimesSeriesData(this) {
-                @Override protected float getValue() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
                     return m_min;
                 }
             };
         }
 
         public TimesSeriesData<TickData> getMaxTs() {
-            return new AdjusterInnerTimesSeriesData(this) {
-                @Override protected float getValue() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
                     return m_max;
                 }
             };
         }
 
         public TimesSeriesData<TickData> getZeroTs() {
-            return new AdjusterInnerTimesSeriesData(this) {
-                @Override protected float getValue() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
                     return m_zero;
                 }
             };
-        }
-
-        //----------------------------------------------------------
-        public abstract class AdjusterInnerTimesSeriesData extends JoinNonChangedTimesSeriesData {
-            protected abstract float getValue();
-
-            AdjusterInnerTimesSeriesData(ITimesSeriesData parent) {
-                super(parent);
-            }
-
-            @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-                super.onChanged(ts, changed);
-            }
-
-            @Override protected ITickData getTickValue() {
-                ITickData latestTick = getParent().getLatestTick();
-                if (latestTick != null) {
-                    long timestamp = latestTick.getTimestamp();
-                    return new TickData(timestamp, getValue());
-                }
-                return null;
-            }
         }
 
 

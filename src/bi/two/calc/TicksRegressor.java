@@ -28,7 +28,7 @@ public class TicksRegressor extends TicksBufferBased<Boolean> {
     }
 
     @Override public Boolean done() {
-        return null;
+        return m_simpleRegression.hasIntercept();
     }
 
     @Override protected float calcTickValue(Boolean ret) {

@@ -26,6 +26,9 @@ public abstract class TicksBufferBased<R>
         if (m_filled) {
             if (m_dirty) {
                 R ret = m_splitter.m_newestBar.iterateTicks(this);
+                if (ret == null) {
+                    return null; // can be when not enough ticks in bar to calc regression  - should be at lest 2 ticks
+                }
                 float price = calcTickValue(ret);
                 if (!Float.isNaN(price)) {
                     long timestamp = m_parent.getLatestTick().getTimestamp();

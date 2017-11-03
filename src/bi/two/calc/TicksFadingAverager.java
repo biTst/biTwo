@@ -31,7 +31,7 @@ public class TicksFadingAverager extends TicksBufferBased<Double> {
     }
 
     @Override public Double done() {
-        return (m_weight == 0) ? 0 : m_sum/m_weight;
+        return (m_weight == 0) ? null : m_sum/m_weight;
     }
 
     @Override protected float calcTickValue(Double ret) {

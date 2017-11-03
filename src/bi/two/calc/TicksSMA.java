@@ -24,7 +24,7 @@ public class TicksSMA extends TicksBufferBased<Double> {
     }
 
     @Override public Double done() {
-        return (m_count == 0) ? 0 : m_sum/m_count;
+        return (m_count == 0) ? null : m_sum / m_count;
     }
 
     @Override protected float calcTickValue(Double ret) {

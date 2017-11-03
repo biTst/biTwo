@@ -90,8 +90,6 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     @Override public void run() {
         Thread.currentThread().setName("PowellOptimizer");
 
-        System.out.println("PowellOptimizer thread started");
-
         PowellOptimizer optimize = new PowellOptimizer(
                 RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
         );
