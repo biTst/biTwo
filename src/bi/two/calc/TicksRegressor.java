@@ -37,7 +37,7 @@ public class TicksRegressor extends TicksBufferBased<Boolean> {
     }
 
     public String log() {
-        return "Regressor["
+        return "TicksRegressor["
                 + "\nsplitter=" + m_splitter.log()
                 + "\n]";
     }

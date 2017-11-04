@@ -8,6 +8,7 @@ import bi.two.algo.BarSplitter;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.BarsEMA;
+import bi.two.calc.BarsRegressor;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
@@ -16,7 +17,6 @@ import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
-import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.awt.Color;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ import java.util.List;
 public class RegressionAlgo extends BaseAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
 
-    public final HashMap<String,Regressor2> s_regressorsCache = new HashMap<>();
+    public final HashMap<String,BarsRegressor> s_regressorsCache = new HashMap<>();
     public final HashMap<String,BarSplitter> s_regressorBarsCache = new HashMap<>();
     public final HashMap<String,Differ> s_differCache = new HashMap<>();
     public final HashMap<String,Scaler> s_scalerCache = new HashMap<>();
@@ -46,7 +46,7 @@ public class RegressionAlgo extends BaseAlgo {
     public final float m_dropLevel;
     public final float m_directionThreshold;
 
-    public final Regressor2 m_regressor;
+    public final BarsRegressor m_regressor;
     public final BarSplitter m_regressorBars; // buffer to calc diff
     public final Differ m_differ; // Linear Regression Slope
     public final Scaler m_scaler; // diff scaled by price; lrs = (lrc-lrc[1])/close*1000
@@ -94,9 +94,9 @@ public class RegressionAlgo extends BaseAlgo {
 //        m_regressor = regressor;
 
         String key = tsd.hashCode() + "." + m_curveLength + "." + m_barSize + "." + m_divider;
-        Regressor2 regressor = s_regressorsCache.get(key);
+        BarsRegressor regressor = s_regressorsCache.get(key);
         if (regressor == null) {
-            regressor = new Regressor2(tsd, m_curveLength, m_barSize, m_divider);
+            regressor = new BarsRegressor(tsd, m_curveLength, m_barSize, m_divider);
             s_regressorsCache.put(key, regressor);
 //            regressor.addListener(new RegressorVerifier(regressor));
         }
@@ -243,93 +243,6 @@ public class RegressionAlgo extends BaseAlgo {
                 + (detailed ? ",drop=" : ",") + m_dropLevel
                 + (detailed ? ",reverse=" : ",") + m_directionThreshold
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
-    }
-
-
-    // -----------------------------------------------------------------------------
-    public static class Regressor2 extends BaseTimesSeriesData<ITickData>
-            implements ITicksProcessor<BarSplitter.BarHolder, Float> {
-        public final BarSplitter m_splitter;
-        private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
-        private long m_lastBarTickTime;
-        private boolean m_initialized;
-        private boolean m_filled;
-        private boolean m_dirty;
-        private TickData m_tickData;
-
-        public Regressor2(ITimesSeriesData<ITickData> tsd, int barsNum, long barSize, float divider) {
-            m_splitter = new BarSplitter(tsd, (int) (barsNum * divider), (long) (barSize/divider));
-            setParent(m_splitter);
-        }
-
-        @Override public void init() {
-            m_simpleRegression.clear();
-            m_lastBarTickTime = 0;// reset
-        }
-
-        @Override public void processTick(BarSplitter.BarHolder barHolder) {
-            BarSplitter.TickNode latestTickNode = barHolder.getLatestTick();
-            if (latestTickNode != null) { // have ticks in bar ?
-                ITickData latestTick = latestTickNode.m_param;
-
-                long timestamp = latestTick.getTimestamp();
-                if (m_lastBarTickTime == 0) {
-                    m_lastBarTickTime = timestamp;
-                }
-
-                float price = latestTick.getMaxPrice();
-                m_simpleRegression.addData(m_lastBarTickTime - timestamp, price);
-            }
-        }
-
-        @Override public Float done() {
-            double value = m_simpleRegression.getIntercept();
-            return (float) value;
-        }
-
-        @Override public ITickData getLatestTick() {
-            if (m_filled) {
-                if (m_dirty) {
-                    calculateLatestTick();
-                }
-                return m_tickData;
-            }
-            return null;
-        }
-
-        protected void calculateLatestTick() {
-            Float regression = m_splitter.iterateTicks( this);
-
-            long timestamp = m_parent.getLatestTick().getTimestamp();
-            m_tickData = new TickData(timestamp, regression);
-            m_dirty = false;
-        }
-
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            boolean iAmChanged = false;
-            if (changed) {
-                if (!m_initialized) {
-                    m_initialized = true;
-                    final BarSplitter.BarHolder oldestTick = m_splitter.getOldestTick();
-                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                        @Override public void onTickEnter(ITickData tickData) {
-                            m_filled = true;
-                            oldestTick.removeBarHolderListener(this);
-                        }
-                        @Override public void onTickExit(ITickData tickData) {}
-                    });
-                }
-                m_dirty = true;
-                iAmChanged = m_filled;
-            }
-            super.onChanged(this, iAmChanged); // notifyListeners
-        }
-
-        public String log() {
-            return "Regressor2["
-                    + "\nsplitter=" + m_splitter.log()
-                    + "\n]";
-        }
     }
 
 
@@ -773,10 +686,10 @@ public class RegressionAlgo extends BaseAlgo {
     
     //=============================================================================================
     private static class RegressorVerifier extends BaseVerifier {
-        private final Regressor2 m_regressor;
+        private final BarsRegressor m_regressor;
         private boolean m_checkTickExtraData;
 
-        RegressorVerifier(Regressor2 regressor) {
+        RegressorVerifier(BarsRegressor regressor) {
             m_regressor = regressor;
             m_checkTickExtraData = true;
         }
