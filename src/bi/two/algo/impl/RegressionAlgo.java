@@ -449,7 +449,7 @@ public class RegressionAlgo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    public static class Adjuster extends BaseTimesSeriesData<ITickData> {
+    private static class Adjuster extends BaseTimesSeriesData<ITickData> {
         private final DirectionTracker m_directionTracker;
         private final float m_dropLevel;
         private boolean m_dirty;
