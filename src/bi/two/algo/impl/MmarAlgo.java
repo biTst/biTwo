@@ -5,7 +5,6 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
-import bi.two.calc.TicksRegressor;
 import bi.two.calc.TicksSMA;
 import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
@@ -27,6 +26,8 @@ public class MmarAlgo extends BaseAlgo {
     private final float m_step;
     private final float m_count;
     private final float m_drop;
+    private final float m_smooth;
+    private final float m_power;
     private final TicksSMA m_spreadSmoothed;
     private final Level m_mainLevel;
 //    private final Level m_emaLevel;
@@ -46,6 +47,8 @@ public class MmarAlgo extends BaseAlgo {
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
         m_drop = config.getNumber(Vary.drop).floatValue();
+        m_smooth = config.getNumber(Vary.smooth).floatValue();
+        m_power = config.getNumber(Vary.power).floatValue();
 
 //        m_emaLevel = new Level(tsd, barSize, m_start, m_step, m_count) {
 //            @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {
@@ -70,7 +73,7 @@ public class MmarAlgo extends BaseAlgo {
 //        };
         m_mainLevel = m_regressorLevel;
 
-        m_spreadSmoothed = new TicksSMA(m_mainLevel.m_minMaxSpread, barSize * 20);
+        m_spreadSmoothed = new TicksSMA(m_mainLevel.m_minMaxSpread, (long) (barSize * m_smooth));
         setParent(m_mainLevel.m_emas.get(0));
     }
 
@@ -78,7 +81,7 @@ public class MmarAlgo extends BaseAlgo {
     private static abstract class Level {
         private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
         private final MinMaxSpread m_minMaxSpread;
-        private final TicksRegressor m_midSmoothed;
+        private final BaseTimesSeriesData m_midSmoothed;
         private final Velocities m_velocities;
 //        private final Adjuster m_adjuster;
 
@@ -103,7 +106,7 @@ public class MmarAlgo extends BaseAlgo {
 
             m_minMaxSpread = new MinMaxSpread(iEmas, tsd);
 
-            m_midSmoothed = new TicksRegressor(m_minMaxSpread.getMidTs(), barSize * 3);
+            m_midSmoothed = new SlidingTicksRegressor(m_minMaxSpread.getMidTs(), barSize * 3);
 
 //        m_midSmoothed = new TicksFadingAverager(m_minMaxSpread.getMidTs(), barSize * 2);
 //        m_midSmoothed_2 = new TicksDFadingAverager(m_minMaxSpread.getMidTs(), barSize * 2 );
@@ -153,7 +156,7 @@ public class MmarAlgo extends BaseAlgo {
         }
 
         float ribbonAdjusted = m_ribbonDirection;
-        ribbonAdjusted = ((float) (Math.signum(ribbonAdjusted) * Math.pow(Math.abs(ribbonAdjusted), 0.05)));
+        ribbonAdjusted = ((float) (Math.signum(ribbonAdjusted) * Math.pow(Math.abs(ribbonAdjusted), 1/m_power)));
 
         if (PINCH) {
             float spread = m_mainLevel.m_minMaxSpread.m_spread;
@@ -251,6 +254,8 @@ public class MmarAlgo extends BaseAlgo {
                         + (detailed ? ",step=" : ",") + m_step
                         + (detailed ? ",count=" : ",") + m_count
                         + (detailed ? ",drop=" : ",") + m_drop
+                        + (detailed ? ",smooth=" : ",") + m_smooth
+                        + (detailed ? ",power=" : ",") + m_power
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
         ;
     }

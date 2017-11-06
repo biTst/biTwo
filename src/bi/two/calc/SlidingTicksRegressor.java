@@ -22,7 +22,7 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        if (!m_initialized) {
+        if (!m_initialized && changed) {
             m_initialized = true;
 
             // onChanged() called after first tick is already processed
