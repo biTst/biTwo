@@ -19,6 +19,7 @@ public class ChartCanvas extends JComponent {
     private ChartPaintSetting m_cps = new ChartPaintSetting();
     private boolean m_recalcBounds = true;
     private Point m_point; // point to highlight
+    private Point m_selectPoint; // start of line to draw
 
     public ChartCanvas() {
         setMinimumSize(new Dimension(800, 500));
@@ -67,7 +68,7 @@ public class ChartCanvas extends JComponent {
     }
 
     private void doPaint(Graphics2D g2) {
-        m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData, m_point);
+        m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData, m_point, m_selectPoint);
     }
 
     private Graphics2D initGraphics2D(Graphics2D g) {
@@ -106,24 +107,32 @@ public class ChartCanvas extends JComponent {
 
         @Override public void mousePressed(MouseEvent e) {
             int x = e.getX();
-            m_dragStartX = x;
+            if (e.getButton() == MouseEvent.BUTTON1) {
+                m_dragStartX = x;
+            } else if (e.getButton() == MouseEvent.BUTTON3) {
+                m_selectPoint = e.getPoint();
+            }
             updatePoint(e.getPoint());
         }
 
         @Override public void mouseDragged(MouseEvent e) {
             int x = e.getX();
-            int prevDragDeltaX = (m_dragDeltaX == null) ? 0 : m_dragDeltaX;
-            m_dragDeltaX = x - m_dragStartX;
 
-            int drag = m_dragDeltaX - prevDragDeltaX;
-            m_cps.shift(drag);
+            if (m_dragStartX != null) { // chart dragging
+                int prevDragDeltaX = (m_dragDeltaX == null) ? 0 : m_dragDeltaX;
+                m_dragDeltaX = x - m_dragStartX;
+                int drag = m_dragDeltaX - prevDragDeltaX;
+                m_cps.shift(drag);
+            } else if (m_selectPoint != null) { // line dragging
+                // nothing
+            }
             updatePoint(e.getPoint());
         }
 
         @Override public void mouseReleased(MouseEvent e) {
-            int x = e.getX();
             m_dragStartX = null;
             m_dragDeltaX = null;
+            m_selectPoint = null;
             updatePoint(e.getPoint());
         }
 

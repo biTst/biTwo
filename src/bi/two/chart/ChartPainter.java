@@ -22,7 +22,7 @@ public class ChartPainter {
     public ChartPainter() {
     }
 
-    public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData, Point crossPoint) {
+    public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData, Point crossPoint, Point selectPoint) {
         List<ChartAreaSettings> chartAreasSettings = chartSetting.getChartAreasSettings();
 
         // calc maxPriceAxeWidth and init xAxe
@@ -110,9 +110,6 @@ public class ChartPainter {
                                     if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
                                         maxPrice = Math.max(maxPrice, max);
                                         minPrice = Math.min(minPrice, min);
-if(Float.isNaN(maxPrice) || Float.isNaN(minPrice)) {
-    System.out.println("nan");
-}
                                     }
                                 }
                             }
@@ -131,18 +128,31 @@ if(Float.isNaN(maxPrice) || Float.isNaN(minPrice)) {
             paintChartArea(g2, cas, cps, caps, chartData);
         }
 
-        paintCross(g2, crossPoint, width, height);
+        if (crossPoint != null) {
+            if (selectPoint != null) {
+                paintLine(g2, selectPoint, crossPoint);
+            }
+            paintCross(g2, crossPoint, width, height);
+        }
+    }
+
+    private void paintLine(Graphics2D g2, Point selectPoint, Point crossPoint) {
+        int x1 = (int) selectPoint.getX();
+        int y1 = (int) selectPoint.getY();
+        int x2 = (int) crossPoint.getX();
+        int y2 = (int) crossPoint.getY();
+
+        g2.setColor(Color.LIGHT_GRAY);
+        g2.drawLine(x1, y1, x2, y2);
     }
 
     private void paintCross(Graphics2D g2, Point crossPoint, int width, int height) {
-        if (crossPoint != null) {
-            int x = (int) crossPoint.getX();
-            int y = (int) crossPoint.getY();
+        int x = (int) crossPoint.getX();
+        int y = (int) crossPoint.getY();
 
-            g2.setColor(Color.LIGHT_GRAY);
-            g2.drawLine(x, 0, x, height);
-            g2.drawLine(0, y, width, y);
-        }
+        g2.setColor(Color.LIGHT_GRAY);
+        g2.drawLine(x, 0, x, height);
+        g2.drawLine(0, y, width, y);
     }
 
     private void paintChartArea(Graphics2D g2, ChartAreaSettings cas, ChartPaintSetting cps, ChartAreaPaintSetting caps, ChartData chartData) {
