@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public enum TickReader {
     FILE("file") {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-            String path = config.getProperty("dataFile");
+            String path = config.getPropertyNoComment("dataFile");
             File file = new File(path);
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
             long fileLength = file.length();

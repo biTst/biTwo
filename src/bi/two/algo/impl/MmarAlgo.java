@@ -4,7 +4,10 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.*;
+import bi.two.calc.SlidingTicksRegressor;
+import bi.two.calc.TicksRegressor;
+import bi.two.calc.TicksSMA;
+import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -17,12 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MmarAlgo extends BaseAlgo {
-    private static final boolean PINCH = false; // pinch by spread / spreadSmoothed
+    private static final boolean PINCH = true; // pinch by spread / spreadSmoothed
     private static final boolean FAST_RIBBON = true;
 
     private final float m_start;
     private final float m_step;
     private final float m_count;
+    private final float m_drop;
     private final TicksSMA m_spreadSmoothed;
     private final Level m_mainLevel;
 //    private final Level m_emaLevel;
@@ -32,6 +36,7 @@ public class MmarAlgo extends BaseAlgo {
     private MinMaxSmoothed m_minMaxSmoothed;
     private TickData m_tickData; // latest tick
     private Float m_ribbonDirection;
+    private float m_spreadRate;
 
     public MmarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -40,6 +45,7 @@ public class MmarAlgo extends BaseAlgo {
         m_start = config.getNumber(Vary.start).floatValue();
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
+        m_drop = config.getNumber(Vary.drop).floatValue();
 
 //        m_emaLevel = new Level(tsd, barSize, m_start, m_step, m_count) {
 //            @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {
@@ -74,7 +80,7 @@ public class MmarAlgo extends BaseAlgo {
         private final MinMaxSpread m_minMaxSpread;
         private final TicksRegressor m_midSmoothed;
         private final Velocities m_velocities;
-        private final Adjuster m_adjuster;
+//        private final Adjuster m_adjuster;
 
         protected abstract BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length);
 
@@ -107,7 +113,7 @@ public class MmarAlgo extends BaseAlgo {
 
             m_velocities = new Velocities(m_midSmoothed, barSize);
 
-            m_adjuster = new Adjuster(m_velocities.m_midVelocityAvg, 0.0001f, 0.5f);
+//            m_adjuster = new Adjuster(m_velocities.m_midVelocityAvg, 0.0001f, 0.5f);
         }
 
 
@@ -141,32 +147,33 @@ public class MmarAlgo extends BaseAlgo {
         }
 
         List<BaseTimesSeriesData> emas = m_mainLevel.m_emas;
-        Float ribbonDirection = FAST_RIBBON ? calcRibbonDirectionFast(emas) : calcRibbonDirectionLong(emas);
-        if (ribbonDirection == null) {
+        m_ribbonDirection = FAST_RIBBON ? calcRibbonDirectionFast(emas) : calcRibbonDirectionLong(emas);
+        if (m_ribbonDirection == null) {
             return null;
         }
+
+        float ribbonAdjusted = m_ribbonDirection;
+        ribbonAdjusted = ((float) (Math.signum(ribbonAdjusted) * Math.pow(Math.abs(ribbonAdjusted), 0.05)));
 
         if (PINCH) {
             float spread = m_mainLevel.m_minMaxSpread.m_spread;
             ITickData spreadSmoothedLatestTick = m_spreadSmoothed.getLatestTick();
             if (spreadSmoothedLatestTick != null) {
                 float spreadSmoothed = spreadSmoothedLatestTick.getClosePrice();
-                float rate = spread / spreadSmoothed;
-                ribbonDirection = (float) (ribbonDirection * Math.sqrt(rate));
-                if (ribbonDirection > 1) {
-                    ribbonDirection = 1f;
-                } else if (ribbonDirection < -1) {
-                    ribbonDirection = -1f;
+                m_spreadRate = spread / spreadSmoothed;
+                if (m_spreadRate < 1) {
+                    ribbonAdjusted = ((float) (ribbonAdjusted * Math.pow(m_spreadRate, m_drop)));
+                }
+                if (ribbonAdjusted > 1) {
+                    ribbonAdjusted = 1f;
+                } else if (ribbonAdjusted < -1) {
+                    ribbonAdjusted = -1f;
                 }
             }
         }
 
-        ribbonDirection = ((float) (Math.signum(ribbonDirection) * Math.pow(Math.abs(ribbonDirection), 0.2)));
-
-        m_ribbonDirection = ribbonDirection;
-
         long timestamp = latestTick.getTimestamp();
-        m_tickData = new TickData(timestamp, ribbonDirection);
+        m_tickData = new TickData(timestamp, ribbonAdjusted);
         return m_tickData;
     }
 
@@ -226,6 +233,14 @@ public class MmarAlgo extends BaseAlgo {
         };
     }
 
+    private TimesSeriesData<TickData> getSpreadRateTs() {
+        return new JoinNonChangedInnerTimesSeriesData(this) {
+            @Override protected Float getValue() {
+                return m_spreadRate;
+            }
+        };
+    }
+
     @Override public ITickData getLatestTick() {
         return m_tickData;
     }
@@ -235,6 +250,7 @@ public class MmarAlgo extends BaseAlgo {
                         + (detailed ? ",start=" : ",") + m_start
                         + (detailed ? ",step=" : ",") + m_step
                         + (detailed ? ",count=" : ",") + m_count
+                        + (detailed ? ",drop=" : ",") + m_drop
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
         ;
     }
@@ -292,17 +308,18 @@ public class MmarAlgo extends BaseAlgo {
 //            addChart(chartData, m_demaLevel.m_midVelocityAvg_Avg.getJoinNonChangedTs(), bottomLayers, "midVelAvg_avg_d", Color.ORANGE, TickPainter.LINE);
 //            addChart(chartData, m_temaLevel.m_midVelocityAvg_Avg.getJoinNonChangedTs(), bottomLayers, "midVelAvg_avg_t", Color.MAGENTA, TickPainter.LINE);
 
-            addChart(chartData, m_mainLevel.m_adjuster.getMinTs().getJoinNonChangedTs(), bottomLayers, "adj_min", Color.ORANGE, TickPainter.LINE);
-            addChart(chartData, m_mainLevel.m_adjuster.getMaxTs().getJoinNonChangedTs(), bottomLayers, "adj_max", Color.ORANGE, TickPainter.LINE);
-            addChart(chartData, m_mainLevel.m_adjuster.getZeroTs().getJoinNonChangedTs(), bottomLayers, "adj_zero", Color.ORANGE, TickPainter.LINE);
+//            addChart(chartData, m_mainLevel.m_adjuster.getMinTs().getJoinNonChangedTs(), bottomLayers, "adj_min", Color.ORANGE, TickPainter.LINE);
+//            addChart(chartData, m_mainLevel.m_adjuster.getMaxTs().getJoinNonChangedTs(), bottomLayers, "adj_max", Color.ORANGE, TickPainter.LINE);
+//            addChart(chartData, m_mainLevel.m_adjuster.getZeroTs().getJoinNonChangedTs(), bottomLayers, "adj_zero", Color.ORANGE, TickPainter.LINE);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
             addChart(chartData, getRibbonTs(), valueLayers, "ribbon", Color.white, TickPainter.LINE);
+            addChart(chartData, getSpreadRateTs(), valueLayers, "spread_rate", Colors.DARK_GREEN, TickPainter.LINE);
             addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-            addChart(chartData, m_mainLevel.m_adjuster.getJoinNonChangedTs(), valueLayers, "adjuster", Color.RED, TickPainter.LINE);
+//            addChart(chartData, m_mainLevel.m_adjuster.getJoinNonChangedTs(), valueLayers, "adjuster", Color.RED, TickPainter.LINE);
         }
 
         if (collectValues) {
