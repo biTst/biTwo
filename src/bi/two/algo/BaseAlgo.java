@@ -3,7 +3,6 @@ package bi.two.algo;
 import bi.two.ChartCanvas;
 import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
-import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 
@@ -18,7 +17,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
 
     public List<BaseIndicator> m_indicators = new ArrayList<BaseIndicator>();
 
-    public BaseAlgo(BaseTimesSeriesData parent) {
+    public BaseAlgo(ITimesSeriesData parent) {
         super(parent);
     }
 
