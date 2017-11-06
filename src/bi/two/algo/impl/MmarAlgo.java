@@ -53,7 +53,8 @@ public class MmarAlgo extends BaseAlgo {
 //        };
         m_regressorLevel = new Level(tsd, barSize, m_start, m_step, m_count) {
             @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {
-                return new BarsRegressor(tsd, (int) length, barSize, 1f);
+//                return new BarsRegressor(tsd, (int) length, barSize, 1f);
+                return new SlidingTicksRegressor(tsd, (long) (length * barSize));
             }
         };
 //        m_temaLevel = new Level(tsd, barSize, m_start, m_step, m_count) {
