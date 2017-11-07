@@ -1,5 +1,6 @@
 package bi.two;
 
+import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.chart.TickData;
@@ -62,6 +63,8 @@ public class Main {
 
             boolean chartNotLoaded = true;
             for (int i = 1; producer.isActive(); i++) {
+                cleanMemory();
+
                 System.out.println("## iteration " + i);
 
                 TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
@@ -93,6 +96,7 @@ public class Main {
 
                 frame.repaint();
             }
+            cleanMemory();
 
             BaseProducer bestProducer = producer.logResults();
             bestProducer.logResultsEx();
@@ -101,13 +105,18 @@ public class Main {
             System.out.println("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
 
             try {
-                Thread.sleep(TimeUnit.HOURS.toMillis(5));
+                Thread.sleep(TimeUnit.DAYS.toMillis(3));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void cleanMemory() {
+        Algo.resetIterationCaches();
+        Runtime.getRuntime().gc();
     }
 
     private static MapConfig getDefaultConfig(MapConfig config) {
