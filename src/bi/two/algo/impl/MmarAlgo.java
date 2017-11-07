@@ -16,11 +16,17 @@ import bi.two.util.MapConfig;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MmarAlgo extends BaseAlgo {
     private static final boolean PINCH = true; // pinch by spread / spreadSmoothed
     private static final boolean FAST_RIBBON = true;
+
+    private static final Map<String,BaseTimesSeriesData> s_emaCache = new HashMap<>();
+    private static int s_emaCacheHit;
+    private static int s_emaCacheMiss;
 
     private final float m_start;
     private final float m_step;
@@ -62,7 +68,6 @@ public class MmarAlgo extends BaseAlgo {
 //        };
         m_regressorLevel = new Level(tsd, barSize, m_start, m_step, m_count) {
             @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {
-//                return new BarsRegressor(tsd, (int) length, barSize, 1f);
                 return new SlidingTicksRegressor(tsd, (long) (length * barSize));
             }
         };
@@ -75,6 +80,13 @@ public class MmarAlgo extends BaseAlgo {
 
         m_spreadSmoothed = new TicksSMA(m_mainLevel.m_minMaxSpread, (long) (barSize * m_smooth));
         setParent(m_mainLevel.m_emas.get(0));
+    }
+
+    public static void resetIterationCache() {
+        System.out.println("resetIterationCache: emaCacheHit=" + s_emaCacheHit + "; emaCacheMiss=" + s_emaCacheMiss);
+        s_emaCache.clear();
+        s_emaCacheHit = 0;
+        s_emaCacheMiss = 0;
     }
 
     // ------------------------------
@@ -92,7 +104,7 @@ public class MmarAlgo extends BaseAlgo {
             float length = start;
             int countFloor = (int) count;
             for (int i = 0; i < countFloor; i++) {
-                BaseTimesSeriesData ema = createEma(tsd, barSize, length);
+                BaseTimesSeriesData ema = getOrCreateEma(tsd, barSize, length);
                 m_emas.add(ema);
                 iEmas.add(ema);
                 length += step;
@@ -100,7 +112,7 @@ public class MmarAlgo extends BaseAlgo {
 
             float fraction = count - countFloor;
             float fractionLength = length - step + step * fraction;
-            BaseTimesSeriesData ema = createEma(tsd, barSize, fractionLength);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, barSize, fractionLength);
             m_emas.add(ema);
             iEmas.add(ema);
 
@@ -119,6 +131,18 @@ public class MmarAlgo extends BaseAlgo {
 //            m_adjuster = new Adjuster(m_velocities.m_midVelocityAvg, 0.0001f, 0.5f);
         }
 
+        private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
+            String key = tsd.hashCode() + "." + barSize + "." + length;
+            BaseTimesSeriesData ret = s_emaCache.get(key);
+            if (ret == null) {
+                ret = createEma(tsd, barSize, length);
+                s_emaCache.put(key, ret);
+                s_emaCacheMiss++;
+            } else {
+                s_emaCacheHit++;
+            }
+            return ret;
+        }
 
         // ---------------------------------------------------------------------------------------
         private static class Velocities {
