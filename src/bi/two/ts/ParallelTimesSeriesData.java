@@ -101,9 +101,13 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
+    protected void onInnerFinished(InnerTimesSeriesData inner) {
+//        System.out.println("parallel.inner: thread finished " + inner);
+    }
+
 
     //=============================================================================================
-    private class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
+    protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
         private final Object m_lock = new Object();
         private final ArrayList<ITickData> m_ticks = new ArrayList<>();
         private final int m_index;
@@ -157,7 +161,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-//            System.out.println("parallel.inner: thread finished");
+            onInnerFinished(this);
         }
 
         void enqueue(ITickData latestTick) {
@@ -197,6 +201,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             synchronized (m_lock) {
                 m_lock.notify();
             }
+        }
+
+        public String log() {
+            return "ticksNum=" + m_ticks.size();
         }
     }
 }
