@@ -78,13 +78,15 @@ public enum DataFileType {
 
         @Override public TickData parseLine(String line) {
             // 20170901 000000727,1.190130,1.190170,0
-            String[] tokens = line.split(",");
-            String dateTime = tokens[0]; // "20170901 000000727"
-            String date = dateTime.substring(0, 8); // "20170901"
+            int indx1 = line.indexOf(' ');
+            int indx2 = line.indexOf(',');
+            int indx3 = line.indexOf(',', indx2 + 1);
+            int indx4 = line.indexOf(',', indx3 + 1);
+            String date = line.substring(0, indx1); // "20170901"
             String yearStr = date.substring(0, 4);
             String monthStr = date.substring(4, 6);
             String dayStr = date.substring(6, 8);
-            String time = dateTime.substring(9, 18); // "000000727"
+            String time = line.substring(indx1 + 1, indx2); // "000000727"
             String hourStr = time.substring(0, 2);
             String minStr = time.substring(2, 4);
             String secStr = time.substring(4, 6);
@@ -102,11 +104,11 @@ public enum DataFileType {
             m_gmtCalendar.set(Calendar.MILLISECOND, mil);
             long millis = m_gmtCalendar.getTimeInMillis();
 
-            String bidStr = tokens[1];
+            String bidStr = line.substring(indx2 + 1, indx3);
             float bid = Float.parseFloat(bidStr);
-            String askStr = tokens[2];
+            String askStr = line.substring(indx3 + 1, indx4);
             float ask = Float.parseFloat(askStr);
-            TickData tickData = new TickData(millis + mil, (bid + ask) / 2);
+            TickData tickData = new TickData(millis, (bid + ask) / 2);
             return tickData;
         }
     },
