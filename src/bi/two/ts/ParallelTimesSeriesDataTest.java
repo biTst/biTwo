@@ -39,12 +39,10 @@ public class ParallelTimesSeriesDataTest {
                         System.out.println(" child[" + finalI + "] passed:  " + timestamp + "; " + log);
                     }
 
-                    if(timestamp % 1000 == 0) {
-                        long wait = (long) (Math.random() * 100);
-                        try {
-                            Thread.sleep(wait);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                    if(timestamp % 100 == 0) {
+                        long wait = (long) (Math.random() * 1000000);
+                        for (long j = 0; j < wait; j++) {
+                            timestamp--;
                         }
                     }
 
