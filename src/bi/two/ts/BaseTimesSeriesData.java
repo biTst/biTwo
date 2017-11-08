@@ -49,9 +49,10 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
         }
     }
 
-    @Override public void notifyFinished() {
+    // no more ticks - call from parent
+    @Override public void notifyNoMoreTicks() {
         for (ITimesSeriesListener listener : m_listeners) {
-            listener.notifyFinished();
+            listener.notifyNoMoreTicks();
         }
     }
 

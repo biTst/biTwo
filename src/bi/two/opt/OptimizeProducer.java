@@ -49,7 +49,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
         m_lastWatcher.addListener(new ITimesSeriesData.ITimesSeriesListener() {
             @Override public void onChanged(ITimesSeriesData ts, boolean changed) { }
             @Override public void waitWhenFinished() { }
-            @Override public void notifyFinished() {
+            @Override public void notifyNoMoreTicks() {
                 m_onFinishTotalPriceRatio = m_lastWatcher.totalPriceRatio();
                 synchronized (m_sync) {
                     m_sync.notify();

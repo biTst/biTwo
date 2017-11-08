@@ -101,7 +101,7 @@ public enum TickReader {
                     }
                 }
 //                System.out.println("ticksTs: all ticks was read");
-                ticksTs.notifyFinished();
+                ticksTs.notifyNoMoreTicks();
             } finally {
                 br.close();
             }

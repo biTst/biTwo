@@ -14,6 +14,7 @@ public interface ITimesSeriesData<T extends ITickData> {
     interface ITimesSeriesListener {
         void onChanged(ITimesSeriesData ts, boolean changed);
         void waitWhenFinished();
-        void notifyFinished();
+        // no more ticks - call from parent
+        void notifyNoMoreTicks();
     }
 }

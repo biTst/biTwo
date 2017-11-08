@@ -55,7 +55,7 @@ public class ParallelTimesSeriesDataTest {
 
                 }
 
-                @Override public void notifyFinished() {
+                @Override public void notifyNoMoreTicks() {
                     if (m_expectedTimestamp != TICKS_TO_PASS) {
                         throw new RuntimeException("m_expectedTimestamp(" + m_expectedTimestamp + ") != TICKS_TO_PASS(" + TICKS_TO_PASS + ")");
                     }
@@ -85,7 +85,7 @@ public class ParallelTimesSeriesDataTest {
         System.out.println("all passed " + timestamp);
 
         System.out.println("notifyFinished...");
-        parallelTs.notifyFinished();
+        parallelTs.notifyNoMoreTicks();
 
         System.out.println("waitWhenFinished...");
         parallelTs.waitWhenFinished();
