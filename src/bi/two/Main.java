@@ -115,8 +115,22 @@ public class Main {
     }
 
     private static void cleanMemory() {
+        long freeMemory1 = Runtime.getRuntime().freeMemory();
+        long totalMemory1 = Runtime.getRuntime().totalMemory();
+        long maxMemory1 = Runtime.getRuntime().maxMemory();
+        long usedMemory1 = totalMemory1 - freeMemory1;
         Algo.resetIterationCaches();
         Runtime.getRuntime().gc();
+        long freeMemory2 = Runtime.getRuntime().freeMemory();
+        long totalMemory2 = Runtime.getRuntime().totalMemory();
+        long maxMemory2 = Runtime.getRuntime().maxMemory();
+        long usedMemory2 = totalMemory2 - freeMemory2;
+
+        System.out.println("memory(free/used/total/max): "
+                + freeMemory1 + "/" + usedMemory1 + "/" + totalMemory1 + "/" + maxMemory1
+                + "  =>  "
+                + freeMemory2 + "/" + usedMemory2 + "/" + totalMemory2 + "/" + maxMemory2
+        );
     }
 
     private static MapConfig getDefaultConfig(MapConfig config) {
