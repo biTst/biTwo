@@ -2,12 +2,14 @@ package bi.two.ts;
 
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
+import bi.two.util.TimeStamp;
 
 public class ParallelTimesSeriesDataTest {
 
     private static final int TICKS_TO_PASS = 2000000;
 
     public static void main(String[] args) {
+        TimeStamp timeStamp = new TimeStamp();
         final TickData[] tickData = new TickData[1];
         TimesSeriesData<TickData> parent = new TimesSeriesData<TickData>(null) {
             @Override public TickData getLatestTick() {
@@ -87,6 +89,6 @@ public class ParallelTimesSeriesDataTest {
 
         System.out.println("waitWhenFinished...");
         parallelTs.waitWhenFinished();
-        System.out.println("parallelTs Finished");
+        System.out.println("parallelTs Finished in " + timeStamp.getPassed());
     }
 }
