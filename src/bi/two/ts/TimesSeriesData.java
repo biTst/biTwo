@@ -12,17 +12,19 @@ public class TimesSeriesData<T extends ITickData>
         extends BaseTimesSeriesData
         implements ITicksData {
     protected List<T> m_ticks = Collections.synchronizedList(new ArrayList<T>()); // CopyOnWriteArrayList<T>();
+    protected T m_newestTick;
 
     public TimesSeriesData(ITimesSeriesData parent) {
         super(parent);
     }
 
-    public T getLatestTick() { return m_ticks.isEmpty() ? null : m_ticks.get(0); }
+    public T getLatestTick() { return m_newestTick; }
     public T getOldestTick() { return m_ticks.get(m_ticks.size() - 1); }
     public List<T> getTicks() { return m_ticks; }
 
     public void addNewestTick(T t) {
         m_ticks.add(0, t);
+        m_newestTick = t;
         notifyListeners(true);
     }
 
@@ -31,6 +33,8 @@ public class TimesSeriesData<T extends ITickData>
         if (size > 0) {
             T last = m_ticks.get(size - 1);
             t.setOlderTick(last);
+        } else{
+            m_newestTick = t;
         }
         m_ticks.add(t);
         notifyListeners(true);

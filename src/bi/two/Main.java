@@ -11,6 +11,7 @@ import bi.two.exch.Pair;
 import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -246,25 +247,6 @@ public class Main {
                         lastTime = time;
                     }
                 }
-            }
-        }
-    }
-
-    //=============================================================================================
-    private static class TicksTimesSeriesData extends TimesSeriesData<TickData> {
-        private final boolean m_collectTicks;
-
-        public TicksTimesSeriesData(boolean collectTicks) {
-            super(null);
-            m_collectTicks = collectTicks;
-        }
-
-        @Override public void addNewestTick(TickData tickData) {
-            if (m_collectTicks) {
-                super.addNewestTick(tickData);
-            } else {
-                m_ticks.set(0, tickData); // always update only last tick
-                notifyListeners(true);
             }
         }
     }

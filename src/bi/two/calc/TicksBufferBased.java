@@ -47,15 +47,19 @@ public abstract class TicksBufferBased<R>
         boolean iAmChanged = false;
         if (changed) {
             if (!m_initialized) {
-                m_initialized = true;
-                m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                    @Override public void onTickEnter(ITickData tickData) {}
-
-                    @Override public void onTickExit(ITickData tickData) {
-                        m_filled = true;
-                        m_splitter.m_newestBar.removeBarHolderListener(this);
-                    }
-                });
+                BarSplitter.BarHolder newestBar = m_splitter.m_newestBar;
+                if (newestBar != null) {
+                    m_initialized = true;
+                    newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {}
+                        @Override public void onTickExit(ITickData tickData) {
+                            m_filled = true;
+                            m_splitter.m_newestBar.removeBarHolderListener(this);
+                        }
+                    });
+                } else {
+                    return; // not initialized
+                }
             }
             m_dirty = m_filled;
             iAmChanged = m_dirty;

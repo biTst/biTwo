@@ -70,14 +70,13 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     private void onTick(boolean changed, ITickData tick) {
         if(changed) {
             long timestamp = tick.getTimestamp();
-            List<BarHolder> barHolders = getTicks();
             if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
                 BarHolder prevBar = null;
 
                 for (int i = 0; i < m_barsNum; ++i) {
                     BarHolder bar = new BarHolder(timeShift, m_period);
-                    barHolders.add(bar);
+                    addOlderTick(bar);
                     timeShift -= m_period;
                     if (prevBar != null) {
                         prevBar.setOlderBar(bar);
@@ -91,6 +90,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
                 long timeShift = timestamp - m_newestBar.m_time;
                 m_newestBar.put(tick);
                 if (timeShift > 0L) {
+                    List<BarHolder> barHolders = getTicks();
                     for (int index = 0; index < m_barsNum; ++index) {
                         BarHolder newerBar = barHolders.get(index);
                         int nextIndex = index + 1;

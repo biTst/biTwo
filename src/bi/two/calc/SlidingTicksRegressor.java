@@ -23,26 +23,31 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if (!m_initialized && changed) {
-            m_initialized = true;
-
             // onChanged() called after first tick is already processed
-            ITickData olderTick = m_splitter.m_newestBar.getLatestTick().m_param;
-            addTick(olderTick); //
+            BarSplitter.BarHolder newestBar = m_splitter.m_newestBar;
+            if (newestBar != null) {
+                BarSplitter.TickNode latestTickNode = newestBar.getLatestTick();
+                ITickData olderTick = latestTickNode.m_param;
+                addTick(olderTick); //
 
-            m_splitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                @Override public void onTickEnter(ITickData tickData) {
-                    addTick(tickData);
-                }
+                newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                    @Override public void onTickEnter(ITickData tickData) {
+                        addTick(tickData);
+                    }
 
-                @Override public void onTickExit(ITickData tickData) {
-                    m_filled = true;
+                    @Override public void onTickExit(ITickData tickData) {
+                        m_filled = true;
 
-                    float price = tickData.getClosePrice();
-                    long timestamp = tickData.getTimestamp();
-                    m_simpleRegression.removeData(timestamp - m_firstTimestamp, price);
-                    m_lastTick = null;
-                }
-            });
+                        float price = tickData.getClosePrice();
+                        long timestamp = tickData.getTimestamp();
+                        m_simpleRegression.removeData(timestamp - m_firstTimestamp, price);
+                        m_lastTick = null;
+                    }
+                });
+                m_initialized = true;
+            } else {
+                return; // not initialized
+            }
         }
         super.onChanged(ts, changed);
     }
@@ -55,7 +60,7 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
         }
         m_lastTimestamp = timestamp;
         m_simpleRegression.addData(timestamp - m_firstTimestamp, price);
-        m_lastTick = null;
+        m_lastTick = null; // mark as dirty
     }
 
     @Override public ITickData getLatestTick() {

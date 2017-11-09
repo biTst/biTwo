@@ -61,7 +61,7 @@ public enum TickReader {
                         }
                         m_nextReport += REPORT_BLOCK_SIZE;
                     }
-                return read;
+                    return read;
                 }
             };
 

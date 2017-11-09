@@ -68,7 +68,12 @@ public class Watcher extends TimesSeriesData<TradeData> {
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         // note, here changed is not checked = run on ever tick, to recheck int state often
 
-        float closePrice = m_priceTs.getLatestTick().getClosePrice();
+        TickData latestPriceTick = m_priceTs.getLatestTick();
+        if (latestPriceTick == null) {
+            return; // skip
+        }
+
+        float closePrice = latestPriceTick.getClosePrice();
         m_topData.m_last = closePrice;
         m_topData.m_bid = closePrice;
         m_topData.m_ask = closePrice;
