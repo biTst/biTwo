@@ -118,7 +118,7 @@ public class MmarAlgo extends BaseAlgo {
 
             m_minMaxSpread = new MinMaxSpread(iEmas, tsd);
 
-            m_midSmoothed = new SlidingTicksRegressor(m_minMaxSpread.getMidTs(), barSize * 3);
+            m_midSmoothed = new SlidingTicksRegressor(m_minMaxSpread.m_midTs, barSize * 3); // TODO
 
 //        m_midSmoothed = new TicksFadingAverager(m_minMaxSpread.getMidTs(), barSize * 2);
 //        m_midSmoothed_2 = new TicksDFadingAverager(m_minMaxSpread.getMidTs(), barSize * 2 );
@@ -424,16 +424,28 @@ public class MmarAlgo extends BaseAlgo {
         private float m_min;
         private float m_max;
         private float m_mid;
-        private JoinNonChangedInnerTimesSeriesData m_midTs;
+        private BaseTimesSeriesData m_midTs;
 
-        MinMaxSpread(List<ITimesSeriesData> tss, ITimesSeriesData baseDs) {
+        MinMaxSpread(List<ITimesSeriesData> tss, ITimesSeriesData baseTsd) {
             super(null);
             m_tss = tss;
+
             for (ITimesSeriesData<ITickData> next : tss) {
                 next.getActive().addListener(this);
             }
             m_first = tss.get(0);
-            setParent(baseDs); // subscribe to list first - will be called onChanged() and set as dirty ONLY
+
+            m_midTs = new BaseTimesSeriesData(this) {
+                @Override public ITickData getLatestTick() {
+                    ITickData latestTick = getParent().getLatestTick();
+                    if (latestTick != null) {
+                        return new TickData(latestTick.getTimestamp(), m_mid);
+                    }
+                    return null;
+                }
+            };
+
+            setParent(baseTsd); // subscribe to list first - will be called onChanged() and set as dirty ONLY
         }
 
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -490,15 +502,8 @@ public class MmarAlgo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMidTs() {
-            if (m_midTs == null) {
-                m_midTs = new JoinNonChangedInnerTimesSeriesData(this) {
-                    @Override protected Float getValue() {
-                        return m_mid;
-                    }
-                };
-            }
-            return m_midTs;
+        ITicksData<TickData> getMidTs() {
+            return m_midTs.getJoinNonChangedTs();
         }
     }
 
