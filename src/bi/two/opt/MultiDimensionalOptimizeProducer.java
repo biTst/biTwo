@@ -9,8 +9,12 @@ import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.PointValuePair;
 import org.apache.commons.math3.optim.SimpleBounds;
 import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.BOBYQAOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.MultiDirectionalSimplex;
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.PowellOptimizer;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -23,13 +27,13 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
-    // private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
+     private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
 
     public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
 
         m_startPoint = buildStartPoint(m_optimizeConfigs);
-        // m_bounds = buildBounds(m_optimizeConfigs); // PowellOptimizer not supports bounds
+        m_bounds = buildBounds(m_optimizeConfigs); // PowellOptimizer not supports bounds
 
         m_function = new MultivariateFunction() {
             @Override public double value(double[] point) {
@@ -88,12 +92,14 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     }
 
     @Override public void run() {
-        Thread.currentThread().setName("PowellOptimizer");
 
-        PowellOptimizer optimize = new PowellOptimizer(
-                RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
-        );
+        Thread.currentThread().setName("MultiDimensionalOptimizeProducer");
         try {
+            System.out.println("start PowellOptimizer=======================");
+            MultivariateOptimizer optimize = new PowellOptimizer(
+                    RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
+            );
+
             PointValuePair pair1 = optimize.optimize(
                     new ObjectiveFunction(m_function),
                     new MaxEval(MAX_EVALS_COUNT),
@@ -109,6 +115,80 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
+
+
+        // -----------------------------------------------------------------------------------
+        try {
+            System.out.println("start BOBYQAOptimizer=======================");
+            int numberOfInterpolationPoints = 2 * m_startPoint.length + 1; // + additionalInterpolationPoints
+            MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
+
+            PointValuePair pair1 = optimize.optimize(
+                    new ObjectiveFunction(m_function),
+                    new MaxEval(MAX_EVALS_COUNT),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(m_startPoint),
+                    m_bounds
+            );
+
+            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
+        } catch (Exception e) {
+            System.out.println("error: " + e);
+            e.printStackTrace();
+        }
+
+        // -----------------------------------------------------------------------------------
+        try {
+            System.out.println("start SimplexOptimizer=======================");
+            MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-6);
+
+            PointValuePair pair1 = optimize.optimize(
+                    new ObjectiveFunction(m_function),
+                    new MaxEval(MAX_EVALS_COUNT),
+                    GoalType.MAXIMIZE,
+                    new InitialGuess(m_startPoint),
+                    new MultiDirectionalSimplex(m_startPoint.length)
+            );
+
+            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+                    + "; Iterations=" + optimize.getIterations());
+        } catch (Exception e) {
+            System.out.println("error: " + e);
+            e.printStackTrace();
+        }
+
+//        double rel = 1e-8;
+//        double abs = 1e-10;
+//        int maxIterations = 2000;
+//        //Double.NEGATIVE_INFINITY;
+//        double stopFitness = 0;
+//        boolean isActiveCMA = true;
+//        int diagonalOnly = 20;
+//        int checkFeasableCount = 1;
+//        RandomGenerator random = new Well19937c();
+//        boolean generateStatistics = false;
+//        ConvergenceChecker<PointValuePair> checker = new SimpleValueChecker(rel, abs);
+//        // Iterate this for stability in the initial guess
+//        return new CMAESOptimizer(maxIterations, stopFitness, isActiveCMA, diagonalOnly, checkFeasableCount, random, generateStatistics, checker);
+
+
+
+//        MultivariateOptimizer optimize =
+//                new BOBYQAOptimizer(variables.size()*2);
+//        //new PowellOptimizer(0.01, 0.05);
+//        RandomGenerator rng = getRandomGenerator();
+//        MultiStartMultivariateOptimizer multiOptimize = new MultiStartMultivariateOptimizer(optimize, numStarts, new UncorrelatedRandomVectorGenerator(variables.size(), new UniformRandomGenerator(rng)));
+//        PointValuePair result = multiOptimize.optimize(
+//                new MaxEval(evaluations),
+//                new SimpleBounds(lower, upper),
+//                goal,
+//                new InitialGuess(mid),
+//                new ObjectiveFunction(this)
+//        );
+//        apply(result.getPointRef());
 
         m_active = false;
 
