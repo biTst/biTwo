@@ -66,8 +66,10 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
     @Override public ITickData getLatestTick() {
         if (m_filled) {
             if (m_lastTick == null) {
-                double regression = m_simpleRegression.predict(m_lastTimestamp - m_firstTimestamp);
-                m_lastTick = new TickData(m_lastTimestamp, (float) regression);
+                if (m_simpleRegression.getN() >= 2) { // enough ticks
+                    double regression = m_simpleRegression.predict(m_lastTimestamp - m_firstTimestamp);
+                    m_lastTick = new TickData(m_lastTimestamp, (float) regression);
+                }
             }
             return m_lastTick;
         }
