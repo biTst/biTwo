@@ -17,7 +17,7 @@ public abstract class TicksBufferBased<R>
 
     protected abstract float calcTickValue(R ret);
 
-    TicksBufferBased(ITimesSeriesData<ITickData> tsd, long period) {
+    public TicksBufferBased(ITimesSeriesData<ITickData> tsd, long period) {
         m_splitter = new BarSplitter(tsd, 1, period);
         setParent(m_splitter);
     }
