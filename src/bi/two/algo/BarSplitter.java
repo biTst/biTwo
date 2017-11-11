@@ -134,6 +134,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
 
         public long getTime() { return m_time; }
         public TickNode getLatestTick() { return m_latestTick; }
+        public TickNode getOldestTick() { return m_oldestTick; }
         void setOlderBar(BarHolder olderBar) { m_olderBar = olderBar; }
         public boolean isValid() { return (m_latestTick != null) && (m_oldestTick != null); }
         public BarHolder getOlderBar() { return m_olderBar; }
