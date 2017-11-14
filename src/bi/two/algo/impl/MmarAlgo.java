@@ -286,8 +286,8 @@ public class MmarAlgo extends BaseAlgo {
     private static abstract class Level {
         private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
         private final MinMaxSpread m_minMaxSpread;
-        private final Velocities m_velocities;
-        private final Velocities2 m_velocities2;
+        private Velocities m_velocities;
+        private Velocities2 m_velocities2;
 //        private final Adjuster m_adjuster;
 
         protected abstract BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length);
@@ -311,10 +311,11 @@ public class MmarAlgo extends BaseAlgo {
 
             m_minMaxSpread = new MinMaxSpread(iEmas, tsd);
 
-            BaseTimesSeriesData midTs = m_minMaxSpread.m_midTs;
-
-            m_velocities = new Velocities(midTs, barSize, collectValues);
-            m_velocities2 = new Velocities2(midTs, barSize, collectValues);
+            if (collectValues) {
+                BaseTimesSeriesData midTs = m_minMaxSpread.m_midTs;
+                m_velocities = new Velocities(midTs, barSize);
+                m_velocities2 = new Velocities2(midTs, barSize);
+            }
 
 //            m_adjuster = new Adjuster(m_velocities.m_midVelocityAvg, 0.0001f, 0.5f);
         }
@@ -342,15 +343,13 @@ public class MmarAlgo extends BaseAlgo {
             private TicksSimpleVelocity m_midVelocity6;
             private final Average m_midVelocityAvg;
 
-            Velocities(BaseTimesSeriesData midSmoothed, long barSize, boolean collectValues) {
+            Velocities(BaseTimesSeriesData midSmoothed, long barSize) {
                 m_midVelocity1 = new TicksSimpleVelocity(midSmoothed, barSize * 1);
                 m_midVelocity2 = new TicksSimpleVelocity(midSmoothed, barSize * 2);
                 m_midVelocity3 = new TicksSimpleVelocity(midSmoothed, barSize * 3);
-                if (collectValues) {
-                    m_midVelocity4 = new TicksSimpleVelocity(midSmoothed, barSize * 5);
-                    m_midVelocity5 = new TicksSimpleVelocity(midSmoothed, barSize * 8);
-                    m_midVelocity6 = new TicksSimpleVelocity(midSmoothed, barSize * 12);
-                }
+                m_midVelocity4 = new TicksSimpleVelocity(midSmoothed, barSize * 5);
+                m_midVelocity5 = new TicksSimpleVelocity(midSmoothed, barSize * 8);
+                m_midVelocity6 = new TicksSimpleVelocity(midSmoothed, barSize * 12);
 
                 List<ITimesSeriesData> midVelocities = new ArrayList<>();
                 midVelocities.add(m_midVelocity1);
@@ -370,16 +369,14 @@ public class MmarAlgo extends BaseAlgo {
             private TicksVelocity m_midVelocity6;
             private final Average m_midVelocityAvg;
 
-            Velocities2(BaseTimesSeriesData midSmoothed, long barSize, boolean collectValues) {
+            Velocities2(BaseTimesSeriesData midSmoothed, long barSize) {
                 int multiplier = 100000;
                 m_midVelocity1 = new TicksVelocity(midSmoothed, barSize * 1, multiplier);
                 m_midVelocity2 = new TicksVelocity(midSmoothed, barSize * 2, multiplier);
                 m_midVelocity3 = new TicksVelocity(midSmoothed, barSize * 3, multiplier);
-                if (collectValues) {
-                    m_midVelocity4 = new TicksVelocity(midSmoothed, barSize * 5, multiplier);
-                    m_midVelocity5 = new TicksVelocity(midSmoothed, barSize * 8, multiplier);
-                    m_midVelocity6 = new TicksVelocity(midSmoothed, barSize * 12, multiplier);
-                }
+                m_midVelocity4 = new TicksVelocity(midSmoothed, barSize * 5, multiplier);
+                m_midVelocity5 = new TicksVelocity(midSmoothed, barSize * 8, multiplier);
+                m_midVelocity6 = new TicksVelocity(midSmoothed, barSize * 12, multiplier);
 
                 List<ITimesSeriesData> midVelocities = new ArrayList<>();
                 midVelocities.add(m_midVelocity1);
