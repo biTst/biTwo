@@ -60,7 +60,8 @@ public class Mmar3Algo extends BaseAlgo {
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-        return new SlidingTicksRegressor(tsd, (long) (length * barSize));
+        return new SlidingTicksRegressor(tsd, (long) (length * barSize * 1));
+//        return new BarsEMA(tsd, length, barSize);
     }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
@@ -84,8 +85,11 @@ public class Mmar3Algo extends BaseAlgo {
             addChart(chartData, m_minMaxSpread.getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.MAGENTA, TickPainter.LINE);
 
-            addChart(chartData, m_minMaxSpread.getRibbonShadowMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getRibbonShadowMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
+
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
         }
 
         ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
@@ -93,6 +97,7 @@ public class Mmar3Algo extends BaseAlgo {
         {
             addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
             addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
         }
 
@@ -127,9 +132,8 @@ public class Mmar3Algo extends BaseAlgo {
     }
 
     //----------------------------------------------------------
-    public static class MinMaxSpread extends BaseTimesSeriesData<ITickData> {
+    private class MinMaxSpread extends BaseTimesSeriesData<ITickData> {
         private final List<ITimesSeriesData> m_emas;
-        private final ITimesSeriesData m_first;
         private boolean m_dirty;
         private ITickData m_tick;
         private float m_ribbonSpread;
@@ -139,8 +143,11 @@ public class Mmar3Algo extends BaseAlgo {
         private BaseTimesSeriesData m_midTs;
         private boolean m_goUp;
         private float m_ribbonSpreadMax;
-        private float m_ribbonShadowMaxTop;
-        private float m_ribbonShadowMaxBottom;
+        private float m_ribbonSpreadMaxTop;
+        private float m_ribbonSpreadMaxBottom;
+        private float m_ribbonSpreadFading;
+        private float m_ribbonSpreadFadingTop;
+        private float m_ribbonSpreadFadingBottom;
 
         MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd) {
             super(null);
@@ -149,7 +156,6 @@ public class Mmar3Algo extends BaseAlgo {
             for (ITimesSeriesData<ITickData> next : emas) {
                 next.getActive().addListener(this);
             }
-            m_first = emas.get(0);
 
             m_midTs = new BaseTimesSeriesData(this) {
                 @Override public ITickData getLatestTick() {
@@ -182,13 +188,13 @@ public class Mmar3Algo extends BaseAlgo {
                 float leadEmaValue = 0;
                 int size = m_emas.size();
                 for (int i = 0; i < size; i++) {
-                    ITimesSeriesData<ITickData> ema = m_emas.get(i);
+                    ITimesSeriesData ema = m_emas.get(i);
                     ITickData lastTick = ema.getLatestTick();
                     if (lastTick != null) {
                         float value = lastTick.getClosePrice();
                         min = Math.min(min, value);
                         max = Math.max(max, value);
-                        if(i == 0) {
+                        if(i==0) {
                             leadEmaValue = value;
                         }
                     } else {
@@ -198,10 +204,10 @@ public class Mmar3Algo extends BaseAlgo {
                 }
                 if (allDone) {
                     boolean goUp = (leadEmaValue == max)
-                                        ? true // go up
-                                        : ((leadEmaValue == min)
-                                            ? false // go down
-                                            : m_goUp); // do not change
+                            ? true // go up
+                            : ((leadEmaValue == min)
+                            ? false // go down
+                            : m_goUp); // do not change
 
                     m_min = min;
                     m_max = max;
@@ -211,11 +217,18 @@ public class Mmar3Algo extends BaseAlgo {
                     m_ribbonSpreadMax = (goUp != m_goUp) // direction changed
                             ? ribbonSpread //reset
                             : ribbonSpread < m_ribbonSpread
-                                ? Math.max(ribbonSpread, m_ribbonSpreadMax)
-                                : Math.max(ribbonSpread, m_ribbonSpreadMax);
+                            ? Math.max(ribbonSpread, m_ribbonSpreadMax)
+                            : Math.max(ribbonSpread, m_ribbonSpreadMax);
+                    m_ribbonSpreadMaxTop = goUp ? min + m_ribbonSpreadMax : max;
+                    m_ribbonSpreadMaxBottom = goUp ? min : max - m_ribbonSpreadMax;
 
-                    m_ribbonShadowMaxTop = goUp ? min + m_ribbonSpreadMax : max;
-                    m_ribbonShadowMaxBottom = goUp ? min : max - m_ribbonSpreadMax;
+                    m_ribbonSpreadFading = (goUp != m_goUp)
+                            ? ribbonSpread
+                            : Math.max(ribbonSpread, ribbonSpread < m_ribbonSpread
+                            ? m_ribbonSpreadFading - (m_ribbonSpread - ribbonSpread) * m_drop
+                            : m_ribbonSpreadFading);
+                    m_ribbonSpreadFadingTop = goUp ? min + m_ribbonSpreadFading : max;
+                    m_ribbonSpreadFadingBottom = goUp ? min : max - m_ribbonSpreadFading;
 
                     m_ribbonSpread = ribbonSpread;
                     m_goUp = goUp;
@@ -251,18 +264,42 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonShadowMaxTopTs() {
+        TimesSeriesData<TickData> getRibbonSpreadMaxTopTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
-                    return m_ribbonShadowMaxTop;
+                    return m_ribbonSpreadMaxTop;
                 }
             };
         }
 
-        TimesSeriesData<TickData> getRibbonShadowMaxBottomTs() {
+        TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
-                    return m_ribbonShadowMaxBottom;
+                    return m_ribbonSpreadMaxBottom;
+                }
+            };
+        }
+
+        TimesSeriesData<TickData> getRibbonSpreadFadingTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_ribbonSpreadFading;
+                }
+            };
+        }
+
+        TimesSeriesData<TickData> getRibbonSpreadFadingTopTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_ribbonSpreadFadingTop;
+                }
+            };
+        }
+
+        TimesSeriesData<TickData> getRibbonSpreadFadingBottomTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_ribbonSpreadFadingBottom;
                 }
             };
         }
