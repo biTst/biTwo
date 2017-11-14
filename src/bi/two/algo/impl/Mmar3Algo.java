@@ -5,7 +5,6 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.BarsEMA;
-import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -27,6 +26,7 @@ public class Mmar3Algo extends BaseAlgo {
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
     private final BaseTimesSeriesData m_spreadSmoothed;
+    private ITickData m_tickData;
 
     public Mmar3Algo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -57,11 +57,34 @@ public class Mmar3Algo extends BaseAlgo {
 
         m_minMaxSpread = new MinMaxSpread(iEmas, tsd);
         m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
+
+        setParent(m_emas.get(0));
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-        return new SlidingTicksRegressor(tsd, (long) (length * barSize * 1));
-//        return new BarsEMA(tsd, length, barSize);
+//        return new SlidingTicksRegressor(tsd, (long) (length * barSize * 1));
+        return new BarsEMA(tsd, length, barSize);
+//        return new BarsDEMA(tsd, length, barSize);
+//        return new BarsTEMA(tsd, length, barSize);
+    }
+
+    @Override public ITickData getAdjusted() {
+        ITickData parentLatestTick = getParent().getLatestTick();
+        if (parentLatestTick == null) {
+            return null; // not ready yet
+        }
+        ITickData latestTick = m_minMaxSpread.getLatestTick();// make sure calculation is up-to-date
+        if (latestTick == null) {
+            return null; // not ready yet
+        }
+
+        long timestamp = parentLatestTick.getTimestamp();
+        m_tickData = new TickData(timestamp, m_minMaxSpread.m_adj);
+        return m_tickData;
+    }
+
+    @Override public ITickData getLatestTick() {
+        return m_tickData;
     }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
@@ -121,11 +144,11 @@ public class Mmar3Algo extends BaseAlgo {
 
     @Override public String key(boolean detailed) {
         return  ""
-//                + (detailed ? ",start=" : ",") + m_start
-//                + (detailed ? ",step=" : ",") + m_step
-//                + (detailed ? ",count=" : ",") + m_count
-//                + (detailed ? ",drop=" : ",") + m_drop
-//                + (detailed ? ",smooth=" : ",") + m_smooth
+                + (detailed ? ",start=" : ",") + m_start
+                + (detailed ? ",step=" : ",") + m_step
+                + (detailed ? ",count=" : ",") + m_count
+                + (detailed ? ",drop=" : ",") + m_drop
+                + (detailed ? ",smooth=" : ",") + m_smooth
 //                + (detailed ? ",power=" : ",") + m_power
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
@@ -148,6 +171,8 @@ public class Mmar3Algo extends BaseAlgo {
         private float m_ribbonSpreadFading;
         private float m_ribbonSpreadFadingTop;
         private float m_ribbonSpreadFadingBottom;
+        private float m_leadEmaValue;
+        private float m_adj;
 
         MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd) {
             super(null);
@@ -194,7 +219,7 @@ public class Mmar3Algo extends BaseAlgo {
                         float value = lastTick.getClosePrice();
                         min = Math.min(min, value);
                         max = Math.max(max, value);
-                        if(i==0) {
+                        if (i == 0) {
                             leadEmaValue = value;
                         }
                     } else {
@@ -232,6 +257,9 @@ public class Mmar3Algo extends BaseAlgo {
 
                     m_ribbonSpread = ribbonSpread;
                     m_goUp = goUp;
+                    m_leadEmaValue = leadEmaValue;
+
+                    m_adj = (m_leadEmaValue - m_ribbonSpreadFadingBottom) / m_ribbonSpreadFading * 2 - 1;
 
                     m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
                     m_dirty = false;
