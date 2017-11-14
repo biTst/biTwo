@@ -59,22 +59,25 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
         boolean iAmChanged = false;
         if (changed) {
             if (!m_initialized) {
-                m_initialized = true;
-                m_barSplitter.m_newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                    @Override public void onTickEnter(ITickData tickData) {
-                        m_dirty = true;
-                    }
-                    @Override public void onTickExit(ITickData tickData) {}
-                });
+                BarSplitter.BarHolder newestBar = m_barSplitter.m_newestBar;
+                if(newestBar != null) {
+                    newestBar.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) {
+                            m_dirty = true;
+                        }
+                        @Override public void onTickExit(ITickData tickData) {}
+                    });
 
-                final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
-                oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
-                    @Override public void onTickEnter(ITickData tickData) { }
-                    @Override public void onTickExit(ITickData tickData){
-                        m_filled = true;
-                        oldestTick.removeBarHolderListener(this);
-                    }
-                });
+                    final BarSplitter.BarHolder oldestTick = m_barSplitter.getOldestTick();
+                    oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
+                        @Override public void onTickEnter(ITickData tickData) { }
+                        @Override public void onTickExit(ITickData tickData){
+                            m_filled = true;
+                            oldestTick.removeBarHolderListener(this);
+                        }
+                    });
+                    m_initialized = true;
+                }
             }
             iAmChanged = m_filled && m_dirty;
         }
