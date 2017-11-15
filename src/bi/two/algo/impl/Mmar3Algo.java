@@ -5,6 +5,7 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.BarsEMA;
+import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -23,9 +24,11 @@ public class Mmar3Algo extends BaseAlgo {
     private final float m_count;
     private final float m_drop;
     private final float m_smooth;
+    private final float m_power;
+    private final float m_multiplier;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
-    private final BaseTimesSeriesData m_spreadSmoothed;
+    private BaseTimesSeriesData m_spreadSmoothed;
     private ITickData m_tickData;
 
     public Mmar3Algo(MapConfig config, ITimesSeriesData tsd) {
@@ -38,6 +41,8 @@ public class Mmar3Algo extends BaseAlgo {
         m_count = config.getNumber(Vary.count).floatValue();
         m_drop = config.getNumber(Vary.drop).floatValue();
         m_smooth = config.getNumber(Vary.smooth).floatValue();
+        m_power = config.getNumber(Vary.power).floatValue();
+        m_multiplier = config.getNumber(Vary.multiplier).floatValue();
 
         // create ribbon
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
@@ -55,15 +60,17 @@ public class Mmar3Algo extends BaseAlgo {
         m_emas.add(ema);
         iEmas.add(ema);
 
-        m_minMaxSpread = new MinMaxSpread(iEmas, tsd);
-        m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
+        m_minMaxSpread = new MinMaxSpread(iEmas, tsd, collectValues);
+        if (collectValues) {
+            m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
+        }
 
         setParent(m_emas.get(0));
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-//        return new SlidingTicksRegressor(tsd, (long) (length * barSize * 1));
-        return new BarsEMA(tsd, length, barSize);
+        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
+//        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
     }
@@ -79,12 +86,20 @@ public class Mmar3Algo extends BaseAlgo {
         }
 
         long timestamp = parentLatestTick.getTimestamp();
-        m_tickData = new TickData(timestamp, m_minMaxSpread.m_adj);
+        m_tickData = new TickData(timestamp, m_minMaxSpread.m_powAdj);
         return m_tickData;
     }
 
     @Override public ITickData getLatestTick() {
         return m_tickData;
+    }
+
+    private TimesSeriesData<TickData> getPowAdjTs() {
+        return new JoinNonChangedInnerTimesSeriesData(this) {
+            @Override protected Float getValue() {
+                return m_minMaxSpread.m_powAdj;
+            }
+        };
     }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
@@ -128,6 +143,7 @@ public class Mmar3Algo extends BaseAlgo {
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
             addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
         }
 
         if (collectValues) {
@@ -149,7 +165,8 @@ public class Mmar3Algo extends BaseAlgo {
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",drop=" : ",") + m_drop
                 + (detailed ? ",smooth=" : ",") + m_smooth
-//                + (detailed ? ",power=" : ",") + m_power
+                + (detailed ? ",power=" : ",") + m_power
+                + (detailed ? ",multiplier=" : ",") + m_multiplier
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
@@ -173,8 +190,9 @@ public class Mmar3Algo extends BaseAlgo {
         private float m_ribbonSpreadFadingBottom;
         private float m_leadEmaValue;
         private float m_adj;
+        private float m_powAdj;
 
-        MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd) {
+        MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd, boolean collectValues) {
             super(null);
             m_emas = emas;
 
@@ -182,15 +200,17 @@ public class Mmar3Algo extends BaseAlgo {
                 next.getActive().addListener(this);
             }
 
-            m_midTs = new BaseTimesSeriesData(this) {
-                @Override public ITickData getLatestTick() {
-                    ITickData latestTick = getParent().getLatestTick();
-                    if (latestTick != null) {
-                        return new TickData(latestTick.getTimestamp(), m_mid);
+            if (collectValues) {
+                m_midTs = new BaseTimesSeriesData(this) {
+                    @Override public ITickData getLatestTick() {
+                        ITickData latestTick = getParent().getLatestTick();
+                        if (latestTick != null) {
+                            return new TickData(latestTick.getTimestamp(), m_mid);
+                        }
+                        return null;
                     }
-                    return null;
-                }
-            };
+                };
+            }
 
             setParent(baseTsd); // subscribe to list first - will be called onChanged() and set as dirty ONLY
         }
@@ -259,7 +279,13 @@ public class Mmar3Algo extends BaseAlgo {
                     m_goUp = goUp;
                     m_leadEmaValue = leadEmaValue;
 
-                    m_adj = (m_leadEmaValue - m_ribbonSpreadFadingBottom) / m_ribbonSpreadFading * 2 - 1;
+                    float adjRate = (m_leadEmaValue - m_ribbonSpreadFadingBottom) / m_ribbonSpreadFading; // [0...1]
+                    float powAdjRate = (float) (goUp
+                                                ? 1 - Math.pow(1 - adjRate, m_power)
+                                                : Math.pow(adjRate, m_power));
+
+                    m_adj = adjRate * 2 - 1;
+                    m_powAdj = powAdjRate * 2 - 1;
 
                     m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
                     m_dirty = false;
