@@ -8,6 +8,7 @@ public enum Vary {
     period("period", VaryType.MILLIS),  // barSize
     bars("bars", VaryType.INT),         // barsNum
     divider("divider", VaryType.FLOAT),
+    multiplier("multiplier", VaryType.FLOAT),
     slope("slope", VaryType.FLOAT),     // slopeLength
     signal("signal", VaryType.FLOAT),   // signalLength
     power("power", VaryType.FLOAT),
