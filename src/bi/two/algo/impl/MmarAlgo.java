@@ -351,7 +351,7 @@ public class MmarAlgo extends BaseAlgo {
                 m_midVelocity5 = new TicksSimpleVelocity(midSmoothed, barSize * 8);
                 m_midVelocity6 = new TicksSimpleVelocity(midSmoothed, barSize * 12);
 
-                List<ITimesSeriesData> midVelocities = new ArrayList<>();
+                List<BaseTimesSeriesData> midVelocities = new ArrayList<>();
                 midVelocities.add(m_midVelocity1);
                 midVelocities.add(m_midVelocity2);
                 midVelocities.add(m_midVelocity3);
@@ -378,7 +378,7 @@ public class MmarAlgo extends BaseAlgo {
                 m_midVelocity5 = new TicksVelocity(midSmoothed, barSize * 8, multiplier);
                 m_midVelocity6 = new TicksVelocity(midSmoothed, barSize * 12, multiplier);
 
-                List<ITimesSeriesData> midVelocities = new ArrayList<>();
+                List<BaseTimesSeriesData> midVelocities = new ArrayList<>();
                 midVelocities.add(m_midVelocity1);
                 midVelocities.add(m_midVelocity2);
                 midVelocities.add(m_midVelocity3);

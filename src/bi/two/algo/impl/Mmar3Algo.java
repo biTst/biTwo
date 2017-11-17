@@ -30,7 +30,8 @@ public class Mmar3Algo extends BaseAlgo {
     private final float m_multiplier;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
-    private final VelocityAdj m_velocityAdj;
+    private final VelocityAvg m_velocityAdj;
+    private final SlidingTicksRegressor m_velocityAdjRegr;
     private BaseTimesSeriesData m_spreadSmoothed;
     private ITickData m_tickData;
 
@@ -68,14 +69,20 @@ public class Mmar3Algo extends BaseAlgo {
             m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
         }
 
-        m_velocityAdj = new VelocityAdj(m_minMaxSpread);
+        float multiplier = 10000000f;
+        float start = 1.2f;
+        float step = 0.06f;
+        int count = 40;
+        m_velocityAdj = new VelocityAvg(m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs, m_barSize, start, step, count, multiplier);
+
+        m_velocityAdjRegr = new SlidingTicksRegressor(m_velocityAdj, (long) (m_barSize * 1.0f));
 
         setParent(m_emas.get(0));
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
-//        return new BarsEMA(tsd, length, barSize);
+//        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
+        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
     }
@@ -146,13 +153,14 @@ public class Mmar3Algo extends BaseAlgo {
 //            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
 //            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
 
-            Color velColor = Colors.alpha(Color.yellow, 128);
-            addChart(chartData, m_velocityAdj.m_midVelocity1.getJoinNonChangedTs(), bottomLayers, "minVel1", velColor, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.m_midVelocity2.getJoinNonChangedTs(), bottomLayers, "minVel2", velColor, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.m_midVelocity3.getJoinNonChangedTs(), bottomLayers, "minVel3", velColor, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.m_midVelocity4.getJoinNonChangedTs(), bottomLayers, "minVel4", velColor, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.m_midVelocity5.getJoinNonChangedTs(), bottomLayers, "minVel5", velColor, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.m_midVelocityAvg.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
+            Color velColor = Colors.alpha(Color.yellow, 10);
+            List<BaseTimesSeriesData> m_tss = m_velocityAdj.m_tss;
+            for (int i = 0; i < m_tss.size(); i++) {
+                BaseTimesSeriesData tss = m_tss.get(i);
+                addChart(chartData, tss.getJoinNonChangedTs(), bottomLayers, "minVel_" + i, velColor, TickPainter.LINE);
+            }
+            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_velocityAdjRegr.getJoinNonChangedTs(), bottomLayers, "minVelAvgRegr", Color.orange, TickPainter.LINE);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
@@ -421,37 +429,20 @@ public class Mmar3Algo extends BaseAlgo {
 
 
     //----------------------------------------------------------
-    private class VelocityAdj extends BaseTimesSeriesData<ITickData> {
-        private final TicksVelocity m_midVelocity1;
-        private final TicksVelocity m_midVelocity2;
-        private final TicksVelocity m_midVelocity3;
-        private final TicksVelocity m_midVelocity4;
-        private final TicksVelocity m_midVelocity5;
-        private final Average m_midVelocityAvg;
-
-        VelocityAdj(MinMaxSpread parent) {
-            super(null);
-            BaseTimesSeriesData velocityBaseTsd = parent.m_ribbonSpreadFadingMidMidAdjTs;
-            int multiplier = 1000000;
-            m_midVelocity1 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.0), multiplier);
-            m_midVelocity2 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.25), multiplier);
-            m_midVelocity3 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.5), multiplier);
-            m_midVelocity4 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.75), multiplier);
-            m_midVelocity5 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 2.0), multiplier);
-
-            List<ITimesSeriesData> midVelocities = new ArrayList<>();
-            midVelocities.add(m_midVelocity1);
-            midVelocities.add(m_midVelocity2);
-            midVelocities.add(m_midVelocity3);
-            midVelocities.add(m_midVelocity4);
-            midVelocities.add(m_midVelocity5);
-            m_midVelocityAvg = new Average(midVelocities, velocityBaseTsd);
-
-            setParent(parent);
+    private static  class VelocityAvg extends Average {
+        VelocityAvg(BaseTimesSeriesData velocityBaseTsd, long barSize, float start, float step, int count, float multiplier) {
+            super(buildVelocities(velocityBaseTsd, barSize, start, step, count, multiplier), velocityBaseTsd);
         }
 
-        @Override public ITickData getLatestTick() {
-            return null;
+        private static List<BaseTimesSeriesData> buildVelocities(BaseTimesSeriesData velocityBaseTsd, long barSize, float start, float step, int count, float multiplier) {
+            List<BaseTimesSeriesData> velocities = new ArrayList<>(count);
+            double len = start;
+            for (int i = 0; i < count; i++) {
+                TicksVelocity midVelocity = new TicksVelocity(velocityBaseTsd, (long) (barSize * len), multiplier);
+                velocities.add(midVelocity);
+                len += step;
+            }
+            return velocities;
         }
     }
 }

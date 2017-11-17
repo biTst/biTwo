@@ -9,12 +9,12 @@ import java.util.List;
 
 //----------------------------------------------------------
 public class Average extends BaseTimesSeriesData<ITickData> {
-    private final List<ITimesSeriesData> m_tss;
+    public final List<BaseTimesSeriesData> m_tss;
     private boolean m_dirty;
     private float m_average;
     private TickData m_tick;
 
-    public Average(List<ITimesSeriesData> tss, ITimesSeriesData baseDs) {
+    public Average(List<BaseTimesSeriesData> tss, ITimesSeriesData baseDs) {
         super(null);
         m_tss = tss;
         for (ITimesSeriesData<ITickData> next : tss) {
