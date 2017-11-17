@@ -4,8 +4,10 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.calc.Average;
 import bi.two.calc.BarsEMA;
 import bi.two.calc.SlidingTicksRegressor;
+import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.BaseTimesSeriesData;
@@ -28,6 +30,7 @@ public class Mmar3Algo extends BaseAlgo {
     private final float m_multiplier;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
+    private final VelocityAdj m_velocityAdj;
     private BaseTimesSeriesData m_spreadSmoothed;
     private ITickData m_tickData;
 
@@ -64,6 +67,8 @@ public class Mmar3Algo extends BaseAlgo {
         if (collectValues) {
             m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
         }
+
+        m_velocityAdj = new VelocityAdj(m_minMaxSpread);
 
         setParent(m_emas.get(0));
     }
@@ -128,15 +133,26 @@ public class Mmar3Algo extends BaseAlgo {
 
             addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidTs.getJoinNonChangedTs(), topLayers, "fadeMid", Color.green, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidTs.getJoinNonChangedTs(), topLayers, "fadeMidMid", Color.yellow, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs.getJoinNonChangedTs(), topLayers, "fadeMidMidAdj", Color.RED, TickPainter.LINE);
         }
 
         ChartAreaSettings bottom = chartSetting.addChartAreaSettings("indicator", 0, 0.4f, 1, 0.2f, Color.GREEN);
         List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
         {
-            addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
-            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
+//            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
+
+            Color velColor = Colors.alpha(Color.yellow, 128);
+            addChart(chartData, m_velocityAdj.m_midVelocity1.getJoinNonChangedTs(), bottomLayers, "minVel1", velColor, TickPainter.LINE);
+            addChart(chartData, m_velocityAdj.m_midVelocity2.getJoinNonChangedTs(), bottomLayers, "minVel2", velColor, TickPainter.LINE);
+            addChart(chartData, m_velocityAdj.m_midVelocity3.getJoinNonChangedTs(), bottomLayers, "minVel3", velColor, TickPainter.LINE);
+            addChart(chartData, m_velocityAdj.m_midVelocity4.getJoinNonChangedTs(), bottomLayers, "minVel4", velColor, TickPainter.LINE);
+            addChart(chartData, m_velocityAdj.m_midVelocity5.getJoinNonChangedTs(), bottomLayers, "minVel5", velColor, TickPainter.LINE);
+            addChart(chartData, m_velocityAdj.m_midVelocityAvg.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
@@ -181,6 +197,9 @@ public class Mmar3Algo extends BaseAlgo {
         private float m_max;
         private float m_mid;
         private BaseTimesSeriesData m_midTs;
+        private final BaseTimesSeriesData m_ribbonSpreadFadingMidTs;
+        private final BaseTimesSeriesData m_ribbonSpreadFadingMidMidTs;
+        private final BaseTimesSeriesData m_ribbonSpreadFadingMidMidAdjTs;
         private boolean m_goUp;
         private float m_ribbonSpreadMax;
         private float m_ribbonSpreadMaxTop;
@@ -188,9 +207,11 @@ public class Mmar3Algo extends BaseAlgo {
         private float m_ribbonSpreadFading;
         private float m_ribbonSpreadFadingTop;
         private float m_ribbonSpreadFadingBottom;
+        private float m_ribbonSpreadFadingMid;
         private float m_leadEmaValue;
         private float m_adj;
         private float m_powAdj;
+        private float m_ribbonRate;
 
         MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd, boolean collectValues) {
             super(null);
@@ -211,6 +232,39 @@ public class Mmar3Algo extends BaseAlgo {
                     }
                 };
             }
+
+            m_ribbonSpreadFadingMidTs = new BaseTimesSeriesData(this) {
+                @Override public ITickData getLatestTick() {
+                    ITickData latestTick = getParent().getLatestTick();
+                    if (latestTick != null) {
+                        return new TickData(latestTick.getTimestamp(), m_ribbonSpreadFadingMid);
+                    }
+                    return null;
+                }
+            };
+
+            m_ribbonSpreadFadingMidMidTs = new BaseTimesSeriesData(this) {
+                @Override public ITickData getLatestTick() {
+                    ITickData latestTick = getParent().getLatestTick();
+                    if (latestTick != null) {
+                        return new TickData(latestTick.getTimestamp(), (m_ribbonSpreadFadingMid + m_mid) / 2);
+                    }
+                    return null;
+                }
+            };
+
+            m_ribbonSpreadFadingMidMidAdjTs = new BaseTimesSeriesData(this) {
+                @Override public ITickData getLatestTick() {
+                    ITickData latestTick = getParent().getLatestTick();
+                    if (latestTick != null) {
+                        float rate = (m_ribbonSpreadFadingMid > m_mid)
+                                ? m_mid + (m_ribbonSpreadFadingMid - m_mid) * m_ribbonRate
+                                : m_ribbonSpreadFadingMid + (m_mid - m_ribbonSpreadFadingMid) * m_ribbonRate;
+                        return new TickData(latestTick.getTimestamp(), rate);
+                    }
+                    return null;
+                }
+            };
 
             setParent(baseTsd); // subscribe to list first - will be called onChanged() and set as dirty ONLY
         }
@@ -251,29 +305,31 @@ public class Mmar3Algo extends BaseAlgo {
                     boolean goUp = (leadEmaValue == max)
                             ? true // go up
                             : ((leadEmaValue == min)
-                            ? false // go down
-                            : m_goUp); // do not change
+                                ? false // go down
+                                : m_goUp); // do not change
 
                     m_min = min;
                     m_max = max;
                     m_mid = (max + min) / 2;
                     float ribbonSpread = max - min;
+                    m_ribbonRate = (m_leadEmaValue - min) / ribbonSpread; // [0...1]
 
                     m_ribbonSpreadMax = (goUp != m_goUp) // direction changed
                             ? ribbonSpread //reset
                             : ribbonSpread < m_ribbonSpread
-                            ? Math.max(ribbonSpread, m_ribbonSpreadMax)
-                            : Math.max(ribbonSpread, m_ribbonSpreadMax);
+                                ? Math.max(ribbonSpread, m_ribbonSpreadMax)
+                                : Math.max(ribbonSpread, m_ribbonSpreadMax);
                     m_ribbonSpreadMaxTop = goUp ? min + m_ribbonSpreadMax : max;
                     m_ribbonSpreadMaxBottom = goUp ? min : max - m_ribbonSpreadMax;
 
                     m_ribbonSpreadFading = (goUp != m_goUp)
                             ? ribbonSpread
                             : Math.max(ribbonSpread, ribbonSpread < m_ribbonSpread
-                            ? m_ribbonSpreadFading - (m_ribbonSpread - ribbonSpread) * m_drop
-                            : m_ribbonSpreadFading);
+                                ? m_ribbonSpreadFading - (m_ribbonSpread - ribbonSpread) * m_drop
+                                : m_ribbonSpreadFading);
                     m_ribbonSpreadFadingTop = goUp ? min + m_ribbonSpreadFading : max;
                     m_ribbonSpreadFadingBottom = goUp ? min : max - m_ribbonSpreadFading;
+                    m_ribbonSpreadFadingMid = (m_ribbonSpreadFadingTop + m_ribbonSpreadFadingBottom) / 2;
 
                     m_ribbonSpread = ribbonSpread;
                     m_goUp = goUp;
@@ -360,6 +416,42 @@ public class Mmar3Algo extends BaseAlgo {
 
         ITicksData<TickData> getMidTs() {
             return m_midTs.getJoinNonChangedTs();
+        }
+    }
+
+
+    //----------------------------------------------------------
+    private class VelocityAdj extends BaseTimesSeriesData<ITickData> {
+        private final TicksVelocity m_midVelocity1;
+        private final TicksVelocity m_midVelocity2;
+        private final TicksVelocity m_midVelocity3;
+        private final TicksVelocity m_midVelocity4;
+        private final TicksVelocity m_midVelocity5;
+        private final Average m_midVelocityAvg;
+
+        VelocityAdj(MinMaxSpread parent) {
+            super(null);
+            BaseTimesSeriesData velocityBaseTsd = parent.m_ribbonSpreadFadingMidMidAdjTs;
+            int multiplier = 1000000;
+            m_midVelocity1 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.0), multiplier);
+            m_midVelocity2 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.25), multiplier);
+            m_midVelocity3 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.5), multiplier);
+            m_midVelocity4 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 1.75), multiplier);
+            m_midVelocity5 = new TicksVelocity(velocityBaseTsd, (long) (m_barSize * 2.0), multiplier);
+
+            List<ITimesSeriesData> midVelocities = new ArrayList<>();
+            midVelocities.add(m_midVelocity1);
+            midVelocities.add(m_midVelocity2);
+            midVelocities.add(m_midVelocity3);
+            midVelocities.add(m_midVelocity4);
+            midVelocities.add(m_midVelocity5);
+            m_midVelocityAvg = new Average(midVelocities, velocityBaseTsd);
+
+            setParent(parent);
+        }
+
+        @Override public ITickData getLatestTick() {
+            return null;
         }
     }
 }
