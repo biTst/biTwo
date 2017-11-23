@@ -5,6 +5,8 @@ import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
+import org.apache.commons.math3.fitting.PolynomialCurveFitter;
+import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -18,6 +20,73 @@ public class ChartAreaPainter {
 
     }
 
+    //-----------------------------------------------------------------
+    public static class PolynomChartAreaPainter extends ChartAreaPainter {
+        private final TimesSeriesData m_ticksTs;
+
+        public PolynomChartAreaPainter(TimesSeriesData ticksTs) {
+            m_ticksTs = ticksTs;
+        }
+
+        @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
+                                             long timeMin, long timeMax, Point crossPoint) {
+            List<? extends ITickData> ticks = m_ticksTs.getTicks();
+            synchronized (ticks) {
+                if (crossPoint != null) {
+                    int crossX = crossPoint.x;
+                    int rightTickIndex = findTickIndexFromX(ticks, crossX, xAxe);
+                    if (rightTickIndex > 0) {
+                        ITickData rightTick = ticks.get(rightTickIndex);
+                        long rightTickMillis = rightTick.getTimestamp();
+                        long leftTickMillis = rightTickMillis - Utils.MIN_IN_MILLIS * 2;
+                        int leftTickIndex = rightTickIndex - 1;
+                        while (leftTickIndex > 0) {
+                            ITickData tick = ticks.get(leftTickIndex);
+                            long timestamp = tick.getTimestamp();
+                            if (timestamp < leftTickMillis) {
+                                leftTickIndex--;
+                                break;
+                            }
+                            leftTickIndex++; // ticks are in reverse order than on screen. older ticks are  with bigger index
+                        }
+                        if (leftTickIndex > rightTickIndex) { // ticks are in reverse order than on screen
+                            ITickData leftTick = ticks.get(leftTickIndex);
+                            final WeightedObservedPoints obs = new WeightedObservedPoints();
+                            for (int index = leftTickIndex, i = 0; index >= rightTickIndex; index--, i++) {
+                                ITickData tick = ticks.get(index);
+                                long timestamp = tick.getTimestamp();
+                                float value = tick.getClosePrice();
+                                obs.add(timestamp, value);
+                            }
+
+                            final PolynomialCurveFitter fitter = PolynomialCurveFitter.create(3);
+                            final double[] coeff = fitter.fit(obs.toList());
+                            PolynomialFunction polynomialFunction = new PolynomialFunction(coeff);
+
+                            int lastX = Integer.MAX_VALUE;
+                            int lastY = Integer.MAX_VALUE;
+
+                            leftTickMillis = leftTick.getTimestamp();
+                            int xLeftLeft = xAxe.translateInt(leftTickMillis);
+                            int xRightRight = xAxe.translateInt(rightTickMillis);
+
+                            for (int x = xLeftLeft; x <= xRightRight; x++) {
+                                long time = (long) xAxe.translateReverse(x);
+                                double value = polynomialFunction.value(time);
+                                int y = yAxe.translateInt(value);
+                                if (lastX != Integer.MAX_VALUE) {
+                                    g2.drawLine(lastX, lastY, x, y);
+                                }
+                                lastX = x;
+                                lastY = y;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     //-----------------------------------------------------------------
     public static class SplineChartAreaPainter extends ChartAreaPainter {
         private final TimesSeriesData m_ticksTs;
@@ -35,14 +104,15 @@ public class ChartAreaPainter {
             m_interpolateY = new double[m_points];
         }
 
-        @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
+        @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
+                                             long timeMin, long timeMax, Point crossPoint) {
             List<? extends ITickData> ticks = m_ticksTs.getTicks();
             synchronized (ticks) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
-                    int tickIndex3 = findTickIndexFromX(ticks, crossX, xAxe);
-                    if (tickIndex3 > 0) {
-                        ITickData iTickData = ticks.get(tickIndex3);
+                    int mainTickIndex = findTickIndexFromX(ticks, crossX, xAxe);
+                    if (mainTickIndex > 0) {
+                        ITickData iTickData = ticks.get(mainTickIndex);
                         int lastIndex = m_points - 1;
                         m_ticks[lastIndex] = iTickData; // [oldest, ... , newest]
                         long timestamp = iTickData.getTimestamp() - Utils.MIN_IN_MILLIS;
