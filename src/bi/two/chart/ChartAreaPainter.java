@@ -2,6 +2,7 @@ package bi.two.chart;
 
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.Utils;
+import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -18,9 +19,14 @@ public class ChartAreaPainter {
     //-----------------------------------------------------------------
     public static class SplineChartAreaPainter extends ChartAreaPainter {
         private final TimesSeriesData m_ticksTs;
+        private final int m_points;
+        private ITickData[] m_ticks;
+        private final SplineInterpolator m_spline = new SplineInterpolator();
 
-        public SplineChartAreaPainter(TimesSeriesData ticksTs) {
+        public SplineChartAreaPainter(TimesSeriesData ticksTs, int points) {
             m_ticksTs = ticksTs;
+            m_points = points;
+            m_ticks = new ITickData[m_points];
         }
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
@@ -31,17 +37,39 @@ public class ChartAreaPainter {
                     int tickIndex3 = findTickIndexFromX(ticks, crossX, xAxe);
                     if (tickIndex3 > 0) {
                         ITickData iTickData = ticks.get(tickIndex3);
-                        long timestamp3 = iTickData.getTimestamp();
-                        long timestamp2 = timestamp3 - Utils.MIN_IN_MILLIS;
-                        int tickIndex2 = findTickIndexFromMillis(ticks, timestamp2);
-                        if (tickIndex2 > 0) {
-                            long timestamp1 = timestamp2 - Utils.MIN_IN_MILLIS;
-                            int tickIndex1 = findTickIndexFromMillis(ticks, timestamp1);
-                            if (tickIndex1 > 0) {
-                                drawLine(g2, ticks, xAxe, yAxe, tickIndex1, tickIndex2);
-                                drawLine(g2, ticks, xAxe, yAxe, tickIndex2, tickIndex3);
+                        int lastIndex = m_points - 1;
+                        m_ticks[lastIndex] = iTickData; // [oldest, ... , newest]
+                        long timestamp = iTickData.getTimestamp() - Utils.MIN_IN_MILLIS;
+                        boolean allFine = true;
+                        int ticksNum = ticks.size();
+                        for (int index = lastIndex - 1; index >= 0; index--) {
+                            int tickIndex = findTickIndexFromMillis(ticks, timestamp);
+                            if ((tickIndex > 0) && (tickIndex < ticksNum)) {
+                                iTickData = ticks.get(tickIndex);
+                                m_ticks[index] = iTickData; // [oldest, ... , newest]
+                            } else {
+                                allFine = false;
+                                break;
+                            }
+                            timestamp -= Utils.MIN_IN_MILLIS;
+                        }
+
+                        if (allFine) {
+                            for (int i = 0; i < m_ticks.length - 1; i++) {
+                                ITickData tick1 = m_ticks[i];
+                                ITickData tick2 = m_ticks[i + 1];
+                                drawLine(g2, xAxe, yAxe, tick1, tick2);
                             }
                         }
+
+//                        int tickIndex2 = findTickIndexFromMillis(ticks, timestamp2);
+//                        if (tickIndex2 > 0) {
+//                            long timestamp1 = timestamp2 - Utils.MIN_IN_MILLIS;
+//                            int tickIndex1 = findTickIndexFromMillis(ticks, timestamp1);
+//                            if (tickIndex1 > 0) {
+//                                drawLine(g2, ticks, xAxe, yAxe, tickIndex2, tickIndex3);
+//                            }
+//                        }
                     }
                 }
             }
@@ -51,6 +79,10 @@ public class ChartAreaPainter {
             ITickData tick1 = ticks.get(tickIndex1);
             ITickData tick2 = ticks.get(tickIndex2);
 
+            drawLine(g2, xAxe, yAxe, tick1, tick2);
+        }
+
+        private void drawLine(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe, ITickData tick1, ITickData tick2) {
             long millis1 = tick1.getTimestamp();
             long millis2 = tick2.getTimestamp();
 
@@ -106,8 +138,7 @@ public class ChartAreaPainter {
     }
 
     private static int findTickIndexFromX(List<? extends ITickData> ticks, int crossX, Axe.AxeLong xAxe) {
-        int highlightTickIndex;
-        highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
+        int highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long millis = td1.getTimestamp();
                 double tickX = xAxe.translateDouble(millis);
@@ -121,7 +152,7 @@ public class ChartAreaPainter {
         if (highlightTickIndex < 0) {
             highlightTickIndex = -highlightTickIndex - 1;
         }
-        if (highlightTickIndex >= 1) {
+        if ((highlightTickIndex >= 1) && (highlightTickIndex < ticks.size())) {
             ITickData tick1 = ticks.get(highlightTickIndex);
             ITickData tick2 = ticks.get(highlightTickIndex - 1);
 
@@ -135,8 +166,9 @@ public class ChartAreaPainter {
             if (diff2 < diff1) {
                 highlightTickIndex--;
             }
+            return highlightTickIndex;
         }
-        return highlightTickIndex;
+        return -1;
     }
 
     private static int findTickIndexFromMillis(List<? extends ITickData> ticks, long millis) {
