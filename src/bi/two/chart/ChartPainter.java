@@ -41,12 +41,14 @@ public class ChartPainter {
                     if (ticksData != null) {
                         if (tryInitAxe) {
                             List<? extends ITickData> ticks = ticksData.getTicks();
-                            int size = ticks.size();
-                            if (size > 0) {
-                                long oldestTimestamp = ticks.get(size - 1).getTimestamp();
-                                minTimestamp = Math.min(minTimestamp, oldestTimestamp);
-                                long newestTimestamp = ticks.get(0).getTimestamp();
-                                maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
+                            if (ticks != null) {
+                                int size = ticks.size();
+                                if (size > 0) {
+                                    long oldestTimestamp = ticks.get(size - 1).getTimestamp();
+                                    minTimestamp = Math.min(minTimestamp, oldestTimestamp);
+                                    long newestTimestamp = ticks.get(0).getTimestamp();
+                                    maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
+                                }
                             }
                         }
                         int width = cad.getPriceAxeWidth();
@@ -100,16 +102,18 @@ public class ChartPainter {
                     ITicksData ticksData = cad.getTicksData();
                     if (ticksData != null) {
                         List<? extends ITickData> ticks = ticksData.getTicks();
-                        synchronized (ticks) {
-                            for (ITickData tick : ticks) {
-                                long timestamp = tick.getTimestamp();
-                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                    float min = tick.getMinPrice();
-                                    float max = tick.getMaxPrice();
+                        if (ticks != null) {
+                            synchronized (ticks) {
+                                for (ITickData tick : ticks) {
+                                    long timestamp = tick.getTimestamp();
+                                    if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
+                                        float min = tick.getMinPrice();
+                                        float max = tick.getMaxPrice();
 
-                                    if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
-                                        maxPrice = Math.max(maxPrice, max);
-                                        minPrice = Math.min(minPrice, min);
+                                        if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
+                                            maxPrice = Math.max(maxPrice, max);
+                                            minPrice = Math.min(minPrice, min);
+                                        }
                                     }
                                 }
                             }
@@ -125,7 +129,7 @@ public class ChartPainter {
             }
             caps.initYAxe(minPrice, maxPrice);
 
-            paintChartArea(g2, cas, cps, caps, chartData);
+            paintChartArea(g2, cas, cps, caps, chartData, crossPoint);
         }
 
         if (crossPoint != null) {
@@ -155,7 +159,8 @@ public class ChartPainter {
         g2.drawLine(0, y, width, y);
     }
 
-    private void paintChartArea(Graphics2D g2, ChartAreaSettings cas, ChartPaintSetting cps, ChartAreaPaintSetting caps, ChartData chartData) {
+    private void paintChartArea(Graphics2D g2, ChartAreaSettings cas, ChartPaintSetting cps, ChartAreaPaintSetting caps,
+                                ChartData chartData, Point crossPoint) {
         int paintLeft = caps.getPaintLeft();
         int paintWidth = caps.getPaintWidth();
         int paintTop = caps.getPaintTop();
@@ -208,7 +213,7 @@ public class ChartPainter {
                         g2.setColor(layerColor);
 
                         ChartAreaPainter chartAreaPainter = ls.getChartAreaPainter();
-                        chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, timeMin, timeMax);
+                        chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, timeMin, timeMax, crossPoint);
                     }
                 }
             }

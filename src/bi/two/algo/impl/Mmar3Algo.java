@@ -134,66 +134,70 @@ public class Mmar3Algo extends BaseAlgo {
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
-            Color emaColor = Colors.alpha(Color.BLUE, 50);
-            int size = m_emas.size();
-            for (int i = size - 1; i >= 0; i--) {
-                BaseTimesSeriesData ema = m_emas.get(i);
-                Color color = (i == 0) ? Color.BLUE : (i == size - 1) ? Colors.alpha(Color.GRAY, 100) : emaColor;
-                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
-            }
 
-            addChart(chartData, m_minMaxSpread.getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.MAGENTA, TickPainter.LINE);
+            chartData.setTicksData("spline", new NoTicksData());
+            topLayers.add(new ChartAreaLayerSettings("spline", Colors.alpha(Color.RED, 70), new ChartAreaPainter.SplineChartAreaPainter(ticksTs)));
 
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
-
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidTs.getJoinNonChangedTs(), topLayers, "fadeMid", Color.green, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidTs.getJoinNonChangedTs(), topLayers, "fadeMidMid", Color.yellow, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs.getJoinNonChangedTs(), topLayers, "fadeMidMidAdj", Color.RED, TickPainter.LINE);
-        }
-
-        ChartAreaSettings bottom = chartSetting.addChartAreaSettings("velocity", 0, 0.4f, 1, 0.2f, Color.GREEN);
-        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
-        {
-//            addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
-//            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
-
-//            Color velColor = Colors.alpha(Color.yellow, 10);
-//            List<BaseTimesSeriesData> m_tss = m_velocityAvg.m_tss;
-//            for (int i = 0; i < m_tss.size(); i++) {
-//                BaseTimesSeriesData tss = m_tss.get(i);
-//                addChart(chartData, tss.getJoinNonChangedTs(), bottomLayers, "minVel_" + i, velColor, TickPainter.LINE);
+//            Color emaColor = Colors.alpha(Color.BLUE, 50);
+//            int size = m_emas.size();
+//            for (int i = size - 1; i >= 0; i--) {
+//                BaseTimesSeriesData ema = m_emas.get(i);
+//                Color color = (i == 0) ? Color.BLUE : (i == size - 1) ? Colors.alpha(Color.GRAY, 100) : emaColor;
+//                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
 //            }
-            addChart(chartData, m_velocityAvg.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, m_velocityAdjRegr.getJoinNonChangedTs(), bottomLayers, "minVelAvgRegr", Color.orange, TickPainter.LINE);
-
-            addChart(chartData, m_velocityAdj.getMinTs(), bottomLayers, "vel_min", Color.PINK, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.getMaxTs(), bottomLayers, "vel_max", Color.PINK, TickPainter.LINE);
+//
+//            addChart(chartData, m_minMaxSpread.getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.MAGENTA, TickPainter.LINE);
+//
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
+//
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidTs.getJoinNonChangedTs(), topLayers, "fadeMid", Color.green, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidTs.getJoinNonChangedTs(), topLayers, "fadeMidMid", Color.yellow, TickPainter.LINE);
+//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs.getJoinNonChangedTs(), topLayers, "fadeMidMidAdj", Color.RED, TickPainter.LINE);
         }
 
-        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
-        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-        {
-            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
-        }
-
-        if (collectValues) {
-            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-            gain.setHorizontalLineValue(1);
-
-            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-
-            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-        }
+//        ChartAreaSettings bottom = chartSetting.addChartAreaSettings("velocity", 0, 0.4f, 1, 0.2f, Color.GREEN);
+//        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
+//        {
+////            addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
+////            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
+////            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
+////            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
+//
+////            Color velColor = Colors.alpha(Color.yellow, 10);
+////            List<BaseTimesSeriesData> m_tss = m_velocityAvg.m_tss;
+////            for (int i = 0; i < m_tss.size(); i++) {
+////                BaseTimesSeriesData tss = m_tss.get(i);
+////                addChart(chartData, tss.getJoinNonChangedTs(), bottomLayers, "minVel_" + i, velColor, TickPainter.LINE);
+////            }
+//            addChart(chartData, m_velocityAvg.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_velocityAdjRegr.getJoinNonChangedTs(), bottomLayers, "minVelAvgRegr", Color.orange, TickPainter.LINE);
+//
+//            addChart(chartData, m_velocityAdj.getMinTs(), bottomLayers, "vel_min", Color.PINK, TickPainter.LINE);
+//            addChart(chartData, m_velocityAdj.getMaxTs(), bottomLayers, "vel_max", Color.PINK, TickPainter.LINE);
+//        }
+//
+//        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
+//        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+//        {
+//            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+//            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
+//        }
+//
+//        if (collectValues) {
+//            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+//            gain.setHorizontalLineValue(1);
+//
+//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+//
+//            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+//            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+//        }
     }
 
 

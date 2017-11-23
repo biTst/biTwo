@@ -3,11 +3,14 @@ package bi.two.chart;
 import bi.two.exch.OrderSide;
 import bi.two.util.Utils;
 
-import java.awt.*;
+import java.awt.Graphics2D;
 
 public enum TickPainter {
     TICK {
-        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+        static final int DIAMETER = 10;
+        static final int RADIUS = DIAMETER/2;
+
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
             float price = tick.getMaxPrice();
             if ((price != Utils.INVALID_PRICE) && (price != 0)) {
                 int y = yAxe.translateInt(price);
@@ -15,11 +18,15 @@ public enum TickPainter {
                 int x = xAxe.translateInt(timestamp);
                 g2.drawLine(x - X_RADIUS, y, x + X_RADIUS, y);
                 g2.drawLine(x, y - X_RADIUS, x, y + X_RADIUS);
+
+                if(highlightTick) {
+                    g2.fillOval(x - RADIUS, y - RADIUS, DIAMETER, DIAMETER);
+                }
             }
         }
     },
     LINE {
-        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
             if (prevTick != null) {
                 float price = tick.getMaxPrice();
                 if ((price != Utils.INVALID_PRICE) && !Float.isInfinite(price)) {
@@ -40,7 +47,7 @@ public enum TickPainter {
         }
     },
     BAR {
-        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
             float maxPrice = tick.getMaxPrice();
             float minPrice = tick.getMinPrice();
             if ((minPrice != Utils.INVALID_PRICE) && (maxPrice != Utils.INVALID_PRICE)) {
@@ -57,7 +64,7 @@ public enum TickPainter {
         }
     },
     RIGHT_CIRCLE {
-        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
             float maxPrice = tick.getMaxPrice();
             if (maxPrice != Utils.INVALID_PRICE) {
                 long barSize = tick.getBarSize();
@@ -80,7 +87,7 @@ public enum TickPainter {
         }
     },
     TRADE {
-        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
             TradeData trade = (TradeData) tick;
             float price = trade.getClosePrice();
             if ((price != Utils.INVALID_PRICE) && (price != 0)) {
@@ -102,5 +109,5 @@ public enum TickPainter {
 
     public static final int X_RADIUS = 4;
 
-    public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe) {}
+    public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {}
 }
