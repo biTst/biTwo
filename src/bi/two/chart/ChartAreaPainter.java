@@ -3,6 +3,8 @@ package bi.two.chart;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -22,11 +24,15 @@ public class ChartAreaPainter {
         private final int m_points;
         private ITickData[] m_ticks;
         private final SplineInterpolator m_spline = new SplineInterpolator();
+        private final double[] m_interpolateX;
+        private final double[] m_interpolateY;
 
         public SplineChartAreaPainter(TimesSeriesData ticksTs, int points) {
             m_ticksTs = ticksTs;
             m_points = points;
             m_ticks = new ITickData[m_points];
+            m_interpolateX = new double[m_points];
+            m_interpolateY = new double[m_points];
         }
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
@@ -42,11 +48,19 @@ public class ChartAreaPainter {
                         long timestamp = iTickData.getTimestamp() - Utils.MIN_IN_MILLIS;
                         boolean allFine = true;
                         int ticksNum = ticks.size();
+                        long prevTickTimestamp = timestamp+1;
                         for (int index = lastIndex - 1; index >= 0; index--) {
                             int tickIndex = findTickIndexFromMillis(ticks, timestamp);
                             if ((tickIndex > 0) && (tickIndex < ticksNum)) {
                                 iTickData = ticks.get(tickIndex);
-                                m_ticks[index] = iTickData; // [oldest, ... , newest]
+                                long thisTickTimestamp = iTickData.getTimestamp();
+                                if (thisTickTimestamp < prevTickTimestamp) { // MonotonicSequence - points X should strictly increasing
+                                    m_ticks[index] = iTickData; // [oldest, ... , newest]
+                                    prevTickTimestamp = thisTickTimestamp;
+                                } else { // non MonotonicSequence
+                                    allFine = false;
+                                    break;
+                                }
                             } else {
                                 allFine = false;
                                 break;
@@ -55,21 +69,70 @@ public class ChartAreaPainter {
                         }
 
                         if (allFine) {
-                            for (int i = 0; i < m_ticks.length - 1; i++) {
+                            int rightIndex = m_ticks.length - 1;
+                            for (int i = 0; i < rightIndex; i++) {
                                 ITickData tick1 = m_ticks[i];
                                 ITickData tick2 = m_ticks[i + 1];
                                 drawLine(g2, xAxe, yAxe, tick1, tick2);
                             }
-                        }
 
-//                        int tickIndex2 = findTickIndexFromMillis(ticks, timestamp2);
-//                        if (tickIndex2 > 0) {
-//                            long timestamp1 = timestamp2 - Utils.MIN_IN_MILLIS;
-//                            int tickIndex1 = findTickIndexFromMillis(ticks, timestamp1);
-//                            if (tickIndex1 > 0) {
-//                                drawLine(g2, ticks, xAxe, yAxe, tickIndex2, tickIndex3);
-//                            }
-//                        }
+                            for (int i = 0; i <= rightIndex; i++) {
+                                ITickData tick = m_ticks[i];
+                                m_interpolateX[i] = tick.getTimestamp();
+                                m_interpolateY[i] = tick.getClosePrice();
+                            }
+
+
+                            PolynomialSplineFunction polynomialFunc = null;
+                            try {
+//                            polynomialFunc = m_interpolator.interpolate(minMillis, left.m_value, midMillis, mid.m_value, maxMillis, right.m_value);
+                                polynomialFunc = m_spline.interpolate(m_interpolateX, m_interpolateY);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                return;
+                            }
+
+
+                            PolynomialFunction[] polynomials = polynomialFunc.getPolynomials();
+
+                            int lastX = Integer.MAX_VALUE;
+                            int lastY = Integer.MAX_VALUE;
+
+                            ITickData leftTick = m_ticks[0];
+                            long leftTickMillis = leftTick.getTimestamp();
+                            int xLeftLeft = xAxe.translateInt(leftTickMillis);
+
+                            ITickData rightTick = m_ticks[rightIndex];
+                            long rightTickMillis = rightTick.getTimestamp();
+                            int xRightRight = xAxe.translateInt(rightTickMillis);
+
+                            for (int x = xLeftLeft; x <= xRightRight; x++) {
+                                long time = (long) xAxe.translateReverse(x);
+
+                                int polyIndex = m_points - 2;
+                                for (int i = 1; i < m_points; i++) {
+                                    ITickData tick = m_ticks[i];
+                                    long tickTimestamp = tick.getTimestamp();
+                                    if (time < tickTimestamp) {
+                                        polyIndex = i - 1;
+                                        break;
+                                    }
+                                }
+
+                                PolynomialFunction polynomial = polynomials[polyIndex];
+//                              UnivariateFunction derivative = polynomial.derivative();
+                                ITickData polyTick = m_ticks[polyIndex];
+                                long polyTickTimestamp = polyTick.getTimestamp();
+                                long offset = time - polyTickTimestamp;
+                                double value = polynomial.value(offset);
+                                int yy = yAxe.translateInt(value);
+                                if (lastX != Integer.MAX_VALUE) {
+                                    g2.drawLine(lastX, lastY, x, yy);
+                                }
+                                lastX = x;
+                                lastY = yy;
+                            }
+                        }
                     }
                 }
             }
