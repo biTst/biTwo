@@ -1,17 +1,21 @@
 package bi.two.chart;
 
-import java.awt.*;
+import java.awt.Color;
 
 //-----------------------------------------------------------------
 public class ChartAreaLayerSettings {
     private final String m_name;
     private final Color m_color;
-    private final TickPainter m_tickPainter;
+    private ChartAreaPainter m_chartAreaPainter;
 
     public ChartAreaLayerSettings(String name, Color color, TickPainter tickPainter) {
-        m_tickPainter = tickPainter;
+        this(name, color, new ChartAreaPainter.TicksChartAreaPainter(tickPainter));
+    }
+
+    public ChartAreaLayerSettings(String name, Color color, ChartAreaPainter chartAreaPainter) {
         m_name = name;
         m_color = color;
+        m_chartAreaPainter = chartAreaPainter;
     }
 
     public String getName() {
@@ -20,7 +24,7 @@ public class ChartAreaLayerSettings {
     public Color getColor() {
         return m_color;
     }
-    public TickPainter getTickPainter() { return m_tickPainter; }
+    public ChartAreaPainter getChartAreaPainter() { return m_chartAreaPainter; }
 
     @Override public String toString() {
         return "ChartAreaLayerSettings[name=" + m_name + "]";

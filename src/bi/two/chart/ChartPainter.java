@@ -207,18 +207,8 @@ public class ChartPainter {
                         Color layerColor = ls.getColor();
                         g2.setColor(layerColor);
 
-                        TickPainter tickPainter = ls.getTickPainter();
-                        List<? extends ITickData> ticks = ticksData.getTicks();
-                        synchronized (ticks) {
-                            ITickData prevTick = null;
-                            for (ITickData tick : ticks) {
-                                long timestamp = tick.getTimestamp();
-                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                    tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe);
-                                }
-                                prevTick = tick;
-                            }
-                        }
+                        ChartAreaPainter chartAreaPainter = ls.getChartAreaPainter();
+                        chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, timeMin, timeMax);
                     }
                 }
             }

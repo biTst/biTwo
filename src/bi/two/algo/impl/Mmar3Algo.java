@@ -211,6 +211,32 @@ public class Mmar3Algo extends BaseAlgo {
                 ;
     }
 
+    private static class NoTicksData implements ITicksData {
+        @Override public List getTicks() {
+            return null;
+        }
+
+        @Override public ITimesSeriesData getParent() {
+            return null;
+        }
+
+        @Override public ITickData getLatestTick() {
+            return null;
+        }
+
+        @Override public void addListener(ITimesSeriesListener listener) {
+
+        }
+
+        @Override public void removeListener(ITimesSeriesListener listener) {
+
+        }
+
+        @Override public ITimesSeriesData getActive() {
+            return null;
+        }
+    }
+
     //----------------------------------------------------------
     private class VelocityAdj extends BaseTimesSeriesData<ITickData> {
         private final float m_threshold;
