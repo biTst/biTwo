@@ -6,9 +6,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Utils {
-    public static final long MIN_IN_MILLIS = 60 * 1000L;
-    public static final long HOUR_IN_MILLIS = 60 * MIN_IN_MILLIS;
-    public static final long DAY_IN_MILLIS = 24 * HOUR_IN_MILLIS;
+    public static final long MIN_IN_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    public static final long HOUR_IN_MILLIS = TimeUnit.HOURS.toMillis(1);
+    public static final long DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
     public static final long MONTH_IN_MILLIS = 30 * DAY_IN_MILLIS;
     public static final long YEAR_IN_MILLIS = 365 * DAY_IN_MILLIS;
     // todo: similar like DAY_IN_MILLIS
