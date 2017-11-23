@@ -104,13 +104,14 @@ public class Main {
 
             long allEndMillis = System.currentTimeMillis();
             System.out.println("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
-
-            try {
-                Thread.sleep(TimeUnit.DAYS.toMillis(3));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Runtime.getRuntime().gc();
+            Thread.sleep(TimeUnit.DAYS.toMillis(3));
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
