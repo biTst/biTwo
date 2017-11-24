@@ -24,8 +24,24 @@ sourceSets {
 dependencies {
 //    compile fileTree(dir: 'lib', include: ['*.jar'])
     compile 'org.apache.commons:commons-math3:+'  // 3.6.1
-    compile 'com.pusher:pusher-java-client:+' // 1.5.0
     compile 'org.slf4j:slf4j-jdk14:+'
-    // https://mvnrepository.com/artifact/gov.nist.math/jama
-    compile group: 'gov.nist.math', name: 'jama', version: '1.0.3'
+
+    // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
+    compile group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1.1'
+    // compile "com.google.code.gson:gson:2.2.4"
+
+    // for Bitstamp
+    compile 'com.pusher:pusher-java-client:+' // 1.5.0
+
+    // basic linear algebra package for Java
+    // https://mvnrepository.com/artifact/gov.nist.math/jama    
+    //compile group: 'gov.nist.math', name: 'jama', version: '1.0.3'
+
+    // JSR 356 API
+    // https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api
+    compile group: 'javax.websocket', name: 'javax.websocket-api', version: '1.1'
+
+    //Tyrus JSR 356 implementation
+    compile 'org.glassfish.tyrus.bundles:tyrus-standalone-client:1.13.1'
+
 }
