@@ -10,6 +10,7 @@ import java.util.Properties;
 
 public class MapConfig extends Properties {
     private static final String INCLUDE_KEY = "include";
+    private static final String ENCRYPTED_KEY = "encrypted";
 
     public MapConfig() {}
 
@@ -133,12 +134,54 @@ public class MapConfig extends Properties {
         return property;
     }
 
-    public void load(String file) throws IOException {
-        load(new File(file));
+    public File load(String fileName) throws IOException {
+        return load(null, fileName);
+    }
+
+    public File load(File parentDir, String fileName) throws IOException {
+        File file = (parentDir == null) ? new File(fileName) : new File(parentDir, fileName);
+        load(file);
         String include = (String) remove(INCLUDE_KEY);
         if (include != null) {
 System.out.println("loading include = " + include);
-            load(include);
+            MapConfig included = new MapConfig();
+            included.load(include);
+            putAll(included);
+        }
+        return file.getParentFile();
+    }
+
+    public boolean needDecrypt() {
+        return containsKey(ENCRYPTED_KEY);
+    }
+
+    public void loadAndEncrypted(String file) throws Exception {
+        File parent = load(file);
+        if (needDecrypt()) {
+            String pwd = ConsoleReader.readConsolePwd("pwd>");
+            if (pwd == null) {
+                throw new RuntimeException("no console - use real console, not inside IDE");
+            }
+            loadEncrypted(parent, pwd);
+        }
+    }
+
+    public void loadEncrypted(File parent, String pwd) throws Exception {
+        String encryptedFileName = (String) remove(ENCRYPTED_KEY);
+        if (encryptedFileName != null) {
+System.out.println("loading encrypt = " + encryptedFileName);
+            MapConfig encrypted = new MapConfig();
+            encrypted.load(parent, encryptedFileName);
+            encrypted.decryptAll(pwd);
+            putAll(encrypted);
+        }
+    }
+
+    private void decryptAll(String pwd) throws Exception {
+        for (String name : stringPropertyNames()) {
+            String encrypted = getProperty(name);
+            String decrypted = Encryptor.decrypt(encrypted, pwd);
+            setProperty(name, decrypted);
         }
     }
 
@@ -158,7 +201,7 @@ System.out.println("loading include = " + include);
     private void filter() {
         for (String name : stringPropertyNames()) {
             String property = getProperty(name);
-            int index = property.indexOf('#');
+            int index = property.indexOf('#'); // remove comments at the end of strings
             if (index != -1) {
                 property = property.substring(0, index);
                 setProperty(name, property);

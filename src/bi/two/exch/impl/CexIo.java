@@ -1,6 +1,7 @@
 package bi.two.exch.impl;
 
 import bi.two.util.Hex;
+import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.json.simple.JSONObject;
@@ -15,6 +16,7 @@ import java.net.URI;
 // based on info from https://cex.io/websocket-api
 public class CexIo {
     public static final String URL = "wss://ws.cex.io/ws/";
+    public static final String CONFIG = "cfg/cex.io.properties";
 
     private static String s_apiSecret;
     private static String s_apiKey;
@@ -37,8 +39,16 @@ public class CexIo {
         System.out.println("   equals=" + signature.equals(sign));
     }
 
-    public static void main_() {
+    private static void main_() {
         try {
+            MapConfig config = new MapConfig();
+            config.loadAndEncrypted(CONFIG);
+
+            s_apiSecret = config.getString("cex_apiSecret");
+System.out.println("s_apiSecret = " + s_apiSecret);
+            s_apiKey = config.getString("cex_apiKey");
+System.out.println("s_apiKey = " + s_apiKey);
+
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
             ClientManager client = ClientManager.createClient();
             Session session = client.connectToServer(new Endpoint() {
@@ -49,8 +59,7 @@ public class CexIo {
                             @Override public void onMessage(String message) {
                                 onMessageX(session, message);
 
-
-                                //c onst crypto = require('crypto')
+                                // const crypto = require('crypto')
                                 // const websocket = require('ws')
                                 // var apikey = ''
                                 // var apisecret = ''
@@ -137,17 +146,32 @@ public class CexIo {
                 // request and subscribe for notifications, like by first connection
                 doAuthenticate(session);
             }
+            if (Utils.equals(e, "auth")) {
+                // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
+                JSONObject data = (JSONObject) jsonObject.get("data");
+System.out.println(" data: " + data);
+                String error = (String) data.get("error");
+System.out.println("  error: " + error);
+                if(error != null) {
+                    throw new RuntimeException("auth error: " + error);
+                }
+                onAuthenticated(session);
+            }
         } catch (Exception e) {
             System.out.println("onMessageX ERROR: " + e);
             e.printStackTrace();
         }
     }
 
+    private static void onAuthenticated(Session session) {
+System.out.println("onAuthenticated");
+    }
+
     private static void doAuthenticate(Session session) throws IOException {
         //    {
         //        "e": "auth",
         //            "auth": {
-        //        "key": "1WZbtMTbMbo2NsW12vOz9IuPM.",
+        //                "key": "1WZbtMTbMbo2NsW12vOz9IuPM.",
         //                "signature": "02483c01efc26fac843dd34d0342d269bacf4daa906a32cb71806eb7467dcf58",
         //                "timestamp": 1448034533
         //          }
@@ -158,7 +182,7 @@ public class CexIo {
 
         long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
         String signature = createSignature(timestamp, s_apiSecret, s_apiKey);
-        String jsonStr = "{ e: 'auth', auth: { key: apiKey, signature: " + signature + ", timestamp: " + timestamp + " } }";
+        String jsonStr = "{ \"e\": \"auth\", \"auth\": { \"key\": \"" + s_apiKey + "\", \"signature\": \"" + signature + "\", \"timestamp\": " + timestamp + " } }";
 System.out.println("jsonStr = " + jsonStr);
         session.getBasicRemote().sendText(jsonStr);
     }
