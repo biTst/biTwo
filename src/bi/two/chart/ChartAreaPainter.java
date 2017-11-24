@@ -1,11 +1,13 @@
 package bi.two.chart;
 
+import bi.two.Colors;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.apache.commons.math3.fitting.PolynomialCurveFitter;
+import org.apache.commons.math3.fitting.WeightedObservedPoint;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.awt.Color;
@@ -14,6 +16,7 @@ import java.awt.Point;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.TreeMap;
 
 public class ChartAreaPainter {
 
@@ -24,6 +27,8 @@ public class ChartAreaPainter {
     //-----------------------------------------------------------------
     public static class PolynomChartAreaPainter extends ChartAreaPainter {
         private final TimesSeriesData m_ticksTs;
+        private double m_shareVelocity;
+        private double m_shareError;
 
         public PolynomChartAreaPainter(TimesSeriesData ticksTs) {
             m_ticksTs = ticksTs;
@@ -40,13 +45,18 @@ public class ChartAreaPainter {
                         ITickData rightTick = ticks.get(rightTickIndex);
                         long rightTickMillis = rightTick.getTimestamp();
 
-                        int start = 5;
-                        int count = 5;
+System.out.println("--------------------------------------------------------------");
+                        int start = 3;
+                        int count = 14;
                         double velocitySum = 0;
+                        TreeMap<Double, Double> map = new TreeMap<>();
                         for (int i = 0; i < count; i++) {
-                            double velocity = paintFrame(g2, xAxe, yAxe, ticks, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i));
-                            velocitySum += velocity;
+                            paintFrame(g2, xAxe, yAxe, ticks, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i), i);
+                            map.put(m_shareError, m_shareVelocity);
+System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
+                            velocitySum += m_shareVelocity;
                         }
+
                         double velocityAvg = velocitySum / count;
 
                         float rightTickValue = rightTick.getClosePrice();
@@ -61,7 +71,8 @@ public class ChartAreaPainter {
             }
         }
 
-        private double paintFrame(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe, List<? extends ITickData> ticks, int rightTickIndex, long rightTickMillis, long frameSize) {
+        private void paintFrame(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe, List<? extends ITickData> ticks,
+                                int rightTickIndex, long rightTickMillis, long frameSize, int lineNum) {
             long leftTickMillis = rightTickMillis - frameSize;
             int leftTickIndex = rightTickIndex - 1;
             int size = ticks.size();
@@ -89,42 +100,49 @@ public class ChartAreaPainter {
                 }
 
                 final PolynomialCurveFitter fitter = PolynomialCurveFitter.create(3);
-                final double[] coeff = fitter.fit(obs.toList());
+                List<WeightedObservedPoint> points = obs.toList();
+                final double[] coeff = fitter.fit(points);
                 PolynomialFunction polynomialFunction = new PolynomialFunction(coeff);
 
                 PolynomialFunction polynomialDerivative = polynomialFunction.polynomialDerivative();
 
                 int lastX = Integer.MAX_VALUE;
                 int lastY = Integer.MAX_VALUE;
-//                            int lastY2 = Integer.MAX_VALUE;
 
                 int xLeftLeft = xAxe.translateInt(leftTickMillis);
                 int xRightRight = xAxe.translateInt(rightTickMillis);
 
-                double velocity = polynomialDerivative.value(frameWidth);
 
-//                double baseValue = polynomialFunction.value(frameWidth);
-
+g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                 for (int x = xLeftLeft; x <= xRightRight; x++) {
                     long time = (long) xAxe.translateReverse(x);
                     long xInFrame = time - leftTickMillis;
                     double value = polynomialFunction.value(xInFrame);
                     int y = yAxe.translateInt(value);
 
-//                                double derivative = polynomialDerivative.value(xInFrame);
-//                                int y2 = yAxe.translateInt(baseValue + derivative);
-
                     if (lastX != Integer.MAX_VALUE) {
                         g2.drawLine(lastX, lastY, x, y);
-//                                    g2.drawLine(lastX, lastY2, x, y2);
                     }
                     lastX = x;
                     lastY = y;
-//                                lastY2 = y2;
                 }
-                return velocity;
+
+                int pointsNum = points.size();
+                double errorSum = 0;
+                for (WeightedObservedPoint wop : points) {
+                    double modelValue = polynomialFunction.value(wop.getX());
+                    double observedValue = wop.getY();
+                    double weight = wop.getWeight();
+                    double error = Math.pow(observedValue - modelValue, 2) * weight;
+                    errorSum += error;
+                }
+                m_shareError = Math.sqrt(errorSum / pointsNum);
+
+                m_shareVelocity = polynomialDerivative.value(frameWidth);
+                return;
             }
-            return 0;
+            m_shareVelocity = 0;
+            m_shareError = 0;
         }
     }
     
