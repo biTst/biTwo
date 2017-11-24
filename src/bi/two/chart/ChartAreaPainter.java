@@ -8,6 +8,7 @@ import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.apache.commons.math3.fitting.PolynomialCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.util.Collections;
@@ -38,52 +39,92 @@ public class ChartAreaPainter {
                     if (rightTickIndex > 0) {
                         ITickData rightTick = ticks.get(rightTickIndex);
                         long rightTickMillis = rightTick.getTimestamp();
-                        long leftTickMillis = rightTickMillis - Utils.MIN_IN_MILLIS * 2;
-                        int leftTickIndex = rightTickIndex - 1;
-                        while (leftTickIndex > 0) {
-                            ITickData tick = ticks.get(leftTickIndex);
-                            long timestamp = tick.getTimestamp();
-                            if (timestamp < leftTickMillis) {
-                                leftTickIndex--;
-                                break;
-                            }
-                            leftTickIndex++; // ticks are in reverse order than on screen. older ticks are  with bigger index
+
+                        int start = 5;
+                        int count = 5;
+                        double velocitySum = 0;
+                        for (int i = 0; i < count; i++) {
+                            double velocity = paintFrame(g2, xAxe, yAxe, ticks, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i));
+                            velocitySum += velocity;
                         }
-                        if (leftTickIndex > rightTickIndex) { // ticks are in reverse order than on screen
-                            ITickData leftTick = ticks.get(leftTickIndex);
-                            final WeightedObservedPoints obs = new WeightedObservedPoints();
-                            for (int index = leftTickIndex, i = 0; index >= rightTickIndex; index--, i++) {
-                                ITickData tick = ticks.get(index);
-                                long timestamp = tick.getTimestamp();
-                                float value = tick.getClosePrice();
-                                obs.add(timestamp, value);
-                            }
+                        double velocityAvg = velocitySum / count;
 
-                            final PolynomialCurveFitter fitter = PolynomialCurveFitter.create(3);
-                            final double[] coeff = fitter.fit(obs.toList());
-                            PolynomialFunction polynomialFunction = new PolynomialFunction(coeff);
+                        float rightTickValue = rightTick.getClosePrice();
 
-                            int lastX = Integer.MAX_VALUE;
-                            int lastY = Integer.MAX_VALUE;
+                        int x1 = xAxe.translateInt(rightTickMillis);
+                        int y1 = yAxe.translateInt(rightTickValue);
 
-                            leftTickMillis = leftTick.getTimestamp();
-                            int xLeftLeft = xAxe.translateInt(leftTickMillis);
-                            int xRightRight = xAxe.translateInt(rightTickMillis);
-
-                            for (int x = xLeftLeft; x <= xRightRight; x++) {
-                                long time = (long) xAxe.translateReverse(x);
-                                double value = polynomialFunction.value(time);
-                                int y = yAxe.translateInt(value);
-                                if (lastX != Integer.MAX_VALUE) {
-                                    g2.drawLine(lastX, lastY, x, y);
-                                }
-                                lastX = x;
-                                lastY = y;
-                            }
-                        }
+                        g2.setColor(Color.blue);
+                        g2.drawLine(x1, y1, x1 + 40, (int) (y1 - velocityAvg * 100000000000d));
                     }
                 }
             }
+        }
+
+        private double paintFrame(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe, List<? extends ITickData> ticks, int rightTickIndex, long rightTickMillis, long frameSize) {
+            long leftTickMillis = rightTickMillis - frameSize;
+            int leftTickIndex = rightTickIndex - 1;
+            int size = ticks.size();
+            while (leftTickIndex < size) {
+                ITickData tick = ticks.get(leftTickIndex);
+                long timestamp = tick.getTimestamp();
+                if (timestamp < leftTickMillis) {
+                    leftTickIndex--;
+                    break;
+                }
+                leftTickIndex++; // ticks are in reverse order than on screen. older ticks are  with bigger index
+            }
+            if (leftTickIndex > rightTickIndex) { // ticks are in reverse order than on screen
+                ITickData leftTick = ticks.get(leftTickIndex);
+                leftTickMillis = leftTick.getTimestamp();
+                long frameWidth = rightTickMillis - leftTickMillis;
+                final WeightedObservedPoints obs = new WeightedObservedPoints();
+                for (int index = leftTickIndex, i = 0; index >= rightTickIndex; index--, i++) {
+                    ITickData tick = ticks.get(index);
+                    long timestamp = tick.getTimestamp();
+                    float value = tick.getClosePrice();
+                    long offset = timestamp - leftTickMillis;
+                    double weight = (double) offset / frameWidth;
+                    obs.add(weight, offset, value);
+                }
+
+                final PolynomialCurveFitter fitter = PolynomialCurveFitter.create(3);
+                final double[] coeff = fitter.fit(obs.toList());
+                PolynomialFunction polynomialFunction = new PolynomialFunction(coeff);
+
+                PolynomialFunction polynomialDerivative = polynomialFunction.polynomialDerivative();
+
+                int lastX = Integer.MAX_VALUE;
+                int lastY = Integer.MAX_VALUE;
+//                            int lastY2 = Integer.MAX_VALUE;
+
+                int xLeftLeft = xAxe.translateInt(leftTickMillis);
+                int xRightRight = xAxe.translateInt(rightTickMillis);
+
+                double velocity = polynomialDerivative.value(frameWidth);
+
+//                double baseValue = polynomialFunction.value(frameWidth);
+
+                for (int x = xLeftLeft; x <= xRightRight; x++) {
+                    long time = (long) xAxe.translateReverse(x);
+                    long xInFrame = time - leftTickMillis;
+                    double value = polynomialFunction.value(xInFrame);
+                    int y = yAxe.translateInt(value);
+
+//                                double derivative = polynomialDerivative.value(xInFrame);
+//                                int y2 = yAxe.translateInt(baseValue + derivative);
+
+                    if (lastX != Integer.MAX_VALUE) {
+                        g2.drawLine(lastX, lastY, x, y);
+//                                    g2.drawLine(lastX, lastY2, x, y2);
+                    }
+                    lastX = x;
+                    lastY = y;
+//                                lastY2 = y2;
+                }
+                return velocity;
+            }
+            return 0;
         }
     }
     

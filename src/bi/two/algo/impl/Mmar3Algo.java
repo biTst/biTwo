@@ -137,7 +137,7 @@ public class Mmar3Algo extends BaseAlgo {
 
             chartData.setTicksData("spline", new NoTicksData());
 //            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.SplineChartAreaPainter(ticksTs, 4)));
-            topLayers.add(new ChartAreaLayerSettings("polynom", Color.RED, new ChartAreaPainter.PolynomChartAreaPainter(ticksTs)));
+            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.PolynomChartAreaPainter(ticksTs)));
 
 //            Color emaColor = Colors.alpha(Color.BLUE, 50);
 //            int size = m_emas.size();
