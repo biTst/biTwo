@@ -15,8 +15,8 @@ import java.net.URI;
 
 // based on info from https://cex.io/websocket-api
 public class CexIo {
-    public static final String URL = "wss://ws.cex.io/ws/";
-    public static final String CONFIG = "cfg/cex.io.properties";
+    private static final String URL = "wss://ws.cex.io/ws/";
+    private static final String CONFIG = "cfg/cex.io.properties";
 
     private static String s_apiSecret;
     private static String s_apiKey;
@@ -58,58 +58,8 @@ System.out.println("s_apiKey = " + s_apiKey);
                         session.addMessageHandler(new MessageHandler.Whole<String>() {
                             @Override public void onMessage(String message) {
                                 onMessageX(session, message);
-
-                                // const crypto = require('crypto')
-                                // const websocket = require('ws')
-                                // var apikey = ''
-                                // var apisecret = ''
-                                // const cexiows = new websocket('wss://ws.cex.io/ws/', {permessagedeflate: false });
-                                // function createsignature(timestamp, apikey, apisecret){
-                                //      var hmac = crypto.createhmac('sha256', apisecret );
-                                //     hmac.update( timestamp + apikey );
-                                //     return hmac.digest('hex');
-                                // }
-                                // function createauthrequest(apikey, apisecret ){
-                                //     var timestamp = math.floor(date.now() / 1000);
-                                //     var args = { e: 'auth', auth: { key: apikey,
-                                //      signature: createsignature(timestamp, apikey, apisecret), timestamp: timestamp } };
-                                //     var authmessage = json.stringify( args );
-                                //     return authmessage;
-                                // }
-                                // cexiows.on('message', (mess, error) => {
-                                //         console.log("cexio message");
-                                //         console.log(mess);
-                                //     let jsonmess = json.parse(mess);
-                                //     if (jsonmess.e === "connected") {
-                                //         cexiows.send(createauthrequest(apikey, apisecret));
-                                //         cexiows.send(json.stringify({
-                                //            e: "subscribe",
-                                //             rooms: [
-                                //                 "tickers"
-                                //            ]
-                                //        }));
-                                //     }
-                                //    if (jsonmess.e === "ping") {
-                                //         console.log("pong message");
-                                //         cexiows.send(json.stringify({e: "pong"}));
-                                //      } });
-
-
-//                                m_counter++;
-//                                if (m_counter == 4) {
-//                                    try {
-//                                        session.getBasicRemote().sendText(UNSUBSCRIBE_BTCCNY_TRADES);
-//                                    } catch (IOException e) {
-//                                        e.printStackTrace();
-//                                    }
-//                                }
                             }
-
                         });
-    //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
-    //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_DEPTH);
-    //                        session.getBasicRemote().sendText(SUBSCRIBE_BTCCNY_TICKER);
-//                        session.getBasicRemote().sendText("{'event':'addChannel','channel':'ok_sub_spotcny_btc_ticker'}");
                     } catch (Exception e) {
                         System.out.println("onOpen ERROR: " + e);
                         e.printStackTrace();
@@ -141,33 +91,67 @@ System.out.println("s_apiKey = " + s_apiKey);
             JSONObject jsonObject = (JSONObject) parser.parse(message);
             String e = (String) jsonObject.get("e");
             if (Utils.equals(e, "connected")) {
-                // {"e":"connected"}
-                // can be received in case WebSocket client has reconnected, which means that client needs to send 'authenticate'
-                // request and subscribe for notifications, like by first connection
-                doAuthenticate(session);
+                onConnected(session);
+            } else if (Utils.equals(e, "auth")) {
+                onAuth(session, jsonObject);
+            } else if (Utils.equals(e, "ping")) {
+                onPing(session, jsonObject);
             }
-            if (Utils.equals(e, "auth")) {
-                // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
-                JSONObject data = (JSONObject) jsonObject.get("data");
-System.out.println(" data: " + data);
-                String error = (String) data.get("error");
-System.out.println("  error: " + error);
-                if(error != null) {
-                    throw new RuntimeException("auth error: " + error);
-                }
-                onAuthenticated(session);
-            }
+            throw new RuntimeException("unexpected json: " + jsonObject);
         } catch (Exception e) {
             System.out.println("onMessageX ERROR: " + e);
             e.printStackTrace();
         }
     }
 
-    private static void onAuthenticated(Session session) {
-System.out.println("onAuthenticated");
+    private static void onPing(Session session, JSONObject jsonObject) throws IOException {
+        System.out.println(" got ping: " + jsonObject);
+        //cexioWs.send(JSON.stringify({e: "pong"}));
+        session.getBasicRemote().sendText("{e: \"pong\"}");
     }
 
-    private static void doAuthenticate(Session session) throws IOException {
+    private static void onAuth(Session session, JSONObject jsonObject) {
+        // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
+        JSONObject data = (JSONObject) jsonObject.get("data");
+        System.out.println(" data: " + data);
+        String error = (String) data.get("error");
+        System.out.println("  error: " + error);
+        if (error != null) {
+            throw new RuntimeException("auth error: " + error);
+        }
+//                {
+//                    "e": "auth",
+//                    "data": {
+//                        "ok": "ok"
+//                    },
+//                    "ok": "ok"
+//                }
+        String ok = (String) data.get("ok");
+        System.out.println("  ok: " + ok);
+        if (Utils.equals(ok, "ok")) {
+            onAuthenticated(session);
+        }
+        throw new RuntimeException("unexpected auth response: " + jsonObject);
+    }
+
+    private static void onAuthenticated(Session session) {
+System.out.println("onAuthenticated");
+//        cexioWs.send(JSON.stringify({
+//                e: "subscribe",
+//                rooms: [
+//        "tickers"
+//            ]
+//        }));
+    }
+
+    private static void onConnected(Session session) throws IOException {
+        // {"e":"connected"}
+        // can be received in case WebSocket client has reconnected, which means that client needs to send 'authenticate'
+        // request and subscribe for notifications, like by first connection
+
+        long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
+        String signature = createSignature(timestamp, s_apiSecret, s_apiKey);
+
         //    {
         //        "e": "auth",
         //            "auth": {
@@ -179,9 +163,6 @@ System.out.println("onAuthenticated");
         // signature - Client signature (digest of HMAC-rsa256 with client's API Secret Key, applied to the string, which is
         //             concatenation timestamp and API Key)
         // timestimp - timestimp in seconds, used for signature
-
-        long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
-        String signature = createSignature(timestamp, s_apiSecret, s_apiKey);
         String jsonStr = "{ \"e\": \"auth\", \"auth\": { \"key\": \"" + s_apiKey + "\", \"signature\": \"" + signature + "\", \"timestamp\": " + timestamp + " } }";
 System.out.println("jsonStr = " + jsonStr);
         session.getBasicRemote().sendText(jsonStr);
