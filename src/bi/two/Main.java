@@ -36,13 +36,13 @@ public class Main {
     }
 
     private static void loadData(final ChartFrame frame, String[] args) {
-        MapConfig config = new MapConfig();
         try {
             String file = "vary.properties";
             if (args.length > 0) {
                 file = args[0];
             }
-            config.load(file);
+            MapConfig config = new MapConfig();
+            config.loadAndEncrypted(file);
 
             String exchangeName = config.getString("exchange");
             Exchange exchange = Exchange.get(exchangeName);
