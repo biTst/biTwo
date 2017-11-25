@@ -123,6 +123,16 @@ public class CexIo {
                 onObalance(session, jsonObject);
             } else if (Utils.equals(e, "tx")) {
                 onTx(session, jsonObject);
+            } else if (Utils.equals(e, "md")) {
+                onMd(session, jsonObject);
+            } else if (Utils.equals(e, "md_groupped")) {
+                onMdGroupped(session, jsonObject);
+            } else if (Utils.equals(e, "history")) {
+                onHistory(session, jsonObject);
+            } else if (Utils.equals(e, "history-update")) {
+                onHistoryUpdate(session, jsonObject);
+            } else if (Utils.equals(e, "ohlcv24")) {
+                onOhlcv24(session, jsonObject);
             } else if (Utils.equals(e, "disconnecting")) {
                 onDisconnecting(session, jsonObject);
             } else {
@@ -132,6 +142,86 @@ public class CexIo {
             System.out.println("onMessageX ERROR: " + e);
             e.printStackTrace();
         }
+    }
+
+    private static void onOhlcv24(Session session, JSONObject jsonObject) {
+//        {
+//            'e': 'ohlcv24',
+//            'pair': 'BTC:USD',
+//            'data': [
+//                '415.5804',
+//                '418.94',
+//                '413.0568',
+//                '416.8241',
+//                239567198169
+//            ]
+//        }
+
+        JSONArray data = (JSONArray) jsonObject.get("data");
+        Object pair = jsonObject.get("pair");
+        System.out.println(" onOhlcv24[" + pair + "]: data=" + data);
+    }
+
+    private static void onHistoryUpdate(Session session, JSONObject jsonObject) {
+//        [
+//            ['sell', '1457703218519', '41140000', '423.7125', '735480'],
+//            ... 0 to n records
+//        ]
+
+        // History update - 
+
+        JSONArray data = (JSONArray) jsonObject.get("data");
+        System.out.println(" onHistoryUpdate: data=" + data);
+    }
+
+    private static void onHistory(Session session, JSONObject jsonObject) {
+//            [
+//              'buy:1457703205200:46860000:423.7125:735479',
+//              'sell:1457703191363:35430000:423.7125:735478',
+//              ... 201 items
+//            ]
+
+        // History snapshot -  trade history of 201 records
+
+        JSONArray data = (JSONArray) jsonObject.get("data");
+        System.out.println(" onHistory: data=" + data);
+    }
+
+    private static void onMdGroupped(Session session, JSONObject jsonObject) {
+        JSONObject data = (JSONObject) jsonObject.get("data");
+        System.out.println(" onMdGroupped: data=" + data);
+
+        // Market Depth
+        
+        Object buy = data.get("buy");
+        Object sell = data.get("sell");
+        Object id = data.get("id");
+        Object pair = data.get("pair");
+        System.out.println("  buy=" + buy);
+        System.out.println("  sell=" + sell);
+        System.out.println("  pair=" + pair + ";  id=" + id);
+    }
+
+    private static void onMd(Session session, JSONObject jsonObject) {
+//        {"id":146121117,
+//         "buy":[[8497.2083,29000000],[8495.0001,34506329],[8495,85689863],[8489.22,94000000],[8489.2199,37959554],...],
+//         "sell":[[8499.9603,2000000],[8499.9604,1000000],[8499.9704,1500004],[8500,3105070],[8502,2000000],[8502.6627,1040000],...],
+//         "buy_total":757256114,
+//         "sell_total":176748539752,
+//         "pair":"BTC:USD"}
+
+        // Order Book snapshot  -  with depth 50
+
+        JSONObject data = (JSONObject) jsonObject.get("data");
+        System.out.println(" onMd: data=" + data);
+
+        Object buy = data.get("buy");
+        Object sell = data.get("sell");
+        Object id = data.get("id");
+        Object pair = data.get("pair");
+        System.out.println("  buy=" + buy);
+        System.out.println("  sell=" + sell);
+        System.out.println("  pair=" + pair + ";  id=" + id);
     }
 
     private static void onTx(Session session, JSONObject jsonObject) {
@@ -381,6 +471,16 @@ public class CexIo {
     }
 
     private static void onAuthenticated(Session session) throws Exception {
+System.out.println("onAuthenticated");
+//        {
+//            "e": "subscribe",
+//            "rooms": ["pair-BTC-USD"]
+//        }
+
+        send(session, "{ \"e\": \"subscribe\", \"rooms\": [\"pair-BTC-USD\"] }");
+    }
+
+    private static void __onAuthenticated(Session session) throws Exception {
 System.out.println("onAuthenticated");
 //        cexioWs.send(JSON.stringify({
 //                e: "subscribe",
