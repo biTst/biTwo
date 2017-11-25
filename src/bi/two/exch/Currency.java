@@ -6,6 +6,7 @@ public enum Currency {
     USD("usd"),
     EUR("eur"),
     BTC("btc"),
+    BCH("bch"),
     CNH("cnh"),
     ;
     

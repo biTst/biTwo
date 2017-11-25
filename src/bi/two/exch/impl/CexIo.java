@@ -1,9 +1,12 @@
 package bi.two.exch.impl;
 
+import bi.two.exch.MarketConfig;
+import bi.two.exch.Pair;
 import bi.two.util.Hex;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
@@ -41,13 +44,13 @@ public class CexIo {
 
     private static void main_() {
         try {
+            MarketConfig.initMarkets();
+
             MapConfig config = new MapConfig();
             config.loadAndEncrypted(CONFIG);
 
             s_apiSecret = config.getString("cex_apiSecret");
-System.out.println("s_apiSecret = " + s_apiSecret);
             s_apiKey = config.getString("cex_apiKey");
-System.out.println("s_apiKey = " + s_apiKey);
 
             ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
             ClientManager client = ClientManager.createClient();
@@ -110,6 +113,8 @@ System.out.println("s_apiKey = " + s_apiKey);
                 onOpenOrders(session, jsonObject);
             } else if (Utils.equals(e, "place-order")) {
                 onPlaceOrder(session, jsonObject);
+            } else if (Utils.equals(e, "cancel-order")) {
+                onCancelOrder(session, jsonObject);
             } else if (Utils.equals(e, "order")) {
                 onOrder(session, jsonObject);
             } else if (Utils.equals(e, "balance")) {
@@ -142,8 +147,8 @@ System.out.println("s_apiKey = " + s_apiKey);
         JSONObject data = (JSONObject) jsonObject.get("data");
         System.out.println(" onObalance: data=" + data);
 
-        Object symbol = jsonObject.get("symbol");
-        Object balance = jsonObject.get("balance");
+        Object symbol = data.get("symbol");
+        Object balance = data.get("balance");
         System.out.println("  symbol=" + symbol + ";  balance=" + balance);
     }
 
@@ -152,8 +157,8 @@ System.out.println("s_apiKey = " + s_apiKey);
         JSONObject data = (JSONObject) jsonObject.get("data");
         System.out.println(" onBalance: data=" + data);
 
-        Object symbol = jsonObject.get("symbol");
-        Object balance = jsonObject.get("balance");
+        Object symbol = data.get("symbol");
+        Object balance = data.get("balance");
         System.out.println("  symbol=" + symbol + ";  balance=" + balance);
     }
 
@@ -164,8 +169,27 @@ System.out.println("s_apiKey = " + s_apiKey);
         System.out.println(" onOrder: data=" + data);
     }
 
+    private static void onCancelOrder(Session session, JSONObject jsonObject) {
+        // {"e":"cancel-order","data":{"error":"There was an error while canceling your order: Invalid Order ID"},"oid":"1511575385_cancel-order","ok":"error"}
+        // {"e":"cancel-order","data":{"order_id":"5067483259","fremains":"0.01000000"},"oid":"1511575384_cancel-order","ok":"ok"}
+        String ok = (String) jsonObject.get("ok");
+        Object oid = jsonObject.get("oid");
+        JSONObject data = (JSONObject) jsonObject.get("data");
+        System.out.println(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data);
+
+        if (Utils.equals(ok, "error")) {
+            String error = (String) data.get("error");
+            System.out.println("  Error canceling order: " + error);
+        } else if (Utils.equals(ok, "ok")) {
+            System.out.println("  order cancelled");
+        } else {
+            throw new RuntimeException("onCancelOrder: unexpected ok=" + ok);
+        }
+    }
+
     private static void onPlaceOrder(Session session, JSONObject jsonObject) {
         // {"error":"There was an error while placing your order: Invalid amount"}
+        // {"error":"Error: Place order error: Insufficient funds."}
         // {"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":1511569539812,"complete":false,"type":"sell"}
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
@@ -179,11 +203,41 @@ System.out.println("s_apiKey = " + s_apiKey);
         }
     }
 
-    private static void onOpenOrders(Session session, JSONObject jsonObject) {
-        // []
+    private static void onOpenOrders(Session session, JSONObject jsonObject) throws Exception {
+        // [{"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":"1511569539812","type":"sell"}]
         Object oid = jsonObject.get("oid");
-        Object data = jsonObject.get("data");
+        JSONArray data = (JSONArray) jsonObject.get("data");
         System.out.println(" onOpenOrders[" + oid + "]: data=" + data);
+        String orderToCancelId = null;
+        for (Object order : data) {
+            System.out.println("  openOrder: " + order);
+            JSONObject jsonOrder = (JSONObject) order;
+            String orderId = (String) jsonOrder.get("id");
+            System.out.println("   orderId: " + orderId);
+            orderToCancelId = orderId; // will cancel last order
+        }
+
+        if (orderToCancelId != null) {
+            cancelOrder(session, orderToCancelId);
+
+            // cancel with invalid order id
+//            Thread.sleep(1000);
+//            cancelOrder(session, orderToCancelId + "_x");
+        }
+    }
+
+    private static void cancelOrder(Session session, String orderToCancelId) throws IOException {
+        System.out.println(" cancelOrder() orderToCancelId=" + orderToCancelId);
+
+//        {
+//            "e": "cancel-order",
+//            "data": { "order_id": "2477098" },
+//            "oid": "1435927928274_12_cancel-order"
+//        }
+
+        long timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{ \"e\": \"cancel-order\", \"data\": { \"order_id\": \""
+                + orderToCancelId + "\" }, \"oid\": \"" + timeMillis + "_cancel-order\" }");
     }
 
     private static void onOrderBookUnsubscribe(Session session, JSONObject jsonObject) {
@@ -276,7 +330,12 @@ System.out.println("s_apiKey = " + s_apiKey);
 
         Object bid = data.get("bid");
         Object ask = data.get("ask");
-        System.out.println("  bid=" + bid + "; ask=" + ask);
+        JSONArray pairArray = (JSONArray) data.get("pair");
+        String cur1 = (String) pairArray.get(0);
+        String cur2 = (String) pairArray.get(1);
+        String pairName = cur1 + "_" + cur2;
+        Pair pair = Pair.getByNameInt(pairName.toLowerCase());
+        System.out.println("  " + pairName + ":  bid=" + bid + "; ask=" + ask + "      pair=" + pair);
     }
 
     private static void onTick(Session session, JSONObject jsonObject) {
@@ -321,7 +380,7 @@ System.out.println("s_apiKey = " + s_apiKey);
         }
     }
 
-    private static void onAuthenticated(Session session) throws IOException, InterruptedException {
+    private static void onAuthenticated(Session session) throws Exception {
 System.out.println("onAuthenticated");
 //        cexioWs.send(JSON.stringify({
 //                e: "subscribe",
@@ -331,23 +390,18 @@ System.out.println("onAuthenticated");
 //        }));
 //        send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
 
-//        {
-//            "e": "ticker",
-//            "data": [ "BTC", "USD" ],
-//            "oid": "1435927928274_1_ticker"
-//        }
+        queryTicket(session, "BTC", "USD");
+        queryTicket(session, "BCH", "USD");
+        queryTicket(session, "BCH", "BTC");
 
-        long timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"ticker\", \"data\": [ \"BTC\", \"USD\" ], \"oid\": \"" + timeMillis + "_ticker\" }");
-
-//        {
+        //        {
 //            "e": "get-balance",
 //            "data": {},
 //            "oid": "1435927928274_2_get-balance"
 //        }
 
         Thread.sleep(1000);
-        timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis() / 1000;
         send(session, "{ \"e\": \"get-balance\", \"data\": {}, \"oid\": \"" + timeMillis + "_get-balance\" }");
 
 //        {
@@ -394,6 +448,18 @@ System.out.println("onAuthenticated");
         String side = "sell";
         send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"amount\": " + orderSize
                 + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + timeMillis + "_place-order\" }");
+    }
+
+    private static void queryTicket(Session session, String cur1, String cur2) throws Exception {
+        //        {
+        //            "e": "ticker",
+        //            "data": [ "BTC", "USD" ],
+        //            "oid": "1435927928274_1_ticker"
+        //        }
+
+        Thread.sleep(1000);
+        long timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{ \"e\": \"ticker\", \"data\": [ \""+cur1+"\", \""+cur2+"\" ], \"oid\": \"" + timeMillis + "_ticker\" }");
     }
 
     private static void onConnected(Session session) throws IOException {

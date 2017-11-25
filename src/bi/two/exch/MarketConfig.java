@@ -86,15 +86,22 @@ public class MarketConfig {
                         ExchPairData exchPairData = ex.addPair(pair);
                         String pairPrefix = prefix + ".pair." + pairName;
                         String minOrderStr = prop.getProperty(pairPrefix + ".minOrder");
-                        System.out.println("    minOrderStr: " + minOrderStr);
-                        exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
+                        if (minOrderStr != null) {
+                            System.out.println("    minOrderStr: " + minOrderStr);
+                            exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
+                        }
+
                         String initBalanceStr = prop.getProperty(pairPrefix + ".initBalance");
-                        System.out.println("    initBalanceStr: " + initBalanceStr);
-                        exchPairData.m_initBalance = Double.parseDouble(initBalanceStr);
+                        if (initBalanceStr != null) {
+                            System.out.println("    initBalanceStr: " + initBalanceStr);
+                            exchPairData.m_initBalance = Double.parseDouble(initBalanceStr);
+                        }
 
                         String commissionStr = prop.getProperty(pairPrefix + ".commission");
-                        System.out.println("    commissionStr: " + commissionStr);
-                        exchPairData.m_commission = Double.parseDouble(commissionStr);
+                        if (commissionStr != null) {
+                            System.out.println("    commissionStr: " + commissionStr);
+                            exchPairData.m_commission = Double.parseDouble(commissionStr);
+                        }
                     }
                 } else {
                     throw new RuntimeException(name + " exchange Pairs not found in cfg");
