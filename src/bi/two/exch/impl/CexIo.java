@@ -1,9 +1,6 @@
 package bi.two.exch.impl;
 
-import bi.two.exch.BaseExchImpl;
-import bi.two.exch.Exchange;
-import bi.two.exch.MarketConfig;
-import bi.two.exch.Pair;
+import bi.two.exch.*;
 import bi.two.util.Hex;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -17,6 +14,10 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 // based on info from https://cex.io/websocket-api
@@ -26,7 +27,9 @@ public class CexIo extends BaseExchImpl {
 
     private final String m_apiKey;
     private final String m_apiSecret;
+    private Session m_session;
     private Exchange.IExchangeConnectListener m_exchangeConnectListener;
+    private Map<String,OrderBook> m_orderBooks = new HashMap<>();
 
     public CexIo(MapConfig config) {
         m_apiKey = config.getString("cex_apiKey");
@@ -63,38 +66,22 @@ public class CexIo extends BaseExchImpl {
 
             exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() {
-                    System.out.println("onConnected()");
+                    try {
+                        System.out.println("onConnected()");
+                        Pair pair = exchange.getPair(Currency.BTC, Currency.USD);
+                        OrderBook orderBook = exchange.getOrderBook(pair);
+                        int depth = 3;
+                        orderBook.subscribe(new Exchange.IOrderBookListener() {
+                            @Override public void onUpdated() {
+                                System.out.println("orderBook.onUpdated: " + orderBook);
+                            }
+                        }, depth);
+                    } catch (Exception e) {
+                        System.out.println("onConnected error: " + e);
+                        e.printStackTrace();
+                    }
                 }
             });
-
-            
-//            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-//            ClientManager client = ClientManager.createClient();
-//            Session session = client.connectToServer(new Endpoint() {
-//                @Override public void onOpen(final Session session, EndpointConfig config) {
-//                    System.out.println("onOpen");
-//                    try {
-//                        session.addMessageHandler(new MessageHandler.Whole<String>() {
-//                            @Override public void onMessage(String message) {
-//                                onMessageX(session, message);
-//                            }
-//                        });
-//                    } catch (Exception e) {
-//                        System.out.println("onOpen ERROR: " + e);
-//                        e.printStackTrace();
-//                    }
-//                }
-//
-//                @Override public void onClose(Session session, CloseReason closeReason) {
-//                    System.out.println("onClose: " + closeReason);
-//                }
-//
-//                @Override public void onError(Session session, Throwable thr) {
-//                    System.out.println("onError: " + thr);
-//                    thr.printStackTrace();
-//                }
-//            }, cec, new URI(URL));
-//            System.out.println("session isOpen=" + session.isOpen() + "; session=" + session);
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
             System.out.println("done");
@@ -353,7 +340,7 @@ public class CexIo extends BaseExchImpl {
         System.out.println(" onOrderBookUnsubscribe[" + oid + "]: data=" + data);
     }
 
-    private static void onOrderBookSubscribe(Session session, JSONObject jsonObject) throws IOException {
+    private void onOrderBookSubscribe(Session session, JSONObject jsonObject) throws IOException {
         // {"timestamp":1511566229,
         //  "bids":[[8228.1220,0.00606695],[8226.6111,0.01433840]],
         //  "asks":[[8231.0941,0.01000000],[8231.1303,0.64500000]],
@@ -365,12 +352,41 @@ public class CexIo extends BaseExchImpl {
         JSONObject data = (JSONObject) jsonObject.get("data");
         System.out.println(" onOrderBookSubscribe[" + oid + "]: data=" + data);
 
-        Object bids = data.get("bids");
-        Object asks = data.get("asks");
+        JSONArray bids = (JSONArray) data.get("bids");
+        JSONArray asks = (JSONArray) data.get("asks");
         System.out.println("  bids=" + bids);
         System.out.println("  asks=" + asks);
 
-        unsubscribeOrderBook(session);
+        processOrderBook(oid, bids, asks);
+
+//        unsubscribeOrderBook(session);
+    }
+
+    private void processOrderBook(Object oid, JSONArray bids, JSONArray asks) {
+        // [[8228.1220,0.00606695],[8226.6111,0.01433840]]
+        OrderBook orderBook = m_orderBooks.get(oid);
+        if (orderBook == null) {
+            throw new RuntimeException("no orderBook for oid=" + oid);
+        }
+
+        List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
+        List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
+
+        orderBook.update(aBids, aAsks);
+    }
+
+    private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) {
+        List<OrderBook.OrderBookEntry> aBids = new ArrayList<>();
+        for (Object bid : jsonArray) {
+            JSONArray aBid = (JSONArray) bid;
+            Double price = (Double) aBid.get(0);
+            Double size = (Double) aBid.get(1);
+            OrderBook.OrderBookEntry entry = new OrderBook.OrderBookEntry(price, size);
+            aBids.add(entry);
+//            System.out.println("  price=" + price + "; .class=" + price.getClass());
+//            System.out.println("  size=" + size + "; .class=" + size.getClass());
+        }
+        return aBids;
     }
 
     private static void unsubscribeOrderBook(Session session) throws IOException {
@@ -513,7 +529,9 @@ System.out.println("onAuthenticated");
 
         Thread.sleep(1000);
         int depth = 3;
-        queryOrderBook(session, depth);
+        String cur1 = "BTC";
+        String cur2 = "USD";
+        queryOrderBook(session, cur1, cur2, depth);
 
         Thread.sleep(1000);
         queryOpenOrders(session);
@@ -563,7 +581,7 @@ System.out.println("onAuthenticated");
         send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_open-orders\" }");
     }
 
-    private static void queryOrderBook(Session session, int depth) throws IOException {
+    private static String queryOrderBook(Session session, String cur1, String cur2, int depth) throws IOException {
         //        {
         //            "e": "order-book-subscribe",
         //            "data": {
@@ -575,8 +593,10 @@ System.out.println("onAuthenticated");
         //        }
 
         long timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"subscribe\": false, \"depth\": "
-                + depth + " }, \"oid\": \"" + timeMillis + "_order-book-subscribe\" }");
+        String oid = timeMillis + "_order-book-subscribe";
+        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"" + cur1 + "\", \"" + cur2 + "\" ], \"subscribe\": false, \"depth\": "
+                + depth + " }, \"oid\": \"" + oid + "\" }");
+        return oid;
     }
 
     private static void queryBalance(Session session) throws InterruptedException, IOException {
@@ -648,7 +668,7 @@ System.out.println("onAuthenticated");
         
         ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
         ClientManager client = ClientManager.createClient();
-        Session session = client.connectToServer(new Endpoint() {
+        m_session = client.connectToServer(new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
                 System.out.println("onOpen");
                 try {
@@ -673,6 +693,21 @@ System.out.println("onAuthenticated");
                 thr.printStackTrace();
             }
         }, cec, new URI(URL));
-        System.out.println("session isOpen=" + session.isOpen() + "; session=" + session);
+        System.out.println("session isOpen=" + m_session.isOpen() + "; session=" + m_session);
+    }
+
+    @Override public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
+        Pair pair = orderBook.getPair();
+        System.out.println("subscribeOrderBook: " + pair);
+
+        Currency fromCurr = pair.m_from;
+        System.out.println(" fromCurr: " + fromCurr);
+        Currency toCurr = pair.m_to;
+        System.out.println(" toCurr: " + toCurr);
+
+        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC";
+        String cur2 = toCurr.m_name.toUpperCase(); // "USD";
+        String oid = queryOrderBook(m_session, cur1, cur2, depth);
+        m_orderBooks.put(oid, orderBook);
     }
 }

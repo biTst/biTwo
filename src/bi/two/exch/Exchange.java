@@ -11,6 +11,7 @@ public class Exchange {
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
     public Schedule m_schedule;
+    private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
 
     public Exchange(String name, Currency baseCurrency) {
         m_name = name;
@@ -77,10 +78,28 @@ public class Exchange {
         m_impl.connect(iExchangeConnectListener);
     }
 
+    public OrderBook getOrderBook(Pair pair) {
+        OrderBook orderBook = m_orderBooks.get(pair);
+        if (orderBook == null) {
+            orderBook = new OrderBook(this, pair);
+            m_orderBooks.put(pair, orderBook);
+        }
+        return orderBook;
+    }
+
+    public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
+        m_impl.subscribeOrderBook(orderBook, depth);
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
-
         void onConnected();
+    }
+
+
+    //----------------------------------------------------------------------------------------
+    public interface IOrderBookListener {
+        void onUpdated();
     }
 }
