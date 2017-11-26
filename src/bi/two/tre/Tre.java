@@ -6,7 +6,9 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Tre {
@@ -63,7 +65,7 @@ public class Tre {
     }
 
     private void subscribePairBook(Currency cur1, Currency cur2) throws Exception {
-        Pair pair = getPair(cur1, cur2);
+        Pair pair = findPair(cur1, cur2);
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         m_books.add(orderBook);
         orderBook.snapshot(new Exchange.IOrderBookListener() {
@@ -83,13 +85,10 @@ public class Tre {
         }, SUBSCRIBE_DEPTH);
     }
 
-    private Pair getPair(Currency cur1, Currency cur2) {
-        Pair pair = m_exchange.getPair(cur1, cur2);
+    private Pair findPair(Currency cur1, Currency cur2) {
+        Pair pair = m_exchange.findPair(cur1, cur2);
         if (pair == null) {
-            pair = m_exchange.getPair(cur2, cur1);
-            if (pair == null) {
-                throw new RuntimeException("no pair for currencies found: " + cur1 + "; " + cur2);
-            }
+            throw new RuntimeException("no pair for currencies found: " + cur1 + "; " + cur2);
         }
         return pair;
     }
@@ -103,20 +102,111 @@ public class Tre {
         }
         System.out.println(sb.toString());
 
-        round(0, true);
-        round(0, false);
+        Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap = new HashMap<>();
+        int length = m_currencies.length;
+        for (int i = 0; i < length; i++) {
+            Currency cur1 = m_currencies[i];
+            Currency cur2 = m_currencies[(i + 1) % length];
+            preparePairDirectionData(cur1, cur2, pairDirectionMap);
+            preparePairDirectionData(cur2, cur1, pairDirectionMap);
+        }
 
-        round(1, true);
-        round(1, false);
+        roundTaker(true, pairDirectionMap);
+        roundTaker(false, pairDirectionMap);
 
-        round(2, true);
-        round(2, false);
+        length = m_currencies.length;
+        for (int i = 0; i < length; i++) {
+            roundMaker(i, true, pairDirectionMap);
+            roundMaker(i, false, pairDirectionMap);
+        }
     }
 
-    private void round(int startIndex, boolean forward) {
+    private void roundTaker(boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+        String roundName = buildRoundName(0, forward);
+        System.out.println("roundTaker(" + roundName + ") forward=" + forward);
+        StringBuilder takerSb = new StringBuilder();
+        double takerValue = 1.0;
+        int length = m_currencies.length;
+        int index = 0;
+        for (int i = 0; i < length; i++) {
+            int nextIndex = (index + (forward ? 1 : -1) + length) % length;
+            Currency cur1 = m_currencies[index];
+            Currency cur2 = m_currencies[nextIndex];
+            PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            double mktPrice = pairDirectionData.m_mktPrice;
+            PairDirection pairDirection = pairDirectionData.m_pairDirection;
+            Pair pair = pairDirection.m_pair;
+            boolean direct = pairDirection.m_forward;
+            OrderBook orderBook = m_exchange.getOrderBook(pair);
+
+            System.out.println(" [" + index + "] " + cur1.m_name + "->" + cur2.m_name + "; pair:" + pair + "; book:" + orderBook.toString(1)
+                    + "; direct=" + direct + "; mktPrice=" + mktPrice);
+
+            if (i == 0) {
+                takerSb.append(Utils.format8(takerValue)).append(cur1.m_name);
+            }
+            double translated = takerValue * pairDirectionData.m_takerRate;
+            double commissioned = takerValue * pairDirectionData.m_fullTakerRate;
+            takerSb.append(" -> ").append(Utils.format8(translated))
+                    .append(" => ").append(Utils.format8(commissioned)).append(cur2.m_name);
+            takerValue = commissioned;
+            index = nextIndex;
+        }
+        System.out.println("  taker: " + takerSb.toString());
+    }
+
+    private void roundMaker(int startIndex, boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+        String roundName = buildRoundName(startIndex, forward);
+        System.out.println("roundMaker(" + roundName + ") startIndex=" + startIndex + "; forward=" + forward);
+        StringBuilder makerSb = new StringBuilder();
+        double makerValue = 1.0;
+        boolean firstDirect = false;
+        double firstMktPrice = 0;
+        double oppositePrice = 0;
+        int length = m_currencies.length;
+        int index = startIndex;
+        for (int i = 0; i < length; i++) {
+            int nextIndex = (index + (forward ? 1 : -1) + length) % length;
+            Currency cur1 = m_currencies[index];
+            Currency cur2 = m_currencies[nextIndex];
+            PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            PairDirection pairDirection = pairDirectionData.m_pairDirection;
+            double mktPrice = pairDirectionData.m_mktPrice;
+            Pair pair = pairDirection.m_pair;
+            boolean direct = pairDirection.m_forward;
+            OrderBook orderBook = m_exchange.getOrderBook(pair);
+
+            if (i > 0) {
+                double makerTranslated = makerValue * pairDirectionData.m_takerRate;
+                double makerCommissioned = makerValue * pairDirectionData.m_fullTakerRate;
+                if (i == 1) {
+                    makerSb.append(Utils.format8(makerValue)).append(cur1.m_name);
+                }
+                makerSb.append(" -> ").append(Utils.format8(makerTranslated))
+                        .append(" => ").append(Utils.format8(makerCommissioned))
+                        .append(cur2.m_name);
+                makerValue = makerCommissioned;
+            } else {
+                firstDirect = direct;
+                firstMktPrice = mktPrice;
+                OrderBook.OrderBookEntry oppositeEntry = (direct ? orderBook.m_asks : orderBook.m_bids).get(0);
+                oppositePrice = oppositeEntry.m_price;
+            }
+            index = nextIndex;
+        }
+        System.out.println("  maker: " + makerSb.toString());
+        double makerRate = firstDirect ? (1 / makerValue) : makerValue;
+        System.out.println("    makerRate: [" + Utils.format8(firstMktPrice) + " - " + Utils.format8(oppositePrice) + "]  " + Utils.format8(makerRate));
+        if ((firstMktPrice < oppositePrice) && ((firstMktPrice < makerRate) && (makerRate < oppositePrice)) ||
+            (firstMktPrice > oppositePrice) && ((firstMktPrice > makerRate) && (makerRate > oppositePrice))) {
+            System.out.println("           @@@@@@@@@@@@    in BETWEEN  " + Utils.format8(firstDirect ? oppositePrice / makerRate : makerRate / oppositePrice));
+        }
+    }
+
+    private String buildRoundName(int startIndex, boolean forward) {
         int index = startIndex;
         int length = m_currencies.length;
-        StringBuilder sb = new StringBuilder("");
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < length; i++) {
             Currency cur = m_currencies[index];
             if (i > 0) {
@@ -125,63 +215,55 @@ public class Tre {
             sb.append(cur.m_name);
             index = (index + (forward ? 1 : -1) + length) % length;
         }
+        return sb.toString();
+    }
 
-        System.out.println("round(" + sb.toString() + ") startIndex=" + startIndex + "; forward=" + forward);
-        index = startIndex;
-        StringBuilder takerSb = new StringBuilder("");
-        StringBuilder makerSb = new StringBuilder("");
-        double takerValue = 1.0;
-        double makerValue = 1.0;
-        boolean firstDirect = false;
-        double firstMktPrice = 0;
-        double oppositePrice = 0;
-        for (int i = 0; i < length; i++) {
-            int nextIndex = (index + (forward ? 1 : -1) + length) % length;
-            Currency cur1 = m_currencies[index];
-            Currency cur2 = m_currencies[nextIndex];
-            Pair pair = getPair(cur1, cur2);
-            Currency curFrom = pair.m_from;
-            boolean direct = (cur1 == curFrom);
-            OrderBook orderBook = m_exchange.getOrderBook(pair);
-            OrderBook.OrderBookEntry entry = (direct ? orderBook.m_bids : orderBook.m_asks).get(0);
-            double mktPrice = entry.m_price;
+    private void preparePairDirectionData(Currency cur1, Currency cur2, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+        PairDirection pairDirection = m_exchange.getPairDirection(cur1, cur2);
+        Pair pair = pairDirection.m_pair;
+        boolean direct = pairDirection.m_forward;
 
-            ExchPairData pairData = m_exchange.getPairData(pair);
-            double commission = pairData.m_commission;
+        OrderBook orderBook = m_exchange.getOrderBook(pair);
+        OrderBook.OrderBookEntry entry = (direct ? orderBook.m_bids : orderBook.m_asks).get(0);
+        double mktPrice = entry.m_price;
 
-            System.out.println(" [" + index + "] " + cur1.m_name + "->" + cur2.m_name + "; pair:" + pair + "; book:" + orderBook.toString(1)
-                    + "; direct=" + direct + "; mktPrice=" + mktPrice);
-            double translated = direct ? (takerValue * mktPrice) : (takerValue / mktPrice);
-            double commissioned = translated * (1 - commission);
+        ExchPairData pairData = m_exchange.getPairData(pair);
+        double commission = pairData.m_commission;
+        double takerRate = direct ? (1 * mktPrice) : (1 / mktPrice);
+        double fullTakerRate = takerRate * (1 - commission);
 
-            if (i == 0) {
-                takerSb.append(Utils.format8(takerValue)).append(cur1.m_name);
-            }
-            takerSb.append(" -> ").append(Utils.format8(translated))
-                    .append(" => ").append(Utils.format8(commissioned)).append(cur2.m_name);
-            takerValue = commissioned;
+        System.out.println(" " + cur1.m_name + "->" + cur2.m_name
+                + "; pair:" + pair
+                + "; direct=" + direct
+                + "; book:" + orderBook.toString(1)
+                + "; mktPrice=" + mktPrice
+                + "; taker=" + Utils.format8(fullTakerRate)
+        );
 
-            if (i > 0) {
-                double makerTranslated = direct ? makerValue * mktPrice : makerValue / mktPrice;
-                double makerCommissioned = makerTranslated * (1 - commission);
-                if (i == 1) {
-                    makerSb.append(Utils.format8(makerValue)).append(cur1.m_name);
-                }
-                makerSb.append(" -> ").append(Utils.format8(makerTranslated))
-                        .append(" => ").append(Utils.format8(makerCommissioned)).append(cur2.m_name);
-                makerValue = makerCommissioned;
-            } else {
-                firstDirect = direct;
-                firstMktPrice = mktPrice;
-                OrderBook.OrderBookEntry oppositeEntry = (direct ? orderBook.m_asks : orderBook.m_bids).get(0);
-                oppositePrice = oppositeEntry.m_price;
-            }
-
-            index = nextIndex;
+        PairDirectionData pairDirectionData = new PairDirectionData(pairDirection, entry, mktPrice, takerRate, fullTakerRate);
+        Map<Currency, PairDirectionData> map = pairDirectionMap.get(cur1);
+        if (map == null) {
+            map = new HashMap<>();
+            pairDirectionMap.put(cur1, map);
         }
-        System.out.println("  taker: " + takerSb.toString());
-        System.out.println("  maker: " + makerSb.toString());
-        double makerRate = firstDirect ? (1 / makerValue) : makerValue;
-        System.out.println("    makerRate: " + Utils.format8(makerRate) + "  [" + Utils.format8(firstMktPrice) + " - " + Utils.format8(oppositePrice) + "]");
+        map.put(cur2, pairDirectionData);
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class PairDirectionData {
+        private final PairDirection m_pairDirection;
+        private final OrderBook.OrderBookEntry m_entry;
+        private final double m_mktPrice;
+        private final double m_takerRate;
+        private final double m_fullTakerRate;
+
+        public PairDirectionData(PairDirection pairDirection, OrderBook.OrderBookEntry entry, double mktPrice, double takerRate, double fullTakerRate) {
+            m_pairDirection = pairDirection;
+            m_entry = entry;
+            m_mktPrice = mktPrice;
+            m_takerRate = takerRate;
+            m_fullTakerRate = fullTakerRate;
+        }
     }
 }
