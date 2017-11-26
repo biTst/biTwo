@@ -31,25 +31,59 @@ public class OrderBook {
     }
 
     private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, boolean reverse) {
-        for (OrderBookEntry entry : updates) {
-            int index = Collections.binarySearch(entries, entry, new Comparator<OrderBookEntry>() {
+//        System.out.println("  updateBookSide(" + reverse + ") updates=" + updates);
+        for (OrderBookEntry update : updates) {
+            //System.out.println("   entries=" + entries);
+            int index = Collections.binarySearch(entries, update, new Comparator<OrderBookEntry>() {
                 @Override public int compare(OrderBookEntry o1, OrderBookEntry o2) {
-                    int compare = Double.compare(o1.m_price, o1.m_price);
+                    int compare = Double.compare(o1.m_price, o2.m_price);
                     return reverse ? -compare : compare;
                 }
             });
+            //System.out.println("    index=" + index + "; update=" + update);
+            double size = update.m_size;
             if (index < 0) {
                 // to insert
-                index = -index - 1;
-                m_bids.add(index, entry);
+                if (size > 0) {
+                    index = -index - 1;
+                    entries.add(index, update);
+                }
             } else {
                 // to replace
-                m_bids.set(index, entry);
+                if (size > 0) {
+                    entries.set(index, update);
+                } else {
+                    entries.remove(index);
+                }
             }
         }
+//        System.out.println("   out entries=" + entries);
     }
 
-    
+    public String toString(int levels) {
+        StringBuilder sb = new StringBuilder("OrderBook{bids:");
+        int min = Math.min(levels, m_bids.size());
+        for (int i = min - 1; i >= 0; i--) {
+            OrderBookEntry bid = m_bids.get(i);
+            sb.append(bid);
+            sb.append(";");
+        }
+        sb.append("  ||  ");
+        min = Math.min(levels, m_asks.size());
+        for (int i = 0; i < min; i++) {
+            OrderBookEntry ask = m_asks.get(i);
+            sb.append(ask);
+            sb.append(";");
+        }
+        sb.append('}');
+        return sb.toString();
+    }
+
+    @Override public String toString() {
+        return "OrderBook{bids:" + m_bids + ", asks:" + m_asks + '}';
+    }
+
+
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
         private double m_price;
@@ -58,6 +92,10 @@ public class OrderBook {
         public OrderBookEntry(double price, double size) {
             m_price = price;
             m_size = size;
+        }
+
+        @Override public String toString() {
+            return "[" + m_price + ";" + m_size + ']';
         }
     }
 }
