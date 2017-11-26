@@ -66,6 +66,22 @@ public class MarketConfig {
                     }
                     ex.m_schedule = schedule;
                 }
+                double exchCommission = 0;
+                String exchCommissionStr = prop.getProperty(prefix + ".commission");
+                if (exchCommissionStr != null) {
+                    if (verbose) {
+                        System.out.println("  exchCommissionStr: " + exchCommissionStr);
+                    }
+                    exchCommission = Double.parseDouble(exchCommissionStr);
+                }
+                double exchMakerCommission = exchCommission;
+                String exchMakerCommissionStr = prop.getProperty(prefix + ".makerCommission");
+                if (exchMakerCommissionStr != null) {
+                    if (verbose) {
+                        System.out.println("  makerCommissionStr: " + exchMakerCommissionStr);
+                    }
+                    exchMakerCommission = Double.parseDouble(exchMakerCommissionStr);
+                }
                 String pairsStr = prop.getProperty(prefix + ".pairs");
                 if (verbose) {
                     System.out.println("  pairs=" + pairsStr);
@@ -120,13 +136,25 @@ public class MarketConfig {
                             exchPairData.m_initBalance = Double.parseDouble(initBalanceStr);
                         }
 
+                        double commission = exchCommission;
                         String commissionStr = prop.getProperty(pairPrefix + ".commission");
                         if (commissionStr != null) {
                             if (verbose) {
                                 System.out.println("    commissionStr: " + commissionStr);
                             }
-                            exchPairData.m_commission = Double.parseDouble(commissionStr);
+                            commission = Double.parseDouble(commissionStr);
                         }
+                        exchPairData.m_commission = commission;
+
+                        double makerCommission = commission;
+                        String makerCommissionStr = prop.getProperty(pairPrefix + ".makerCommission");
+                        if (makerCommissionStr != null) {
+                            if (verbose) {
+                                System.out.println("    makerCommissionStr: " + makerCommissionStr);
+                            }
+                            makerCommission = Double.parseDouble(makerCommissionStr);
+                        }
+                        exchPairData.m_makerCommission = makerCommission;
                     }
                 } else {
                     throw new RuntimeException(name + " exchange Pairs not found in cfg");

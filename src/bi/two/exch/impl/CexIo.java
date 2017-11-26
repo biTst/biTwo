@@ -694,7 +694,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     @Override public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
-        Pair pair = orderBook.getPair();
+        Pair pair = orderBook.m_pair;
         System.out.println("subscribeOrderBook: " + pair);
 
         Currency fromCurr = pair.m_from;
@@ -705,6 +705,22 @@ public class CexIo extends BaseExchImpl {
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
         subscribeOrderBook(m_session, cur1, cur2, depth);
+        String key = cur1 + ":" + cur2;
+        m_orderBooks.put(key, orderBook);
+    }
+
+    @Override public void queryOrderBookSnapshot(OrderBook orderBook, int depth) throws Exception {
+        Pair pair = orderBook.m_pair;
+        System.out.println("queryOrderBookSnapshot: " + pair);
+
+        Currency fromCurr = pair.m_from;
+        System.out.println(" fromCurr: " + fromCurr);
+        Currency toCurr = pair.m_to;
+        System.out.println(" toCurr: " + toCurr);
+
+        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
+        String cur2 = toCurr.m_name.toUpperCase(); // "USD"
+        queryOrderBookSnapshoot(m_session, cur1, cur2, depth);
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);
     }

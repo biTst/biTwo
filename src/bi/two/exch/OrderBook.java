@@ -6,13 +6,11 @@ import java.util.Comparator;
 import java.util.List;
 
 public class OrderBook {
-    private final Exchange m_exchange;
-    private final Pair m_pair;
-    private List<OrderBookEntry> m_bids = new ArrayList<>();
-    private List<OrderBookEntry> m_asks = new ArrayList<>();
+    public final Exchange m_exchange;
+    public final Pair m_pair;
+    public List<OrderBookEntry> m_bids = new ArrayList<>();
+    public List<OrderBookEntry> m_asks = new ArrayList<>();
     private Exchange.IOrderBookListener m_listener;
-
-    public Pair getPair() { return m_pair; }
 
     public OrderBook(Exchange exchange, Pair pair) {
         m_exchange = exchange ;
@@ -22,6 +20,11 @@ public class OrderBook {
     public void subscribe(Exchange.IOrderBookListener listener, int depth) throws Exception {
         m_listener = listener;
         m_exchange.subscribeOrderBook(this, depth);
+    }
+
+    public void snapshot(Exchange.IOrderBookListener listener, int depth) throws Exception {
+        m_listener = listener;
+        m_exchange.queryOrderBookSnapshot(this, depth);
     }
 
     public void update(List<OrderBookEntry> bids, List<OrderBookEntry> asks) {
@@ -86,8 +89,8 @@ public class OrderBook {
 
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
-        private double m_price;
-        private double m_size;
+        public double m_price;
+        public double m_size;
 
         public OrderBookEntry(double price, double size) {
             m_price = price;

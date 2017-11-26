@@ -91,6 +91,10 @@ public class Exchange {
         m_impl.subscribeOrderBook(orderBook, depth);
     }
 
+    public void queryOrderBookSnapshot(OrderBook orderBook, int depth) throws Exception {
+        m_impl.queryOrderBookSnapshot(orderBook, depth);
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
