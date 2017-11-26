@@ -105,6 +105,12 @@ public class Tre {
 
         round(0, true);
         round(0, false);
+
+        round(1, true);
+        round(1, false);
+
+        round(2, true);
+        round(2, false);
     }
 
     private void round(int startIndex, boolean forward) {
@@ -122,8 +128,13 @@ public class Tre {
 
         System.out.println("round(" + sb.toString() + ") startIndex=" + startIndex + "; forward=" + forward);
         index = startIndex;
+        StringBuilder takerSb = new StringBuilder("");
+        StringBuilder makerSb = new StringBuilder("");
         double takerValue = 1.0;
         double makerValue = 1.0;
+        boolean firstDirect = false;
+        double firstMktPrice = 0;
+        double oppositePrice = 0;
         for (int i = 0; i < length; i++) {
             int nextIndex = (index + (forward ? 1 : -1) + length) % length;
             Currency cur1 = m_currencies[index];
@@ -138,27 +149,39 @@ public class Tre {
             ExchPairData pairData = m_exchange.getPairData(pair);
             double commission = pairData.m_commission;
 
-            System.out.println(" [" + index + "] " + cur1 + "->" + cur2 + "; pair:" + pair + "; book:" + orderBook.toString(1)
+            System.out.println(" [" + index + "] " + cur1.m_name + "->" + cur2.m_name + "; pair:" + pair + "; book:" + orderBook.toString(1)
                     + "; direct=" + direct + "; mktPrice=" + mktPrice);
-            double translated = direct ? takerValue * mktPrice : takerValue / mktPrice;
+            double translated = direct ? (takerValue * mktPrice) : (takerValue / mktPrice);
             double commissioned = translated * (1 - commission);
-            System.out.println("  taker: " + Utils.format8(takerValue) + cur1.m_name
-                    + " -> " + Utils.format8(translated)
-                    + " => " + Utils.format8(commissioned) + cur2.m_name);
+
+            if (i == 0) {
+                takerSb.append(Utils.format8(takerValue)).append(cur1.m_name);
+            }
+            takerSb.append(" -> ").append(Utils.format8(translated))
+                    .append(" => ").append(Utils.format8(commissioned)).append(cur2.m_name);
             takerValue = commissioned;
 
             if (i > 0) {
                 double makerTranslated = direct ? makerValue * mktPrice : makerValue / mktPrice;
                 double makerCommissioned = makerTranslated * (1 - commission);
-                System.out.println("  maker: " + Utils.format8(makerValue) + cur1.m_name
-                        + " -> " + Utils.format8(makerTranslated)
-                        + " => " + Utils.format8(makerCommissioned) + cur2.m_name);
+                if (i == 1) {
+                    makerSb.append(Utils.format8(makerValue)).append(cur1.m_name);
+                }
+                makerSb.append(" -> ").append(Utils.format8(makerTranslated))
+                        .append(" => ").append(Utils.format8(makerCommissioned)).append(cur2.m_name);
                 makerValue = makerCommissioned;
+            } else {
+                firstDirect = direct;
+                firstMktPrice = mktPrice;
+                OrderBook.OrderBookEntry oppositeEntry = (direct ? orderBook.m_asks : orderBook.m_bids).get(0);
+                oppositePrice = oppositeEntry.m_price;
             }
 
             index = nextIndex;
         }
-        double makerRate = 1 / makerValue;
-        System.out.println(" makerRate: " + makerRate);
+        System.out.println("  taker: " + takerSb.toString());
+        System.out.println("  maker: " + makerSb.toString());
+        double makerRate = firstDirect ? (1 / makerValue) : makerValue;
+        System.out.println("    makerRate: " + Utils.format8(makerRate) + "  [" + Utils.format8(firstMktPrice) + " - " + Utils.format8(oppositePrice) + "]");
     }
 }
