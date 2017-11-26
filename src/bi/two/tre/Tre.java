@@ -1,19 +1,18 @@
 package bi.two.tre;
 
+import bi.two.exch.Currency;
 import bi.two.exch.*;
 import bi.two.exch.impl.CexIo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class Tre {
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 3;
+    private static final double MAKER_PROFIT_RATE = 0.001; // 0.1%
 
     private Exchange m_exchange;
     private int m_connectedPairsCounter = 0;
@@ -103,7 +102,7 @@ public class Tre {
         System.out.println(sb.toString());
 
         Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap = new HashMap<>();
-        int length = m_currencies.length;
+        final int length = m_currencies.length;
         for (int i = 0; i < length; i++) {
             Currency cur1 = m_currencies[i];
             Currency cur2 = m_currencies[(i + 1) % length];
@@ -114,11 +113,22 @@ public class Tre {
         roundTaker(true, pairDirectionMap);
         roundTaker(false, pairDirectionMap);
 
-        length = m_currencies.length;
+        List<RoundData> rounds = new ArrayList<>();
         for (int i = 0; i < length; i++) {
-            roundMaker(i, true, pairDirectionMap);
-            roundMaker(i, false, pairDirectionMap);
+            for (int j = 0; j < 2; j++) {
+                RoundData roundData = roundMaker(i, (j == 0), pairDirectionMap);
+                rounds.add(roundData);
+            }
         }
+        Collections.sort(rounds, new Comparator<RoundData>() {
+            @Override public int compare(RoundData o1, RoundData o2) {
+                return Double.compare(o2.m_rate, o1.m_rate); // decreasing order
+            }
+        });
+//        for (RoundData round : rounds) {
+//            System.out.println(" round: " + round);
+//        }
+        System.out.println(" best round: " + rounds.get(0));
     }
 
     private void roundTaker(boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
@@ -155,9 +165,8 @@ public class Tre {
         System.out.println("  taker: " + takerSb.toString());
     }
 
-    private void roundMaker(int startIndex, boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+    private RoundData roundMaker(int startIndex, boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
         String roundName = buildRoundName(startIndex, forward);
-        System.out.println("roundMaker(" + roundName + ") startIndex=" + startIndex + "; forward=" + forward);
         StringBuilder makerSb = new StringBuilder();
         double makerValue = 1.0;
         boolean firstDirect = false;
@@ -194,13 +203,19 @@ public class Tre {
             }
             index = nextIndex;
         }
-        System.out.println("  maker: " + makerSb.toString());
-        double makerRate = firstDirect ? (1 / makerValue) : makerValue;
-        System.out.println("    makerRate: [" + Utils.format8(firstMktPrice) + " - " + Utils.format8(oppositePrice) + "]  " + Utils.format8(makerRate));
-        if ((firstMktPrice < oppositePrice) && ((firstMktPrice < makerRate) && (makerRate < oppositePrice)) ||
-            (firstMktPrice > oppositePrice) && ((firstMktPrice > makerRate) && (makerRate > oppositePrice))) {
-            System.out.println("           @@@@@@@@@@@@    in BETWEEN  " + Utils.format8(firstDirect ? oppositePrice / makerRate : makerRate / oppositePrice));
+        System.out.println("roundMaker(" + roundName + ") startIndex=" + startIndex + "; forward=" + forward + ";  " + makerSb.toString());
+        double makerPrice = firstDirect ? (1 / makerValue) : makerValue;
+        double makerRate = firstDirect ? oppositePrice / makerPrice : makerPrice / oppositePrice;
+        double profitPrice = firstDirect ? makerPrice * (1 + MAKER_PROFIT_RATE) : makerPrice / (1 + MAKER_PROFIT_RATE);
+        String makerRateStr = Utils.format8(makerRate);
+        System.out.println("    maker: firstDirect=" + firstDirect + "; [" + Utils.format8(firstMktPrice) + " - " + Utils.format8(oppositePrice)
+                + "]  " + Utils.format8(makerPrice) + ";  " + Utils.format8(profitPrice) + "; rate=" + makerRateStr);
+        if ((firstMktPrice < oppositePrice) && ((firstMktPrice < makerPrice) && (makerPrice < oppositePrice)) ||
+            (firstMktPrice > oppositePrice) && ((firstMktPrice > makerPrice) && (makerPrice > oppositePrice))) {
+            System.out.println("           @@@@@@@@@@@@    in BETWEEN");
         }
+        RoundData ret = new RoundData(true, roundName, makerRate);
+        return ret;
     }
 
     private String buildRoundName(int startIndex, boolean forward) {
@@ -264,6 +279,26 @@ public class Tre {
             m_mktPrice = mktPrice;
             m_takerRate = takerRate;
             m_fullTakerRate = fullTakerRate;
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private class RoundData {
+        private final boolean m_maker;
+        private final String m_roundName;
+        private final double m_rate;
+
+        public RoundData(boolean maker, String roundName, double rate) {
+            m_maker = maker;
+            m_roundName = roundName;
+            m_rate = rate;
+        }
+
+        @Override public String toString() {
+            return "RoundData{" + m_roundName +
+                    " maker=" + m_maker +
+                    ", rate=" + m_rate +
+                    '}';
         }
     }
 }
