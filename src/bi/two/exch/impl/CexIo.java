@@ -1,5 +1,7 @@
 package bi.two.exch.impl;
 
+import bi.two.exch.BaseExchImpl;
+import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
 import bi.two.util.Hex;
@@ -15,14 +17,21 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 // based on info from https://cex.io/websocket-api
-public class CexIo {
+public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
     private static final String CONFIG = "cfg/cex.io.properties";
 
-    private static String s_apiSecret;
-    private static String s_apiKey;
+    private final String m_apiKey;
+    private final String m_apiSecret;
+    private Exchange.IExchangeConnectListener m_exchangeConnectListener;
+
+    public CexIo(MapConfig config) {
+        m_apiKey = config.getString("cex_apiKey");
+        m_apiSecret = config.getString("cex_apiSecret");
+    }
 
 
     public static void main(String[] args) {
@@ -49,37 +58,45 @@ public class CexIo {
             MapConfig config = new MapConfig();
             config.loadAndEncrypted(CONFIG);
 
-            s_apiSecret = config.getString("cex_apiSecret");
-            s_apiKey = config.getString("cex_apiKey");
+            Exchange exchange = Exchange.get("cex");
+            exchange.m_impl = new CexIo(config);
 
-            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-            ClientManager client = ClientManager.createClient();
-            Session session = client.connectToServer(new Endpoint() {
-                @Override public void onOpen(final Session session, EndpointConfig config) {
-                    System.out.println("onOpen");
-                    try {
-                        session.addMessageHandler(new MessageHandler.Whole<String>() {
-                            @Override public void onMessage(String message) {
-                                onMessageX(session, message);
-                            }
-                        });
-                    } catch (Exception e) {
-                        System.out.println("onOpen ERROR: " + e);
-                        e.printStackTrace();
-                    }
+            exchange.connect(new Exchange.IExchangeConnectListener() {
+                @Override public void onConnected() {
+                    System.out.println("onConnected()");
                 }
+            });
 
-                @Override public void onClose(Session session, CloseReason closeReason) {
-                    System.out.println("onClose: " + closeReason);
-                }
+            
+//            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+//            ClientManager client = ClientManager.createClient();
+//            Session session = client.connectToServer(new Endpoint() {
+//                @Override public void onOpen(final Session session, EndpointConfig config) {
+//                    System.out.println("onOpen");
+//                    try {
+//                        session.addMessageHandler(new MessageHandler.Whole<String>() {
+//                            @Override public void onMessage(String message) {
+//                                onMessageX(session, message);
+//                            }
+//                        });
+//                    } catch (Exception e) {
+//                        System.out.println("onOpen ERROR: " + e);
+//                        e.printStackTrace();
+//                    }
+//                }
+//
+//                @Override public void onClose(Session session, CloseReason closeReason) {
+//                    System.out.println("onClose: " + closeReason);
+//                }
+//
+//                @Override public void onError(Session session, Throwable thr) {
+//                    System.out.println("onError: " + thr);
+//                    thr.printStackTrace();
+//                }
+//            }, cec, new URI(URL));
+//            System.out.println("session isOpen=" + session.isOpen() + "; session=" + session);
 
-                @Override public void onError(Session session, Throwable thr) {
-                    System.out.println("onError: " + thr);
-                    thr.printStackTrace();
-                }
-            }, cec, new URI(URL));
-            System.out.println("session isOpen=" + session.isOpen() + "; session=" + session);
-            Thread.sleep(125000);
+            Thread.sleep(TimeUnit.DAYS.toMillis(365));
             System.out.println("done");
         } catch (Exception e) {
             System.out.println("ERROR: " + e);
@@ -87,7 +104,7 @@ public class CexIo {
         }
     }
 
-    private static void onMessageX(Session session, String message) {
+    private void onMessageX(Session session, String message) {
         System.out.println("Received message: " + message);
         try {
             JSONParser parser = new JSONParser();
@@ -445,7 +462,7 @@ public class CexIo {
         send(session, "{\"e\": \"pong\"}");
     }
 
-    private static void onAuth(Session session, JSONObject jsonObject) throws Exception {
+    private void onAuth(Session session, JSONObject jsonObject) throws Exception {
         // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
         JSONObject data = (JSONObject) jsonObject.get("data");
         System.out.println(" data: " + data);
@@ -464,7 +481,8 @@ public class CexIo {
         String ok = (String) data.get("ok");
         System.out.println("  ok: " + ok);
         if (Utils.equals(ok, "ok")) {
-            onAuthenticated(session);
+            m_exchangeConnectListener.onConnected();
+//            onAuthenticated(session);
         } else {
             throw new RuntimeException("unexpected auth response: " + jsonObject);
         }
@@ -482,72 +500,94 @@ System.out.println("onAuthenticated");
 
     private static void __onAuthenticated(Session session) throws Exception {
 System.out.println("onAuthenticated");
-//        cexioWs.send(JSON.stringify({
-//                e: "subscribe",
-//                rooms: [
-//                  "tickers"
-//                 ]
-//        }));
-//        send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
+//        queryTickers(session);
 
         queryTicket(session, "BTC", "USD");
+        Thread.sleep(1000);
         queryTicket(session, "BCH", "USD");
+        Thread.sleep(1000);
         queryTicket(session, "BCH", "BTC");
 
-        //        {
-//            "e": "get-balance",
-//            "data": {},
-//            "oid": "1435927928274_2_get-balance"
-//        }
+        Thread.sleep(1000);
+        queryBalance(session);
 
         Thread.sleep(1000);
-        long timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"get-balance\", \"data\": {}, \"oid\": \"" + timeMillis + "_get-balance\" }");
-
-//        {
-//            "e": "order-book-subscribe",
-//            "data": {
-//                "pair": [ "BTC", "USD" ],
-//                "subscribe": false,
-//                "depth": 2
-//            },
-//            "oid": "1435927928274_3_order-book-subscribe"
-//        }
+        int depth = 3;
+        queryOrderBook(session, depth);
 
         Thread.sleep(1000);
-        timeMillis = System.currentTimeMillis() / 1000;
-        String depth = "3";
-        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"subscribe\": false, \"depth\": "
-                + depth + " }, \"oid\": \"" + timeMillis + "_order-book-subscribe\" }");
-
-//        {
-//            "e": "open-orders",
-//            "data": { "pair": [ "BTC", "USD" ] },
-//            "oid": "1435927928274_6_open-orders"
-//        }
+        queryOpenOrders(session);
 
         Thread.sleep(1000);
-        timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_open-orders\" }");
-
-//        {
-//            "e": "place-order",
-//            "data": {
-//                "pair": [ "BTC", "USD" ],
-//                "amount": 0.02,
-//                "price": "241.9477",
-//                "type": "buy"
-//            },
-//            "oid": "1435927928274_7_place-order"
-//        }
-
-        Thread.sleep(1000);
-        timeMillis = System.currentTimeMillis() / 1000;
         String orderSize = "0.01";
         String price = "9000.0123";
         String side = "sell";
+        placeOrder(session, orderSize, price, side);
+    }
+
+    private static void queryTickers(Session session) throws IOException {
+        //        cexioWs.send(JSON.stringify({
+        //                e: "subscribe",
+        //                rooms: [
+        //                  "tickers"
+        //                 ]
+        //        }));
+        send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
+    }
+
+    private static void placeOrder(Session session, String orderSize, String price, String side) throws IOException {
+        //        {
+        //            "e": "place-order",
+        //            "data": {
+        //                "pair": [ "BTC", "USD" ],
+        //                "amount": 0.02,
+        //                "price": "241.9477",
+        //                "type": "buy"
+        //            },
+        //            "oid": "1435927928274_7_place-order"
+        //        }
+
+        long timeMillis = System.currentTimeMillis() / 1000;
         send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"amount\": " + orderSize
                 + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + timeMillis + "_place-order\" }");
+    }
+
+    private static void queryOpenOrders(Session session) throws IOException {
+        //        {
+        //            "e": "open-orders",
+        //            "data": { "pair": [ "BTC", "USD" ] },
+        //            "oid": "1435927928274_6_open-orders"
+        //        }
+
+        long  timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_open-orders\" }");
+    }
+
+    private static void queryOrderBook(Session session, int depth) throws IOException {
+        //        {
+        //            "e": "order-book-subscribe",
+        //            "data": {
+        //                "pair": [ "BTC", "USD" ],
+        //                "subscribe": false,
+        //                "depth": 2
+        //            },
+        //            "oid": "1435927928274_3_order-book-subscribe"
+        //        }
+
+        long timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"subscribe\": false, \"depth\": "
+                + depth + " }, \"oid\": \"" + timeMillis + "_order-book-subscribe\" }");
+    }
+
+    private static void queryBalance(Session session) throws InterruptedException, IOException {
+        //        {
+        //            "e": "get-balance",
+        //            "data": {},
+        //            "oid": "1435927928274_2_get-balance"
+        //        }
+
+        long timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{ \"e\": \"get-balance\", \"data\": {}, \"oid\": \"" + timeMillis + "_get-balance\" }");
     }
 
     private static void queryTicket(Session session, String cur1, String cur2) throws Exception {
@@ -557,18 +597,17 @@ System.out.println("onAuthenticated");
         //            "oid": "1435927928274_1_ticker"
         //        }
 
-        Thread.sleep(1000);
         long timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"ticker\", \"data\": [ \""+cur1+"\", \""+cur2+"\" ], \"oid\": \"" + timeMillis + "_ticker\" }");
+        send(session, "{ \"e\": \"ticker\", \"data\": [ \"" + cur1 + "\", \"" + cur2 + "\" ], \"oid\": \"" + timeMillis + "_ticker\" }");
     }
 
-    private static void onConnected(Session session) throws IOException {
+    private void onConnected(Session session) throws IOException {
         // {"e":"connected"}
         // can be received in case WebSocket client has reconnected, which means that client needs to send 'authenticate'
         // request and subscribe for notifications, like by first connection
 
         long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
-        String signature = createSignature(timestamp, s_apiSecret, s_apiKey);
+        String signature = createSignature(timestamp, m_apiSecret, m_apiKey);
 
         //    {
         //        "e": "auth",
@@ -581,9 +620,9 @@ System.out.println("onAuthenticated");
         // signature - Client signature (digest of HMAC-rsa256 with client's API Secret Key, applied to the string, which is
         //             concatenation timestamp and API Key)
         // timestimp - timestimp in seconds, used for signature
-        String jsonStr = "{ \"e\": \"auth\", \"auth\": { \"key\": \"" + s_apiKey + "\", \"signature\": \"" + signature + "\", \"timestamp\": " + timestamp + " } }";
-System.out.println("jsonStr = " + jsonStr);
-        send(session, jsonStr);
+        
+        send(session, "{ \"e\": \"auth\", \"auth\": { \"key\": \"" + m_apiKey + "\", \"signature\": \""
+                + signature + "\", \"timestamp\": " + timestamp + " } }");
     }
 
     private static void send(Session session, String str) throws IOException {
@@ -602,5 +641,38 @@ System.out.println("jsonStr = " + jsonStr);
         } catch (Exception e) {
             throw new RuntimeException("createSignature ERROR: " + e, e); // rethrow
         }
+    }
+
+    @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
+        m_exchangeConnectListener = iExchangeConnectListener;
+        
+        ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+        ClientManager client = ClientManager.createClient();
+        Session session = client.connectToServer(new Endpoint() {
+            @Override public void onOpen(final Session session, EndpointConfig config) {
+                System.out.println("onOpen");
+                try {
+                    session.addMessageHandler(new MessageHandler.Whole<String>() {
+                        @Override public void onMessage(String message) {
+                            onMessageX(session, message);
+                        }
+                    });
+                    iExchangeConnectListener.onConnected();
+                } catch (Exception e) {
+                    System.out.println("onOpen ERROR: " + e);
+                    e.printStackTrace();
+                }
+            }
+
+            @Override public void onClose(Session session, CloseReason closeReason) {
+                System.out.println("onClose: " + closeReason);
+            }
+
+            @Override public void onError(Session session, Throwable thr) {
+                System.out.println("onError: " + thr);
+                thr.printStackTrace();
+            }
+        }, cec, new URI(URL));
+        System.out.println("session isOpen=" + session.isOpen() + "; session=" + session);
     }
 }

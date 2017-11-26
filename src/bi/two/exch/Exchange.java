@@ -72,4 +72,15 @@ public class Exchange {
     public boolean hasSchedule() {
         return (m_schedule != null);
     }
+
+    public void connect(IExchangeConnectListener iExchangeConnectListener) throws Exception {
+        m_impl.connect(iExchangeConnectListener);
+    }
+
+
+    //----------------------------------------------------------------------------------------
+    public interface IExchangeConnectListener {
+
+        void onConnected();
+    }
 }
