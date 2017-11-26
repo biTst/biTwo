@@ -18,12 +18,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 // based on info from https://cex.io/websocket-api
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
-    private static final String CONFIG = "cfg/cex.io.properties";
 
     private final String m_apiKey;
     private final String m_apiSecret;
@@ -36,10 +34,8 @@ public class CexIo extends BaseExchImpl {
         m_apiSecret = config.getString("cex_apiSecret");
     }
 
-
     public static void main(String[] args) {
 //        test();
-        main_();
     }
 
     private static void test() {
@@ -52,43 +48,6 @@ public class CexIo extends BaseExchImpl {
         System.out.println("signature=" + sign);
         System.out.println(" expected=" + signature);
         System.out.println("   equals=" + signature.equals(sign));
-    }
-
-    private static void main_() {
-        try {
-            MarketConfig.initMarkets();
-
-            MapConfig config = new MapConfig();
-            config.loadAndEncrypted(CONFIG);
-
-            Exchange exchange = Exchange.get("cex");
-            exchange.m_impl = new CexIo(config);
-
-            exchange.connect(new Exchange.IExchangeConnectListener() {
-                @Override public void onConnected() {
-                    try {
-                        System.out.println("onConnected()");
-                        Pair pair = exchange.getPair(Currency.BTC, Currency.USD);
-                        OrderBook orderBook = exchange.getOrderBook(pair);
-                        int depth = 3;
-                        orderBook.subscribe(new Exchange.IOrderBookListener() {
-                            @Override public void onUpdated() {
-                                System.out.println("orderBook.onUpdated: " + orderBook);
-                            }
-                        }, depth);
-                    } catch (Exception e) {
-                        System.out.println("onConnected error: " + e);
-                        e.printStackTrace();
-                    }
-                }
-            });
-
-            Thread.sleep(TimeUnit.DAYS.toMillis(365));
-            System.out.println("done");
-        } catch (Exception e) {
-            System.out.println("ERROR: " + e);
-            e.printStackTrace();
-        }
     }
 
     private void onMessageX(Session session, String message) {
@@ -295,7 +254,8 @@ public class CexIo extends BaseExchImpl {
         if (error != null) {
             System.out.println("  Error placing order[" + oid + "]: " + error);
         } else {
-
+            Object id = data.get("id");
+            System.out.println("  Order place OK. id=" + id);
         }
     }
 
@@ -404,7 +364,7 @@ public class CexIo extends BaseExchImpl {
 
 //        System.out.println(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
         orderBook.update(aBids, aAsks);
-        System.out.println(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
+//        System.out.println(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
     }
 
     private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) {
@@ -454,12 +414,12 @@ public class CexIo extends BaseExchImpl {
         //  "USD":"0.04","ETH":"0.00000000","ZEC":"0.00000000","DASH":"0.00000000","RUB":"0.00"}
 
         StringBuilder sb = new StringBuilder();
-        append(sb, balance, "BTC");
-        append(sb, balance, "EUR");
-        append(sb, balance, "GHS");
-        append(sb, balance, "BTG");
-        append(sb, balance, "GBP");
-        append(sb, balance, "BCH");
+        appendBalance(sb, balance, "BTC");
+        appendBalance(sb, balance, "EUR");
+        appendBalance(sb, balance, "GHS");
+        appendBalance(sb, balance, "BTG");
+        appendBalance(sb, balance, "GBP");
+        appendBalance(sb, balance, "BCH");
         if (sb.length() > 0) {
             sb.replace(0,2, "[");
         }
@@ -467,7 +427,7 @@ public class CexIo extends BaseExchImpl {
         return sb.toString();
     }
 
-    private static void append(StringBuilder sb, JSONObject balance, String name) {
+    private static void appendBalance(StringBuilder sb, JSONObject balance, String name) {
         String value = (String) balance.get(name);
         if (value != null) {
             if (Double.parseDouble(value) > 0) {
@@ -537,7 +497,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private static void onAuthenticated(Session session) throws Exception {
-System.out.println("onAuthenticated");
+        System.out.println("onAuthenticated");
 //        {
 //            "e": "subscribe",
 //            "rooms": ["pair-BTC-USD"]
@@ -547,7 +507,7 @@ System.out.println("onAuthenticated");
     }
 
     private static void __onAuthenticated(Session session) throws Exception {
-System.out.println("onAuthenticated");
+        System.out.println("onAuthenticated");
 //        queryTickers(session);
 
         queryTicket(session, "BTC", "USD");
@@ -576,12 +536,10 @@ System.out.println("onAuthenticated");
     }
 
     private static void queryTickers(Session session) throws IOException {
-        //        cexioWs.send(JSON.stringify({
-        //                e: "subscribe",
-        //                rooms: [
-        //                  "tickers"
-        //                 ]
-        //        }));
+        //        {
+        //            e: "subscribe",
+        //            rooms: [ "tickers" ]
+        //        }
         send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
     }
 
@@ -670,11 +628,11 @@ System.out.println("onAuthenticated");
 
         //    {
         //        "e": "auth",
-        //            "auth": {
-        //                "key": "1WZbtMTbMbo2NsW12vOz9IuPM.",
-        //                "signature": "02483c01efc26fac843dd34d0342d269bacf4daa906a32cb71806eb7467dcf58",
-        //                "timestamp": 1448034533
-        //          }
+        //        "auth": {
+        //            "key": "1WZbtMTbMbo2NsW12vOz9IuPM.",
+        //            "signature": "02483c01efc26fac843dd34d0342d269bacf4daa906a32cb71806eb7467dcf58",
+        //            "timestamp": 1448034533
+        //        }
         //    }
         // signature - Client signature (digest of HMAC-rsa256 with client's API Secret Key, applied to the string, which is
         //             concatenation timestamp and API Key)
@@ -744,8 +702,8 @@ System.out.println("onAuthenticated");
         Currency toCurr = pair.m_to;
         System.out.println(" toCurr: " + toCurr);
 
-        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC";
-        String cur2 = toCurr.m_name.toUpperCase(); // "USD";
+        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
+        String cur2 = toCurr.m_name.toUpperCase(); // "USD"
         subscribeOrderBook(m_session, cur1, cur2, depth);
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);

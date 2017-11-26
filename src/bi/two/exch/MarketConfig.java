@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class MarketConfig {
-    public static void initMarkets() {
+    public static void initMarkets(boolean verbose) {
         Properties properties = new Properties();
         File file = new File("cfg.cfg");
         boolean exists = file.exists();
@@ -18,7 +18,7 @@ public class MarketConfig {
                 } finally {
                     inStream.close();
                 }
-                init(properties);
+                init(properties, verbose);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -27,55 +27,74 @@ public class MarketConfig {
         }
     }
 
-    private static void init(Properties prop) {
+    private static void init(Properties prop, boolean verbose) {
         String exchangesStr = prop.getProperty("exchanges");
-        System.out.println("exchanges=" + exchangesStr);
+        if (verbose) {
+            System.out.println("exchanges=" + exchangesStr);
+        }
         if (exchangesStr != null) {
             String[] exchanges = exchangesStr.split(";");
             for (String name : exchanges) {
-                System.out.println(" exchange[" + name + "]");
-                initExchange(prop, name);
+                if (verbose) {
+                    System.out.println(" exchange[" + name + "]");
+                }
+                initExchange(prop, name, verbose);
             }
         } else {
             throw new RuntimeException("exchanges list not found in cfg");
         }
     }
 
-    private static void initExchange(Properties prop, String name) {
+    private static void initExchange(Properties prop, String name, boolean verbose) {
         String prefix = "exchange." + name;
         String baseCurrencyName = prop.getProperty(prefix + ".baseCurrency");
-        System.out.println("  baseCurrencyName=" + baseCurrencyName);
+        if (verbose) {
+            System.out.println("  baseCurrencyName=" + baseCurrencyName);
+        }
         if (baseCurrencyName != null) {
             Currency baseCurrency = Currency.getByName(baseCurrencyName);
-            System.out.println("   baseCurrency=" + baseCurrency);
+            if (verbose) {
+                System.out.println("   baseCurrency=" + baseCurrency);
+            }
             if (baseCurrency != null) {
                 Exchange ex = new Exchange(name, baseCurrency);
                 String scheduleStr = prop.getProperty(prefix + ".schedule");
                 if (scheduleStr != null) {
                     Schedule schedule = Schedule.valueOf(scheduleStr);
-                    System.out.println("  schedule=" + scheduleStr + " => " + schedule);
+                    if (verbose) {
+                        System.out.println("  schedule=" + scheduleStr + " => " + schedule);
+                    }
                     ex.m_schedule = schedule;
                 }
                 String pairsStr = prop.getProperty(prefix + ".pairs");
-                System.out.println("  pairs=" + pairsStr);
+                if (verbose) {
+                    System.out.println("  pairs=" + pairsStr);
+                }
                 if (pairsStr != null) {
                     String[] pairs = pairsStr.split(";");
                     for (String pairName : pairs) {
                         Pair pair = Pair.getByNameInt(pairName);
-                        System.out.println("   pair '" + pairName + "; = " + pair);
+                        if (verbose) {
+                            System.out.println("   pair '" + pairName + "; = " + pair);
+                        }
                         if (pair == null) { // create on demand
                             String[] currencies = pairName.split("_");
                             String from = currencies[0];
                             Currency fromCur = Currency.getByName(from);
-                            System.out.println("    from=" + from + "; curr=" + fromCur);
+                            if (verbose) {
+                                System.out.println("    from=" + from + "; curr=" + fromCur);
+                            }
                             if (fromCur != null) {
                                 String to = currencies[1];
                                 Currency toCur = Currency.getByName(to);
-                                System.out.println("    to=" + to + "; curr=" + toCur);
+                                if (verbose) {
+                                    System.out.println("    to=" + to + "; curr=" + toCur);
+                                }
                                 if (toCur != null) {
                                     pair = new Pair(fromCur, toCur);
-                                    System.out.println("     pair created: " + pair);
-
+                                    if (verbose) {
+                                        System.out.println("     pair created: " + pair);
+                                    }
                                 } else {
                                     throw new RuntimeException("unsupported currency '" + to + "'");
                                 }
@@ -87,19 +106,25 @@ public class MarketConfig {
                         String pairPrefix = prefix + ".pair." + pairName;
                         String minOrderStr = prop.getProperty(pairPrefix + ".minOrder");
                         if (minOrderStr != null) {
-                            System.out.println("    minOrderStr: " + minOrderStr);
+                            if (verbose) {
+                                System.out.println("    minOrderStr: " + minOrderStr);
+                            }
                             exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
                         }
 
                         String initBalanceStr = prop.getProperty(pairPrefix + ".initBalance");
                         if (initBalanceStr != null) {
-                            System.out.println("    initBalanceStr: " + initBalanceStr);
+                            if (verbose) {
+                                System.out.println("    initBalanceStr: " + initBalanceStr);
+                            }
                             exchPairData.m_initBalance = Double.parseDouble(initBalanceStr);
                         }
 
                         String commissionStr = prop.getProperty(pairPrefix + ".commission");
                         if (commissionStr != null) {
-                            System.out.println("    commissionStr: " + commissionStr);
+                            if (verbose) {
+                                System.out.println("    commissionStr: " + commissionStr);
+                            }
                             exchPairData.m_commission = Double.parseDouble(commissionStr);
                         }
                     }
@@ -113,5 +138,4 @@ public class MarketConfig {
             throw new RuntimeException("no baseCurrency specified for exchange " + name);
         }
     }
-
 }

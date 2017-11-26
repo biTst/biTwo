@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
     public static void main(final String[] args) {
-        MarketConfig.initMarkets();
+        MarketConfig.initMarkets(false);
 
         final ChartFrame frame = new ChartFrame();
         frame.setVisible(true);

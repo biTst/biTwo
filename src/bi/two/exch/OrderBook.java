@@ -61,7 +61,7 @@ public class OrderBook {
     }
 
     public String toString(int levels) {
-        StringBuilder sb = new StringBuilder("OrderBook{bids:");
+        StringBuilder sb = new StringBuilder("{");
         int min = Math.min(levels, m_bids.size());
         for (int i = min - 1; i >= 0; i--) {
             OrderBookEntry bid = m_bids.get(i);
