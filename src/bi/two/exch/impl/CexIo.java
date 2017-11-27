@@ -51,7 +51,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private void onMessageX(Session session, String message) {
-        System.out.println("<< received: " + message);
+//        System.out.println("<< received: " + message);
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObject = (JSONObject) parser.parse(message);
@@ -318,13 +318,13 @@ public class CexIo extends BaseExchImpl {
 //        }
 
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onMdUpdate() data=" + data);
+//        System.out.println(" onMdUpdate() data=" + data);
         String pair = (String) data.get("pair");
         JSONArray bids = (JSONArray) data.get("bids");
         JSONArray asks = (JSONArray) data.get("asks");
-        System.out.println("  pair=" + pair);
-        System.out.println("   bids=" + bids);
-        System.out.println("   asks=" + asks);
+//        System.out.println("  pair=" + pair);
+//        System.out.println("   bids=" + bids);
+//        System.out.println("   asks=" + asks);
 
         processOrderBook(pair, bids, asks);
     }

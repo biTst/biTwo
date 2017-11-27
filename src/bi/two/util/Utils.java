@@ -118,6 +118,12 @@ public class Utils {
         return str;
     }
 
+    public static boolean equals(Object obj1, Object obj2) {
+        return obj1 == null
+                ? (obj2 == null)
+                : (obj2 != null) && obj1.equals(obj2);
+    }
+
     public static boolean equals(String str1, String str2) {
         return str1 == null
                 ? (str2 == null)
