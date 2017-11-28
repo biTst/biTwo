@@ -1,5 +1,7 @@
 package bi.two.exch;
 
+import bi.two.util.Utils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -86,6 +88,10 @@ public class OrderBook {
         return "OrderBook{bids:" + m_bids + ", asks:" + m_asks + '}';
     }
 
+    public Spread getTopSpread() {
+        return new Spread(m_bids.get(0), m_asks.get(0));
+    }
+
 
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
@@ -98,7 +104,25 @@ public class OrderBook {
         }
 
         @Override public String toString() {
-            return "[" + m_price + ";" + m_size + ']';
+            return "[" + m_price + ";" + Utils.format8(m_size) + ']';
+        }
+    }
+
+    //------------------------------------------------------------------------------
+    public static class Spread {
+        public final OrderBookEntry m_bidEntry;
+        public final OrderBookEntry m_askEntry;
+
+        public Spread(OrderBookEntry bidEntry, OrderBookEntry askEntry) {
+            m_bidEntry = bidEntry;
+            m_askEntry = askEntry;
+        }
+
+        @Override public String toString() {
+            return "Spread{" +
+                    "bid=" + m_bidEntry +
+                    ", ask=" + m_askEntry +
+                    '}';
         }
     }
 }
