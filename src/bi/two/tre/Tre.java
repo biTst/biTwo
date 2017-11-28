@@ -4,7 +4,6 @@ import bi.two.exch.Currency;
 import bi.two.exch.*;
 import bi.two.exch.impl.CexIo;
 import bi.two.util.MapConfig;
-import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.util.*;
@@ -15,15 +14,16 @@ public class Tre {
     private static final int SUBSCRIBE_DEPTH = 3;
     private static final double MAKER_PROFIT_RATE = 0.001; // 0.1%
     private static final BestRoundDataComparator BEST_ROUND_DATA_COMPARATOR = new BestRoundDataComparator();
+    private static final boolean SNAPSHOT_ONLY = true;
 
     private Exchange m_exchange;
     private int m_connectedPairsCounter = 0;
     private List<OrderBook> m_books = new ArrayList<>();
     private Currency[] m_currencies;
     private RoundData m_bestRound;
-    private TimeStamp m_bestRoundTimeStamp;
     private double m_bestTakerRate = 0;
     private double m_bestRate = 0;
+    private State m_state = State.watching;
 
     public static void main(String[] args) {
         new Tre().main();
@@ -37,7 +37,7 @@ public class Tre {
             config.loadAndEncrypted(CONFIG);
 
             m_exchange = Exchange.get("cex");
-            m_exchange.m_impl = new CexIo(config);
+            m_exchange.m_impl = new CexIo(config, m_exchange);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() {
@@ -60,13 +60,19 @@ public class Tre {
     }
 
     private void start() throws Exception {
-        m_currencies = new Currency[]{Currency.BTC, Currency.USD, Currency.BCH};
-        int length = m_currencies.length;
-        for (int i = 0; i < length; i++) {
-            Currency cur1 = m_currencies[i];
-            Currency cur2 = m_currencies[(i + 1) % length];
-            subscribePairBook(cur1, cur2);
-        }
+        System.out.println("queryAccount()...");
+        m_exchange.queryAccount(new Exchange.IAccountListener() {
+            @Override public void onUpdated() throws Exception {
+                System.out.println("Account.onUpdated() " + m_exchange.m_accountData);
+                m_currencies = new Currency[]{Currency.BTC, Currency.USD, Currency.BCH};
+                int length = m_currencies.length;
+                for (int i = 0; i < length; i++) {
+                    Currency cur1 = m_currencies[i];
+                    Currency cur2 = m_currencies[(i + 1) % length];
+                    subscribePairBook(cur1, cur2);
+                }
+            }
+        });
     }
 
     private void subscribePairBook(Currency cur1, Currency cur2) throws Exception {
@@ -74,7 +80,7 @@ public class Tre {
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         m_books.add(orderBook);
         // subscribe snapshot
-        orderBook.subscribe(new Exchange.IOrderBookListener() {
+        Exchange.IOrderBookListener listener = new Exchange.IOrderBookListener() {
             private boolean m_firstUpdate = true;
 
             @Override public void onUpdated() {
@@ -88,7 +94,12 @@ public class Tre {
                     onBooksUpdated();
                 }
             }
-        }, SUBSCRIBE_DEPTH);
+        };
+        if (SNAPSHOT_ONLY) {
+            orderBook.snapshot(listener, SUBSCRIBE_DEPTH);
+        } else {
+            orderBook.subscribe(listener, SUBSCRIBE_DEPTH);
+        }
     }
 
     private Pair findPair(Currency cur1, Currency cur2) {
@@ -140,17 +151,40 @@ public class Tre {
         double takerRate = bestTakerRound.m_rate;
         m_bestTakerRate = Math.max(m_bestTakerRate, takerRate);
 
-        RoundData bestRound = rounds.get(0);
-        double rate = bestRound.m_rate;
+        RoundData bestRound1 = rounds.get(0);
+        RoundData bestRound2 = rounds.get(1);
+        RoundData bestRound3 = rounds.get(2);
+        double rate = bestRound1.m_rate;
         m_bestRate = Math.max(m_bestRate, rate);
 
-        String best = "        " + Utils.format8(m_bestTakerRate) + "; " + Utils.format8(m_bestRate);
-        if (Utils.equals(m_bestRound, bestRound)) {
-            System.out.println(" best round:     " + bestRound + "  live: " + m_bestRoundTimeStamp.getPassed() + best);
-        } else {
-            m_bestRound = bestRound;
-            m_bestRoundTimeStamp = new TimeStamp();
-            System.out.println(" new best round: " + bestRound + best);
+        if (!Utils.equals(m_bestRound, bestRound1)) {
+            m_bestRound = bestRound1;
+        }
+        System.out.println(" new best round: " + bestRound1 + "  "  + bestRound2 + "  "  + bestRound3
+                + "        " + Utils.format8(bestTakerRound.m_rate) + "/" + Utils.format8(m_bestTakerRate) + "; " + Utils.format8(m_bestRate));
+
+        analyzeRound(bestRound1);
+
+        setState(m_state.onBooksUpdated());
+    }
+
+    private void analyzeRound(RoundData round) {
+        System.out.println("analyzeRound() round=" + round);
+
+        List<PairDirectionData> sides = round.m_sides;
+        for (PairDirectionData side : sides) {
+            PairDirection pairDirection = side.m_pairDirection;
+            Pair pair = pairDirection.m_pair;
+            boolean forward = pairDirection.m_forward;
+            OrderBook.OrderBookEntry bookEntry = side.m_entry;
+            System.out.println(" pair=" + pair + "; forward=" + forward + "; bookEntry=" + bookEntry);
+        }
+    }
+
+    private void setState(State state) {
+        if (state != null) {
+            System.out.println(":: state changed to: " + state);
+            m_state = state;
         }
     }
 
@@ -161,11 +195,13 @@ public class Tre {
         double takerValue = 1.0;
         int length = m_currencies.length;
         int index = 0;
+        List<PairDirectionData> sides = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             int nextIndex = (index + (forward ? 1 : -1) + length) % length;
             Currency cur1 = m_currencies[index];
             Currency cur2 = m_currencies[nextIndex];
             PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            sides.add(pairDirectionData);
 //            double mktPrice = pairDirectionData.m_mktPrice;
 //            PairDirection pairDirection = pairDirectionData.m_pairDirection;
 //            Pair pair = pairDirection.m_pair;
@@ -186,7 +222,7 @@ public class Tre {
             index = nextIndex;
         }
 //        System.out.println("  taker: " + takerSb.toString());
-        RoundData ret = new RoundData(false, roundName, takerValue);
+        RoundData ret = new RoundData(false, roundName, takerValue, sides);
         return ret;
     }
 
@@ -199,11 +235,13 @@ public class Tre {
         double oppositePrice = 0;
         int length = m_currencies.length;
         int index = startIndex;
+        List<PairDirectionData> sides = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             int nextIndex = (index + (forward ? 1 : -1) + length) % length;
             Currency cur1 = m_currencies[index];
             Currency cur2 = m_currencies[nextIndex];
             PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            sides.add(pairDirectionData);
             PairDirection pairDirection = pairDirectionData.m_pairDirection;
 //            double mktPrice = pairDirectionData.m_mktPrice;
             Pair pair = pairDirection.m_pair;
@@ -239,7 +277,7 @@ public class Tre {
 //            (firstMktPrice > oppositePrice) && ((firstMktPrice > makerPrice) && (makerPrice > oppositePrice))) {
 //            System.out.println("           @@@@@@@@@@@@    in BETWEEN");
 //        }
-        RoundData ret = new RoundData(true, roundName, makerRate);
+        RoundData ret = new RoundData(true, roundName, makerRate, sides);
         return ret;
     }
 
@@ -312,17 +350,19 @@ public class Tre {
         private final boolean m_maker;
         private final String m_roundName;
         private final double m_rate;
+        private final List<PairDirectionData> m_sides;
 
-        public RoundData(boolean maker, String roundName, double rate) {
+        public RoundData(boolean maker, String roundName, double rate, List<PairDirectionData> sides) {
             m_maker = maker;
             m_roundName = roundName;
             m_rate = rate;
+            m_sides = sides;
         }
 
         @Override public String toString() {
             return "RD{" + m_roundName +
-                    " maker=" + m_maker +
-                    ", rate=" + Utils.format8(m_rate) +
+                    " " + (m_maker ? "maker" : "taker") +
+                    " rate=" + Utils.format8(m_rate) +
                     '}';
         }
 
@@ -370,6 +410,17 @@ public class Tre {
                     return Double.compare(o2.m_rate, o1.m_rate); // decreasing order
                 }
             }
+        }
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    private enum State {
+        watching,
+        catching;
+
+        public State onBooksUpdated() {
+            return null; // no state change
         }
     }
 }

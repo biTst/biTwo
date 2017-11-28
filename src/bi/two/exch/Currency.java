@@ -1,5 +1,8 @@
 package bi.two.exch;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 
 public enum Currency {
@@ -16,7 +19,18 @@ public enum Currency {
         m_name = name;
     }
 
-    public static Currency getByName(String str) {
+    public static @NotNull Currency getByName(String str) {
+        if (str == null) {
+            throw new RuntimeException("invalid parameter - null passed" );
+        }
+        Currency currency = get(str);
+        if (currency == null) {
+            throw new RuntimeException("non supported Currency '" + str + "'. supported: " + Arrays.toString(values()) );
+        }
+        return currency;
+    }
+
+    public static @Nullable Currency get(String str) {
         if (str == null) {
             return null;
         }
@@ -25,7 +39,7 @@ public enum Currency {
                 return curr;
             }
         }
-        throw new RuntimeException("non supported Currency '" + str + "'. supported: " + Arrays.toString(values()) );
+        return null;
     }
 
     @Override public String toString() {

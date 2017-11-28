@@ -22,6 +22,7 @@ public class AccountData {
     private double notNull(Double aDouble) { return aDouble == null ? 0 : aDouble.doubleValue(); }
 
     public void setAvailable(Currency currency, double value) { m_funds.put(currency, round(value)); }
+    public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, round(value)); }
 
     private Double round(double value) {
         return Math.round(value * 1000000000d) / 1000000000d;

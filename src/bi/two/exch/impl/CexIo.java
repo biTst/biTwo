@@ -23,15 +23,26 @@ import java.util.Map;
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
 
+    private final Exchange m_exchange;
     private final String m_apiKey;
     private final String m_apiSecret;
     private Session m_session;
     private Exchange.IExchangeConnectListener m_exchangeConnectListener;
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
+    private List<Currency> m_currencies = new ArrayList<>();
+    private String[] m_supportedCurrencies = new String[]{"BTC", "EUR", "GHS", "BTG", "GBP", "BCH",};
 
-    public CexIo(MapConfig config) {
+    public CexIo(MapConfig config, Exchange exchange) {
+        m_exchange = exchange;
         m_apiKey = config.getString("cex_apiKey");
         m_apiSecret = config.getString("cex_apiSecret");
+
+        for (String name : m_supportedCurrencies) {
+            Currency byName = Currency.get(name.toLowerCase());
+            if (byName != null) {
+                m_currencies.add(byName);
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -393,7 +404,7 @@ public class CexIo extends BaseExchImpl {
         send(session, "{ \"e\": \"order-book-unsubscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_order-book-unsubscribe\" }");
     }
 
-    private static void onGetBalance(Session session, JSONObject jsonObject) {
+    private void onGetBalance(Session session, JSONObject jsonObject) throws Exception {
         // {"balance":{"BTC":"0.02431350","EUR":"0.16","GHS":"0.00000000","BTG":"0.50817888","GBP":"0.00","BCH":"0.00000000",
         //             "USD":"0.04","ETH":"0.00000000","ZEC":"0.00000000","DASH":"0.00000000","RUB":"0.00"},
         //  "obalance":{"BTC":"0.00000000","EUR":"0.00","GHS":"0.00000000","GBP":"0.00","BCH":"0.00000000","USD":"0.00",
@@ -407,7 +418,28 @@ public class CexIo extends BaseExchImpl {
         JSONObject obalance = (JSONObject) data.get("obalance");
         System.out.println("  balance: " + parseBalance(balance));
         System.out.println("  obalance: " + parseBalance(obalance));
+
+        for (Currency currency : m_currencies) {
+            String name = currency.m_name.toUpperCase();
+            String value = (String) balance.get(name);
+            if (value != null) {
+                double doubleValue = Double.parseDouble(value);
+                if (doubleValue > 0) {
+                    m_exchange.m_accountData.setAvailable(currency, doubleValue);
+                }
+            }
+            value = (String) obalance.get(name);
+            if (value != null) {
+                double doubleValue = Double.parseDouble(value);
+                if (doubleValue > 0) {
+                    m_exchange.m_accountData.setAllocated(currency, doubleValue);
+                }
+            }
+        }
+
+        m_exchange.m_accountListener.onUpdated();
     }
+
 
     private static String parseBalance(JSONObject balance) {
         // {"BTC":"0.02431350","EUR":"0.16","GHS":"0.00000000","BTG":"0.50817888","GBP":"0.00","BCH":"0.00000000",
@@ -723,5 +755,9 @@ public class CexIo extends BaseExchImpl {
         queryOrderBookSnapshoot(m_session, cur1, cur2, depth);
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);
+    }
+
+    @Override public void queryAccount() throws IOException, InterruptedException {
+        queryBalance(m_session);
     }
 }

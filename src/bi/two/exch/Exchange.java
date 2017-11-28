@@ -1,5 +1,6 @@
 package bi.two.exch;
 
+import java.io.IOException;
 import java.util.*;
 
 public class Exchange {
@@ -8,17 +9,20 @@ public class Exchange {
 
     public final String m_name;
     public final Currency m_baseCurrency;
+    public final AccountData m_accountData;
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
     private Map<Currency, Map<Currency, PairDirection>> m_pairDirectionMap = new HashMap<>(); // lazy
     public Schedule m_schedule;
     private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
+    public IAccountListener m_accountListener;
 
     public Exchange(String name, Currency baseCurrency) {
         m_name = name;
         m_baseCurrency = baseCurrency;
         s_exchanges.add(this);
         s_exchangesMap.put(name, this);
+        m_accountData = new AccountData(this);
     }
 
     public static Exchange get(String name) { return s_exchangesMap.get(name); }
@@ -137,6 +141,11 @@ public class Exchange {
         m_impl.queryOrderBookSnapshot(orderBook, depth);
     }
 
+    public void queryAccount(IAccountListener iAccountListener) throws IOException, InterruptedException {
+        m_accountListener = iAccountListener;
+        m_impl.queryAccount();
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
@@ -147,5 +156,11 @@ public class Exchange {
     //----------------------------------------------------------------------------------------
     public interface IOrderBookListener {
         void onUpdated();
+    }
+
+
+    //----------------------------------------------------------------------------------------
+    public interface IAccountListener {
+        void onUpdated() throws Exception;
     }
 }
