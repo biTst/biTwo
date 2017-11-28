@@ -5,6 +5,7 @@ import bi.two.chart.JoinNonChangedTimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.tre.CurrencyValue;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
@@ -55,7 +56,7 @@ public class Watcher extends TimesSeriesData<TradeData> {
             m_commission = commission;
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE);
-        m_minOrderToCreate = m_exchPairData.m_minOrderToCreate;
+        m_minOrderToCreate = m_exchPairData.m_minOrderToCreate.m_value;
         m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
         m_algo = createAlgo(ts, algoConfig);
         setParent(m_algo);
@@ -140,7 +141,8 @@ if (timeToTradeClose < 0) {
             System.out.println("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
         }
 
-        double exchMinOrderToCreate = m_exch.minOrderToCreate(m_pair);
+        CurrencyValue minOrderToCreate = m_exch.getMinOrderToCreate(m_pair);
+        double exchMinOrderToCreate = minOrderToCreate.m_value;
         TickData latestPriceTick = m_priceTs.getLatestTick();
         long timestamp = latestPriceTick.getTimestamp();
         if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= m_minOrderToCreate)) {

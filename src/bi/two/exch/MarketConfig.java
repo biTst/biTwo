@@ -1,5 +1,7 @@
 package bi.two.exch;
 
+import bi.two.tre.CurrencyValue;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -99,32 +101,49 @@ public class MarketConfig {
                         if (verbose) {
                             System.out.println("    from=" + from + "; curr=" + fromCur);
                         }
-                        if (fromCur != null) {
-                            String to = currencies[1];
-                            Currency toCur = Currency.getByName(to);
-                            if (verbose) {
-                                System.out.println("    to=" + to + "; curr=" + toCur);
-                            }
-                            if (toCur != null) {
-                                pair = new Pair(fromCur, toCur);
-                                if (verbose) {
-                                    System.out.println("     pair created: " + pair);
-                                }
-                            } else {
-                                throw new RuntimeException("unsupported currency '" + to + "'");
-                            }
-                        } else {
-                            throw new RuntimeException("unsupported currency '" + from + "'");
+                        String to = currencies[1];
+                        Currency toCur = Currency.getByName(to);
+                        if (verbose) {
+                            System.out.println("    to=" + to + "; curr=" + toCur);
+                        }
+                        pair = new Pair(fromCur, toCur);
+                        if (verbose) {
+                            System.out.println("     pair created: " + pair);
                         }
                     }
                     ExchPairData exchPairData = ex.addPair(pair);
                     String pairPrefix = prefix + ".pair." + pairName;
-                    String minOrderStr = prop.getProperty(pairPrefix + ".minOrder");
+                    String minOrderStr = prop.getProperty(pairPrefix + ".minOrder"); // 0.01btc
                     if (minOrderStr != null) {
                         if (verbose) {
                             System.out.println("    minOrderStr: " + minOrderStr);
                         }
-                        exchPairData.m_minOrderToCreate = Double.parseDouble(minOrderStr);
+
+                        String srcCurName = pair.m_from.m_name;
+                        if (minOrderStr.endsWith(srcCurName)) {
+                            minOrderStr = minOrderStr.substring(0, minOrderStr.length() - srcCurName.length());
+                            double value = Double.parseDouble(minOrderStr);
+                            exchPairData.m_minOrderToCreate = new CurrencyValue(value, pair.m_from);
+                        } else {
+                            String dstCurName = pair.m_to.m_name;
+                            if (minOrderStr.endsWith(dstCurName)) {
+                                minOrderStr = minOrderStr.substring(0, minOrderStr.length() - dstCurName.length());
+                                double value = Double.parseDouble(minOrderStr);
+                                exchPairData.m_minOrderToCreate = new CurrencyValue(value, pair.m_to);
+                            } else {
+                                double value = Double.parseDouble(minOrderStr);
+                                exchPairData.m_minOrderToCreate = new CurrencyValue(value, baseCurrency);
+                            }
+                        }
+                    }
+
+
+                    String minPriceStepStr = prop.getProperty(pairPrefix + ".minPriceStep");
+                    if (minPriceStepStr != null) {
+                        if (verbose) {
+                            System.out.println("    minPriceStepStr: " + minPriceStepStr);
+                        }
+                        exchPairData.m_minPriceStep = Double.parseDouble(minPriceStepStr);
                     }
 
                     String initBalanceStr = prop.getProperty(pairPrefix + ".initBalance");

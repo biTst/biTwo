@@ -1,7 +1,10 @@
 package bi.two.exch;
 
+import bi.two.tre.CurrencyValue;
+
 public class ExchPairData {
-    public double m_minOrderToCreate = 0;
+    public CurrencyValue m_minOrderToCreate = null;
+    public double m_minPriceStep = 0;
     public double m_commission = 0;
     public double m_makerCommission = 0;
     public double m_initBalance;
@@ -10,8 +13,8 @@ public class ExchPairData {
     public ExchPairData() {
     }
 
-    public double minOrderToCreate() {
-        if (m_minOrderToCreate != 0) {
+    public CurrencyValue getMinOrderToCreate() {
+        if (m_minOrderToCreate != null) {
             return m_minOrderToCreate;
         }
         throw new RuntimeException("no minOrderToCreate defined");

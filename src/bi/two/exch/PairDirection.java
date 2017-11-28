@@ -30,4 +30,12 @@ public class PairDirection {
         result = 31 * result + (m_forward ? 1 : 0);
         return result;
     }
+
+    public Currency getSourceCurrency() {
+        return m_forward ? m_pair.m_from : m_pair.m_to;
+    }
+
+    public Currency getDestinationCurrency() {
+        return m_forward ? m_pair.m_to : m_pair.m_from;
+    }
 }

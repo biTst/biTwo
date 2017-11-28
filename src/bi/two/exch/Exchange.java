@@ -1,5 +1,7 @@
 package bi.two.exch;
 
+import bi.two.tre.CurrencyValue;
+
 import java.io.IOException;
 import java.util.*;
 
@@ -104,9 +106,9 @@ public class Exchange {
         return pairDirection;
     }
 
-    public double minOrderToCreate(Pair pair) {
+    public CurrencyValue getMinOrderToCreate(Pair pair) {
         ExchPairData pairData = getPairData(pair);
-        return pairData.minOrderToCreate();
+        return pairData.getMinOrderToCreate();
     }
 
     public Date getNextTradeCloseTime(long tickTime) {

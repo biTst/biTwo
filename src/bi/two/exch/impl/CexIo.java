@@ -30,7 +30,7 @@ public class CexIo extends BaseExchImpl {
     private Exchange.IExchangeConnectListener m_exchangeConnectListener;
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
-    private String[] m_supportedCurrencies = new String[]{"BTC", "EUR", "GHS", "BTG", "GBP", "BCH",};
+    private String[] m_supportedCurrencies = new String[]{"BTC", "USD", "EUR", "GHS", "BTG", "GBP", "BCH",};
 
     public CexIo(MapConfig config, Exchange exchange) {
         m_exchange = exchange;
@@ -440,18 +440,15 @@ public class CexIo extends BaseExchImpl {
         m_exchange.m_accountListener.onUpdated();
     }
 
-
-    private static String parseBalance(JSONObject balance) {
+    private String parseBalance(JSONObject balance) {
         // {"BTC":"0.02431350","EUR":"0.16","GHS":"0.00000000","BTG":"0.50817888","GBP":"0.00","BCH":"0.00000000",
         //  "USD":"0.04","ETH":"0.00000000","ZEC":"0.00000000","DASH":"0.00000000","RUB":"0.00"}
 
         StringBuilder sb = new StringBuilder();
-        appendBalance(sb, balance, "BTC");
-        appendBalance(sb, balance, "EUR");
-        appendBalance(sb, balance, "GHS");
-        appendBalance(sb, balance, "BTG");
-        appendBalance(sb, balance, "GBP");
-        appendBalance(sb, balance, "BCH");
+
+        for (String supportedCurrency : m_supportedCurrencies) {
+            appendBalance(sb, balance, supportedCurrency);
+        }
         if (sb.length() > 0) {
             sb.replace(0,2, "[");
         }

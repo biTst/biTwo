@@ -171,13 +171,34 @@ public class Tre {
     private void analyzeRound(RoundData round) {
         System.out.println("analyzeRound() round=" + round);
 
-        List<PairDirectionData> sides = round.m_sides;
-        for (PairDirectionData side : sides) {
-            PairDirection pairDirection = side.m_pairDirection;
+        List<PairDirectionData> roundSides = round.m_sides;
+        for (PairDirectionData roundSide : roundSides) {
+            PairDirection pairDirection = roundSide.m_pairDirection;
             Pair pair = pairDirection.m_pair;
             boolean forward = pairDirection.m_forward;
-            OrderBook.OrderBookEntry bookEntry = side.m_entry;
-            System.out.println(" pair=" + pair + "; forward=" + forward + "; bookEntry=" + bookEntry);
+            OrderBook.OrderBookEntry bookEntry = roundSide.m_entry;
+            OrderBook.Spread spread = roundSide.m_spread;
+            System.out.println(" pair=" + pair + "; forward=" + forward + "; bookEntry=" + bookEntry + "; spread=" + spread);
+
+            Currency srcCur = pairDirection.getSourceCurrency();
+            Currency dstCur = pairDirection.getDestinationCurrency();
+            double size = bookEntry.m_size;
+            Currency pairCurrency = pair.m_to;
+
+            double availableSrc = m_exchange.m_accountData.available(srcCur);
+
+            ExchPairData pairData = m_exchange.getPairData(pair);
+            CurrencyValue minOrder = pairData.m_minOrderToCreate;
+            if (minOrder == null) {
+                throw new RuntimeException("no minOrderToCreate defined for " + pair);
+            }
+
+            String srcCurName = srcCur.m_name;
+            System.out.println("  " + srcCurName + " => " + dstCur.m_name
+                    + ";  available in book: " + size + pairCurrency.m_name
+                    + ";  available in acct: " + availableSrc + srcCurName
+                    + "; minOrder=" + minOrder
+            );
         }
     }
 
@@ -303,6 +324,7 @@ public class Tre {
 
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         OrderBook.OrderBookEntry entry = (direct ? orderBook.m_bids : orderBook.m_asks).get(0);
+        OrderBook.Spread spread = orderBook.getTopSpread();
         double mktPrice = entry.m_price;
 
         ExchPairData pairData = m_exchange.getPairData(pair);
@@ -318,7 +340,7 @@ public class Tre {
 //                + "; taker=" + Utils.format8(fullTakerRate)
 //        );
 
-        PairDirectionData pairDirectionData = new PairDirectionData(pairDirection, entry, mktPrice, takerRate, fullTakerRate);
+        PairDirectionData pairDirectionData = new PairDirectionData(pairDirection, entry, mktPrice, takerRate, fullTakerRate, spread);
         Map<Currency, PairDirectionData> map = pairDirectionMap.get(cur1);
         if (map == null) {
             map = new HashMap<>();
@@ -335,13 +357,16 @@ public class Tre {
         private final double m_mktPrice;
         private final double m_takerRate;
         private final double m_fullTakerRate;
+        private final OrderBook.Spread m_spread;
 
-        public PairDirectionData(PairDirection pairDirection, OrderBook.OrderBookEntry entry, double mktPrice, double takerRate, double fullTakerRate) {
+        public PairDirectionData(PairDirection pairDirection, OrderBook.OrderBookEntry entry, double mktPrice, double takerRate,
+                                 double fullTakerRate, OrderBook.Spread spread) {
             m_pairDirection = pairDirection;
             m_entry = entry;
             m_mktPrice = mktPrice;
             m_takerRate = takerRate;
             m_fullTakerRate = fullTakerRate;
+            m_spread = spread;
         }
     }
 
