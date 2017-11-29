@@ -171,6 +171,7 @@ public class Tre {
     private void analyzeRound(RoundData round) {
         System.out.println("analyzeRound() round=" + round);
 
+        CurrencyValue value = null;
         List<PairDirectionData> roundSides = round.m_sides;
         for (PairDirectionData roundSide : roundSides) {
             PairDirection pairDirection = roundSide.m_pairDirection;
@@ -178,13 +179,17 @@ public class Tre {
             boolean forward = pairDirection.m_forward;
             OrderBook.OrderBookEntry bookEntry = roundSide.m_entry;
             OrderBook.Spread spread = roundSide.m_spread;
-            System.out.println(" pair=" + pair + "; forward=" + forward + "; bookEntry=" + bookEntry + "; spread=" + spread);
+            Currency pairCurrency = pair.m_from;
+            String pairCurrencyName = pairCurrency.m_name;
+            System.out.println(" pair=" + pair + "; forward=" + forward + "; pairCurrency=" + pairCurrencyName
+                    + "; bookEntry=" + bookEntry + "; spread=" + spread);
 
             Currency srcCur = pairDirection.getSourceCurrency();
             Currency dstCur = pairDirection.getDestinationCurrency();
-            double size = bookEntry.m_size;
-            Currency pairCurrency = pair.m_to;
+            double bookEntrySize = bookEntry.m_size;
 
+            boolean isSellOrder = (srcCur == pairCurrency);
+            OrderSide orderSide = isSellOrder ? OrderSide.SELL : OrderSide.BUY;
             double availableSrc = m_exchange.m_accountData.available(srcCur);
 
             ExchPairData pairData = m_exchange.getPairData(pair);
@@ -193,12 +198,68 @@ public class Tre {
                 throw new RuntimeException("no minOrderToCreate defined for " + pair);
             }
 
+            CurrencyValue bookEntryValue = new CurrencyValue(bookEntrySize, pairCurrency);
+
             String srcCurName = srcCur.m_name;
             System.out.println("  " + srcCurName + " => " + dstCur.m_name
-                    + ";  available in book: " + size + pairCurrency.m_name
+                    + ";  available in book: " + bookEntryValue
                     + ";  available in acct: " + availableSrc + srcCurName
                     + "; minOrder=" + minOrder
+                    + "; orderSide=" + orderSide
             );
+
+            if (value == null) {
+                value = new CurrencyValue(availableSrc, srcCur); // start with account value
+                System.out.println("  init value=" + value);
+            }
+            double bookMarketPrice = bookEntry.m_price;
+            double minOrderSize = minOrder.m_value;
+            if (isSellOrder) {
+//                pair=Pair[bch_usd]; forward=true; bookEntry=[1560.0;0.77941000]; spread=Spread{bid=[1560.0;0.77941000], ask=[1561.9839;0.32895006]}
+//                bch => usd;  available in book: 0.77941bch;  available in acct: 1.3bch; minOrder=<0.01bch>; orderSide=SELL
+                double orderSize1 = value.m_value;
+                double orderSize2 = (bookEntrySize < orderSize1) ? bookEntrySize : orderSize1;
+                CurrencyValue value2 = new CurrencyValue(orderSize2, srcCur);
+                double orderSize3 = (orderSize2 < minOrderSize) ? 0 : orderSize2;
+                CurrencyValue value3 = new CurrencyValue(orderSize3, srcCur);
+
+                double orderSize4 = (value3.m_value * bookMarketPrice) * (1 - pairData.m_commission);
+                CurrencyValue value4 = new CurrencyValue(orderSize4, dstCur);
+
+                System.out.println("    start value: " + value
+                        + ";  available in book: " + bookEntryValue
+                        + " =>  " + value2
+                        + "; minOrder=" + minOrder
+                        + " =>  " + value3
+                        + "  " + orderSide + " " + value3 + " @ " + bookMarketPrice + " ==> " + value4);
+                value = value4;
+            } else { // buy order
+//                pair=Pair[btc_usd]; forward=false; bookEntry=[10226.9967;0.19406382]; spread=Spread{bid=[10214.6356;0.01000000], ask=[10226.9967;0.19406382]}
+//                usd => btc;  available in book: 0.19406382btc;  available in acct: 2126.04usd; minOrder=<0.01btc>; orderSide=BUY
+                double orderSize1 = value.m_value; // 2126.04usd
+                //                   2126.04usd   10226.9967usd/btc                               ==> 0.2075316727148254579958943371909btc
+                double orderSize2 = (orderSize1 / bookMarketPrice) * (1 - pairData.m_commission);
+                CurrencyValue value2 = new CurrencyValue(orderSize2, dstCur);
+                double orderSize3 = (bookEntrySize < orderSize2) ? bookEntrySize : orderSize2;
+                CurrencyValue value3 = new CurrencyValue(orderSize3, dstCur);
+                double orderSize4 = (orderSize3 < minOrderSize) ? 0 : orderSize3;
+                CurrencyValue value4 = new CurrencyValue(orderSize4, srcCur);
+
+                System.out.println("    start value: " + value
+                        + " @ " + bookMarketPrice
+                        + ";  can buy: " + value2
+                        + ";  available in book: " + bookEntryValue
+                        + " =>  " + value3
+                        + "; minOrder=" + minOrder
+                        + " =>  " + value4
+                );
+                if (orderSize4 > 0) {
+                    System.out.println("     " + orderSide + " " + value4 + " @ " + bookMarketPrice);
+                } else {
+                    System.out.println("     can not trade - too low size ");
+                }
+                value = value4;
+            }
         }
     }
 
