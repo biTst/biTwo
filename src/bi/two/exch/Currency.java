@@ -10,7 +10,10 @@ public enum Currency {
     EUR("eur"),
     BTC("btc"),
     BCH("bch"),
+    BTG("btg"),
     CNH("cnh"),
+    ETH("eth"),
+    DASH("dash"),
     ;
     
     public final String m_name;

@@ -14,7 +14,12 @@ public class Tre {
     private static final int SUBSCRIBE_DEPTH = 3;
     private static final double MAKER_PROFIT_RATE = 0.001; // 0.1%
     private static final BestRoundDataComparator BEST_ROUND_DATA_COMPARATOR = new BestRoundDataComparator();
-    private static final boolean SNAPSHOT_ONLY = true;
+    private static final boolean SNAPSHOT_ONLY = false;
+    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.BCH};
+//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.ETH};
+//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.EUR, Currency.ETH};
+//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.DASH};
+//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.BTG};
 
     private Exchange m_exchange;
     private int m_connectedPairsCounter = 0;
@@ -64,7 +69,7 @@ public class Tre {
         m_exchange.queryAccount(new Exchange.IAccountListener() {
             @Override public void onUpdated() throws Exception {
                 System.out.println("Account.onUpdated() " + m_exchange.m_accountData);
-                m_currencies = new Currency[]{Currency.BTC, Currency.USD, Currency.BCH};
+                m_currencies = TRE_CURRENCIES;
                 int length = m_currencies.length;
                 for (int i = 0; i < length; i++) {
                     Currency cur1 = m_currencies[i];
@@ -163,7 +168,7 @@ public class Tre {
         System.out.println(" new best round: " + bestRound1 + "  "  + bestRound2 + "  "  + bestRound3
                 + "        " + Utils.format8(bestTakerRound.m_rate) + "/" + Utils.format8(m_bestTakerRate) + "; " + Utils.format8(m_bestRate));
 
-        analyzeRound(bestRound1);
+//        analyzeRound(bestRound1);
 
         setState(m_state.onBooksUpdated());
     }
