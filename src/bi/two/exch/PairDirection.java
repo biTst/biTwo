@@ -1,10 +1,31 @@
 package bi.two.exch;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class PairDirection {
+    private static final Map<Currency, Map<Currency, PairDirection>> s_map = new HashMap<>();
+
     public final Pair m_pair;
     public final boolean m_forward;
 
-    public PairDirection(Pair pair, boolean forward) {
+    public static PairDirection get(Currency from, Currency to) {
+        Map<Currency, PairDirection> map = s_map.get(from);
+        if (map == null) {
+            map = new HashMap<>();
+            s_map.put(from, map);
+        }
+        PairDirection pairDirection = map.get(to);
+        if (pairDirection == null) {
+            Pair pair = Pair.get(from, to);
+            boolean forward = pair.m_from == from;
+            pairDirection = new PairDirection(pair, forward);
+            map.put(to, pairDirection);
+        }
+        return pairDirection;
+    }
+
+    private PairDirection(Pair pair, boolean forward) {
         m_pair = pair;
         m_forward = forward;
     }

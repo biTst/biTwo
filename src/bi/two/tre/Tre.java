@@ -15,17 +15,21 @@ public class Tre {
     private static final double MAKER_PROFIT_RATE = 0.001; // 0.1%
     private static final BestRoundDataComparator BEST_ROUND_DATA_COMPARATOR = new BestRoundDataComparator();
     private static final boolean SNAPSHOT_ONLY = false;
-    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.BCH};
-//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.ETH};
-//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.EUR, Currency.ETH};
-//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.DASH};
-//    private static final Currency[] TRE_CURRENCIES = {Currency.BTC, Currency.USD, Currency.BTG};
+    private static final Currency[][] TRE_CURRENCIES = {
+            {Currency.BTC, Currency.USD, Currency.BCH},
+            {Currency.BTC, Currency.USD, Currency.ETH},
+//            {Currency.BTC, Currency.EUR, Currency.ETH},
+//            {Currency.BTC, Currency.USD, Currency.DASH},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
+    };
 
     private Exchange m_exchange;
     private int m_connectedPairsCounter = 0;
+    private List<RoundData> m_roundDatas = new ArrayList<>();
+    private ArrayList<PairData> m_pairDatas = new ArrayList<>();
     private List<OrderBook> m_books = new ArrayList<>();
     private Currency[] m_currencies;
-    private RoundData m_bestRound;
+    private RoundDataOld m_bestRound;
     private double m_bestTakerRate = 0;
     private double m_bestRate = 0;
     private State m_state = State.watching;
@@ -44,17 +48,19 @@ public class Tre {
             m_exchange = Exchange.get("cex");
             m_exchange.m_impl = new CexIo(config, m_exchange);
 
-            m_exchange.connect(new Exchange.IExchangeConnectListener() {
-                @Override public void onConnected() {
-                    try {
-                        System.out.println("onConnected()");
-                        start();
-                    } catch (Exception e) {
-                        System.out.println("onConnected error: " + e);
-                        e.printStackTrace();
-                    }
-                }
-            });
+start();
+
+//            m_exchange.connect(new Exchange.IExchangeConnectListener() {
+//                @Override public void onConnected() {
+//                    try {
+//                        System.out.println("onConnected()");
+//                        start();
+//                    } catch (Exception e) {
+//                        System.out.println("onConnected error: " + e);
+//                        e.printStackTrace();
+//                    }
+//                }
+//            });
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
             System.out.println("done");
@@ -64,24 +70,42 @@ public class Tre {
         }
     }
 
+
+    // can be called on reconnect ?
     private void start() throws Exception {
-        System.out.println("queryAccount()...");
-        m_exchange.queryAccount(new Exchange.IAccountListener() {
-            @Override public void onUpdated() throws Exception {
-                System.out.println("Account.onUpdated() " + m_exchange.m_accountData);
-                m_currencies = TRE_CURRENCIES;
-                int length = m_currencies.length;
-                for (int i = 0; i < length; i++) {
-                    Currency cur1 = m_currencies[i];
-                    Currency cur2 = m_currencies[(i + 1) % length];
-                    subscribePairBook(cur1, cur2);
-                }
+        System.out.println("start()");
+
+        initIfNeeded();
+
+//        System.out.println("queryAccount()...");
+//        m_exchange.queryAccount(new Exchange.IAccountListener() {
+//            @Override public void onUpdated() throws Exception {
+//                System.out.println("Account.onUpdated() " + m_exchange.m_accountData);
+//                m_currencies = TRE_CURRENCIES;
+//                int length = m_currencies.length;
+//                for (int i = 0; i < length; i++) {
+//                    Currency cur1 = m_currencies[i];
+//                    Currency cur2 = m_currencies[(i + 1) % length];
+//                    subscribePairBook(cur1, cur2);
+//                }
+//            }
+//        });
+    }
+
+    private void initIfNeeded() {
+        if (m_roundDatas.isEmpty()) {
+            for (Currency[] currencies : TRE_CURRENCIES) {
+                RoundData roundData = new RoundData(currencies);
+                m_roundDatas.add(roundData);
+                roundData.getPairDatas(m_pairDatas);
             }
-        });
+            System.out.println("roundDatas: " + m_roundDatas);
+            System.out.println("pairDatas: " + m_pairDatas);
+        }
     }
 
     private void subscribePairBook(Currency cur1, Currency cur2) throws Exception {
-        Pair pair = findPair(cur1, cur2);
+        Pair pair = Pair.get(cur1, cur2);
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         m_books.add(orderBook);
         // subscribe snapshot
@@ -107,13 +131,13 @@ public class Tre {
         }
     }
 
-    private Pair findPair(Currency cur1, Currency cur2) {
-        Pair pair = m_exchange.findPair(cur1, cur2);
-        if (pair == null) {
-            throw new RuntimeException("no pair for currencies found: " + cur1 + "; " + cur2);
-        }
-        return pair;
-    }
+//    private Pair findPair(Currency cur1, Currency cur2) {
+//        Pair pair = m_exchange.findPair(cur1, cur2);
+//        if (pair == null) {
+//            throw new RuntimeException("no pair for currencies found: " + cur1 + "; " + cur2);
+//        }
+//        return pair;
+//    }
 
     private void onBooksUpdated() {
 //        StringBuilder sb = new StringBuilder("--== onBooksUpdated ");
@@ -124,7 +148,7 @@ public class Tre {
 //        }
 //        System.out.println(sb.toString());
 
-        Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap = new HashMap<>();
+        Map<Currency, Map<Currency, PairDirectionDataOld>> pairDirectionMap = new HashMap<>();
         final int length = m_currencies.length;
         for (int i = 0; i < length; i++) {
             Currency cur1 = m_currencies[i];
@@ -133,17 +157,17 @@ public class Tre {
             preparePairDirectionData(cur2, cur1, pairDirectionMap);
         }
 
-        List<RoundData> takerRounds = new ArrayList<>();
-        List<RoundData> rounds = new ArrayList<>();
+        List<RoundDataOld> takerRounds = new ArrayList<>();
+        List<RoundDataOld> rounds = new ArrayList<>();
         for (int j = 0; j < 2; j++) {
-            RoundData roundData = roundTaker((j == 0), pairDirectionMap);
+            RoundDataOld roundData = roundTaker((j == 0), pairDirectionMap);
             rounds.add(roundData);
             takerRounds.add(roundData);
         }
 
         for (int i = 0; i < length; i++) {
             for (int j = 0; j < 2; j++) {
-                RoundData roundData = roundMaker(i, (j == 0), pairDirectionMap);
+                RoundDataOld roundData = roundMaker(i, (j == 0), pairDirectionMap);
                 rounds.add(roundData);
             }
         }
@@ -152,13 +176,13 @@ public class Tre {
 //        for (RoundData round : rounds) {
 //            System.out.println(" round: " + round);
 //        }
-        RoundData bestTakerRound = takerRounds.get(0);
+        RoundDataOld bestTakerRound = takerRounds.get(0);
         double takerRate = bestTakerRound.m_rate;
         m_bestTakerRate = Math.max(m_bestTakerRate, takerRate);
 
-        RoundData bestRound1 = rounds.get(0);
-        RoundData bestRound2 = rounds.get(1);
-        RoundData bestRound3 = rounds.get(2);
+        RoundDataOld bestRound1 = rounds.get(0);
+        RoundDataOld bestRound2 = rounds.get(1);
+        RoundDataOld bestRound3 = rounds.get(2);
         double rate = bestRound1.m_rate;
         m_bestRate = Math.max(m_bestRate, rate);
 
@@ -173,12 +197,12 @@ public class Tre {
         setState(m_state.onBooksUpdated());
     }
 
-    private void analyzeRound(RoundData round) {
+    private void analyzeRound(RoundDataOld round) {
         System.out.println("analyzeRound() round=" + round);
 
         CurrencyValue value = null;
-        List<PairDirectionData> roundSides = round.m_sides;
-        for (PairDirectionData roundSide : roundSides) {
+        List<PairDirectionDataOld> roundSides = round.m_sides;
+        for (PairDirectionDataOld roundSide : roundSides) {
             PairDirection pairDirection = roundSide.m_pairDirection;
             Pair pair = pairDirection.m_pair;
             boolean forward = pairDirection.m_forward;
@@ -275,19 +299,19 @@ public class Tre {
         }
     }
 
-    private RoundData roundTaker(boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+    private RoundDataOld roundTaker(boolean forward, Map<Currency, Map<Currency, PairDirectionDataOld>> pairDirectionMap) {
         String roundName = buildRoundName(0, forward);
 //        System.out.println("roundTaker(" + roundName + ") forward=" + forward);
 //        StringBuilder takerSb = new StringBuilder();
         double takerValue = 1.0;
         int length = m_currencies.length;
         int index = 0;
-        List<PairDirectionData> sides = new ArrayList<>();
+        List<PairDirectionDataOld> sides = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             int nextIndex = (index + (forward ? 1 : -1) + length) % length;
             Currency cur1 = m_currencies[index];
             Currency cur2 = m_currencies[nextIndex];
-            PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            PairDirectionDataOld pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
             sides.add(pairDirectionData);
 //            double mktPrice = pairDirectionData.m_mktPrice;
 //            PairDirection pairDirection = pairDirectionData.m_pairDirection;
@@ -309,11 +333,11 @@ public class Tre {
             index = nextIndex;
         }
 //        System.out.println("  taker: " + takerSb.toString());
-        RoundData ret = new RoundData(false, roundName, takerValue, sides);
+        RoundDataOld ret = new RoundDataOld(false, roundName, takerValue, sides);
         return ret;
     }
 
-    private RoundData roundMaker(int startIndex, boolean forward, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
+    private RoundDataOld roundMaker(int startIndex, boolean forward, Map<Currency, Map<Currency, PairDirectionDataOld>> pairDirectionMap) {
         String roundName = buildRoundName(startIndex, forward);
 //        StringBuilder makerSb = new StringBuilder();
         double makerValue = 1.0;
@@ -322,12 +346,12 @@ public class Tre {
         double oppositePrice = 0;
         int length = m_currencies.length;
         int index = startIndex;
-        List<PairDirectionData> sides = new ArrayList<>();
+        List<PairDirectionDataOld> sides = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             int nextIndex = (index + (forward ? 1 : -1) + length) % length;
             Currency cur1 = m_currencies[index];
             Currency cur2 = m_currencies[nextIndex];
-            PairDirectionData pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
+            PairDirectionDataOld pairDirectionData = pairDirectionMap.get(cur1).get(cur2);
             sides.add(pairDirectionData);
             PairDirection pairDirection = pairDirectionData.m_pairDirection;
 //            double mktPrice = pairDirectionData.m_mktPrice;
@@ -364,7 +388,7 @@ public class Tre {
 //            (firstMktPrice > oppositePrice) && ((firstMktPrice > makerPrice) && (makerPrice > oppositePrice))) {
 //            System.out.println("           @@@@@@@@@@@@    in BETWEEN");
 //        }
-        RoundData ret = new RoundData(true, roundName, makerRate, sides);
+        RoundDataOld ret = new RoundDataOld(true, roundName, makerRate, sides);
         return ret;
     }
 
@@ -383,8 +407,8 @@ public class Tre {
         return sb.toString();
     }
 
-    private void preparePairDirectionData(Currency cur1, Currency cur2, Map<Currency, Map<Currency, PairDirectionData>> pairDirectionMap) {
-        PairDirection pairDirection = m_exchange.getPairDirection(cur1, cur2);
+    private void preparePairDirectionData(Currency cur1, Currency cur2, Map<Currency, Map<Currency, PairDirectionDataOld>> pairDirectionMap) {
+        PairDirection pairDirection = PairDirection.get(cur1, cur2);
         Pair pair = pairDirection.m_pair;
         boolean direct = pairDirection.m_forward;
 
@@ -406,8 +430,8 @@ public class Tre {
 //                + "; taker=" + Utils.format8(fullTakerRate)
 //        );
 
-        PairDirectionData pairDirectionData = new PairDirectionData(pairDirection, entry, mktPrice, takerRate, fullTakerRate, spread);
-        Map<Currency, PairDirectionData> map = pairDirectionMap.get(cur1);
+        PairDirectionDataOld pairDirectionData = new PairDirectionDataOld(pairDirection, entry, mktPrice, takerRate, fullTakerRate, spread);
+        Map<Currency, PairDirectionDataOld> map = pairDirectionMap.get(cur1);
         if (map == null) {
             map = new HashMap<>();
             pairDirectionMap.put(cur1, map);
@@ -417,7 +441,7 @@ public class Tre {
 
 
     // -----------------------------------------------------------------------------------------------------------
-    private static class PairDirectionData {
+    private static class PairDirectionDataOld {
         private final PairDirection m_pairDirection;
         private final OrderBook.OrderBookEntry m_entry;
         private final double m_mktPrice;
@@ -425,8 +449,8 @@ public class Tre {
         private final double m_fullTakerRate;
         private final OrderBook.Spread m_spread;
 
-        public PairDirectionData(PairDirection pairDirection, OrderBook.OrderBookEntry entry, double mktPrice, double takerRate,
-                                 double fullTakerRate, OrderBook.Spread spread) {
+        public PairDirectionDataOld(PairDirection pairDirection, OrderBook.OrderBookEntry entry, double mktPrice, double takerRate,
+                                    double fullTakerRate, OrderBook.Spread spread) {
             m_pairDirection = pairDirection;
             m_entry = entry;
             m_mktPrice = mktPrice;
@@ -436,14 +460,15 @@ public class Tre {
         }
     }
 
+
     // -----------------------------------------------------------------------------------------------------------
-    private class RoundData {
+    private static class RoundDataOld {
         private final boolean m_maker;
         private final String m_roundName;
         private final double m_rate;
-        private final List<PairDirectionData> m_sides;
+        private final List<PairDirectionDataOld> m_sides;
 
-        public RoundData(boolean maker, String roundName, double rate, List<PairDirectionData> sides) {
+        public RoundDataOld(boolean maker, String roundName, double rate, List<PairDirectionDataOld> sides) {
             m_maker = maker;
             m_roundName = roundName;
             m_rate = rate;
@@ -465,7 +490,7 @@ public class Tre {
                 return false;
             }
 
-            RoundData roundData = (RoundData) o;
+            RoundDataOld roundData = (RoundDataOld) o;
 
             if (m_maker != roundData.m_maker) {
                 return false;
@@ -485,9 +510,10 @@ public class Tre {
         }
     }
 
+
     // -----------------------------------------------------------------------------------------------------------
-    private static class BestRoundDataComparator implements Comparator<RoundData> {
-        @Override public int compare(RoundData o1, RoundData o2) {
+    private static class BestRoundDataComparator implements Comparator<RoundDataOld> {
+        @Override public int compare(RoundDataOld o1, RoundDataOld o2) {
             if(!o1.m_maker && (o1.m_rate > 1)) {
                 if(!o2.m_maker && (o2.m_rate > 1)) {
                     return Double.compare(o2.m_rate, o1.m_rate); // both takers - decreasing order
@@ -512,6 +538,179 @@ public class Tre {
 
         public State onBooksUpdated() {
             return null; // no state change
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class RoundData {
+        public final Round m_round;
+        private final List<RoundDirectedData> m_directedRounds = new ArrayList<>();
+
+        public RoundData(Currency[] currencies) {
+            m_round = Round.get(currencies[0], currencies[1], currencies[2]);
+
+            int length = currencies.length;
+            for(int i = 0; i < length; i++) {
+                add(i, true);
+                add(i, false);
+            }
+        }
+
+        @Override public String toString() {
+            return m_round.toString();
+        }
+
+        private void add(int startIndex, boolean forward) {
+            Currency[] roundCurrencies = m_round.m_currencies;
+            int length = roundCurrencies.length;
+            Currency[] currencies = new Currency[length];
+            int index = startIndex;
+            for (int i = 0; i < length; i++) {
+                Currency currency = roundCurrencies[index];
+                currencies[i] = currency;
+                index = (index + (forward ? 1 : -1) + length) % length;
+            }
+
+            RoundDirectedData roundDirectedData = new RoundDirectedData(currencies);
+            m_directedRounds.add(roundDirectedData);
+        }
+
+        public void getPairDatas(List<PairData> pds) {
+            for (RoundDirectedData directedRound : m_directedRounds) {
+                directedRound.getPairDatas(pds);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class RoundDirectedData {
+        public final Currency[] m_currencies;
+        public final Round m_round;
+        public final String m_name;
+        private final List<PairDirectionData> m_pdds = new ArrayList<>();
+
+        public RoundDirectedData(Currency[] c) {
+            m_currencies = c;
+            Currency c0 = c[0];
+            Currency c1 = c[1];
+            Currency c2 = c[2];
+            m_round = Round.get(c0, c1, c2);
+
+            m_name = c0.m_name + "->" + c1.m_name + "->" + c2.m_name;
+
+            int len = c.length;
+            for (int i = 0; i < len; i++) {
+                Currency from = c[i];
+                Currency to = c[(i + 1) % len];
+                PairDirectionData pairDirectionData = PairDirectionData.get(from, to);
+                m_pdds.add(pairDirectionData);
+            }
+        }
+
+        @Override public String toString() {
+            return m_name;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            RoundDirectedData that = (RoundDirectedData) o;
+            return m_round.equals(that.m_round);
+        }
+
+        @Override public int hashCode() {
+            return m_round.hashCode();
+        }
+
+        public void getPairDatas(List<PairData> pds) {
+            for (PairDirectionData pdd : m_pdds) {
+                PairData pairData = pdd.m_pairData;
+                if (!pds.contains(pairData)) {
+                    pds.add(pairData);
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class PairDirectionData {
+        private static Map<PairDirection, PairDirectionData> s_map = new HashMap<>();
+
+        public final PairDirection m_pairDirection;
+        public final PairData m_pairData;
+
+        public static PairDirectionData get(Currency from, Currency to) {
+            PairDirection pairDirection = PairDirection.get(from, to);
+            PairDirectionData pdd = s_map.get(pairDirection);
+            if (pdd == null) {
+                pdd = new PairDirectionData(pairDirection);
+            }
+            return pdd;
+        }
+
+        public PairDirectionData(PairDirection pairDirection) {
+            m_pairDirection = pairDirection;
+            m_pairData = PairData.get(pairDirection.m_pair);
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            PairDirectionData that = (PairDirectionData) o;
+            return m_pairDirection.equals(that.m_pairDirection);
+        }
+
+        @Override public int hashCode() {
+            return m_pairDirection.hashCode();
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class PairData {
+        private static Map<Pair, PairData> s_map = new HashMap<>();
+
+        public final Pair m_pair;
+
+        public static PairData get(Pair pair) {
+            PairData pairData = s_map.get(pair);
+            if (pairData == null) {
+                pairData = new PairData(pair);
+            }
+            return pairData;
+        }
+
+        public PairData(Pair pair) {
+            m_pair = pair;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            PairData pairData = (PairData) o;
+            return m_pair.equals(pairData.m_pair);
+        }
+
+        @Override public int hashCode() {
+            return m_pair.hashCode();
+        }
+
+        @Override public String toString() {
+            return m_pair.toString();
         }
     }
 }

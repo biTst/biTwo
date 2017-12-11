@@ -106,7 +106,7 @@ public class MarketConfig {
                         if (verbose) {
                             System.out.println("    to=" + to + "; curr=" + toCur);
                         }
-                        pair = new Pair(fromCur, toCur);
+                        pair = Pair.get(fromCur, toCur);
                         if (verbose) {
                             System.out.println("     pair created: " + pair);
                         }

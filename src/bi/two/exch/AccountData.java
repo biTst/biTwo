@@ -49,7 +49,7 @@ public class AccountData {
         if (from == to) {
             rate = 1d;
         } else {
-            Pair pair = m_exch.findPair(from, to);
+            Pair pair = Pair.get(from, to);
             if (pair != null) {
                 TopData topData = m_topDatas.get(pair);
                 boolean forward = (pair.m_from == from);
