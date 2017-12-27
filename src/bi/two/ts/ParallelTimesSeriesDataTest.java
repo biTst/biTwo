@@ -22,7 +22,7 @@ public class ParallelTimesSeriesDataTest {
             }
         };
         for (int i = 0; i < 16; i++) {
-            int finalI = i;
+            final int finalI = i;
             parallelTs.getActive().addListener(new ITimesSeriesData.ITimesSeriesListener() {
                 long m_expectedTimestamp = 0;
                 

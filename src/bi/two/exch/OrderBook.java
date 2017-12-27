@@ -35,7 +35,7 @@ public class OrderBook {
         m_listener.onUpdated();
     }
 
-    private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, boolean reverse) {
+    private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, final boolean reverse) {
 //        System.out.println("  updateBookSide(" + reverse + ") updates=" + updates);
         for (OrderBookEntry update : updates) {
             //System.out.println("   entries=" + entries);

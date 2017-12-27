@@ -178,7 +178,7 @@ public class WatchersProducer {
             m_active = false;
         }
 
-        private void doIterate(MapConfig config, final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
+        private void doIterate(final MapConfig config, final List<IterateConfig> iterateConfigs, int index, final MapConfig algoConfig, final BaseTimesSeriesData ticksTs,
                                final Exchange exchange, final Pair pair, final List<Watcher> watchers) {
             final int nextIndex = index + 1;
             final IterateConfig iterateConfig = iterateConfigs.get(index);

@@ -10,9 +10,7 @@ import org.apache.commons.math3.fitting.PolynomialCurveFitter;
 import org.apache.commons.math3.fitting.WeightedObservedPoint;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Point;
+import java.awt.*;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -329,7 +327,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         }
     }
 
-    private static int findTickIndexFromX(List<? extends ITickData> ticks, int crossX, Axe.AxeLong xAxe) {
+    private static int findTickIndexFromX(List<? extends ITickData> ticks, final int crossX, final Axe.AxeLong xAxe) {
         int highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long millis = td1.getTimestamp();
@@ -363,7 +361,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         return -1;
     }
 
-    private static int findTickIndexFromMillis(List<? extends ITickData> ticks, long millis) {
+    private static int findTickIndexFromMillis(List<? extends ITickData> ticks, final long millis) {
         int highlightTickIndex;
         highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {

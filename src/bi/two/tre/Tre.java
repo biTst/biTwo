@@ -106,7 +106,7 @@ start();
 
     private void subscribePairBook(Currency cur1, Currency cur2) throws Exception {
         Pair pair = Pair.get(cur1, cur2);
-        OrderBook orderBook = m_exchange.getOrderBook(pair);
+        final OrderBook orderBook = m_exchange.getOrderBook(pair);
         m_books.add(orderBook);
         // subscribe snapshot
         Exchange.IOrderBookListener listener = new Exchange.IOrderBookListener() {
