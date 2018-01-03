@@ -35,16 +35,12 @@ public class OrderBook {
         m_listener.onUpdated();
     }
 
-    private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, final boolean reverse) {
+    private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, boolean reverse) {
 //        System.out.println("  updateBookSide(" + reverse + ") updates=" + updates);
+        Comparator<OrderBookEntry> comparator = OrderBookEntry.getComparator(reverse);
         for (OrderBookEntry update : updates) {
             //System.out.println("   entries=" + entries);
-            int index = Collections.binarySearch(entries, update, new Comparator<OrderBookEntry>() {
-                @Override public int compare(OrderBookEntry o1, OrderBookEntry o2) {
-                    int compare = Double.compare(o1.m_price, o2.m_price);
-                    return reverse ? -compare : compare;
-                }
-            });
+            int index = Collections.binarySearch(entries, update, comparator);
             //System.out.println("    index=" + index + "; update=" + update);
             double size = update.m_size;
             if (index < 0) {
@@ -95,6 +91,19 @@ public class OrderBook {
 
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
+        public static final Comparator<OrderBookEntry> FORWARD_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
+            @Override
+            public int compare(OrderBookEntry o1, OrderBookEntry o2) {
+                return Double.compare(o1.m_price, o2.m_price);
+            }
+        };
+        public static final Comparator<OrderBookEntry> REVERSE_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
+            @Override
+            public int compare(OrderBookEntry o1, OrderBookEntry o2) {
+                return -Double.compare(o1.m_price, o2.m_price);
+            }
+        };
+
         public double m_price;
         public double m_size;
 
@@ -105,6 +114,10 @@ public class OrderBook {
 
         @Override public String toString() {
             return "[" + m_price + ";" + Utils.format8(m_size) + ']';
+        }
+
+        public static Comparator<OrderBookEntry> getComparator(boolean reverse) {
+            return reverse ? OrderBookEntry.REVERSE_BY_PRICE_COMPARATOR : OrderBookEntry.FORWARD_BY_PRICE_COMPARATOR;
         }
     }
 
