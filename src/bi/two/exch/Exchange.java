@@ -1,6 +1,7 @@
 package bi.two.exch;
 
 import bi.two.tre.CurrencyValue;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
@@ -27,7 +28,13 @@ public class Exchange {
         m_accountData = new AccountData(this);
     }
 
-    public static Exchange get(String name) { return s_exchangesMap.get(name); }
+    @NotNull public static Exchange get(String name) {
+        Exchange exchange = s_exchangesMap.get(name);
+        if (exchange == null) {
+            throw new RuntimeException("Exchange '" + name + "' not found");
+        }
+        return exchange;
+    }
 
     @Override public String toString() {
         return "Exchange[" + m_name + ']';
@@ -51,6 +58,10 @@ public class Exchange {
             }
         }
         return false;
+    }
+
+    public boolean supportPair(Pair pair) {
+        return m_pairsMap.containsKey(pair);
     }
 
 //    public Pair getPair(Currency from, Currency to) {
