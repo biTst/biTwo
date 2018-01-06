@@ -43,14 +43,12 @@ public class OrderBook {
             int index = Collections.binarySearch(entries, update, comparator);
             //System.out.println("    index=" + index + "; update=" + update);
             double size = update.m_size;
-            if (index < 0) {
-                // to insert
+            if (index < 0) { // to insert
                 if (size > 0) {
                     index = -index - 1;
                     entries.add(index, update);
                 }
-            } else {
-                // to replace
+            } else { // to replace
                 if (size > 0) {
                     entries.set(index, update);
                 } else {

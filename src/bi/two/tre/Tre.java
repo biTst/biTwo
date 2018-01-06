@@ -18,9 +18,9 @@ public class Tre {
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
             {Currency.BTC, Currency.USD, Currency.ETH},
-//            {Currency.BTC, Currency.EUR, Currency.ETH},
-//            {Currency.BTC, Currency.USD, Currency.DASH},
-//            {Currency.BTC, Currency.USD, Currency.BTG},
+            {Currency.BTC, Currency.EUR, Currency.ETH},
+            {Currency.BTC, Currency.USD, Currency.DASH},
+            {Currency.BTC, Currency.USD, Currency.BTG},
     };
 
     private Exchange m_exchange;
@@ -100,6 +100,15 @@ start();
                 roundData.getPairDatas(m_pairDatas);
             }
             System.out.println("roundDatas: " + m_roundDatas);
+
+            for (PairData pairData : m_pairDatas) {
+                Pair pair = pairData.m_pair;
+                boolean supportPair = m_exchange.supportPair(pair);
+                if (!supportPair) {
+                    throw new RuntimeException("exchange " + m_exchange + " does not support pair " + pair);
+                }
+            }
+
             System.out.println("pairDatas: " + m_pairDatas);
         }
     }
