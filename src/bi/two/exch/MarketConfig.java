@@ -8,9 +8,11 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class MarketConfig {
+    private static final String CONFIG_FILE = "cfg.cfg";
+
     public static void initMarkets(boolean verbose) {
         Properties properties = new Properties();
-        File file = new File("cfg.cfg");
+        File file = new File(CONFIG_FILE);
         boolean exists = file.exists();
         if (exists) {
             try {
@@ -113,30 +115,30 @@ public class MarketConfig {
                     }
                     ExchPairData exchPairData = ex.addPair(pair);
                     String pairPrefix = prefix + ".pair." + pairName;
+
                     String minOrderStr = prop.getProperty(pairPrefix + ".minOrder"); // 0.01btc
                     if (minOrderStr != null) {
                         if (verbose) {
                             System.out.println("    minOrderStr: " + minOrderStr);
                         }
-
-                        String srcCurName = pair.m_from.m_name;
-                        if (minOrderStr.endsWith(srcCurName)) {
-                            minOrderStr = minOrderStr.substring(0, minOrderStr.length() - srcCurName.length());
-                            double value = Double.parseDouble(minOrderStr);
-                            exchPairData.m_minOrderToCreate = new CurrencyValue(value, pair.m_from);
-                        } else {
-                            String dstCurName = pair.m_to.m_name;
-                            if (minOrderStr.endsWith(dstCurName)) {
-                                minOrderStr = minOrderStr.substring(0, minOrderStr.length() - dstCurName.length());
-                                double value = Double.parseDouble(minOrderStr);
-                                exchPairData.m_minOrderToCreate = new CurrencyValue(value, pair.m_to);
-                            } else {
-                                double value = Double.parseDouble(minOrderStr);
-                                exchPairData.m_minOrderToCreate = new CurrencyValue(value, baseCurrency);
-                            }
+                        CurrencyValue currencyValue = parseCurrencyValue(minOrderStr, pair, baseCurrency);
+                        if (verbose) {
+                            System.out.println("     currencyValue: " + currencyValue);
                         }
+                        exchPairData.m_minOrderToCreate = currencyValue;
                     }
 
+                    String minOrderStepStr = prop.getProperty(pairPrefix + ".minOrderStep"); // 0.01btc
+                    if (minOrderStepStr != null) {
+                        if (verbose) {
+                            System.out.println("    minOrderStepStr: " + minOrderStepStr);
+                        }
+                        CurrencyValue currencyValue = parseCurrencyValue(minOrderStepStr, pair, baseCurrency);
+                        if (verbose) {
+                            System.out.println("     currencyValue: " + currencyValue);
+                        }
+                        exchPairData.m_minOrderStep = currencyValue;
+                    }
 
                     String minPriceStepStr = prop.getProperty(pairPrefix + ".minPriceStep");
                     if (minPriceStepStr != null) {
@@ -181,6 +183,27 @@ public class MarketConfig {
 
         } else {
             throw new RuntimeException("no baseCurrency specified for exchange " + name);
+        }
+    }
+
+    private static CurrencyValue parseCurrencyValue(String str, Pair pair, Currency baseCurrency) {
+        Currency currencyFrom = pair.m_from;
+        String srcCurName = currencyFrom.m_name;
+        if (str.endsWith(srcCurName)) {
+            String value = str.substring(0, str.length() - srcCurName.length());
+            double doubleValue = Double.parseDouble(value);
+            return new CurrencyValue(doubleValue, currencyFrom);
+        } else {
+            Currency currencyTo = pair.m_to;
+            String dstCurName = currencyTo.m_name;
+            if (str.endsWith(dstCurName)) {
+                String value = str.substring(0, str.length() - dstCurName.length());
+                double doubleValue = Double.parseDouble(value);
+                return new CurrencyValue(doubleValue, currencyTo);
+            } else {
+                double value = Double.parseDouble(str);
+                return new CurrencyValue(value, baseCurrency);
+            }
         }
     }
 }
