@@ -17,6 +17,7 @@ public class PairDirectionData {
         PairDirectionData pdd = s_map.get(pairDirection);
         if (pdd == null) {
             pdd = new PairDirectionData(pairDirection);
+            s_map.put(pairDirection, pdd);
         }
         return pdd;
     }
@@ -30,10 +31,9 @@ public class PairDirectionData {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if ((o == null) || (getClass() != o.getClass())) {
             return false;
         }
-
         PairDirectionData that = (PairDirectionData) o;
         return m_pairDirection.equals(that.m_pairDirection);
     }

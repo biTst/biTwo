@@ -86,7 +86,7 @@ public class Tre {
     private void initIfNeeded() {
         if (m_roundDatas.isEmpty()) {
             for (Currency[] currencies : TRE_CURRENCIES) {
-                RoundData roundData = new RoundData(currencies);
+                RoundData roundData = new RoundData(currencies, m_exchange);
                 m_roundDatas.add(roundData);
                 roundData.getPairDatas(m_pairDatas);
             }
@@ -99,7 +99,6 @@ public class Tre {
                     throw new RuntimeException("exchange " + m_exchange + " does not support pair " + pair);
                 }
             }
-
             System.out.println("pairDatas: " + m_pairDatas);
         }
     }
@@ -115,7 +114,7 @@ public class Tre {
         Pair pair = pairData.m_pair;
         System.out.println(" subscribePairBook: " + pair);
 
-        final OrderBook orderBook = m_exchange.getOrderBook(pair);
+        OrderBook orderBook = m_exchange.getOrderBook(pair);
         m_books.add(orderBook);
         if (SNAPSHOT_ONLY) {
             orderBook.snapshot(pairData, SUBSCRIBE_DEPTH);

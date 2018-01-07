@@ -446,7 +446,7 @@ public class CexIo extends BaseExchImpl {
         processOrderBook(pair, bids, asks);
     }
 
-    private void onOrderBookSubscribe(Session session, JSONObject jsonObject) throws IOException {
+    private void onOrderBookSubscribe(Session session, JSONObject jsonObject) {
         // {"timestamp":1511566229,
         //  "bids":[[8228.1220,0.00606695],[8226.6111,0.01433840]],
         //  "asks":[[8231.0941,0.01000000],[8231.1303,0.64500000]],
@@ -468,7 +468,7 @@ public class CexIo extends BaseExchImpl {
         processOrderBook(pair, bids, asks);
     }
 
-    private void processOrderBook(Object pair, JSONArray bids, JSONArray asks) {
+    private void processOrderBook(String pair, JSONArray bids, JSONArray asks) {
         // "pair":"BTC:USD"
         // [[8228.1220,0.00606695],[8226.6111,0.01433840]]
         OrderBook orderBook = m_orderBooks.get(pair);
@@ -555,9 +555,7 @@ public class CexIo extends BaseExchImpl {
         for (String supportedCurrency : m_supportedCurrencies) {
             appendBalance(sb, balance, supportedCurrency);
         }
-        if (sb.length() > 0) {
-            sb.replace(0,2, "[");
-        }
+        sb.replace(0,2, "[");
         sb.append("]");
         return sb.toString();
     }
@@ -605,7 +603,7 @@ public class CexIo extends BaseExchImpl {
         send(session, "{\"e\": \"pong\"}");
     }
 
-    private void onAuth(Session session, JSONObject jsonObject) throws Exception {
+    private void onAuth(Session session, JSONObject jsonObject) {
         // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
         JSONObject data = (JSONObject) jsonObject.get("data");
         System.out.println(" data: " + data);
@@ -731,7 +729,7 @@ public class CexIo extends BaseExchImpl {
                 + cur2 + "\" ], \"subscribe\": " + streaming + ", \"depth\": " + depth + " }, \"oid\": \"" + oid + "\" }");
     }
 
-    private static void queryBalance(Session session) throws InterruptedException, IOException {
+    private static void queryBalance(Session session) throws IOException {
         //        {
         //            "e": "get-balance",
         //            "data": {},
@@ -863,7 +861,7 @@ public class CexIo extends BaseExchImpl {
         m_orderBooks.put(key, orderBook);
     }
 
-    @Override public void queryAccount() throws IOException, InterruptedException {
+    @Override public void queryAccount() throws IOException {
         queryBalance(m_session);
     }
 }

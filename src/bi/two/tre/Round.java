@@ -38,7 +38,7 @@ public class Round {
         Round round = s_map.get(key);
         if (round == null) {
             round = new Round(cc1, cc2, cc3);
-            s_map.get(round);
+            s_map.put(key, round);
         }
         return round;
     }

@@ -13,17 +13,18 @@ public class PairData implements OrderBook.IOrderBookListener {
 
     public final Pair m_pair;
     public final List<OrderBook.IOrderBookListener> m_listeners = new ArrayList<>();
-    public boolean m_liveOrderBook;
+    public boolean m_orderBookIsLive;
 
     public static PairData get(Pair pair) {
         PairData pairData = s_map.get(pair);
         if (pairData == null) {
             pairData = new PairData(pair);
+            s_map.put(pair, pairData);
         }
         return pairData;
     }
 
-    public PairData(Pair pair) {
+    private PairData(Pair pair) {
         m_pair = pair;
     }
 
@@ -31,10 +32,9 @@ public class PairData implements OrderBook.IOrderBookListener {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if ((o == null) || (getClass() != o.getClass())) {
             return false;
         }
-
         PairData pairData = (PairData) o;
         return m_pair.equals(pairData.m_pair);
     }
@@ -52,7 +52,7 @@ public class PairData implements OrderBook.IOrderBookListener {
     }
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
-        m_liveOrderBook = true; // we got at least one order book update
+        m_orderBookIsLive = true; // we got at least one order book update
         for (OrderBook.IOrderBookListener listener : m_listeners) {
             listener.onOrderBookUpdated(orderBook);
         }

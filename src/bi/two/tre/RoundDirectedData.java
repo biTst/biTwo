@@ -1,20 +1,19 @@
 package bi.two.tre;
 
 import bi.two.exch.Currency;
-import bi.two.exch.OrderBook;
 
 import java.util.ArrayList;
 import java.util.List;
 
-class RoundDirectedData implements OrderBook.IOrderBookListener {
+class RoundDirectedData {
     public final Currency[] m_currencies;
     public final Round m_round;
     public final String m_name;
-    private final List<PairDirectionData> m_pdds = new ArrayList<>();
-    private boolean m_allLive;
+    public final List<PairDirectionData> m_pdds = new ArrayList<>();
 
     public RoundDirectedData(Currency[] c) {
         m_currencies = c;
+
         Currency c0 = c[0];
         Currency c1 = c[1];
         Currency c2 = c[2];
@@ -39,10 +38,9 @@ class RoundDirectedData implements OrderBook.IOrderBookListener {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if ((o == null) || (getClass() != o.getClass())) {
             return false;
         }
-
         RoundDirectedData that = (RoundDirectedData) o;
         return m_round.equals(that.m_round);
     }
@@ -57,25 +55,6 @@ class RoundDirectedData implements OrderBook.IOrderBookListener {
             if (!pds.contains(pairData)) {
                 pds.add(pairData);
             }
-
-            pairData.addOrderBookListener(this);
-        }
-    }
-
-    @Override public void onOrderBookUpdated(OrderBook orderBook) {
-        if (!m_allLive) { // recheck allLive
-            boolean allLive = true;
-            for (PairDirectionData pdd : m_pdds) {
-                PairData pairData = pdd.m_pairData;
-                if (!pairData.m_liveOrderBook) {
-                    allLive = false;
-                    break;
-                }
-            }
-            m_allLive = allLive;
-        }
-        if (m_allLive) {
-            System.out.println("ALL LIVE for: " + this);
         }
     }
 }
