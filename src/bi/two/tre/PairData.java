@@ -12,6 +12,7 @@ public class PairData implements OrderBook.IOrderBookListener {
     private static Map<Pair, PairData> s_map = new HashMap<>();
 
     public final Pair m_pair;
+    public OrderBook m_orderBook;
     public final List<OrderBook.IOrderBookListener> m_listeners = new ArrayList<>();
     public boolean m_orderBookIsLive;
 
@@ -55,6 +56,15 @@ public class PairData implements OrderBook.IOrderBookListener {
         m_orderBookIsLive = true; // we got at least one order book update
         for (OrderBook.IOrderBookListener listener : m_listeners) {
             listener.onOrderBookUpdated(orderBook);
+        }
+    }
+
+    public void subscribeOrderBook(OrderBook orderBook, boolean snapshotOnly, int subscribeDepth) throws Exception {
+        m_orderBook = orderBook;
+        if (snapshotOnly) {
+            orderBook.snapshot(this, subscribeDepth);
+        } else {
+            orderBook.subscribe(this, subscribeDepth);
         }
     }
 }
