@@ -34,12 +34,10 @@ public class PairDirection {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if ((o == null) || (getClass() != o.getClass())) {
             return false;
         }
-
         PairDirection that = (PairDirection) o;
-
         if (m_forward != that.m_forward) {
             return false;
         }
@@ -50,6 +48,13 @@ public class PairDirection {
         int result = m_pair.hashCode();
         result = 31 * result + (m_forward ? 1 : 0);
         return result;
+    }
+
+
+    @Override public String toString() {
+        return m_forward
+                ? m_pair.m_from + "->" + m_pair.m_to
+                : m_pair.m_to + "->" + m_pair.m_from;
     }
 
     public Currency getSourceCurrency() {

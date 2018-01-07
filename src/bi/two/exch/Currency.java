@@ -47,7 +47,7 @@ public enum Currency {
     }
 
     @Override public String toString() {
-        return "Currency[" + m_name + ']';
+        return "[" + m_name + ']';
     }
 
 }

@@ -62,7 +62,7 @@ public class Pair {
     }
 
     @Override public String toString() {
-        return "Pair[" + m_name + ']';
+        return m_name;
     }
 
     @Override public int hashCode() {
