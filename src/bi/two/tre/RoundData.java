@@ -1,19 +1,24 @@
 package bi.two.tre;
 
-import bi.two.exch.Currency;
-import bi.two.exch.Exchange;
-import bi.two.exch.OrderBook;
-import bi.two.exch.Pair;
+import bi.two.exch.*;
+import bi.two.util.Utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 class RoundData implements OrderBook.IOrderBookListener {
+    private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
+
     public final Round m_round;
     private final Exchange m_exchange;
     public final List<RoundDirectedData> m_directedRounds = new ArrayList<>();
     public final List<PairData> m_pds = new ArrayList<>();
     public boolean m_allLive;
+    public Map<Pair, CurrencyValue> m_minPassThruOrdersSize = new HashMap<>();
+    private long m_minPassThruOrdersSizeRecalcTime;
 
     public RoundData(Currency[] currencies, Exchange exchange) {
         m_round = Round.get(currencies[0], currencies[1], currencies[2]);
@@ -68,16 +73,74 @@ class RoundData implements OrderBook.IOrderBookListener {
             }
             m_allLive = allLive;
             if (m_allLive) {
-                System.out.println("ALL becomes LIVE for: " + this);
                 onBecomesLive();
             }
         }
         if (m_allLive) {
-            System.out.println("ALL LIVE for: " + this);
+            System.out.println("ALL LIVE for round: " + this);
         }
     }
 
     private void onBecomesLive() {
-//        m_exchange
+        System.out.println("ALL becomes LIVE for round: " + this);
+        long diff = System.currentTimeMillis() - m_minPassThruOrdersSizeRecalcTime;
+        if (diff > RECALC_TIME) {
+            recalcPassThruOrders();
+        }
+    }
+
+    private void recalcPassThruOrders() {
+        System.out.println("recalcPassThruOrders: " + this);
+        for (PairData pairData : m_pds) {
+            Pair pair = pairData.m_pair;
+            ExchPairData exchPairData = m_exchange.getPairData(pair);
+            CurrencyValue minOrder = exchPairData.m_minOrderToCreate;
+            System.out.println(" pair[" + pair + "].minOrder=" + minOrder);
+            m_minPassThruOrdersSize.put(pair, minOrder);
+        }
+        int size = m_pds.size();
+        for (int i = 0; i < size; i++) {
+            PairData pd1 = m_pds.get(i);
+            Pair p1 = pd1.m_pair;
+            CurrencyValue os1 = m_minPassThruOrdersSize.get(p1);
+            PairData pd2 = m_pds.get((i + 1) % size);
+            Pair p2 = pd2.m_pair;
+            CurrencyValue os2 = m_minPassThruOrdersSize.get(p2);
+            System.out.println(" compare: pair[" + p1 + "].minOrder=" + os1 + "  and  pair[" + p2 + "].minOrder=" + os2);
+            Currency c1 = os1.m_currency;
+            double v1 = os1.m_value;
+            Currency c2 = os2.m_currency;
+            double v2 = os2.m_value;
+
+//            if (c1 == c2) {
+//                System.out.println("  same currency: " + c1);
+//                if (v1 > v2) {
+//                    CurrencyValue os2_ = new CurrencyValue(v1, c2);
+//                    System.out.println("   " + Utils.format8(v1) + " > " + Utils.format8(v2) + "; " + os2 + " => " + os2_);
+//                    m_minPassThruOrdersSize.put(p2, os2_);
+//                } else {
+//                    CurrencyValue os1_ = new CurrencyValue(v2, c1);
+//                    System.out.println("   " + Utils.format8(v1) + " <= " + Utils.format8(v2) + "; " + os1 + " => " + os1_);
+//                    m_minPassThruOrdersSize.put(p1, os1_);
+//                }
+//            } else {
+                double rate = m_exchange.m_accountData.rate(c1, c2);
+                double v1_ = v1 * rate;
+                System.out.println("  convert " + Utils.format8(v1) + c1.m_name + " -> " + Utils.format8(v1_) + c2.m_name + "; rate=" + Utils.format8(rate));
+                if (v1_ > v2) {
+                    double factor = v1_ / v2;
+                    CurrencyValue os2_ = new CurrencyValue(v2 * factor, c2);
+                    System.out.println("   " + Utils.format8(v1_) + " > " + Utils.format8(v2) + "; " + os2 + " => " + os2_);
+                    m_minPassThruOrdersSize.put(p2, os2_);
+                } else {
+                    double factor = v2 / v1_;
+                    CurrencyValue os1_ = new CurrencyValue(v1 * factor, c1);
+                    System.out.println("   " + Utils.format8(v1_) + " <= " + Utils.format8(v2) + "; " + os1 + " => " + os1_);
+                    m_minPassThruOrdersSize.put(p1, os1_);
+                }
+//            }
+            System.out.println("m_minPassThruOrdersSize=" + m_minPassThruOrdersSize);
+        }
+        m_minPassThruOrdersSizeRecalcTime = System.currentTimeMillis();
     }
 }
