@@ -5,6 +5,7 @@ import bi.two.util.Hex;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -14,10 +15,12 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 // based on info from https://cex.io/websocket-api
 //  to check: https://github.com/zackurben/cex.io-api-java  https://github.com/joshho/cex.io-api-java
@@ -49,38 +52,108 @@ public class CexIo extends BaseExchImpl {
     public static void main(String[] args) {
         System.out.println("main()");
         try {
-            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-            ClientManager client = ClientManager.createClient();
-            System.out.println("connectToServer...");
-            client.connectToServer(new Endpoint() {
+            Endpoint endpoint = new Endpoint() {
                 @Override public void onOpen(Session session, EndpointConfig config) {
-                    System.out.println("onOpen() session="+session + "; config="+config);
+                    System.out.println("onOpen() session=" + session + "; config=" + config);
 
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
-                        @Override public void onMessage(String message) {
-                            System.out.println("onMessage() message="+message);
+                        @Override
+                        public void onMessage(String message) {
+                            System.out.println("onMessage() message=" + message);
                         }
                     });
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
-                    System.out.println("connectToServer...");
+                    System.out.println("onClose");
                     super.onClose(session, closeReason);
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
-                    System.out.println("connectToServer...");
+                    System.out.println("onError");
                     super.onError(session, thr);
                 }
-            }, cec, new URI(URL));
+            };
+
+            System.out.println("connectToServer...");
+            connectToServer(endpoint);
+
+            Thread.sleep(TimeUnit.DAYS.toMillis(365));
+            System.out.println("done");
+
         } catch (Exception e) {
             System.out.println("error: " + e);
             e.printStackTrace();
         }
 
-
         //        test();
     }
+
+    private static void connectToServer(Endpoint endpoint) throws DeploymentException, IOException, URISyntaxException {
+        // ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+
+        // latest libs adds Origin="http://ws.cex.io" header to initial request
+        // cex.io server returns with {"ok":"error","data":{"error":"Incorrect origin in request header."}}
+        // removing "Origin" header fixes the problem
+        ClientEndpointConfig cec = ClientEndpointConfig.Builder.create()
+                .configurator(new ClientEndpointConfig.Configurator() {
+                    @Override public void beforeRequest(Map<String, List<String>> headers) {
+                        headers.remove("Origin");
+                    }
+                    @Override public void afterResponse(HandshakeResponse hr) { /*noop*/ }
+                })
+                .build();
+
+        // works with compile 'org.glassfish.tyrus.bundles:tyrus-standalone-client:1.13.1'
+        // ClientManager client = ClientManager.createClient();
+        // works with compile 'org.glassfish.tyrus:tyrus-container-jdk-client:1.13.1'
+        ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
+
+        client.connectToServer(endpoint, cec, new URI(URL));
+    }
+
+    /**   todo:  ReconnectHandler
+     *
+     * ClientManager client = ClientManager.createClient();
+     ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
+
+     private int counter = 0;
+
+     @Override
+     public boolean onDisconnect(CloseReason closeReason) {
+     counter++;
+     if (counter <= 3) {
+     System.out.println("### Reconnecting... (reconnect count: " + counter + ")");
+     return true;
+     } else {
+     return false;
+     }
+     }
+
+     @Override
+     public boolean onConnectFailure(Exception exception) {
+     counter++;
+     if (counter <= 3) {
+     System.out.println("### Reconnecting... (reconnect count: " + counter + ") " + exception.getMessage());
+
+     // Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
+     // to do it here to avoid potential DDoS when you don't limit number of reconnects.
+     return true;
+     } else {
+     return false;
+     }
+     }
+
+     @Override
+     public long getDelay() {
+     return 1;
+     }
+     };
+
+     client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
+
+     client.connectToServer(...)
+     */
 
     private static void test() {
         String apiSecret = "1IuUeW4IEWatK87zBTENHj1T17s";
@@ -727,11 +800,8 @@ public class CexIo extends BaseExchImpl {
 
     @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
         m_exchangeConnectListener = iExchangeConnectListener;
-        
-        ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-        ClientManager client = ClientManager.createClient();
-        System.out.println("connectToServer...");
-        client.connectToServer(new Endpoint() {
+
+        Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
                 System.out.println("onOpen");
                 try {
@@ -755,7 +825,9 @@ public class CexIo extends BaseExchImpl {
                 System.out.println("onError: " + thr);
                 thr.printStackTrace();
             }
-        }, cec, new URI(URL));
+        };
+        System.out.println("connectToServer...");
+        connectToServer(endpoint);
         System.out.println("session isOpen=" + m_session.isOpen());
     }
 
