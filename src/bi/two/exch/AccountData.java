@@ -194,14 +194,13 @@ public class AccountData {
         logMove("    account out: " + this);
     }
 
-    public Double convert(Currency fromCurrency, Currency toCurrency, double amountTo) {
+    public double convert(Currency fromCurrency, Currency toCurrency, double amountTo) {
         Double rate = rate(fromCurrency, toCurrency);
         if (rate != null) {
             double converted = amountTo * rate;
             return converted;
-        } else {
-            return null;
         }
+        throw new RuntimeException("Unable to convert from " + fromCurrency + " to " + toCurrency);
     }
 
     @Override public String toString() {
