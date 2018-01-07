@@ -15,7 +15,6 @@ public class Exchange {
     public final AccountData m_accountData;
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
-//    private Map<Currency, Map<Currency, PairDirection>> m_pairDirectionMap = new HashMap<>(); // lazy
     public Schedule m_schedule;
     private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
     public IAccountListener m_accountListener;
@@ -63,59 +62,6 @@ public class Exchange {
     public boolean supportPair(Pair pair) {
         return m_pairsMap.containsKey(pair);
     }
-
-//    public Pair getPair(Currency from, Currency to) {
-//        for (Pair pair : m_pairsMap.keySet()) {
-//            if ((pair.m_from == from) && (pair.m_to == to)) {
-//                return pair; // return only exact provided direction pair
-//            }
-//        }
-//        return null;
-//    }
-//
-//    public Pair findPair(Currency from, Currency to) {
-//        for (Pair pair : m_pairsMap.keySet()) {
-//            if ((pair.m_from == from) && (pair.m_to == to)) {
-//                return pair;
-//            }
-//            if ((pair.m_to == from) && (pair.m_from == to)) {
-//                return pair;
-//            }
-//        }
-//        return null;
-//    }
-//
-//    public PairDirection getPairDirection(Currency from, Currency to) {
-//        Map<Currency, PairDirection> map = m_pairDirectionMap.get(from);
-//        if (map != null) {
-//            PairDirection pairDirection = map.get(to);
-//            if (pairDirection != null) {
-//                return pairDirection;
-//            }
-//        }
-//
-//        PairDirection pairDirection = null;
-//        for (Pair pair : m_pairsMap.keySet()) {
-//            if ((pair.m_from == from) && (pair.m_to == to)) {
-//                pairDirection = PairDirection.get(pair, true);
-//                break;
-//            }
-//            if ((pair.m_to == from) && (pair.m_from == to)) {
-//                pairDirection = PairDirection.get(pair, false);
-//                break;
-//            }
-//        }
-//
-//        if (pairDirection != null) {
-//            if (map == null) {
-//                map = new HashMap<>();
-//                m_pairDirectionMap.put(from, map);
-//            }
-//            map.put(to, pairDirection);
-//        }
-//
-//        return pairDirection;
-//    }
 
     public CurrencyValue getMinOrderToCreate(Pair pair) {
         ExchPairData pairData = getPairData(pair);
