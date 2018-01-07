@@ -41,4 +41,8 @@ public class PairDirectionData {
     @Override public int hashCode() {
         return m_pairDirection.hashCode();
     }
+
+    @Override public String toString() {
+        return m_pairDirection.toString();
+    }
 }
