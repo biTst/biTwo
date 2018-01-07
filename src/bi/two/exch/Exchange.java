@@ -167,12 +167,6 @@ public class Exchange {
 
 
     //----------------------------------------------------------------------------------------
-    public interface IOrderBookListener {
-        void onUpdated();
-    }
-
-
-    //----------------------------------------------------------------------------------------
     public interface IAccountListener {
         void onUpdated() throws Exception;
     }

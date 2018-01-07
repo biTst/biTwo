@@ -8,6 +8,7 @@ import java.util.Arrays;
 public enum Currency {
     USD("usd"),
     EUR("eur"),
+    GBP("gbp"),
     BTC("btc"),
     BCH("bch"),
     BTG("btg"),

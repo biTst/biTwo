@@ -12,19 +12,19 @@ public class OrderBook {
     public final Pair m_pair;
     public List<OrderBookEntry> m_bids = new ArrayList<>();
     public List<OrderBookEntry> m_asks = new ArrayList<>();
-    private Exchange.IOrderBookListener m_listener;
+    private IOrderBookListener m_listener;
 
     public OrderBook(Exchange exchange, Pair pair) {
         m_exchange = exchange ;
         m_pair = pair;
     }
 
-    public void subscribe(Exchange.IOrderBookListener listener, int depth) throws Exception {
+    public void subscribe(IOrderBookListener listener, int depth) throws Exception {
         m_listener = listener;
         m_exchange.subscribeOrderBook(this, depth);
     }
 
-    public void snapshot(Exchange.IOrderBookListener listener, int depth) throws Exception {
+    public void snapshot(IOrderBookListener listener, int depth) throws Exception {
         m_listener = listener;
         m_exchange.queryOrderBookSnapshot(this, depth);
     }
@@ -32,7 +32,7 @@ public class OrderBook {
     public void update(List<OrderBookEntry> bids, List<OrderBookEntry> asks) {
         updateBookSide(m_bids, bids, true);
         updateBookSide(m_asks, asks, false);
-        m_listener.onUpdated();
+        m_listener.onOrderBookUpdated(this);
     }
 
     private void updateBookSide(List<OrderBookEntry> entries, List<OrderBookEntry> updates, boolean reverse) {
@@ -135,5 +135,11 @@ public class OrderBook {
                     ", ask=" + m_askEntry +
                     '}';
         }
+    }
+
+
+    //----------------------------------------------------------------------------------------
+    public interface IOrderBookListener {
+        void onOrderBookUpdated(OrderBook orderBook);
     }
 }

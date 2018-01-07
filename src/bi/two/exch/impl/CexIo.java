@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 // based on info from https://cex.io/websocket-api
+//  to check: https://github.com/zackurben/cex.io-api-java  https://github.com/joshho/cex.io-api-java
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
 
@@ -46,7 +47,39 @@ public class CexIo extends BaseExchImpl {
     }
 
     public static void main(String[] args) {
-//        test();
+        System.out.println("main()");
+        try {
+            ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
+            ClientManager client = ClientManager.createClient();
+            System.out.println("connectToServer...");
+            client.connectToServer(new Endpoint() {
+                @Override public void onOpen(Session session, EndpointConfig config) {
+                    System.out.println("onOpen() session="+session + "; config="+config);
+
+                    session.addMessageHandler(new MessageHandler.Whole<String>() {
+                        @Override public void onMessage(String message) {
+                            System.out.println("onMessage() message="+message);
+                        }
+                    });
+                }
+
+                @Override public void onClose(Session session, CloseReason closeReason) {
+                    System.out.println("connectToServer...");
+                    super.onClose(session, closeReason);
+                }
+
+                @Override public void onError(Session session, Throwable thr) {
+                    System.out.println("connectToServer...");
+                    super.onError(session, thr);
+                }
+            }, cec, new URI(URL));
+        } catch (Exception e) {
+            System.out.println("error: " + e);
+            e.printStackTrace();
+        }
+
+
+        //        test();
     }
 
     private static void test() {
@@ -62,7 +95,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private void onMessageX(Session session, String message) {
-//        System.out.println("<< received: " + message);
+        System.out.println("<< received: " + message);
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObject = (JSONObject) parser.parse(message);
@@ -652,6 +685,8 @@ public class CexIo extends BaseExchImpl {
         // can be received in case WebSocket client has reconnected, which means that client needs to send 'authenticate'
         // request and subscribe for notifications, like by first connection
 
+        System.out.println("onConnected ");
+
         long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
         String signature = createSignature(timestamp, m_apiSecret, m_apiKey);
 
@@ -673,7 +708,8 @@ public class CexIo extends BaseExchImpl {
 
     private static void send(Session session, String str) throws IOException {
         System.out.println(">> send: " + str);
-        session.getBasicRemote().sendText(str);
+        RemoteEndpoint.Basic basicRemote = session.getBasicRemote();
+        basicRemote.sendText(str);
     }
 
     private static String createSignature(long timestamp, String apiSecret, String apiKey) {
@@ -694,6 +730,7 @@ public class CexIo extends BaseExchImpl {
         
         ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
         ClientManager client = ClientManager.createClient();
+        System.out.println("connectToServer...");
         client.connectToServer(new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
                 System.out.println("onOpen");

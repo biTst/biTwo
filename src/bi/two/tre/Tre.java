@@ -14,21 +14,20 @@ public class Tre {
     private static final int SUBSCRIBE_DEPTH = 3;
     private static final double MAKER_PROFIT_RATE = 0.001; // 0.1%
     private static final BestRoundDataComparator BEST_ROUND_DATA_COMPARATOR = new BestRoundDataComparator();
-    private static final boolean SNAPSHOT_ONLY = false;
+    private static final boolean SNAPSHOT_ONLY = true;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
-            {Currency.BTC, Currency.USD, Currency.ETH},
-            {Currency.BTC, Currency.EUR, Currency.ETH},
-            {Currency.BTC, Currency.USD, Currency.DASH},
-            {Currency.BTC, Currency.USD, Currency.BTG},
+//            {Currency.BTC, Currency.USD, Currency.ETH},
+//            {Currency.BTC, Currency.USD, Currency.DASH},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
+//            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
     private Exchange m_exchange;
-    private int m_connectedPairsCounter = 0;
     private List<RoundData> m_roundDatas = new ArrayList<>();
     private ArrayList<PairData> m_pairDatas = new ArrayList<>();
     private List<OrderBook> m_books = new ArrayList<>();
-    private Currency[] m_currencies;
+    private Currency[] m_currencies; // todo: remove
     private RoundDataOld m_bestRound;
     private double m_bestTakerRate = 0;
     private double m_bestRate = 0;
@@ -48,19 +47,17 @@ public class Tre {
             m_exchange = Exchange.get("cex");
             m_exchange.m_impl = new CexIo(config, m_exchange);
 
-start();
-
-//            m_exchange.connect(new Exchange.IExchangeConnectListener() {
-//                @Override public void onConnected() {
-//                    try {
-//                        System.out.println("onConnected()");
-//                        start();
-//                    } catch (Exception e) {
-//                        System.out.println("onConnected error: " + e);
-//                        e.printStackTrace();
-//                    }
-//                }
-//            });
+            m_exchange.connect(new Exchange.IExchangeConnectListener() {
+                @Override public void onConnected() {
+                    try {
+                        System.out.println("onConnected() " + m_exchange);
+                        start();
+                    } catch (Exception e) {
+                        System.out.println("onConnected error: " + e);
+                        e.printStackTrace();
+                    }
+                }
+            });
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
             System.out.println("done");
@@ -77,19 +74,13 @@ start();
 
         initIfNeeded();
 
-//        System.out.println("queryAccount()...");
-//        m_exchange.queryAccount(new Exchange.IAccountListener() {
-//            @Override public void onUpdated() throws Exception {
-//                System.out.println("Account.onUpdated() " + m_exchange.m_accountData);
-//                m_currencies = TRE_CURRENCIES;
-//                int length = m_currencies.length;
-//                for (int i = 0; i < length; i++) {
-//                    Currency cur1 = m_currencies[i];
-//                    Currency cur2 = m_currencies[(i + 1) % length];
-//                    subscribePairBook(cur1, cur2);
-//                }
-//            }
-//        });
+        System.out.println("queryAccount()...");
+        m_exchange.queryAccount(new Exchange.IAccountListener() {
+            @Override public void onUpdated() throws Exception {
+                System.out.println("Account.onOrderBookUpdated() " + m_exchange.m_accountData);
+                subscribeBooks();
+            }
+        });
     }
 
     private void initIfNeeded() {
@@ -113,40 +104,25 @@ start();
         }
     }
 
-    private void subscribePairBook(Currency cur1, Currency cur2) throws Exception {
-        Pair pair = Pair.get(cur1, cur2);
-        final OrderBook orderBook = m_exchange.getOrderBook(pair);
-        m_books.add(orderBook);
-        // subscribe snapshot
-        Exchange.IOrderBookListener listener = new Exchange.IOrderBookListener() {
-            private boolean m_firstUpdate = true;
-
-            @Override public void onUpdated() {
-//                System.out.println("orderBook.onUpdated: " + orderBook.toString(1));
-                if (m_firstUpdate) {
-                    m_firstUpdate = false;
-                    m_connectedPairsCounter++;
-                    System.out.println("first update for pair " + orderBook.m_pair);
-                }
-                if (m_connectedPairsCounter == 3) {
-                    onBooksUpdated();
-                }
-            }
-        };
-        if (SNAPSHOT_ONLY) {
-            orderBook.snapshot(listener, SUBSCRIBE_DEPTH);
-        } else {
-            orderBook.subscribe(listener, SUBSCRIBE_DEPTH);
+    private void subscribeBooks() throws Exception {
+        System.out.println("subscribeBooks()");
+        for (PairData pairData : m_pairDatas) {
+            subscribePairBook(pairData);
         }
     }
 
-//    private Pair findPair(Currency cur1, Currency cur2) {
-//        Pair pair = m_exchange.findPair(cur1, cur2);
-//        if (pair == null) {
-//            throw new RuntimeException("no pair for currencies found: " + cur1 + "; " + cur2);
-//        }
-//        return pair;
-//    }
+    private void subscribePairBook(PairData pairData) throws Exception {
+        Pair pair = pairData.m_pair;
+        System.out.println(" subscribePairBook: " + pair);
+
+        final OrderBook orderBook = m_exchange.getOrderBook(pair);
+        m_books.add(orderBook);
+        if (SNAPSHOT_ONLY) {
+            orderBook.snapshot(pairData, SUBSCRIBE_DEPTH);
+        } else {
+            orderBook.subscribe(pairData, SUBSCRIBE_DEPTH);
+        }
+    }
 
     private void onBooksUpdated() {
 //        StringBuilder sb = new StringBuilder("--== onBooksUpdated ");
@@ -550,176 +526,4 @@ start();
         }
     }
 
-    // -----------------------------------------------------------------------------------------------------------
-    private static class RoundData {
-        public final Round m_round;
-        private final List<RoundDirectedData> m_directedRounds = new ArrayList<>();
-
-        public RoundData(Currency[] currencies) {
-            m_round = Round.get(currencies[0], currencies[1], currencies[2]);
-
-            int length = currencies.length;
-            for(int i = 0; i < length; i++) {
-                add(i, true);
-                add(i, false);
-            }
-        }
-
-        @Override public String toString() {
-            return m_round.toString();
-        }
-
-        private void add(int startIndex, boolean forward) {
-            Currency[] roundCurrencies = m_round.m_currencies;
-            int length = roundCurrencies.length;
-            Currency[] currencies = new Currency[length];
-            int index = startIndex;
-            for (int i = 0; i < length; i++) {
-                Currency currency = roundCurrencies[index];
-                currencies[i] = currency;
-                index = (index + (forward ? 1 : -1) + length) % length;
-            }
-
-            RoundDirectedData roundDirectedData = new RoundDirectedData(currencies);
-            m_directedRounds.add(roundDirectedData);
-        }
-
-        public void getPairDatas(List<PairData> pds) {
-            for (RoundDirectedData directedRound : m_directedRounds) {
-                directedRound.getPairDatas(pds);
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class RoundDirectedData {
-        public final Currency[] m_currencies;
-        public final Round m_round;
-        public final String m_name;
-        private final List<PairDirectionData> m_pdds = new ArrayList<>();
-
-        public RoundDirectedData(Currency[] c) {
-            m_currencies = c;
-            Currency c0 = c[0];
-            Currency c1 = c[1];
-            Currency c2 = c[2];
-            m_round = Round.get(c0, c1, c2);
-
-            m_name = c0.m_name + "->" + c1.m_name + "->" + c2.m_name;
-
-            int len = c.length;
-            for (int i = 0; i < len; i++) {
-                Currency from = c[i];
-                Currency to = c[(i + 1) % len];
-                PairDirectionData pairDirectionData = PairDirectionData.get(from, to);
-                m_pdds.add(pairDirectionData);
-            }
-        }
-
-        @Override public String toString() {
-            return m_name;
-        }
-
-        @Override public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            RoundDirectedData that = (RoundDirectedData) o;
-            return m_round.equals(that.m_round);
-        }
-
-        @Override public int hashCode() {
-            return m_round.hashCode();
-        }
-
-        public void getPairDatas(List<PairData> pds) {
-            for (PairDirectionData pdd : m_pdds) {
-                PairData pairData = pdd.m_pairData;
-                if (!pds.contains(pairData)) {
-                    pds.add(pairData);
-                }
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class PairDirectionData {
-        private static Map<PairDirection, PairDirectionData> s_map = new HashMap<>();
-
-        public final PairDirection m_pairDirection;
-        public final PairData m_pairData;
-
-        public static PairDirectionData get(Currency from, Currency to) {
-            PairDirection pairDirection = PairDirection.get(from, to);
-            PairDirectionData pdd = s_map.get(pairDirection);
-            if (pdd == null) {
-                pdd = new PairDirectionData(pairDirection);
-            }
-            return pdd;
-        }
-
-        public PairDirectionData(PairDirection pairDirection) {
-            m_pairDirection = pairDirection;
-            m_pairData = PairData.get(pairDirection.m_pair);
-        }
-
-        @Override public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            PairDirectionData that = (PairDirectionData) o;
-            return m_pairDirection.equals(that.m_pairDirection);
-        }
-
-        @Override public int hashCode() {
-            return m_pairDirection.hashCode();
-        }
-    }
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class PairData {
-        private static Map<Pair, PairData> s_map = new HashMap<>();
-
-        public final Pair m_pair;
-
-        public static PairData get(Pair pair) {
-            PairData pairData = s_map.get(pair);
-            if (pairData == null) {
-                pairData = new PairData(pair);
-            }
-            return pairData;
-        }
-
-        public PairData(Pair pair) {
-            m_pair = pair;
-        }
-
-        @Override public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            PairData pairData = (PairData) o;
-            return m_pair.equals(pairData.m_pair);
-        }
-
-        @Override public int hashCode() {
-            return m_pair.hashCode();
-        }
-
-        @Override public String toString() {
-            return m_pair.toString();
-        }
-    }
 }
