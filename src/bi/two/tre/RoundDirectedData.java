@@ -61,22 +61,18 @@ class RoundDirectedData {
         }
     }
 
-    public void onUpdated(Exchange exchange) {
+    public double onUpdated(Exchange exchange) {
         System.out.println("onUpdated() on " + this + "; exchange=" + exchange);
         PairDirectionData startPdd = m_pdds.get(0);
-        System.out.println(" startPdd=" + startPdd);
         PairData startPairData = startPdd.m_pairData;
-        System.out.println("  startPairData=" + startPairData);
         PairDirection startPdPairDirection = startPdd.m_pairDirection;
-        System.out.println("  startPairDirection=" + startPdPairDirection);
         Pair startPair = startPdPairDirection.m_pair;
-        System.out.println("   startPair=" + startPair);
+        System.out.println(" startPdd=" + startPdd + "; startPairData=" + startPairData + "; startPairDirection=" + startPdPairDirection + "; startPair=" + startPair);
         Currency startCurrency = startPdPairDirection.getSourceCurrency();
-        System.out.println("    startCurrency=" + startCurrency);
         CurrencyValue startValue = m_roundData.m_minPassThruOrdersSize.get(startPair);
-        System.out.println("     startValue(minPassThru)=" + startValue);
+        startValue = new CurrencyValue(startValue.m_value * 2, startValue.m_currency); // simulate start with double min
         Currency startValueCurrency = startValue.m_currency;
-        System.out.println("      startValueCurrency=" + startValueCurrency);
+        System.out.println("    startCurrency=" + startCurrency + "; startValue(minPassThru)=" + startValue + "; startValueCurrency=" + startValueCurrency);
         if (startCurrency != startValueCurrency) {
             double startValueValue = startValue.m_value;
             System.out.println("       need conversion: value=" + Utils.format8(startValueValue) + "; " + startValueCurrency + " =>" + startCurrency);
@@ -97,7 +93,50 @@ class RoundDirectedData {
             System.out.println("            startValue'=" + startValue);
         }
 
-//        for (PairDirectionData pdd : m_pdds) {
-//        }
+        RoundType roundType = RoundType.ALL_MKT;
+
+        CurrencyValue value = startValue;
+        int size = m_pdds.size();
+        for (int i = 0; i < size; i++) {
+            PairDirectionData pdd = m_pdds.get(i);
+            System.out.println("--- value=" + value);
+            double startValueValue = value.m_value;
+            Currency inCurrency = value.m_currency;
+            PairData pd = pdd.m_pairData;
+            Pair pair = pd.m_pair;
+            System.out.println("     startValueValue=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd);
+            OrderBook orderBook = pd.m_orderBook;
+            System.out.println("       orderBook:" + orderBook);
+            OrderBook.Spread topSpread = orderBook.getTopSpread();
+            System.out.println("        topSpread=" + topSpread);
+            Currency currencyFrom = pair.m_from;
+            Currency currencyTo = pair.m_to;
+            double bidPrice = topSpread.m_bidEntry.m_price;
+            double askPrice = topSpread.m_askEntry.m_price;
+            System.out.println("         1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => 1 " + currencyFrom);
+            ExchPairData exchPairData = pd.m_exchPairData;
+            double translatedValue = (inCurrency == currencyTo)
+                    ? startValueValue / askPrice
+                    : startValueValue * bidPrice;
+            Currency outCurrency = (inCurrency == currencyTo) ? currencyFrom : currencyTo;
+            double rate = (inCurrency == currencyTo) ? askPrice : bidPrice;
+            double fee = ((roundType == RoundType.LMT_MKT) && (i == 0)) ? exchPairData.m_makerCommission : exchPairData.m_commission;
+            double afterFeeValue = translatedValue * (1 - fee);
+            System.out.println("          rate=" + rate + "; translatedValue=" + Utils.format8(translatedValue) + "; fee=" + fee + " " + Utils.format8(afterFeeValue));
+
+            CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
+            System.out.println("          " + value + " => " + outValue);
+            value = outValue;
+        }
+        double rate = value.m_value / startValue.m_value;
+        System.out.println(" " + this + "; rate=" + Utils.format8(rate));
+        return rate;
+    }
+
+
+    // -----------------------------------------------------------------------------------------
+    public enum RoundType {
+        ALL_MKT,
+        LMT_MKT
     }
 }

@@ -1,5 +1,6 @@
 package bi.two.tre;
 
+import bi.two.exch.ExchPairData;
 import bi.two.exch.OrderBook;
 import bi.two.exch.Pair;
 
@@ -15,6 +16,7 @@ public class PairData implements OrderBook.IOrderBookListener {
     public OrderBook m_orderBook;
     public final List<OrderBook.IOrderBookListener> m_listeners = new ArrayList<>();
     public boolean m_orderBookIsLive;
+    public ExchPairData m_exchPairData;
 
     public static PairData get(Pair pair) {
         PairData pairData = s_map.get(pair);
@@ -61,6 +63,7 @@ public class PairData implements OrderBook.IOrderBookListener {
 
     public void subscribeOrderBook(OrderBook orderBook, boolean snapshotOnly, int subscribeDepth) throws Exception {
         m_orderBook = orderBook;
+        m_exchPairData = orderBook.m_exchange.getPairData(m_pair);
         if (snapshotOnly) {
             orderBook.snapshot(this, subscribeDepth);
         } else {

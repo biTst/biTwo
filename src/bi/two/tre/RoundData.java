@@ -1,12 +1,10 @@
 package bi.two.tre;
 
+import bi.two.exch.Currency;
 import bi.two.exch.*;
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 class RoundData implements OrderBook.IOrderBookListener {
@@ -79,11 +77,14 @@ class RoundData implements OrderBook.IOrderBookListener {
         if (m_allLive) {
             System.out.println("ALL LIVE for round: " + this);
 
-m_directedRounds.get(3).onUpdated(m_exchange);
+//m_directedRounds.get(3).onUpdated(m_exchange);
 
-//            for (RoundDirectedData directedRound : m_directedRounds) {
-//                directedRound.onUpdated(m_exchange);
-//            }
+            TreeMap<Double, RoundDirectedData> rates = new TreeMap<>();
+            for (RoundDirectedData directedRound : m_directedRounds) {
+                double rate = directedRound.onUpdated(m_exchange);
+                rates.put(rate, directedRound);
+            }
+            System.out.println("rates: " + rates);
         }
     }
 
