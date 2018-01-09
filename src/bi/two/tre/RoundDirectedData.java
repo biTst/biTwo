@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 class RoundDirectedData {
+    private static final boolean LOG_ROUND_CALC = false;
+
     public final RoundData m_roundData;
     public final Currency[] m_currencies;
     public final Round m_round;
@@ -63,35 +65,53 @@ class RoundDirectedData {
     }
 
     public void onUpdated(Exchange exchange, List<RoundPlan> plans) {
-        System.out.println("onUpdated() on " + this + "; exchange=" + exchange);
+        if (LOG_ROUND_CALC) {
+            System.out.println("onUpdated() on " + this + "; exchange=" + exchange);
+        }
         PairDirectionData startPdd = m_pdds.get(0);
         PairData startPairData = startPdd.m_pairData;
         PairDirection startPdPairDirection = startPdd.m_pairDirection;
         Pair startPair = startPdPairDirection.m_pair;
-        System.out.println(" startPdd=" + startPdd + "; startPairData=" + startPairData + "; startPairDirection=" + startPdPairDirection + "; startPair=" + startPair);
+        if (LOG_ROUND_CALC) {
+            System.out.println(" startPdd=" + startPdd + "; startPairData=" + startPairData + "; startPairDirection=" + startPdPairDirection + "; startPair=" + startPair);
+        }
         Currency startCurrency = startPdPairDirection.getSourceCurrency();
         CurrencyValue startValue = m_roundData.m_minPassThruOrdersSize.get(startPair);
         startValue = new CurrencyValue(startValue.m_value * 2, startValue.m_currency); // simulate start with double min
         Currency startValueCurrency = startValue.m_currency;
-        System.out.println("    startCurrency=" + startCurrency + "; startValue(minPassThru)=" + startValue + "; startValueCurrency=" + startValueCurrency);
+        if (LOG_ROUND_CALC) {
+            System.out.println("    startCurrency=" + startCurrency + "; startValue(minPassThru)=" + startValue + "; startValueCurrency=" + startValueCurrency);
+        }
         if (startCurrency != startValueCurrency) {
             double startValueValue = startValue.m_value;
-            System.out.println("       need conversion: value=" + Utils.format8(startValueValue) + "; " + startValueCurrency + " =>" + startCurrency);
+            if (LOG_ROUND_CALC) {
+                System.out.println("       need conversion: value=" + Utils.format8(startValueValue) + "; " + startValueCurrency + " =>" + startCurrency);
+            }
 
             OrderBook orderBook = startPairData.m_orderBook;
-            System.out.println("        orderBook" + orderBook);
+            if (LOG_ROUND_CALC) {
+                System.out.println("        orderBook" + orderBook);
+            }
 
             OrderBook.Spread topSpread = orderBook.getTopSpread();
-            System.out.println("         topSpread=" + topSpread);
+            if (LOG_ROUND_CALC) {
+                System.out.println("         topSpread=" + topSpread);
+            }
 
             double topPrice = orderBook.m_bids.get(0).m_price;
-            System.out.println("          topPrice=" + topPrice + " -> rate=" + Utils.format8(1/topPrice));
+            if (LOG_ROUND_CALC) {
+                System.out.println("          topPrice=" + topPrice + " -> rate=" + Utils.format8(1/topPrice));
+            }
 
             double startValueTranslated = startValueValue * topPrice;
-            System.out.println("           startValueTranslated=" + Utils.format8(startValueTranslated));
+            if (LOG_ROUND_CALC) {
+                System.out.println("           startValueTranslated=" + Utils.format8(startValueTranslated));
+            }
 
             startValue = new CurrencyValue(startValueTranslated, startCurrency);
-            System.out.println("            startValue'=" + startValue);
+            if (LOG_ROUND_CALC) {
+                System.out.println("            startValue'=" + startValue);
+            }
         }
 
         plans.add(mkRoundPlan(startValue, RoundPlan.RoundPlanType.ALL_MKT));
@@ -99,7 +119,9 @@ class RoundDirectedData {
     }
 
     @NotNull private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType) {
-        System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
+        if (LOG_ROUND_CALC) {
+            System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
+        }
         List<RoundPlan.RoundNode> roundNodes = new ArrayList<>();
 
         CurrencyValue value = startValue;
@@ -114,15 +136,23 @@ class RoundDirectedData {
             Currency currencyTo = pair.m_to;
             boolean isForwardTrade = (inCurrency == currencyTo);
             OrderSide orderSide = OrderSide.get(isForwardTrade);
-            System.out.println("--- start=" + value + "; value=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd
-                    + "; isForwardTrade=" + isForwardTrade + "; orderSide="+orderSide);
+            if (LOG_ROUND_CALC) {
+                System.out.println("--- start=" + value + "; value=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd
+                        + "; isForwardTrade=" + isForwardTrade + "; orderSide="+orderSide);
+            }
             OrderBook orderBook = pd.m_orderBook;
-            System.out.println("       orderBook:" + orderBook);
+            if (LOG_ROUND_CALC) {
+                System.out.println("       orderBook:" + orderBook);
+            }
             OrderBook.Spread topSpread = orderBook.getTopSpread();
-            System.out.println("        topSpread=" + topSpread);
+            if (LOG_ROUND_CALC) {
+                System.out.println("        topSpread=" + topSpread);
+            }
             double bidPrice = topSpread.m_bidEntry.m_price;
             double askPrice = topSpread.m_askEntry.m_price;
-            System.out.println("         1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => 1 " + currencyFrom);
+            if (LOG_ROUND_CALC) {
+                System.out.println("         1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => 1 " + currencyFrom);
+            }
             ExchPairData exchPairData = pd.m_exchPairData;
             double translatedValue = isForwardTrade
                     ? startValueValue / askPrice
@@ -136,10 +166,14 @@ class RoundDirectedData {
 
             double fee = roundNodeType.fee(exchPairData);
             double afterFeeValue = translatedValue * (1 - fee);
-            System.out.println("          " + roundNodeType + ": rate=" + rate + "; translatedValue=" + Utils.format8(translatedValue) + "; fee=" + fee + " => result=" + Utils.format8(afterFeeValue));
+            if (LOG_ROUND_CALC) {
+                System.out.println("          " + roundNodeType + ": rate=" + rate + "; translatedValue=" + Utils.format8(translatedValue) + "; fee=" + fee + " => result=" + Utils.format8(afterFeeValue));
+            }
 
             CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
-            System.out.println("          " + value + " => " + outValue);
+            if (LOG_ROUND_CALC) {
+                System.out.println("          " + value + " => " + outValue);
+            }
 
             RoundPlan.RoundNode roundNode = new RoundPlan.RoundNode(pdd, roundNodeType);
             roundNodes.add(roundNode);
@@ -147,7 +181,9 @@ class RoundDirectedData {
             value = outValue;
         }
         double roundRate = value.m_value / startValue.m_value;
-        System.out.println(" " + this + "; rate=" + Utils.format8(roundRate));
+        if (LOG_ROUND_CALC) {
+            System.out.println(" " + this + "; rate=" + Utils.format8(roundRate));
+        }
 
         return new RoundPlan(this, roundPlanType, roundNodes, roundRate);
     }
