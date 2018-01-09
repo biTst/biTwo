@@ -2,5 +2,9 @@ package bi.two.exch;
 
 public enum OrderSide {
     BUY,
-    SELL,
+    SELL;
+
+    public static OrderSide get(boolean isBuy) {
+        return isBuy ? BUY : SELL;
+    }
 }

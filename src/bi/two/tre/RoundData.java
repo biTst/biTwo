@@ -87,7 +87,7 @@ class RoundData implements OrderBook.IOrderBookListener {
 
             System.out.println("rates==========================");
             for (RoundPlan plan : plans) {
-                System.out.println(" " + plan.m_roundType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate));
+                System.out.println(" " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate));
             }
         }
     }
