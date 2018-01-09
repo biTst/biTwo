@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.*;
 import bi.two.util.Utils;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +62,7 @@ class RoundDirectedData {
         }
     }
 
-    public double onUpdated(Exchange exchange) {
+    public void onUpdated(Exchange exchange, List<RoundPlan> plans) {
         System.out.println("onUpdated() on " + this + "; exchange=" + exchange);
         PairDirectionData startPdd = m_pdds.get(0);
         PairData startPairData = startPdd.m_pairData;
@@ -93,7 +94,12 @@ class RoundDirectedData {
             System.out.println("            startValue'=" + startValue);
         }
 
-        RoundType roundType = RoundType.ALL_MKT;
+        plans.add(mkRoundPlan(startValue, RoundType.ALL_MKT));
+        plans.add(mkRoundPlan(startValue, RoundType.LMT_MKT));
+    }
+
+    @NotNull private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundType roundType) {
+        List<RoundPlan.RoundNode> roundNodes = new ArrayList<>();
 
         CurrencyValue value = startValue;
         int size = m_pdds.size();
@@ -104,39 +110,51 @@ class RoundDirectedData {
             Currency inCurrency = value.m_currency;
             PairData pd = pdd.m_pairData;
             Pair pair = pd.m_pair;
-            System.out.println("     startValueValue=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd);
+            Currency currencyFrom = pair.m_from;
+            Currency currencyTo = pair.m_to;
+            boolean isForwardTrade = (inCurrency == currencyTo);
+            System.out.println("     startValueValue=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd + "; isForwardTrade=" + isForwardTrade);
             OrderBook orderBook = pd.m_orderBook;
             System.out.println("       orderBook:" + orderBook);
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             System.out.println("        topSpread=" + topSpread);
-            Currency currencyFrom = pair.m_from;
-            Currency currencyTo = pair.m_to;
             double bidPrice = topSpread.m_bidEntry.m_price;
             double askPrice = topSpread.m_askEntry.m_price;
             System.out.println("         1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => 1 " + currencyFrom);
             ExchPairData exchPairData = pd.m_exchPairData;
-            double translatedValue = (inCurrency == currencyTo)
+            double translatedValue = isForwardTrade
                     ? startValueValue / askPrice
                     : startValueValue * bidPrice;
-            Currency outCurrency = (inCurrency == currencyTo) ? currencyFrom : currencyTo;
-            double rate = (inCurrency == currencyTo) ? askPrice : bidPrice;
+            Currency outCurrency = isForwardTrade ? currencyFrom : currencyTo;
+            double rate = isForwardTrade ? askPrice : bidPrice;
             double fee = ((roundType == RoundType.LMT_MKT) && (i == 0)) ? exchPairData.m_makerCommission : exchPairData.m_commission;
             double afterFeeValue = translatedValue * (1 - fee);
             System.out.println("          rate=" + rate + "; translatedValue=" + Utils.format8(translatedValue) + "; fee=" + fee + " " + Utils.format8(afterFeeValue));
 
             CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
             System.out.println("          " + value + " => " + outValue);
+
+            RoundPlan.RoundNode roundNode = new RoundPlan.RoundNode(pdd);
+            roundNodes.add(roundNode);
+
             value = outValue;
         }
-        double rate = value.m_value / startValue.m_value;
-        System.out.println(" " + this + "; rate=" + Utils.format8(rate));
-        return rate;
+        double roundRate = value.m_value / startValue.m_value;
+        System.out.println(" " + this + "; rate=" + Utils.format8(roundRate));
+
+        return new RoundPlan(this, roundType, roundNodes, roundRate);
     }
 
 
     // -----------------------------------------------------------------------------------------
     public enum RoundType {
-        ALL_MKT,
-        LMT_MKT
+        ALL_MKT {
+            @Override public String getPrefix() { return "mkt_mkt"; }
+        },
+        LMT_MKT {
+            @Override public String getPrefix() { return "lmt_mkt"; }
+        };
+
+        public abstract String getPrefix();
     }
 }

@@ -79,12 +79,16 @@ class RoundData implements OrderBook.IOrderBookListener {
 
 //m_directedRounds.get(3).onUpdated(m_exchange);
 
-            TreeMap<Double, RoundDirectedData> rates = new TreeMap<>();
+            ArrayList<RoundPlan> plans = new ArrayList<>();
             for (RoundDirectedData directedRound : m_directedRounds) {
-                double rate = directedRound.onUpdated(m_exchange);
-                rates.put(rate, directedRound);
+                directedRound.onUpdated(m_exchange, plans);
             }
-            System.out.println("rates: " + rates);
+            Collections.sort(plans, RoundPlan.BY_RATE_COMPARATOR);
+
+            System.out.println("rates==========================");
+            for (RoundPlan plan : plans) {
+                System.out.println(" " + plan.m_roundType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate));
+            }
         }
     }
 
