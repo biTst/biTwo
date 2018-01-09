@@ -479,17 +479,12 @@ public class CexIo extends BaseExchImpl {
         List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
         List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
 
-        double bid = aBids.get(0).m_price;
-        double ask = aAsks.get(0).m_price;
-        TopData value = new TopData(bid, ask);
-        m_exchange.m_accountData.m_topDatas.put(orderBook.m_pair, value);
-
 //        System.out.println(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
         orderBook.update(aBids, aAsks);
 //        System.out.println(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
     }
 
-    private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) {
+    private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) { // [[2551.4606,0.00000000]]
         List<OrderBook.OrderBookEntry> aBids = new ArrayList<>();
         for (Object bid : jsonArray) {
             JSONArray aBid = (JSONArray) bid;

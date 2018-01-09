@@ -32,6 +32,12 @@ public class OrderBook {
     public void update(List<OrderBookEntry> bids, List<OrderBookEntry> asks) {
         updateBookSide(m_bids, bids, true);
         updateBookSide(m_asks, asks, false);
+
+        double bid = m_bids.get(0).m_price;
+        double ask = m_asks.get(0).m_price;
+        TopData value = new TopData(bid, ask);
+        m_exchange.m_accountData.m_topDatas.put(m_pair, value);
+
         m_listener.onOrderBookUpdated(this);
     }
 
