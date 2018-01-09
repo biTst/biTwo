@@ -10,6 +10,8 @@ import java.util.concurrent.TimeUnit;
 class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
 
+    private static List<RoundPlan> s_bestPlans = new ArrayList<>();
+
     public final Round m_round;
     private final Exchange m_exchange;
     public final List<RoundDirectedData> m_directedRounds = new ArrayList<>();
@@ -75,21 +77,28 @@ class RoundData implements OrderBook.IOrderBookListener {
             }
         }
         if (m_allLive) {
-            System.out.println("ALL LIVE for round: " + this);
-
-//m_directedRounds.get(3).onUpdated(m_exchange);
-
             ArrayList<RoundPlan> plans = new ArrayList<>();
             for (RoundDirectedData directedRound : m_directedRounds) {
                 directedRound.onUpdated(m_exchange, plans);
             }
             Collections.sort(plans, RoundPlan.BY_RATE_COMPARATOR);
 
-            System.out.println("rates==========================");
-            for (RoundPlan plan : plans) {
-                System.out.println(" " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate));
-            }
+            List<RoundPlan> best6Plans = plans.subList(0, 6);
+            logRates("rates :: ", best6Plans);
+
+            s_bestPlans.addAll(best6Plans);
+            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_COMPARATOR);
+            s_bestPlans = s_bestPlans.subList(0, 6);
+            logRates(" best :: ", s_bestPlans);
         }
+    }
+
+    private void logRates(String prefix, List<RoundPlan> bestPlans) {
+        StringBuilder sb = new StringBuilder(prefix);
+        for (RoundPlan plan : bestPlans) {
+            sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + ';');
+        }
+        System.out.println(sb.toString());
     }
 
     private void onBecomesLive() {
