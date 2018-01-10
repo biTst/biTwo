@@ -11,6 +11,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
 
     private static List<RoundPlan> s_bestPlans = new ArrayList<>();
+    private static HashSet<RoundPlan> s_allPlans = new HashSet<>();
 
     public final Round m_round;
     private final Exchange m_exchange;
@@ -77,16 +78,38 @@ class RoundData implements OrderBook.IOrderBookListener {
             }
         }
         if (m_allLive) {
-            ArrayList<RoundPlan> plans = new ArrayList<>();
+            List<RoundPlan> plans = new ArrayList<>();
             for (RoundDirectedData directedRound : m_directedRounds) {
                 directedRound.onUpdated(m_exchange, plans);
             }
             Collections.sort(plans, RoundPlan.BY_RATE_COMPARATOR);
+            List<RoundPlan> last6Plans = plans.subList(0, 6);
+            logRates(" last :: ", last6Plans);
 
-            List<RoundPlan> best6Plans = plans.subList(0, 6);
-            logRates("rates :: ", best6Plans);
+            s_allPlans.addAll(plans);
+            List<RoundPlan> allPlans = new ArrayList<>(s_allPlans);
+            Collections.sort(allPlans, RoundPlan.BY_RATE_COMPARATOR);
+            List<RoundPlan> all6Plans = allPlans.subList(0, 6);
+            logRates(" all  :: ", all6Plans);
 
-            s_bestPlans.addAll(best6Plans);
+
+            List<RoundPlan> unique = new ArrayList<>();
+            for (RoundPlan plan1 : last6Plans) {
+                boolean u = true;
+                for (RoundPlan plan2 : s_bestPlans) {
+                    if (plan1.equals(plan2)) { // same direction and type
+                        if (plan1.m_roundRate == plan2.m_roundRate) { // do not include twice with same roundRate
+                            u = false;
+                            continue;
+                        }
+                    }
+                }
+                if (u) {
+                    unique.add(plan1);
+                }
+            }
+
+            s_bestPlans.addAll(unique);
             Collections.sort(s_bestPlans, RoundPlan.BY_RATE_COMPARATOR);
             s_bestPlans = s_bestPlans.subList(0, 6);
             logRates(" best :: ", s_bestPlans);

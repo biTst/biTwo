@@ -114,8 +114,9 @@ class RoundDirectedData {
             }
         }
 
-        plans.add(mkRoundPlan(startValue, RoundPlan.RoundPlanType.ALL_MKT));
-        plans.add(mkRoundPlan(startValue, RoundPlan.RoundPlanType.LMT_MKT));
+        for (RoundPlan.RoundPlanType roundPlanType : RoundPlan.RoundPlanType.values()) {
+            plans.add(mkRoundPlan(startValue, roundPlanType));
+        }
     }
 
     @NotNull private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType) {
