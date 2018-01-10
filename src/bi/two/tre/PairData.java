@@ -70,4 +70,8 @@ public class PairData implements OrderBook.IOrderBookListener {
             orderBook.subscribe(this, subscribeDepth);
         }
     }
+
+    public void onDisconnected() {
+        m_orderBookIsLive = false;
+    }
 }

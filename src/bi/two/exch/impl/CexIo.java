@@ -5,6 +5,7 @@ import bi.two.util.Hex;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.client.ClientProperties;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -109,51 +110,10 @@ public class CexIo extends BaseExchImpl {
         // works with compile 'org.glassfish.tyrus:tyrus-container-jdk-client:1.13.1'
         ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
 
+        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new ReconnectHandler());
+
         client.connectToServer(endpoint, cec, new URI(URL));
     }
-
-    /**   todo:  ReconnectHandler
-     *
-     * ClientManager client = ClientManager.createClient();
-     ClientManager.ReconnectHandler reconnectHandler = new ClientManager.ReconnectHandler() {
-
-     private int counter = 0;
-
-     @Override
-     public boolean onDisconnect(CloseReason closeReason) {
-     counter++;
-     if (counter <= 3) {
-     System.out.println("### Reconnecting... (reconnect count: " + counter + ")");
-     return true;
-     } else {
-     return false;
-     }
-     }
-
-     @Override
-     public boolean onConnectFailure(Exception exception) {
-     counter++;
-     if (counter <= 3) {
-     System.out.println("### Reconnecting... (reconnect count: " + counter + ") " + exception.getMessage());
-
-     // Thread.sleep(...) or something other "sleep-like" expression can be put here - you might want
-     // to do it here to avoid potential DDoS when you don't limit number of reconnects.
-     return true;
-     } else {
-     return false;
-     }
-     }
-
-     @Override
-     public long getDelay() {
-     return 1;
-     }
-     };
-
-     client.getProperties().put(ClientProperties.RECONNECT_HANDLER, reconnectHandler);
-
-     client.connectToServer(...)
-     */
 
     private static void test() {
         String apiSecret = "1IuUeW4IEWatK87zBTENHj1T17s";
@@ -622,7 +582,9 @@ public class CexIo extends BaseExchImpl {
         String ok = (String) data.get("ok");
         System.out.println("  ok: " + ok);
         if (Utils.equals(ok, "ok")) {
-            m_exchangeConnectListener.onConnected();
+            if (m_exchangeConnectListener != null) {
+                m_exchangeConnectListener.onConnected();
+            }
 //            onAuthenticated(session);
         } else {
             throw new RuntimeException("unexpected auth response: " + jsonObject);
@@ -817,6 +779,9 @@ public class CexIo extends BaseExchImpl {
 
             @Override public void onClose(Session session, CloseReason closeReason) {
                 System.out.println("onClose: " + closeReason);
+                if (m_exchangeConnectListener != null) {
+                    m_exchangeConnectListener.onDisconnected();
+                }
             }
 
             @Override public void onError(Session session, Throwable thr) {
@@ -863,5 +828,39 @@ public class CexIo extends BaseExchImpl {
 
     @Override public void queryAccount() throws IOException {
         queryBalance(m_session);
+    }
+
+    //---------------------------------------------------------------------------------
+    private static class ReconnectHandler extends ClientManager.ReconnectHandler {
+        private int m_counter;
+        private int m_connectFailure;
+
+        @Override public boolean onDisconnect(CloseReason closeReason) {
+            m_counter++;
+            m_connectFailure = 0;
+            System.out.println("onDisconnect() closeReason=" + closeReason);
+            System.out.println(" Reconnecting... (reconnect count: " + m_counter + ")");
+            return true;
+        }
+
+        @Override public boolean onConnectFailure(Exception exception) {
+            m_counter++;
+            m_connectFailure++;
+
+            System.out.println("onConnectFailure() exception=" + exception);
+            System.out.println("### Reconnecting... (connectFailure:" + m_connectFailure + "; reconnect count: " + m_counter + ")");
+
+            try {
+                TimeUnit.SECONDS.sleep(m_connectFailure);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            return true;
+        }
+
+        @Override public long getDelay() {
+            return 1;
+        }
     }
 }

@@ -87,14 +87,6 @@ class RoundData implements OrderBook.IOrderBookListener {
             List<RoundPlan> last6Plans = plans.subList(0, 6);
             logRates(" last :: ", last6Plans);
 
-//double r1 = plans.get(0).m_roundRate;
-//if (!s_allPlans.isEmpty()) {
-//    double r2 = s_allPlans.get(0).m_roundRate;
-//    if (r1 > r2) {
-//        System.out.println("bigger");
-//    }
-//}
-
             for (RoundPlan plan1 : plans) {
                 int index = s_allPlans.indexOf(plan1);
                 if (index != -1) {
@@ -195,5 +187,10 @@ class RoundData implements OrderBook.IOrderBookListener {
             System.out.println("minPassThruOrdersSize=" + m_minPassThruOrdersSize);
         }
         m_minPassThruOrdersSizeRecalcTime = System.currentTimeMillis();
+    }
+
+    public void onDisconnected() {
+        m_allLive = false;
+        m_minPassThruOrdersSizeRecalcTime = 0;
     }
 }

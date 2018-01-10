@@ -109,6 +109,7 @@ public class Exchange {
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
         void onConnected();
+        void onDisconnected();
     }
 
 
