@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Tre {
     private static final String CONFIG = "cfg/tre.properties";
-    private static final int SUBSCRIBE_DEPTH = 4;
+    private static final int SUBSCRIBE_DEPTH = 6;
     private static final boolean SNAPSHOT_ONLY = false;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},

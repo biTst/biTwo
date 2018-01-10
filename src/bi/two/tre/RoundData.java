@@ -11,7 +11,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
 
     private static List<RoundPlan> s_bestPlans = new ArrayList<>();
-    private static HashSet<RoundPlan> s_allPlans = new HashSet<>();
+    private static List<RoundPlan> s_allPlans = new ArrayList<>();
 
     public final Round m_round;
     private final Exchange m_exchange;
@@ -87,25 +87,30 @@ class RoundData implements OrderBook.IOrderBookListener {
             List<RoundPlan> last6Plans = plans.subList(0, 6);
             logRates(" last :: ", last6Plans);
 
+//double r1 = plans.get(0).m_roundRate;
+//if (!s_allPlans.isEmpty()) {
+//    double r2 = s_allPlans.get(0).m_roundRate;
+//    if (r1 > r2) {
+//        System.out.println("bigger");
+//    }
+//}
+
             for (RoundPlan plan1 : plans) {
-                boolean add = true;
-                for (RoundPlan plan2 : s_allPlans) {
-                    if (plan1.equals(plan2)) { // same direction and type
-                        if (plan1.m_roundRate == plan2.m_roundRate) { // same roundRate
-                            plan2.m_liveTime = plan1.m_timestamp - plan2.m_timestamp; // just update liveTime
-                            add = false;
-                            break;
-                        }
+                int index = s_allPlans.indexOf(plan1);
+                if (index != -1) {
+                    RoundPlan plan2 = s_allPlans.get(index);
+                    if (plan1.m_roundRate == plan2.m_roundRate) { // same roundRate
+                        plan2.m_liveTime = plan1.m_timestamp - plan2.m_timestamp; // just update liveTime
+                        continue;
                     }
-                }
-                if (add) {
-                    s_allPlans.add(plan1); // add to set - will update existing entry
+                    s_allPlans.set(index, plan1);
+                } else {
+                    s_allPlans.add(plan1);
                 }
             }
 
-            List<RoundPlan> allPlans = new ArrayList<>(s_allPlans);
-            Collections.sort(allPlans, RoundPlan.BY_RATE_COMPARATOR);
-            List<RoundPlan> all6Plans = allPlans.subList(0, 6);
+            Collections.sort(s_allPlans, RoundPlan.BY_RATE_COMPARATOR);
+            List<RoundPlan> all6Plans = s_allPlans.subList(0, 6);
             logRates(" all  :: ", all6Plans);
 
             List<RoundPlan> unique = new ArrayList<>();
