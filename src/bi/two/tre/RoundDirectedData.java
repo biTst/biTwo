@@ -2,10 +2,11 @@ package bi.two.tre;
 
 import bi.two.exch.*;
 import bi.two.util.Utils;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 class RoundDirectedData {
     private static final boolean LOG_ROUND_CALC = false;
@@ -48,11 +49,11 @@ class RoundDirectedData {
             return false;
         }
         RoundDirectedData that = (RoundDirectedData) o;
-        return m_round.equals(that.m_round);
+        return Objects.equals(m_name, that.m_name);
     }
 
     @Override public int hashCode() {
-        return m_round.hashCode();
+        return Objects.hash(m_name);
     }
 
     public void getPairDatas(List<PairData> pds) {
@@ -98,6 +99,10 @@ class RoundDirectedData {
                 System.out.println("         topSpread=" + topSpread);
             }
 
+            if (topSpread == null) {
+                return; // sometimes book side can become empty
+            }
+
             double topPrice = orderBook.m_bids.get(0).m_price;
             if (LOG_ROUND_CALC) {
                 System.out.println("          topPrice=" + topPrice + " -> rate=" + Utils.format8(1/topPrice));
@@ -115,11 +120,14 @@ class RoundDirectedData {
         }
 
         for (RoundPlan.RoundPlanType roundPlanType : RoundPlan.RoundPlanType.values()) {
-            plans.add(mkRoundPlan(startValue, roundPlanType));
+            RoundPlan roundPlan = mkRoundPlan(startValue, roundPlanType);
+            if (roundPlan != null) {
+                plans.add(roundPlan);
+            }
         }
     }
 
-    @NotNull private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType) {
+    @Nullable private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType) {
         if (LOG_ROUND_CALC) {
             System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
         }
@@ -148,6 +156,9 @@ class RoundDirectedData {
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             if (LOG_ROUND_CALC) {
                 System.out.println("        topSpread=" + topSpread);
+            }
+            if (topSpread == null) {
+                return null; // sometimes book side can become empty
             }
             double bidPrice = topSpread.m_bidEntry.m_price;
             double askPrice = topSpread.m_askEntry.m_price;

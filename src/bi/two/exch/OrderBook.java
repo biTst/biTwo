@@ -91,7 +91,10 @@ public class OrderBook {
     }
 
     public Spread getTopSpread() {
-        return new Spread(m_bids.get(0), m_asks.get(0));
+        if (!m_bids.isEmpty() && !m_asks.isEmpty()) {
+            return new Spread(m_bids.get(0), m_asks.get(0));
+        }
+        return null;
     }
 
 
