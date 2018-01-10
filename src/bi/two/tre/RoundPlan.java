@@ -17,12 +17,15 @@ public class RoundPlan {
     public final RoundPlanType m_roundPlanType;
     public final List<RoundNode> m_roundNodes;
     public final double m_roundRate;
+    public final long m_timestamp;
+    public long m_liveTime;
 
     public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNode> roundNodes, double roundRate) {
         m_rdd = rdd;
         m_roundPlanType = roundPlanType;
         m_roundNodes = roundNodes;
         m_roundRate = roundRate;
+        m_timestamp = System.currentTimeMillis();
     }
 
     @Override public boolean equals(Object o) {

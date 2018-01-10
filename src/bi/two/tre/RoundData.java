@@ -78,40 +78,57 @@ class RoundData implements OrderBook.IOrderBookListener {
             }
         }
         if (m_allLive) {
-            List<RoundPlan> plans = new ArrayList<>();
+            List<RoundPlan> plans = new ArrayList<>(); // plans related to this book update only
             for (RoundDirectedData directedRound : m_directedRounds) {
                 directedRound.onUpdated(m_exchange, plans);
             }
+
             Collections.sort(plans, RoundPlan.BY_RATE_COMPARATOR);
             List<RoundPlan> last6Plans = plans.subList(0, 6);
             logRates(" last :: ", last6Plans);
 
-            s_allPlans.addAll(plans);
+            for (RoundPlan plan1 : plans) {
+                boolean add = true;
+                for (RoundPlan plan2 : s_allPlans) {
+                    if (plan1.equals(plan2)) { // same direction and type
+                        if (plan1.m_roundRate == plan2.m_roundRate) { // same roundRate
+                            plan2.m_liveTime = plan1.m_timestamp - plan2.m_timestamp; // just update liveTime
+                            add = false;
+                            break;
+                        }
+                    }
+                }
+                if (add) {
+                    s_allPlans.add(plan1); // add to set - will update existing entry
+                }
+            }
+
             List<RoundPlan> allPlans = new ArrayList<>(s_allPlans);
             Collections.sort(allPlans, RoundPlan.BY_RATE_COMPARATOR);
             List<RoundPlan> all6Plans = allPlans.subList(0, 6);
             logRates(" all  :: ", all6Plans);
 
-
             List<RoundPlan> unique = new ArrayList<>();
-            for (RoundPlan plan1 : last6Plans) {
-                boolean u = true;
+            for (RoundPlan plan1 : all6Plans) {
+                boolean add = true;
                 for (RoundPlan plan2 : s_bestPlans) {
                     if (plan1.equals(plan2)) { // same direction and type
                         if (plan1.m_roundRate == plan2.m_roundRate) { // do not include twice with same roundRate
-                            u = false;
+                            add = false;
                             continue;
                         }
                     }
                 }
-                if (u) {
+                if (add) {
                     unique.add(plan1);
                 }
             }
 
-            s_bestPlans.addAll(unique);
-            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_COMPARATOR);
-            s_bestPlans = s_bestPlans.subList(0, 6);
+            if (!unique.isEmpty()) {
+                s_bestPlans.addAll(unique);
+                Collections.sort(s_bestPlans, RoundPlan.BY_RATE_COMPARATOR);
+                s_bestPlans = s_bestPlans.subList(0, 6);
+            }
             logRates(" best :: ", s_bestPlans);
         }
     }
@@ -119,7 +136,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private void logRates(String prefix, List<RoundPlan> bestPlans) {
         StringBuilder sb = new StringBuilder(prefix);
         for (RoundPlan plan : bestPlans) {
-            sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + ';');
+            sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + " " + Utils.millisToYDHMSStr(plan.m_liveTime) + ';');
         }
         System.out.println(sb.toString());
     }
