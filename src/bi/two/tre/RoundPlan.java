@@ -1,7 +1,6 @@
 package bi.two.tre;
 
-import bi.two.exch.ExchPairData;
-import bi.two.exch.OrderBook;
+import bi.two.exch.*;
 
 import java.util.Comparator;
 import java.util.List;
@@ -87,17 +86,35 @@ public class RoundPlan {
             MKT {
                 @Override public String getPrefix() { return "mkt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_commission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
                     // we should match book size
-                    return isForwardTrade
-                            ? orderBook.m_asks.get(0).m_price // byu
-                            : orderBook.m_bids.get(0).m_price; // sell
+                    OrderSide orderSide = isForwardTrade ? OrderSide.BUY : OrderSide.SELL;
+                    Pair pair = exchPairData.m_pair;
+                    Currency bookCurrency = pair.m_from;
+                    Currency bookCurrency2 = pair.m_to;
+
+                    List<OrderBook.OrderBookEntry> bookSide = isForwardTrade
+                            ? orderBook.m_asks // byu
+                            : orderBook.m_bids; // sell
+                    System.out.println("          rate for " + value + "; pair=" + pair + "; bookSide: " + bookSide);
+
+                    int index = 0;
+                    double lookSize = value.m_value;
+                    while(lookSize > 0) {
+                        OrderBook.OrderBookEntry bookEntry = bookSide.get(index);
+                        System.out.println("          " + orderSide + " book entry: " + bookEntry +
+                                "; can " + orderSide + " " + bookEntry.m_size + " " + bookCurrency + " @ " + bookEntry.m_price + " per " + bookCurrency2);
+                        index++;
+                        break;
+                    }
+
+                    return bookSide.get(0).m_price;
                 }
             },
             LMT { // best limit price
                 @Override public String getPrefix() { return "lmt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
                             ? orderBook.getTopBidPrice() + step
@@ -107,7 +124,7 @@ public class RoundPlan {
             TCH {
                 @Override public String getPrefix() { return "tch"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
                             ? orderBook.getTopAskPrice() - step // byu
@@ -118,7 +135,7 @@ public class RoundPlan {
 
             public abstract String getPrefix();
             public abstract double fee(ExchPairData exchPairData);
-            public abstract double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize);
+            public abstract double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value);
 
             @Override public String toString() { return getPrefix(); }
         }

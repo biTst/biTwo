@@ -146,16 +146,16 @@ class RoundDirectedData {
             boolean isForwardTrade = (inCurrency == currencyTo);
             OrderSide orderSide = OrderSide.get(isForwardTrade);
             if (LOG_ROUND_CALC) {
-                System.out.println("--- start=" + value + "; value=" + startValueValue + "; inCurrency=" + inCurrency + "; pdd:" + pdd + "; pair=" + pair + "; pd:" + pd
-                        + "; isForwardTrade=" + isForwardTrade + "; orderSide="+orderSide);
+                System.out.println("--- " + pdd + " " + orderSide + " " + currencyFrom + " start=" + value + "; value=" + startValueValue + "; inCurrency=" + inCurrency + "; pair=" + pair
+                        + "; isForwardTrade=" + isForwardTrade);
             }
             OrderBook orderBook = pd.m_orderBook;
             if (LOG_ROUND_CALC) {
-                System.out.println("       orderBook:" + orderBook);
+                System.out.println("       orderBook: " + orderBook);
             }
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             if (LOG_ROUND_CALC) {
-                System.out.println("        topSpread=" + topSpread);
+                System.out.println("        topSpread: " + topSpread);
             }
             if (topSpread == null) {
                 return null; // sometimes book side can become empty
@@ -170,7 +170,7 @@ class RoundDirectedData {
             RoundPlan.RoundNode.RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
 
             ExchPairData exchPairData = pd.m_exchPairData;
-            double rate = roundNodeType.rate(exchPairData, isForwardTrade, orderBook, startValueValue);
+            double rate = roundNodeType.rate(exchPairData, isForwardTrade, orderBook, startValueValue, value);
             double translatedValue = isForwardTrade
                     ? startValueValue / rate
                     : startValueValue * rate;

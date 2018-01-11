@@ -40,7 +40,7 @@ public class Exchange {
     }
 
     public ExchPairData addPair(Pair pair) {
-        ExchPairData value = new ExchPairData();
+        ExchPairData value = new ExchPairData(pair);
         m_pairsMap.put(pair, value);
         return value;
     }
