@@ -105,6 +105,10 @@ public class Exchange {
         m_impl.queryAccount();
     }
 
+    public void onDisconnected() {
+        m_orderBooks.clear();
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {

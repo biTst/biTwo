@@ -779,6 +779,7 @@ public class CexIo extends BaseExchImpl {
 
             @Override public void onClose(Session session, CloseReason closeReason) {
                 System.out.println("onClose: " + closeReason);
+                m_exchange.onDisconnected();
                 if (m_exchangeConnectListener != null) {
                     m_exchangeConnectListener.onDisconnected();
                 }
