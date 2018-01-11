@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
+    private static final double MIN_ORDER_SIZE_MUL = 1.1; // do not use in orders like 0.01 - after rounding we may got 0.009987654
 
     private static List<RoundPlan> s_bestPlans = new ArrayList<>();
     private static List<RoundPlan> s_allPlans = new ArrayList<>();
@@ -152,8 +153,9 @@ class RoundData implements OrderBook.IOrderBookListener {
             Pair pair = pairData.m_pair;
             ExchPairData exchPairData = m_exchange.getPairData(pair);
             CurrencyValue minOrder = exchPairData.m_minOrderToCreate;
-            System.out.println(" pair[" + pair + "].minOrder=" + minOrder);
-            m_minPassThruOrdersSize.put(pair, minOrder);
+            CurrencyValue minOrderMul = new CurrencyValue(minOrder.m_value * MIN_ORDER_SIZE_MUL, minOrder.m_currency); // start with little bit bigger min order
+            System.out.println(" pair[" + pair + "].minOrder=" + minOrder + " => minOrderMul=" + minOrderMul);
+            m_minPassThruOrdersSize.put(pair, minOrderMul);
         }
         int size = m_pds.size();
         for (int i = 0; i < size; i++) {
