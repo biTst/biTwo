@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Objects;
 
 class RoundDirectedData {
-    private static final boolean LOG_ROUND_CALC = false;
+    private static final boolean LOG_ROUND_CALC = true;
 
     public final RoundData m_roundData;
     public final Currency[] m_currencies;
@@ -163,23 +163,24 @@ class RoundDirectedData {
             double bidPrice = topSpread.m_bidEntry.m_price;
             double askPrice = topSpread.m_askEntry.m_price;
             if (LOG_ROUND_CALC) {
-                System.out.println("         1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => 1 " + currencyFrom);
+                System.out.println("         SELL 1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => BUY 1 " + currencyFrom);
             }
-            ExchPairData exchPairData = pd.m_exchPairData;
-            double translatedValue = isForwardTrade
-                    ? startValueValue / askPrice
-                    : startValueValue * bidPrice;
             Currency outCurrency = isForwardTrade ? currencyFrom : currencyTo;
 
             RoundPlan.RoundNode.RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
 
-            // todo: take into account size of book entries
-            double rate = roundNodeType.rate(exchPairData, isForwardTrade, bidPrice, askPrice);
+            ExchPairData exchPairData = pd.m_exchPairData;
+            double rate = roundNodeType.rate(exchPairData, isForwardTrade, orderBook, startValueValue);
+            double translatedValue = isForwardTrade
+                    ? startValueValue / rate
+                    : startValueValue * rate;
 
             double fee = roundNodeType.fee(exchPairData);
             double afterFeeValue = translatedValue * (1 - fee);
             if (LOG_ROUND_CALC) {
-                System.out.println("          " + roundNodeType + ": rate=" + rate + "; translatedValue=" + Utils.format8(translatedValue) + "; fee=" + fee + " => result=" + Utils.format8(afterFeeValue));
+                System.out.println("          " + roundNodeType + ": rate=" + rate +
+                        "; " + Utils.format8(startValueValue) + inCurrency + " => " + Utils.format8(translatedValue) + outCurrency
+                        + "; fee=" + Utils.format8(fee) + " => after fee: " + Utils.format8(afterFeeValue) + outCurrency);
             }
 
             CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);

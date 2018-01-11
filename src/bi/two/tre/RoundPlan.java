@@ -1,6 +1,7 @@
 package bi.two.tre;
 
 import bi.two.exch.ExchPairData;
+import bi.two.exch.OrderBook;
 
 import java.util.Comparator;
 import java.util.List;
@@ -86,37 +87,38 @@ public class RoundPlan {
             MKT {
                 @Override public String getPrefix() { return "mkt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_commission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, double bidPrice, double askPrice) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
+                    // we should match book size
                     return isForwardTrade
-                            ? askPrice // byu
-                            : bidPrice; // sell
+                            ? orderBook.m_asks.get(0).m_price // byu
+                            : orderBook.m_bids.get(0).m_price; // sell
                 }
             },
             LMT { // best limit price
                 @Override public String getPrefix() { return "lmt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, double bidPrice, double askPrice) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
-                            ? bidPrice + step
-                            : askPrice - step;
+                            ? orderBook.getTopBidPrice() + step
+                            : orderBook.getTopAskPrice() - step;
                 }
             },
             TCH {
                 @Override public String getPrefix() { return "tch"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, double bidPrice, double askPrice) {
+                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize) {
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
-                            ? askPrice - step // byu
-                            : bidPrice + step; // sell
+                            ? orderBook.getTopAskPrice() - step // byu
+                            : orderBook.getTopBidPrice() + step; // sell
                 }
             },
             ;
 
             public abstract String getPrefix();
             public abstract double fee(ExchPairData exchPairData);
-            public abstract double rate(ExchPairData exchPairData, boolean isForwardTrade, double bidPrice, double askPrice);
+            public abstract double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize);
 
             @Override public String toString() { return getPrefix(); }
         }

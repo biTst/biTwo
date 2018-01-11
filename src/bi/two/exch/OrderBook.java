@@ -97,6 +97,9 @@ public class OrderBook {
         return null;
     }
 
+    public double getTopAskPrice() { return m_asks.get(0).m_price; }
+    public double getTopBidPrice(){ return m_bids.get(0).m_price; }
+
 
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
