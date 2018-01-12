@@ -170,7 +170,7 @@ class RoundDirectedData {
             RoundPlan.RoundNode.RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
 
             ExchPairData exchPairData = pd.m_exchPairData;
-            double rate = roundNodeType.rate(exchPairData, isForwardTrade, orderBook, startValueValue, value);
+            double rate = roundNodeType.rate(pd, m_roundData, isForwardTrade, orderBook, startValueValue, value);
             double translatedValue = isForwardTrade
                     ? startValueValue / rate
                     : startValueValue * rate;
@@ -178,8 +178,8 @@ class RoundDirectedData {
             double fee = roundNodeType.fee(exchPairData);
             double afterFeeValue = translatedValue * (1 - fee);
             if (LOG_ROUND_CALC) {
-                System.out.println("          " + roundNodeType + ": rate=" + rate +
-                        "; " + Utils.format8(startValueValue) + inCurrency + " => " + Utils.format8(translatedValue) + outCurrency
+                System.out.println("          " + roundNodeType + ": rate=" + rate
+                        + "; " + Utils.format8(startValueValue) + inCurrency + " => " + Utils.format8(translatedValue) + outCurrency
                         + "; fee=" + Utils.format8(fee) + " => after fee: " + Utils.format8(afterFeeValue) + outCurrency);
             }
 

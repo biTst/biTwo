@@ -86,9 +86,11 @@ public class RoundPlan {
             MKT {
                 @Override public String getPrefix() { return "mkt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_commission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                    ExchPairData exchPairData = pd.m_exchPairData;
                     // we should match book size
                     OrderSide orderSide = isForwardTrade ? OrderSide.BUY : OrderSide.SELL;
+                    OrderSide oppositeSide = orderSide.opposite();
                     Pair pair = exchPairData.m_pair;
                     Currency bookCurrency = pair.m_from;
                     Currency bookCurrency2 = pair.m_to;
@@ -96,16 +98,71 @@ public class RoundPlan {
                     List<OrderBook.OrderBookEntry> bookSide = isForwardTrade
                             ? orderBook.m_asks // byu
                             : orderBook.m_bids; // sell
-                    System.out.println("          rate for " + value + "; pair=" + pair + "; bookSide: " + bookSide);
 
+                    CurrencyValue minOrderStep = exchPairData.m_minOrderStep;
+                    System.out.println("          rate for " + value + "; minOrderStep=" + minOrderStep.format8() + "; pair=" + pair + "; bookSide: " + bookSide);
+
+                    double volume = 0;
                     int index = 0;
-                    double lookSize = value.m_value;
-                    while(lookSize > 0) {
+                    double toDistribute = value.m_value;
+                    double remainedSize = toDistribute;
+                    while(remainedSize > 0) {
                         OrderBook.OrderBookEntry bookEntry = bookSide.get(index);
-                        System.out.println("          " + orderSide + " book entry: " + bookEntry +
-                                "; can " + orderSide + " " + bookEntry.m_size + " " + bookCurrency + " @ " + bookEntry.m_price + " per " + bookCurrency2);
+                        double entrySize = bookEntry.m_size;
+                        double entryPrice = bookEntry.m_price;
+                        System.out.println("          " + orderSide + ": book entry[" + index + "]: " + bookEntry +
+                                "; we can " + orderSide + " " + entrySize + " " + bookCurrency + " @ " + entryPrice + " " + bookCurrency2 + " per " + bookCurrency);
+                        if (orderSide.isSell()) {
+                            if (entrySize < remainedSize) {
+                                CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
+                                System.out.println("           book entry has not enough. want " + remainedSize + " " + bookCurrency + " but have only " + entrySize + " " + bookCurrency
+                                        + "; minPassThruOrderSize=" + minPassThruOrderSize);
+                                double minPassThruOrderSizeValue = minPassThruOrderSize.m_value;
+                                if (entrySize < minPassThruOrderSizeValue) {
+                                    System.out.println("            book has " + entrySize + " but minPassThru is " + minPassThruOrderSizeValue + " -> need use next book level");
+                                    double entryVolume = entrySize * entryPrice;
+                                    volume += entryVolume;
+                                    remainedSize -= entrySize;
+                                    System.out.println("             entry gives " + entryVolume + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
+                                } else {
+                                    System.out.println("            entry has enough " + entrySize + " for minPassThru " + minPassThruOrderSizeValue + " -> need scale");
+                                    // todo
+                                    break;
+                                }
+                            } else {
+                                System.out.println("           book entry has enough. want " + orderSide + " " + remainedSize + " " + bookCurrency + ", available " + entrySize + " " + bookCurrency);
+                                double sizeVolume = remainedSize * entryPrice;
+                                volume += sizeVolume;
+                                remainedSize = 0;
+                                System.out.println("            remained gives " + sizeVolume + " " + bookCurrency2 + "; volume=" + volume);
+                            }
+                        } else { // buy case
+                            double entryGives = entrySize * entryPrice;
+                            System.out.println("           book entry " + entrySize + " " + bookCurrency + " gives " + entryGives + " " + bookCurrency2 );
+                            if (entryGives < remainedSize) {
+                                CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
+                                System.out.println("           ?not enough on book. want " + remainedSize + " " + bookCurrency2 + " but gives only " + entryGives + " " + bookCurrency2
+                                        + "; minPassThruOrderSize=" + minPassThruOrderSize);
+                                // todo
+                                break;
+                            } else {
+                                double sizeVolume = remainedSize / entryPrice;
+                                String oppositeName = oppositeSide.toString().toLowerCase();
+                                System.out.println("            book entry gives enough: want " + oppositeName + " " + remainedSize + " " + bookCurrency2
+                                        + " can " + oppositeName + " " + entryGives + " " + bookCurrency2);
+                                volume += sizeVolume;
+                                remainedSize = 0;
+                                System.out.println("             remained gives " + sizeVolume + " " + bookCurrency + "; volume=" + volume);
+                                // todo
+                                break;
+                            }
+                        }
                         index++;
-                        break;
+                    }
+
+                    if (remainedSize == 0) {
+                        double rate = volume / toDistribute;
+                        System.out.println("          all distributed(steps=" + index + "): volume=" + volume + "; toDistribute=" + toDistribute + " => rate=" + rate);
                     }
 
                     return bookSide.get(0).m_price;
@@ -114,7 +171,8 @@ public class RoundPlan {
             LMT { // best limit price
                 @Override public String getPrefix() { return "lmt"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                    ExchPairData exchPairData = pd.m_exchPairData;
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
                             ? orderBook.getTopBidPrice() + step
@@ -124,7 +182,8 @@ public class RoundPlan {
             TCH {
                 @Override public String getPrefix() { return "tch"; }
                 @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-                @Override public double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+                    ExchPairData exchPairData = pd.m_exchPairData;
                     double step = exchPairData.m_minPriceStep;
                     return isForwardTrade
                             ? orderBook.getTopAskPrice() - step // byu
@@ -135,7 +194,7 @@ public class RoundPlan {
 
             public abstract String getPrefix();
             public abstract double fee(ExchPairData exchPairData);
-            public abstract double rate(ExchPairData exchPairData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value);
+            public abstract double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value);
 
             @Override public String toString() { return getPrefix(); }
         }
