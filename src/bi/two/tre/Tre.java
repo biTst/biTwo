@@ -11,14 +11,14 @@ import java.util.concurrent.TimeUnit;
 public class Tre {
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 6;
-    private static final boolean SNAPSHOT_ONLY = true;
+    private static final boolean SNAPSHOT_ONLY = false;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
-//            {Currency.BTC, Currency.USD, Currency.ETH},
-//            {Currency.BTC, Currency.USD, Currency.DASH},
-//            {Currency.BTC, Currency.USD, Currency.BTG},
-//            {Currency.BTC, Currency.EUR, Currency.BCH},
-//            {Currency.BTC, Currency.EUR, Currency.ETH},
+            {Currency.BTC, Currency.USD, Currency.ETH},
+            {Currency.BTC, Currency.USD, Currency.DASH},
+            {Currency.BTC, Currency.USD, Currency.BTG},
+            {Currency.BTC, Currency.EUR, Currency.BCH},
+            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
     private Exchange m_exchange;

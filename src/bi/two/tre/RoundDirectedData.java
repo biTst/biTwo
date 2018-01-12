@@ -120,14 +120,22 @@ class RoundDirectedData {
         }
 
         for (RoundPlan.RoundPlanType roundPlanType : RoundPlan.RoundPlanType.values()) {
-            RoundPlan roundPlan = mkRoundPlan(startValue, roundPlanType);
-            if (roundPlan != null) {
-                plans.add(roundPlan);
+            CurrencyValue value = startValue;
+            while (true) {
+                double rate = mkRoundPlan(value, roundPlanType, plans);
+                if (rate >= 0) {
+                    break;
+                }
+                // need scale
+                value = new CurrencyValue(-value.m_value * rate, value.m_currency);
+                if (LOG_ROUND_CALC) {
+                    System.out.println("             startValue scaled to: " + value);
+                }
             }
         }
     }
 
-    @Nullable private RoundPlan mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType) {
+    @Nullable private double mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType, List<RoundPlan> plans) {
         if (LOG_ROUND_CALC) {
             System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
         }
@@ -158,7 +166,10 @@ class RoundDirectedData {
                 System.out.println("        topSpread: " + topSpread);
             }
             if (topSpread == null) {
-                return null; // sometimes book side can become empty
+                if (LOG_ROUND_CALC) {
+                    System.out.println(" book site is empty");
+                }
+                return 0; // sometimes book side can become empty
             }
             double bidPrice = topSpread.m_bidEntry.m_price;
             double askPrice = topSpread.m_askEntry.m_price;
@@ -171,6 +182,12 @@ class RoundDirectedData {
 
             ExchPairData exchPairData = pd.m_exchPairData;
             double rate = roundNodeType.rate(pd, m_roundData, isForwardTrade, orderBook, startValueValue, value);
+            if (rate < 0) { // need scale
+                if (LOG_ROUND_CALC) {
+                    System.out.println(" need scale a rate " + rate);
+                }
+                return rate;
+            }
             double translatedValue = isForwardTrade
                     ? startValueValue / rate
                     : startValueValue * rate;
@@ -198,8 +215,8 @@ class RoundDirectedData {
             System.out.println(" " + this + "; rate=" + Utils.format8(roundRate));
         }
 
-        return new RoundPlan(this, roundPlanType, roundNodes, roundRate);
+        RoundPlan roundPlan = new RoundPlan(this, roundPlanType, roundNodes, roundRate);
+        plans.add(roundPlan);
+        return 1;
     }
-
-
 }
