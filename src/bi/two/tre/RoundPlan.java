@@ -115,7 +115,7 @@ public class RoundPlan {
                         if (orderSide.isSell()) {
                             if (entrySize < remainedSize) {
                                 CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
-                                System.out.println("           book entry has not enough. want " + remainedSize + " " + bookCurrency + " but have only " + entrySize + " " + bookCurrency
+                                System.out.println("           sell book entry has not enough. want " + remainedSize + " " + bookCurrency + " but have only " + entrySize + " " + bookCurrency
                                         + "; minPassThruOrderSize=" + minPassThruOrderSize);
                                 double minPassThruOrderSizeValue = minPassThruOrderSize.m_value;
                                 if ((entrySize < minPassThruOrderSizeValue) || (index > 0)) {
@@ -125,8 +125,9 @@ public class RoundPlan {
                                     remainedSize -= entrySize;
                                     System.out.println("             entry gives " + entryVolume + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                                 } else {
-                                    double scaleRate = minPassThruOrderSizeValue / entrySize;
-                                    System.out.println("            entry has enough " + entrySize + " for minPassThru " + minPassThruOrderSizeValue + " -> need scale @ rate=" + scaleRate);
+                                    double scaleRate = entrySize / remainedSize;
+                                    System.out.println("            sell entry has enough " + entrySize + " for minPassThru " + minPassThruOrderSizeValue + " -> need scale @ rate: "
+                                            + entrySize + " / " + remainedSize + " = " + scaleRate);
                                     return -scaleRate;
                                 }
                             } else {
@@ -138,25 +139,26 @@ public class RoundPlan {
                             }
                         } else { // buy case
                             double entryGives = entrySize * entryPrice;
-                            System.out.println("           book entry " + entrySize + " " + bookCurrency + " gives " + entryGives + " " + bookCurrency2 );
+                            System.out.println("           buy book entry " + entrySize + " " + bookCurrency + " gives " + entryGives + " " + bookCurrency2 );
+                            String oppositeName = oppositeSide.toString().toLowerCase();
                             if (entryGives < remainedSize) {
                                 CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
-                                System.out.println("           not enough on book. want " + remainedSize + " " + bookCurrency2 + " entry gives only " + entryGives + " " + bookCurrency2
-                                        + "; minPassThruOrderSize=" + minPassThruOrderSize);
+                                System.out.println("           buy book entry has not enough. want " + oppositeName + " " + remainedSize + " " + bookCurrency2
+                                        + " entry gives only " + entryGives + " " + bookCurrency2  + "; minPassThruOrderSize=" + minPassThruOrderSize);
                                 double minPassThruOrderSizeValue = minPassThruOrderSize.m_value;
                                 if ((entrySize < minPassThruOrderSizeValue) || (index > 0)) {
-                                    System.out.println("            entry has " + entrySize + " but minPassThru is " + minPassThruOrderSizeValue + " -> need use next book level");
+                                    System.out.println("            entry has " + entrySize + " " + bookCurrency + " but minPassThru is " + minPassThruOrderSizeValue + " -> need use next book level");
                                     volume += entrySize;
                                     remainedSize -= entryGives;
                                     System.out.println("             entry gives " + entryGives + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                                 } else {
-                                    double scaleRate = minPassThruOrderSizeValue/entrySize;
-                                    System.out.println("            entry has enough " + entrySize + " for minPassThru " + minPassThruOrderSizeValue + " -> need scale @ rate " + scaleRate);
+                                    double scaleRate = entryGives/remainedSize;
+                                    System.out.println("            buy entry has enough " + entrySize + " " + bookCurrency + " for minPassThru " + minPassThruOrderSizeValue + " -> need scale @ rate: "
+                                            + entryGives + "/" + remainedSize + " = " + scaleRate);
                                     return -scaleRate;
                                 }
                             } else {
                                 double sizeVolume = remainedSize / entryPrice;
-                                String oppositeName = oppositeSide.toString().toLowerCase();
                                 System.out.println("            book entry gives enough: want " + oppositeName + " " + remainedSize + " " + bookCurrency2
                                         + " can " + oppositeName + " " + entryGives + " " + bookCurrency2);
                                 volume += sizeVolume;

@@ -127,9 +127,10 @@ class RoundDirectedData {
                     break;
                 }
                 // need scale
+                CurrencyValue from = value;
                 value = new CurrencyValue(-value.m_value * rate, value.m_currency);
                 if (LOG_ROUND_CALC) {
-                    System.out.println("             startValue scaled to: " + value);
+                    System.out.println("        startValue scaled from " + from + " to: " + value);
                 }
             }
         }
