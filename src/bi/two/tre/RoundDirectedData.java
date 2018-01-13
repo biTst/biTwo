@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Objects;
 
 class RoundDirectedData {
-    private static final boolean LOG_ROUND_CALC = true;
+    private static final boolean LOG_ROUND_CALC = Tre.LOG_ROUND_CALC;
 
     public final RoundData m_roundData;
     public final Currency[] m_currencies;
@@ -119,7 +119,7 @@ class RoundDirectedData {
             }
         }
 
-        for (RoundPlan.RoundPlanType roundPlanType : RoundPlan.RoundPlanType.values()) {
+        for (RoundPlanType roundPlanType : RoundPlanType.values()) {
             CurrencyValue value = startValue;
             while (true) {
                 double rate = mkRoundPlan(value, roundPlanType, plans);
@@ -136,7 +136,7 @@ class RoundDirectedData {
         }
     }
 
-    @Nullable private double mkRoundPlan(CurrencyValue startValue, RoundPlan.RoundPlanType roundPlanType, List<RoundPlan> plans) {
+    @Nullable private double mkRoundPlan(CurrencyValue startValue, RoundPlanType roundPlanType, List<RoundPlan> plans) {
         if (LOG_ROUND_CALC) {
             System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
         }
@@ -179,7 +179,7 @@ class RoundDirectedData {
             }
             Currency outCurrency = isForwardTrade ? currencyFrom : currencyTo;
 
-            RoundPlan.RoundNode.RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
+            RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
 
             ExchPairData exchPairData = pd.m_exchPairData;
             double rate = roundNodeType.rate(pd, m_roundData, isForwardTrade, orderBook, startValueValue, value);
@@ -188,6 +188,12 @@ class RoundDirectedData {
                     System.out.println(" need scale a rate " + rate);
                 }
                 return rate;
+            }
+            if(rate == 0) {
+                if (LOG_ROUND_CALC) {
+                    System.out.println(" can not distribute");
+                }
+                return 0;
             }
             double translatedValue = isForwardTrade
                     ? startValueValue / rate
