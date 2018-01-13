@@ -9,8 +9,11 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class Tre {
+    public static final boolean LOG_ROUND_CALC = false;
+    public static final boolean LOG_MKT_DISTRIBUTION = false;
+
     private static final String CONFIG = "cfg/tre.properties";
-    private static final int SUBSCRIBE_DEPTH = 6;
+    private static final int SUBSCRIBE_DEPTH = 7;
     private static final boolean SNAPSHOT_ONLY = false;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
