@@ -140,7 +140,7 @@ class RoundDirectedData {
         if (LOG_ROUND_CALC) {
             System.out.println("mkRoundPlan: " + roundPlanType + "; startValue=" + startValue);
         }
-        List<RoundPlan.RoundNode> roundNodes = new ArrayList<>();
+        List<RoundNodePlan> roundNodePlans = new ArrayList<>();
 
         CurrencyValue value = startValue;
         int size = m_pdds.size();
@@ -177,11 +177,8 @@ class RoundDirectedData {
             if (LOG_ROUND_CALC) {
                 System.out.println("         SELL 1 " + currencyFrom + " => " + bidPrice + " " + currencyTo + "  ||  " + askPrice + " " + currencyTo + " => BUY 1 " + currencyFrom);
             }
-            Currency outCurrency = isForwardTrade ? currencyFrom : currencyTo;
 
             RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
-
-            ExchPairData exchPairData = pd.m_exchPairData;
             double rate = roundNodeType.rate(pd, m_roundData, orderSide, orderBook, value);
             if (rate < 0) { // need scale
                 if (LOG_ROUND_CALC) {
@@ -189,7 +186,7 @@ class RoundDirectedData {
                 }
                 return rate;
             }
-            if(rate == 0) {
+            if (rate == 0) {
                 if (LOG_ROUND_CALC) {
                     System.out.println(" can not distribute");
                 }
@@ -199,6 +196,8 @@ class RoundDirectedData {
                     ? startValueValue / rate
                     : startValueValue * rate;
 
+            Currency outCurrency = isForwardTrade ? currencyFrom : currencyTo;
+            ExchPairData exchPairData = pd.m_exchPairData;
             double fee = roundNodeType.fee(exchPairData);
             double afterFeeValue = translatedValue * (1 - fee);
             if (LOG_ROUND_CALC) {
@@ -212,8 +211,8 @@ class RoundDirectedData {
                 System.out.println("          " + value + " => " + outValue);
             }
 
-            RoundPlan.RoundNode roundNode = new RoundPlan.RoundNode(pdd, roundNodeType);
-            roundNodes.add(roundNode);
+            RoundNodePlan roundNodePlan = new RoundNodePlan(pdd, roundNodeType);
+            roundNodePlans.add(roundNodePlan);
 
             value = outValue;
         }
@@ -222,7 +221,7 @@ class RoundDirectedData {
             System.out.println(" " + this + "; rate=" + Utils.format8(roundRate));
         }
 
-        RoundPlan roundPlan = new RoundPlan(this, roundPlanType, roundNodes, roundRate);
+        RoundPlan roundPlan = new RoundPlan(this, roundPlanType, roundNodePlans, roundRate);
         plans.add(roundPlan);
         return 1;
     }

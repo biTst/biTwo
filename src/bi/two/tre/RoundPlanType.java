@@ -11,15 +11,15 @@ public enum RoundPlanType {
         @Override public String getPrefix() { return "tch_mkt_mkt"; }
         @Override public RoundNodeType getRoundNodeType(int indx) { return (indx == 0) ? RoundNodeType.TCH : RoundNodeType.MKT; }
     },
-    TCH_TCH_MKT {
-        @Override public int getPriority() { return 3; }
-        @Override public String getPrefix() { return "tch_tch_mkt"; }
-        @Override public RoundNodeType getRoundNodeType(int indx) { return (indx < 2) ? RoundNodeType.TCH : RoundNodeType.MKT; }
-    },
     MKT_TCH_TCH {
-        @Override public int getPriority() { return 2; }
+        @Override public int getPriority() { return 3; }
         @Override public String getPrefix() { return "mkt_tch_tch"; }
         @Override public RoundNodeType getRoundNodeType(int indx) { return (indx == 0) ? RoundNodeType.MKT : RoundNodeType.TCH; }
+    },
+    TCH_TCH_TCH {
+        @Override public int getPriority() { return 2; }
+        @Override public String getPrefix() { return "tch_tch_tch"; }
+        @Override public RoundNodeType getRoundNodeType(int indx) { return RoundNodeType.TCH; }
     },
 //    LMT_MKT_MKT {
 //        @Override public int getPriority() { return 1; }

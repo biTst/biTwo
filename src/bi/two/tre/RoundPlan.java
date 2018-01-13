@@ -19,15 +19,15 @@ public class RoundPlan {
 
     public final RoundDirectedData m_rdd;
     public final RoundPlanType m_roundPlanType;
-    public final List<RoundNode> m_roundNodes;
+    public final List<RoundNodePlan> m_roundNodePlans;
     public final double m_roundRate;
     public final long m_timestamp;
     public long m_liveTime;
 
-    public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNode> roundNodes, double roundRate) {
+    public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNodePlan> roundNodePlans, double roundRate) {
         m_rdd = rdd;
         m_roundPlanType = roundPlanType;
-        m_roundNodes = roundNodes;
+        m_roundNodePlans = roundNodePlans;
         m_roundRate = roundRate;
         m_timestamp = System.currentTimeMillis();
     }
@@ -49,15 +49,4 @@ public class RoundPlan {
     }
 
 
-    // -----------------------------------------------------------------------------------------
-    public static class RoundNode {
-        public final PairDirectionData m_pdd;
-        public final RoundNodeType m_roundNodeType;
-
-        public RoundNode(PairDirectionData pdd, RoundNodeType roundNodeType) {
-            m_pdd = pdd;
-            m_roundNodeType = roundNodeType;
-        }
-
-    }
 }
