@@ -182,7 +182,7 @@ class RoundDirectedData {
             RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
 
             ExchPairData exchPairData = pd.m_exchPairData;
-            double rate = roundNodeType.rate(pd, m_roundData, isForwardTrade, orderBook, startValueValue, value);
+            double rate = roundNodeType.rate(pd, m_roundData, orderSide, orderBook, value);
             if (rate < 0) { // need scale
                 if (LOG_ROUND_CALC) {
                     System.out.println(" need scale a rate " + rate);

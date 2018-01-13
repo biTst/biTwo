@@ -8,16 +8,15 @@ public enum RoundNodeType {
     MKT {
         @Override public String getPrefix() { return "mkt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_commission; }
-        @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+        @Override public double rate(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value) {
             ExchPairData exchPairData = pd.m_exchPairData;
             // we should match book size
-            OrderSide orderSide = isForwardTrade ? OrderSide.BUY : OrderSide.SELL;
             OrderSide oppositeSide = orderSide.opposite();
             Pair pair = exchPairData.m_pair;
             Currency bookCurrency = pair.m_from;
             Currency bookCurrency2 = pair.m_to;
 
-            List<OrderBook.OrderBookEntry> bookSide = isForwardTrade
+            List<OrderBook.OrderBookEntry> bookSide = orderSide.isBuy()
                     ? orderBook.m_asks // byu
                     : orderBook.m_bids; // sell
 
@@ -144,10 +143,10 @@ public enum RoundNodeType {
     LMT { // best limit price
         @Override public String getPrefix() { return "lmt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-        @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+        @Override public double rate(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value) {
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
-            return isForwardTrade
+            return orderSide.isBuy()
                     ? orderBook.getTopBidPrice() + step
                     : orderBook.getTopAskPrice() - step;
         }
@@ -155,10 +154,10 @@ public enum RoundNodeType {
     TCH {
         @Override public String getPrefix() { return "tch"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-        @Override public double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value) {
+        @Override public double rate(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value) {
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
-            return isForwardTrade
+            return orderSide.isBuy()
                     ? orderBook.getTopAskPrice() - step // byu
                     : orderBook.getTopBidPrice() + step; // sell
         }
@@ -169,7 +168,7 @@ public enum RoundNodeType {
 
     public abstract String getPrefix();
     public abstract double fee(ExchPairData exchPairData);
-    public abstract double rate(PairData pd, RoundData roundData, boolean isForwardTrade, OrderBook orderBook, double orderSize, CurrencyValue value);
+    public abstract double rate(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value);
 
     @Override public String toString() { return getPrefix(); }
 }
