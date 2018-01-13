@@ -84,7 +84,7 @@ class RoundData implements OrderBook.IOrderBookListener {
                 directedRound.onUpdated(m_exchange, plans);
             }
 
-            Collections.sort(plans, RoundPlan.BY_RATE_COMPARATOR);
+            Collections.sort(plans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
             List<RoundPlan> last6Plans = plans.subList(0, 6);
             logRates(" last :: ", last6Plans);
 
@@ -102,7 +102,7 @@ class RoundData implements OrderBook.IOrderBookListener {
                 }
             }
 
-            Collections.sort(s_allPlans, RoundPlan.BY_RATE_COMPARATOR);
+            Collections.sort(s_allPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
             List<RoundPlan> all6Plans = s_allPlans.subList(0, 6);
             logRates(" all  :: ", all6Plans);
 
@@ -124,7 +124,7 @@ class RoundData implements OrderBook.IOrderBookListener {
 
             if (!unique.isEmpty()) {
                 s_bestPlans.addAll(unique);
-                Collections.sort(s_bestPlans, RoundPlan.BY_RATE_COMPARATOR);
+                Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
                 s_bestPlans = s_bestPlans.subList(0, 6);
             }
             logRates(" best :: ", s_bestPlans);
