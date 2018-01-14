@@ -83,52 +83,55 @@ class RoundData implements OrderBook.IOrderBookListener {
             for (RoundDirectedData directedRound : m_directedRounds) {
                 directedRound.onUpdated(m_exchange, plans);
             }
-
             Collections.sort(plans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-            List<RoundPlan> last6Plans = plans.subList(0, 6);
-            logRates(" last :: ", last6Plans);
-
-            for (RoundPlan plan1 : plans) {
-                int index = s_allPlans.indexOf(plan1);
-                if (index != -1) {
-                    RoundPlan plan2 = s_allPlans.get(index);
-                    if (plan1.m_roundRate == plan2.m_roundRate) { // same roundRate
-                        plan2.m_liveTime = plan1.m_timestamp - plan2.m_timestamp; // just update liveTime
-                        continue;
-                    }
-                    s_allPlans.set(index, plan1);
-                } else {
-                    s_allPlans.add(plan1);
-                }
-            }
-
-            Collections.sort(s_allPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-            List<RoundPlan> all6Plans = s_allPlans.subList(0, 6);
-            logRates(" all  :: ", all6Plans);
-
-            List<RoundPlan> unique = new ArrayList<>();
-            for (RoundPlan plan1 : all6Plans) {
-                boolean add = true;
-                for (RoundPlan plan2 : s_bestPlans) {
-                    if (plan1.equals(plan2)) { // same direction and type
-                        if (plan1.m_roundRate == plan2.m_roundRate) { // do not include twice with same roundRate
-                            add = false;
-                            continue;
-                        }
-                    }
-                }
-                if (add) {
-                    unique.add(plan1);
-                }
-            }
-
-            if (!unique.isEmpty()) {
-                s_bestPlans.addAll(unique);
-                Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-                s_bestPlans = s_bestPlans.subList(0, 6);
-            }
-            logRates(" best :: ", s_bestPlans);
+            logPlans(plans);
         }
+    }
+
+    private void logPlans(List<RoundPlan> plans) {
+        List<RoundPlan> last6Plans = plans.subList(0, 6);
+        logRates(" last :: ", last6Plans);
+
+        for (RoundPlan plan : plans) {
+            int index = s_allPlans.indexOf(plan);
+            if (index != -1) {
+                RoundPlan plan2 = s_allPlans.get(index);
+                if (plan.m_roundRate == plan2.m_roundRate) { // same roundRate
+                    plan2.m_liveTime = plan.m_timestamp - plan2.m_timestamp; // just update liveTime
+                    continue;
+                }
+                s_allPlans.set(index, plan);
+            } else {
+                s_allPlans.add(plan);
+            }
+        }
+
+        Collections.sort(s_allPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
+        List<RoundPlan> all6Plans = s_allPlans.subList(0, 6);
+        logRates(" all  :: ", all6Plans);
+
+        List<RoundPlan> unique = new ArrayList<>();
+        for (RoundPlan plan : all6Plans) {
+            boolean add = true;
+            for (RoundPlan plan2 : s_bestPlans) {
+                if (plan.equals(plan2)) { // same direction and type
+                    if (plan.m_roundRate == plan2.m_roundRate) { // do not include twice with same roundRate
+                        add = false;
+                        break;
+                    }
+                }
+            }
+            if (add) {
+                unique.add(plan);
+            }
+        }
+
+        if (!unique.isEmpty()) {
+            s_bestPlans.addAll(unique);
+            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
+            s_bestPlans = s_bestPlans.subList(0, 6);
+        }
+        logRates(" best :: ", s_bestPlans);
     }
 
     private void logRates(String prefix, List<RoundPlan> bestPlans) {
