@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 
 public class Exchange {
     public static final List<Exchange> s_exchanges = new ArrayList<Exchange>();
@@ -18,6 +19,9 @@ public class Exchange {
     public Schedule m_schedule;
     private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
     public IAccountListener m_accountListener;
+    public ExecutorService m_threadPool;
+
+    public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
 
     public Exchange(String name, Currency baseCurrency) {
         m_name = name;

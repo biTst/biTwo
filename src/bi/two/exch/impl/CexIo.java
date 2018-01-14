@@ -393,17 +393,7 @@ public class CexIo extends BaseExchImpl {
 //                "asks": []
 //            }
 //        }
-
-        JSONObject data = (JSONObject) jsonObject.get("data");
-//        System.out.println(" onMdUpdate() data=" + data);
-        String pair = (String) data.get("pair");
-        JSONArray bids = (JSONArray) data.get("bids");
-        JSONArray asks = (JSONArray) data.get("asks");
-//        System.out.println("  pair=" + pair);
-//        System.out.println("   bids=" + bids);
-//        System.out.println("   asks=" + asks);
-
-        processOrderBook(pair, bids, asks);
+        processOrderBook(jsonObject);
     }
 
     private void onOrderBookSubscribe(Session session, JSONObject jsonObject) {
@@ -414,34 +404,39 @@ public class CexIo extends BaseExchImpl {
         //  "id":145911102,
         //  "sell_total":"1875.41098508",
         //  "buy_total":"6933944.35"}
-        Object oid = jsonObject.get("oid");
-        JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onOrderBookSubscribe[" + oid + "]: data=" + data);
+        //Object oid = jsonObject.get("oid");
 
-        String pair = (String) data.get("pair");
-        JSONArray bids = (JSONArray) data.get("bids");
-        JSONArray asks = (JSONArray) data.get("asks");
-//        System.out.println("  pair=" + pair);
-        System.out.println("   bids=" + bids);
-        System.out.println("   asks=" + asks);
-
-        processOrderBook(pair, bids, asks);
+        processOrderBook(jsonObject);
     }
 
-    private void processOrderBook(String pair, JSONArray bids, JSONArray asks) {
-        // "pair":"BTC:USD"
-        // [[8228.1220,0.00606695],[8226.6111,0.01433840]]
-        OrderBook orderBook = m_orderBooks.get(pair);
-        if (orderBook == null) {
-            throw new RuntimeException("no orderBook for pair=" + pair);
-        }
+    private void processOrderBook(final JSONObject jsonObject) {
+        m_exchange.m_threadPool.submit(new Runnable() {
+            @Override public void run() {
+                try {
+                    JSONObject data = (JSONObject) jsonObject.get("data");
+                    String pair = (String) data.get("pair");
+                    JSONArray bids = (JSONArray) data.get("bids");
+                    JSONArray asks = (JSONArray) data.get("asks");
 
-        List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
-        List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
+                    // "pair":"BTC:USD"
+                    // [[8228.1220,0.00606695],[8226.6111,0.01433840]]
+                    OrderBook orderBook = m_orderBooks.get(pair);
+                    if (orderBook == null) {
+                        throw new RuntimeException("no orderBook for pair=" + pair);
+                    }
+
+                    List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
+                    List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
 
 //        System.out.println(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
-        orderBook.update(aBids, aAsks);
+                    orderBook.update(aBids, aAsks);
 //        System.out.println(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
+                } catch (Exception e) {
+                    System.out.println("processOrderBook error: " + e);
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) { // [[2551.4606,0.00000000]]

@@ -60,7 +60,7 @@ public class OrderBook {
                 if (size > 0) {
                     entries.set(index, update);
                 } else {
-                    entries.remove(index);
+                    entries.remove(index); // [[2551.4606,0.00000000]] zero size meant remove book entry
                 }
             }
         }
@@ -103,13 +103,13 @@ public class OrderBook {
 
     //------------------------------------------------------------------------------
     public static class OrderBookEntry {
-        public static final Comparator<OrderBookEntry> FORWARD_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
+        static final Comparator<OrderBookEntry> FORWARD_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
             @Override
             public int compare(OrderBookEntry o1, OrderBookEntry o2) {
                 return Double.compare(o1.m_price, o2.m_price);
             }
         };
-        public static final Comparator<OrderBookEntry> REVERSE_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
+        static final Comparator<OrderBookEntry> REVERSE_BY_PRICE_COMPARATOR = new Comparator<OrderBookEntry>() {
             @Override
             public int compare(OrderBookEntry o1, OrderBookEntry o2) {
                 return -Double.compare(o1.m_price, o2.m_price);

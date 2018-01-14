@@ -6,6 +6,8 @@ import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class Tre {
@@ -14,7 +16,7 @@ public class Tre {
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
-    private static final boolean SNAPSHOT_ONLY = false;
+    private static final boolean SNAPSHOT_ONLY = true;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
             {Currency.BTC, Currency.USD, Currency.ETH},
@@ -28,6 +30,7 @@ public class Tre {
     private List<RoundData> m_roundDatas = new ArrayList<>();
     private ArrayList<PairData> m_pairDatas = new ArrayList<>();
     private State m_state = State.watching;
+    private ExecutorService m_threadPool;
 
     public static void main(String[] args) {
         new Tre().main();
@@ -35,12 +38,15 @@ public class Tre {
 
     private void main() {
         try {
+            m_threadPool = Executors.newSingleThreadExecutor();
+
             MarketConfig.initMarkets(false);
 
             MapConfig config = new MapConfig();
             config.loadAndEncrypted(CONFIG);
 
             m_exchange = Exchange.get("cex");
+            m_exchange.setThreadPool(m_threadPool);
             m_exchange.m_impl = new CexIo(config, m_exchange);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
