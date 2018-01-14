@@ -102,12 +102,12 @@ class RoundDirectedData {
                 return; // sometimes book side can become empty
             }
 
-            double topPrice = orderBook.m_bids.get(0).m_price;
+            double topMidPrice = orderBook.m_bids.get(0).m_price;
             if (LOG_ROUND_CALC) {
-                System.out.println("          topPrice=" + topPrice + " -> rate=" + Utils.format8(1/topPrice));
+                System.out.println("          topMidPrice=" + topMidPrice + " -> rate=" + Utils.format8(1/topMidPrice));
             }
 
-            double startValueTranslated = startValueValue * topPrice;
+            double startValueTranslated = startValueValue * topMidPrice;
             if (LOG_ROUND_CALC) {
                 System.out.println("           startValueTranslated=" + Utils.format8(startValueTranslated));
             }

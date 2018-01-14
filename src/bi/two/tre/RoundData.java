@@ -15,7 +15,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static List<RoundPlan> s_allPlans = new ArrayList<>();
 
     public final Round m_round;
-    private final Exchange m_exchange;
+    public final Exchange m_exchange;
     public final List<RoundDirectedData> m_directedRounds = new ArrayList<>();
     public final List<PairData> m_pds = new ArrayList<>();
     public boolean m_allLive;
