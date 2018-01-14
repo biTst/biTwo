@@ -22,12 +22,17 @@ public class RoundPlan {
     public final List<RoundNodePlan> m_roundNodePlans;
     public final double m_roundRate;
     public final long m_timestamp;
+    private final CurrencyValue m_startValue;
+    private final CurrencyValue m_outValue;
     public long m_liveTime;
 
-    public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNodePlan> roundNodePlans, double roundRate) {
+    public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNodePlan> roundNodePlans,
+                     CurrencyValue startValue, CurrencyValue outValue, double roundRate) {
         m_rdd = rdd;
         m_roundPlanType = roundPlanType;
         m_roundNodePlans = roundNodePlans;
+        m_startValue = startValue;
+        m_outValue = outValue;
         m_roundRate = roundRate;
         m_timestamp = System.currentTimeMillis();
     }
@@ -49,4 +54,22 @@ public class RoundPlan {
     }
 
 
+    public String log() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("RoundPlan ");
+        sb.append(m_rdd);
+        sb.append(" ");
+        sb.append(m_roundPlanType);
+        sb.append(" ");
+        sb.append(m_startValue);
+        sb.append("->");
+        sb.append(m_outValue);
+        sb.append(" ");
+        sb.append(m_roundRate);
+        sb.append("\n");
+        for (RoundNodePlan roundNodePlan : m_roundNodePlans) {
+            roundNodePlan.log(sb);
+        }
+        return sb.toString();
+    }
 }
