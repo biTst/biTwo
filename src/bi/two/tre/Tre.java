@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.*;
 import bi.two.exch.impl.CexIo;
+import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
+    public static final boolean LOG_RATES = true;
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
@@ -66,6 +68,8 @@ public class Tre implements OrderBook.IOrderBookListener {
                 @Override public void onConnected() { onExchangeConnected(); }
                 @Override public void onDisconnected() { onExchangeDisconnected(); }
             });
+
+            new IntConsoleReader().start();
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
             log("done");
@@ -131,7 +135,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             log("tasks interrupted");
         } finally {
             if (!m_threadPool.isTerminated()) {
-                System.err.println("cancel non-finished tasks");
+                log("cancel non-finished tasks");
             }
             m_threadPool.shutdownNow();
             log("shutdown ThreadPool finished");
@@ -211,7 +215,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         String line = sb.toString();
         if (!line.equals(m_lastLogStr)) { // do not log the same twice
             m_lastLogStr = line;
-            System.out.println(line);
+System.out.println(System.currentTimeMillis() + ": " + line);
         }
     }
 
@@ -222,6 +226,42 @@ public class Tre implements OrderBook.IOrderBookListener {
 //        for (RoundPlan roundPlan : roundPlans) {
 //            System.out.println(roundPlan.log());
 //        }
+    }
+
+    private void logTop() {
+System.out.println("best plan: ");
+        long timestamp = 0;
+        StringBuilder sb = new StringBuilder();
+        RoundPlan roundPlan = RoundData.s_bestPlans.get(0);
+        for (int i = 0; i < 6; i++) {
+            long nextTimestamp = roundPlan.m_timestamp;
+            sb.append((nextTimestamp - timestamp));
+            sb.append(": ");
+            roundPlan.minLog(sb);
+            sb.append("; ");
+            roundPlan = roundPlan.m_nextPlan;
+            if (roundPlan == null) {
+                break;
+            }
+            timestamp = nextTimestamp;
+        }
+System.out.println(sb.toString());
+    }
+
+    private boolean onConsoleLine(String line) {
+        if (line.equals("t") || line.equals("top")) {
+            logTop();
+        } else {
+            log("not recognized command: " + line);
+        }
+        return false; // do not finish ConsoleReader
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    private class IntConsoleReader extends ConsoleReader {
+        @Override protected void beforeLine() { System.out.print(">"); }
+        @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
 
 

@@ -11,8 +11,9 @@ import java.util.concurrent.TimeUnit;
 class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
     private static final double MIN_ORDER_SIZE_MUL = 1.1; // do not use in orders like 0.01 - after rounding we may got 0.009987654
+    private static final boolean LOG_RATES = Tre.LOG_RATES;
 
-    private static List<RoundPlan> s_bestPlans = new ArrayList<>();
+    public static List<RoundPlan> s_bestPlans = new ArrayList<>();
     public static List<RoundPlan> s_allPlans = new ArrayList<>();
 
     public final Round m_round;
@@ -100,13 +101,14 @@ class RoundData implements OrderBook.IOrderBookListener {
             int index = s_allPlans.indexOf(plan);
             if (index != -1) {
                 RoundPlan plan2 = s_allPlans.get(index);
-                if (plan.m_roundRate == plan2.m_roundRate) { // same roundRate
+                if (plan.m_roundRate == plan2.m_roundRate) { // roundRate is not changed
                     plan2.m_liveTime = plan.m_timestamp - plan2.m_timestamp; // just update liveTime
                     continue;
                 }
-                s_allPlans.set(index, plan);
+                plan2.setTail(plan);
+                s_allPlans.set(index, plan); // update RoundPlan
             } else {
-                s_allPlans.add(plan);
+                s_allPlans.add(plan); // new RoundPlan
             }
         }
 
@@ -139,11 +141,13 @@ class RoundData implements OrderBook.IOrderBookListener {
     }
 
     private void logRates(String prefix, List<RoundPlan> bestPlans) {
-        StringBuilder sb = new StringBuilder(prefix);
-        for (RoundPlan plan : bestPlans) {
-            sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + " " + Utils.millisToYDHMSStr(plan.m_liveTime) + ';');
+        if (LOG_RATES) {
+            StringBuilder sb = new StringBuilder(prefix);
+            for (RoundPlan plan : bestPlans) {
+                sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + " " + Utils.millisToYDHMSStr(plan.m_liveTime) + ';');
+            }
+            log(sb.toString());
         }
-        log(sb.toString());
     }
 
     private void onBecomesLive() {

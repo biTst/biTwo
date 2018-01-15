@@ -27,6 +27,7 @@ public class RoundPlan {
     private final CurrencyValue m_startValue;
     private final CurrencyValue m_outValue;
     public long m_liveTime;
+    public RoundPlan m_nextPlan; // plan for next tick if plan is changed
 
     public RoundPlan(RoundDirectedData rdd, RoundPlanType roundPlanType, List<RoundNodePlan> roundNodePlans,
                      CurrencyValue startValue, CurrencyValue outValue, double roundRate) {
@@ -80,5 +81,9 @@ public class RoundPlan {
         sb.append(m_roundPlanType);
         sb.append(" ");
         sb.append(Utils.format8(m_roundRate));
+    }
+
+    public void setTail(RoundPlan plan) {
+        m_nextPlan = plan;
     }
 }
