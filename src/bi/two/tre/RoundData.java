@@ -12,6 +12,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
     private static final double MIN_ORDER_SIZE_MUL = 1.1; // do not use in orders like 0.01 - after rounding we may got 0.009987654
     private static final boolean LOG_RATES = Tre.LOG_RATES;
+    public static final int BEST_PLANS_COUNT = 8;
 
     public static List<RoundPlan> s_bestPlans = new ArrayList<>();
     public static List<RoundPlan> s_allPlans = new ArrayList<>();
@@ -94,18 +95,18 @@ class RoundData implements OrderBook.IOrderBookListener {
     }
 
     private void logPlans(List<RoundPlan> plans) {
-        List<RoundPlan> last6Plans = plans.subList(0, 6);
-        logRates(" last :: ", last6Plans);
+        List<RoundPlan> first6Plans = plans.subList(0, 6);
+        logRates(" last :: ", first6Plans);
 
         for (RoundPlan plan : plans) {
             int index = s_allPlans.indexOf(plan);
             if (index != -1) {
-                RoundPlan plan2 = s_allPlans.get(index);
-                if (plan.m_roundRate == plan2.m_roundRate) { // roundRate is not changed
-                    plan2.m_liveTime = plan.m_timestamp - plan2.m_timestamp; // just update liveTime
+                RoundPlan allPlan = s_allPlans.get(index);
+                if (plan.m_roundRate == allPlan.m_roundRate) { // roundRate is not changed
+                    allPlan.m_liveTime = plan.m_timestamp - allPlan.m_timestamp; // just update liveTime
                     continue;
                 }
-                plan2.setTail(plan);
+                allPlan.setNextPlan(plan);
                 s_allPlans.set(index, plan); // update RoundPlan
             } else {
                 s_allPlans.add(plan); // new RoundPlan
@@ -113,15 +114,15 @@ class RoundData implements OrderBook.IOrderBookListener {
         }
 
         Collections.sort(s_allPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-        List<RoundPlan> all6Plans = s_allPlans.subList(0, 6);
-        logRates(" all  :: ", all6Plans);
+        List<RoundPlan> first6allPlans = s_allPlans.subList(0, 6);
+        logRates(" all  :: ", first6allPlans);
 
         List<RoundPlan> unique = new ArrayList<>();
-        for (RoundPlan plan : all6Plans) {
+        for (RoundPlan plan : s_allPlans) {
             boolean add = true;
-            for (RoundPlan plan2 : s_bestPlans) {
-                if (plan.equals(plan2)) { // same direction and type
-                    if (plan.m_roundRate == plan2.m_roundRate) { // do not include twice with same roundRate
+            for (RoundPlan bestPlan : s_bestPlans) {
+                if (plan.equals(bestPlan)) { // same direction and type
+                    if (plan.m_roundRate <= bestPlan.m_roundRate) { // do not include with same or lower roundRate
                         add = false;
                         break;
                     }
@@ -135,7 +136,7 @@ class RoundData implements OrderBook.IOrderBookListener {
         if (!unique.isEmpty()) {
             s_bestPlans.addAll(unique);
             Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-            s_bestPlans = s_bestPlans.subList(0, 6);
+            s_bestPlans = new ArrayList<>(s_bestPlans.subList(0, BEST_PLANS_COUNT));
         }
         logRates(" best :: ", s_bestPlans);
     }

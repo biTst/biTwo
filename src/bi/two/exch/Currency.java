@@ -6,21 +6,23 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 
 public enum Currency {
-    USD("usd"),
-    EUR("eur"),
-    GBP("gbp"),
-    BTC("btc"),
-    BCH("bch"),
-    BTG("btg"),
-    CNH("cnh"),
-    ETH("eth"),
-    DASH("dash"),
+    USD("usd", "U"),
+    EUR("eur", "E"),
+    GBP("gbp", "G"),
+    CNH("cnh", "C"),
+    BTC("btc", "b"),
+    ETH("eth", "e"),
+    BCH("bch", "h"),
+    BTG("btg", "g"),
+    DASH("dash", "d"),
     ;
     
     public final String m_name;
+    public final String m_shortName;
 
-    Currency(String name) {
+    Currency(String name, String shortName) {
         m_name = name;
+        m_shortName = shortName;
     }
 
     public static @NotNull Currency getByName(String str) {

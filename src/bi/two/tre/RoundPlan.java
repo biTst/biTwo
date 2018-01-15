@@ -76,14 +76,17 @@ public class RoundPlan {
     }
 
     public void minLog(StringBuilder sb) {
-        sb.append(m_rdd);
+        sb.append(m_rdd.m_shortName);
         sb.append(":");
-        sb.append(m_roundPlanType);
+        sb.append(m_roundPlanType.getShortName());
         sb.append(" ");
-        sb.append(Utils.format8(m_roundRate));
+        sb.append(Utils.format6(m_roundRate));
     }
 
-    public void setTail(RoundPlan plan) {
-        m_nextPlan = plan;
+    public void setNextPlan(RoundPlan nextPlan) {
+        if (nextPlan.m_timestamp < m_timestamp) {
+            throw new RuntimeException("error plan->nextPlan timestamp mismatch");
+        }
+        m_nextPlan = nextPlan;
     }
 }

@@ -207,7 +207,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         pairData.onOrderBookUpdated(orderBook);
 
         StringBuilder sb = new StringBuilder();
-        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 6);
+        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 8);
         for (RoundPlan roundPlan : roundPlans) {
             roundPlan.minLog(sb);
             sb.append("; ");
@@ -229,23 +229,26 @@ System.out.println(System.currentTimeMillis() + ": " + line);
     }
 
     private void logTop() {
-System.out.println("best plan: ");
-        long timestamp = 0;
-        StringBuilder sb = new StringBuilder();
-        RoundPlan roundPlan = RoundData.s_bestPlans.get(0);
-        for (int i = 0; i < 6; i++) {
-            long nextTimestamp = roundPlan.m_timestamp;
-            sb.append((nextTimestamp - timestamp));
-            sb.append(": ");
-            roundPlan.minLog(sb);
-            sb.append("; ");
-            roundPlan = roundPlan.m_nextPlan;
-            if (roundPlan == null) {
-                break;
+System.out.println("best plans: ");
+        int num = Math.min(RoundData.s_bestPlans.size(), 8);
+        for (int j = 0; j < num; j++) {
+            StringBuilder sb = new StringBuilder();
+            long timestamp = 0;
+            RoundPlan roundPlan = RoundData.s_bestPlans.get(j);
+            for (int i = 0; i < 8; i++) {
+                long nextTimestamp = roundPlan.m_timestamp;
+                sb.append((nextTimestamp - timestamp));
+                sb.append(": ");
+                roundPlan.minLog(sb);
+                sb.append("; ");
+                roundPlan = roundPlan.m_nextPlan;
+                if (roundPlan == null) {
+                    break;
+                }
+                timestamp = nextTimestamp;
             }
-            timestamp = nextTimestamp;
-        }
 System.out.println(sb.toString());
+        }
     }
 
     private boolean onConsoleLine(String line) {

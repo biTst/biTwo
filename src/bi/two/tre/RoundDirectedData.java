@@ -15,6 +15,7 @@ class RoundDirectedData {
     public final Currency[] m_currencies;
     public final Round m_round;
     public final String m_name;
+    public final String m_shortName;
     public final List<PairDirectionData> m_pdds = new ArrayList<>();
 
     private static void log(String s) { Log.log(s); }
@@ -30,6 +31,7 @@ class RoundDirectedData {
         m_round = Round.get(c0, c1, c2);
 
         m_name = c0.m_name + "->" + c1.m_name + "->" + c2.m_name;
+        m_shortName = c0.m_shortName + c1.m_shortName + c2.m_shortName;
 
         int len = c.length;
         for (int i = 0; i < len; i++) {
