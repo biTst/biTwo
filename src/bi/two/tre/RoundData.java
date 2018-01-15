@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.Currency;
 import bi.two.exch.*;
+import bi.two.util.Log;
 import bi.two.util.Utils;
 
 import java.util.*;
@@ -21,6 +22,9 @@ class RoundData implements OrderBook.IOrderBookListener {
     public boolean m_allLive;
     public Map<Pair, CurrencyValue> m_minPassThruOrdersSize = new HashMap<>();
     private long m_minPassThruOrdersSizeRecalcTime;
+
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public RoundData(Currency[] currencies, Exchange exchange) {
         m_round = Round.get(currencies[0], currencies[1], currencies[2]);
@@ -139,11 +143,11 @@ class RoundData implements OrderBook.IOrderBookListener {
         for (RoundPlan plan : bestPlans) {
             sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + " " + Utils.millisToYDHMSStr(plan.m_liveTime) + ';');
         }
-        System.out.println(sb.toString());
+        log(sb.toString());
     }
 
     private void onBecomesLive() {
-        System.out.println("ALL becomes LIVE for round: " + this);
+        log("ALL becomes LIVE for round: " + this);
         long diff = System.currentTimeMillis() - m_minPassThruOrdersSizeRecalcTime;
         if (diff > RECALC_TIME) {
             recalcPassThruOrders();
@@ -151,13 +155,13 @@ class RoundData implements OrderBook.IOrderBookListener {
     }
 
     private void recalcPassThruOrders() {
-        System.out.println("recalcPassThruOrders: " + this);
+        log("recalcPassThruOrders: " + this);
         for (PairData pairData : m_pds) {
             Pair pair = pairData.m_pair;
             ExchPairData exchPairData = m_exchange.getPairData(pair);
             CurrencyValue minOrder = exchPairData.m_minOrderToCreate;
             CurrencyValue minOrderMul = new CurrencyValue(minOrder.m_value * MIN_ORDER_SIZE_MUL, minOrder.m_currency); // start with little bit bigger min order
-            System.out.println(" pair[" + pair + "].minOrder=" + minOrder + " => minOrderMul=" + minOrderMul);
+            log(" pair[" + pair + "].minOrder=" + minOrder + " => minOrderMul=" + minOrderMul);
             m_minPassThruOrdersSize.put(pair, minOrderMul);
         }
         int size = m_pds.size();
@@ -168,7 +172,7 @@ class RoundData implements OrderBook.IOrderBookListener {
             PairData pd2 = m_pds.get((i + 1) % size);
             Pair p2 = pd2.m_pair;
             CurrencyValue os2 = m_minPassThruOrdersSize.get(p2);
-            System.out.println(" compare: pair[" + p1 + "].minOrder=" + os1 + "  and  pair[" + p2 + "].minOrder=" + os2);
+            log(" compare: pair[" + p1 + "].minOrder=" + os1 + "  and  pair[" + p2 + "].minOrder=" + os2);
             Currency c1 = os1.m_currency;
             double v1 = os1.m_value;
             Currency c2 = os2.m_currency;
@@ -176,20 +180,20 @@ class RoundData implements OrderBook.IOrderBookListener {
 
             double rate = m_exchange.m_accountData.rate(c1, c2);
             double v1_ = v1 * rate;
-            System.out.println("  convert " + Utils.format8(v1) + c1.m_name + " -> " + Utils.format8(v1_) + c2.m_name + "; rate=" + Utils.format8(rate));
+            log("  convert " + Utils.format8(v1) + c1.m_name + " -> " + Utils.format8(v1_) + c2.m_name + "; rate=" + Utils.format8(rate));
             if (v1_ > v2) {
                 double factor = v1_ / v2;
                 CurrencyValue os2_ = new CurrencyValue(v2 * factor, c2);
-                System.out.println("   " + Utils.format8(v1_) + " > " + Utils.format8(v2) + "; factor=" + Utils.format8(factor) + ";  " + os2 + " => " + os2_);
+                log("   " + Utils.format8(v1_) + " > " + Utils.format8(v2) + "; factor=" + Utils.format8(factor) + ";  " + os2 + " => " + os2_);
                 m_minPassThruOrdersSize.put(p2, os2_);
             } else {
                 double factor = v2 / v1_;
                 CurrencyValue os1_ = new CurrencyValue(v1 * factor, c1);
-                System.out.println("   " + Utils.format8(v1_) + " <= " + Utils.format8(v2) + "; factor=" + Utils.format8(factor) + ";  " + os1 + " => " + os1_);
+                log("   " + Utils.format8(v1_) + " <= " + Utils.format8(v2) + "; factor=" + Utils.format8(factor) + ";  " + os1 + " => " + os1_);
                 m_minPassThruOrdersSize.put(p1, os1_);
             }
 
-            System.out.println("minPassThruOrdersSize=" + m_minPassThruOrdersSize);
+            log("minPassThruOrdersSize=" + m_minPassThruOrdersSize);
         }
         m_minPassThruOrdersSizeRecalcTime = System.currentTimeMillis();
     }

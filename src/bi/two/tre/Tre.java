@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.*;
 import bi.two.exch.impl.CexIo;
+import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ public class Tre {
     private ExecutorService m_threadPool;
     private OrderBook.IOrderBookListener m_bookListener = new OrderBook.IOrderBookListener() {
         @Override public void onOrderBookUpdated(OrderBook orderBook) {
-            System.out.println("onOrderBookUpdated: " + orderBook);
+            log("onOrderBookUpdated: " + orderBook);
             Pair pair = orderBook.m_pair;
             PairData pairData = PairData.get(pair);
             pairData.onOrderBookUpdated(orderBook);
@@ -46,10 +47,12 @@ public class Tre {
     private boolean m_initialized;
     private Runnable m_secRunnable = new Runnable() {
         @Override public void run() {
-            System.out.println("secRunnable.run()");
+            log("secRunnable.run()");
         }
     };
 
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(String[] args) {
         new Tre().main();
@@ -57,6 +60,9 @@ public class Tre {
 
     private void main() {
         try {
+//            Log.s_impl = new Log.TimestampLog();
+            Log.s_impl = new Log.NoLog();
+
             m_timer = new Timer();
 
             MarketConfig.initMarkets(false);
@@ -73,16 +79,41 @@ public class Tre {
             });
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
-            System.out.println("done");
+            log("done");
         } catch (Exception e) {
-            System.out.println("ERROR: " + e);
-            e.printStackTrace();
+            err("ERROR: " + e, e);
+        }
+    }
+
+    // can be called on reconnect
+    private void onExchangeConnected() {
+        try {
+            log("onConnected() " + m_exchange);
+
+            if (m_roundDatas.isEmpty()) { // initIfNeeded
+                mainInit();
+            }
+
+            log(" queryAccount()...");
+            m_exchange.queryAccount(new Exchange.IAccountListener() {
+                @Override public void onUpdated() throws Exception {
+                    log("Account.onAccount() " + m_exchange.m_accountData);
+                    if (!m_initialized) {
+                        initThreadPool();
+                        subscribeBooks();
+                        startSecTimer();
+                        m_initialized = true;
+                    }
+                }
+            });
+        } catch (Exception e) {
+            err("onExchangeConnected error: " + e, e);
         }
     }
 
     private void onExchangeDisconnected() {
         try {
-            System.out.println("onExchangeDisconnected");
+            log("onExchangeDisconnected");
             m_initialized = false;
             stopSecTimer();
             shutdownThreadPool();
@@ -93,33 +124,7 @@ public class Tre {
                 pairData.onDisconnected();
             }
         } catch (Exception e) {
-            System.out.println("onExchangeDisconnected error: " + e);
-            e.printStackTrace();
-        }
-    }
-
-    // can be called on reconnect ?
-    private void onExchangeConnected() {
-        try {
-            System.out.println("onConnected() " + m_exchange);
-
-            initIfNeeded();
-
-            System.out.println(" queryAccount()...");
-            m_exchange.queryAccount(new Exchange.IAccountListener() {
-                @Override public void onUpdated() throws Exception {
-                    System.out.println("Account.onAccount() " + m_exchange.m_accountData);
-                    if (!m_initialized) {
-                        initThreadPool();
-                        subscribeBooks();
-                        startSecTimer();
-                        m_initialized = true;
-                    }
-                }
-            });
-        } catch (Exception e) {
-            System.out.println("onExchangeConnected error: " + e);
-            e.printStackTrace();
+            err("onExchangeDisconnected error: " + e, e);
         }
     }
 
@@ -130,24 +135,18 @@ public class Tre {
 
     private void shutdownThreadPool() {
         try {
-            System.out.println("attempt to shutdown ThreadPool");
+            log("attempt to shutdown ThreadPool");
             m_threadPool.shutdown();
             m_threadPool.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            System.err.println("tasks interrupted");
+            log("tasks interrupted");
         } finally {
             if (!m_threadPool.isTerminated()) {
                 System.err.println("cancel non-finished tasks");
             }
             m_threadPool.shutdownNow();
-            System.out.println("shutdown ThreadPool finished");
+            log("shutdown ThreadPool finished");
             m_threadPool = null;
-        }
-    }
-
-    private void initIfNeeded() {
-        if (m_roundDatas.isEmpty()) {
-            mainInit();
         }
     }
 
@@ -157,7 +156,7 @@ public class Tre {
             m_roundDatas.add(roundData);
             roundData.getPairDatas(m_pairDatas);
         }
-        System.out.println("roundDatas: " + m_roundDatas);
+        log("roundDatas: " + m_roundDatas);
 
         for (PairData pairData : m_pairDatas) {
             Pair pair = pairData.m_pair;
@@ -170,7 +169,7 @@ public class Tre {
             ExchPairData exchPairData = m_exchange.getPairData(pair);
             pairData.init(exchPairData, orderBook);
         }
-        System.out.println("pairDatas: " + m_pairDatas);
+        log("pairDatas: " + m_pairDatas);
     }
 
     private void startSecTimer() {
@@ -190,7 +189,7 @@ public class Tre {
     }
 
     private void subscribeBooks() throws Exception {
-        System.out.println("subscribeBooks()");
+        log("subscribeBooks()");
         for (PairData pairData : m_pairDatas) {
             subscribePairBook(pairData);
         }
@@ -198,7 +197,7 @@ public class Tre {
 
     private void subscribePairBook(PairData pairData) throws Exception {
         Pair pair = pairData.m_pair;
-        System.out.println(" subscribePairBook: " + pair);
+        log(" subscribePairBook: " + pair);
 
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         if (SNAPSHOT_ONLY) {

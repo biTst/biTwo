@@ -2,6 +2,7 @@ package bi.two.exch.impl;
 
 import bi.two.exch.*;
 import bi.two.util.Hex;
+import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
@@ -37,6 +38,9 @@ public class CexIo extends BaseExchImpl {
     private List<Currency> m_currencies = new ArrayList<>();
     private String[] m_supportedCurrencies = new String[]{"BTC", "USD", "EUR", "GHS", "BTG", "GBP", "BCH",};
 
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
+
     public CexIo(MapConfig config, Exchange exchange) {
         m_exchange = exchange;
         m_apiKey = config.getString("cex_apiKey");
@@ -51,39 +55,39 @@ public class CexIo extends BaseExchImpl {
     }
 
     public static void main(String[] args) {
-        System.out.println("main()");
+        log("main()");
         try {
             Endpoint endpoint = new Endpoint() {
                 @Override public void onOpen(Session session, EndpointConfig config) {
-                    System.out.println("onOpen() session=" + session + "; config=" + config);
+                    log("onOpen() session=" + session + "; config=" + config);
 
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
                         @Override
                         public void onMessage(String message) {
-                            System.out.println("onMessage() message=" + message);
+                            log("onMessage() message=" + message);
                         }
                     });
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
-                    System.out.println("onClose");
+                    log("onClose");
                     super.onClose(session, closeReason);
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
-                    System.out.println("onError");
+                    log("onError");
                     super.onError(session, thr);
                 }
             };
 
-            System.out.println("connectToServer...");
+            log("connectToServer...");
             connectToServer(endpoint);
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
-            System.out.println("done");
+            log("done");
 
         } catch (Exception e) {
-            System.out.println("error: " + e);
+            log("error: " + e);
             e.printStackTrace();
         }
 
@@ -122,13 +126,13 @@ public class CexIo extends BaseExchImpl {
         String signature = "7d581adb01ad22f1ed38e1159a7f08ac5d83906ae1a42fe17e7d977786fe9694"; // expected signature
 
         String sign = createSignature(timestamp, apiSecret, apiKey);
-        System.out.println("signature=" + sign);
-        System.out.println(" expected=" + signature);
-        System.out.println("   equals=" + signature.equals(sign));
+        log("signature=" + sign);
+        log(" expected=" + signature);
+        log("   equals=" + signature.equals(sign));
     }
 
     private void onMessageX(Session session, String message) {
-        System.out.println("<< received: " + message);
+        log("<< received: " + message);
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObject = (JSONObject) parser.parse(message);
@@ -181,8 +185,7 @@ public class CexIo extends BaseExchImpl {
                 throw new RuntimeException("unexpected json: " + jsonObject);
             }
         } catch (Exception e) {
-            System.out.println("onMessageX ERROR: " + e);
-            e.printStackTrace();
+            err("onMessageX ERROR: " + e, e);
         }
     }
 
@@ -201,7 +204,7 @@ public class CexIo extends BaseExchImpl {
 
         JSONArray data = (JSONArray) jsonObject.get("data");
         Object pair = jsonObject.get("pair");
-        System.out.println(" onOhlcv24[" + pair + "]: data=" + data);
+        log(" onOhlcv24[" + pair + "]: data=" + data);
     }
 
     private static void onHistoryUpdate(Session session, JSONObject jsonObject) {
@@ -213,7 +216,7 @@ public class CexIo extends BaseExchImpl {
         // History update - 
 
         JSONArray data = (JSONArray) jsonObject.get("data");
-        System.out.println(" onHistoryUpdate: data=" + data);
+        log(" onHistoryUpdate: data=" + data);
     }
 
     private static void onHistory(Session session, JSONObject jsonObject) {
@@ -226,12 +229,12 @@ public class CexIo extends BaseExchImpl {
         // History snapshot -  trade history of 201 records
 
         JSONArray data = (JSONArray) jsonObject.get("data");
-        System.out.println(" onHistory: data=" + data);
+        log(" onHistory: data=" + data);
     }
 
     private static void onMdGroupped(Session session, JSONObject jsonObject) {
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onMdGroupped: data=" + data);
+        log(" onMdGroupped: data=" + data);
 
         // Market Depth
         
@@ -239,9 +242,9 @@ public class CexIo extends BaseExchImpl {
         Object sell = data.get("sell");
         Object id = data.get("id");
         Object pair = data.get("pair");
-        System.out.println("  buy=" + buy);
-        System.out.println("  sell=" + sell);
-        System.out.println("  pair=" + pair + ";  id=" + id);
+        log("  buy=" + buy);
+        log("  sell=" + sell);
+        log("  pair=" + pair + ";  id=" + id);
     }
 
     private static void onMd(Session session, JSONObject jsonObject) {
@@ -255,15 +258,15 @@ public class CexIo extends BaseExchImpl {
         // Order Book snapshot  -  with depth 50
 
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onMd: data=" + data);
+        log(" onMd: data=" + data);
 
         Object buy = data.get("buy");
         Object sell = data.get("sell");
         Object id = data.get("id");
         Object pair = data.get("pair");
-        System.out.println("  buy=" + buy);
-        System.out.println("  sell=" + sell);
-        System.out.println("  pair=" + pair + ";  id=" + id);
+        log("  buy=" + buy);
+        log("  sell=" + sell);
+        log("  pair=" + pair + ";  id=" + id);
     }
 
     private static void onTx(Session session, JSONObject jsonObject) {
@@ -271,34 +274,34 @@ public class CexIo extends BaseExchImpl {
         //  "user":"up100734377","symbol":"BTC","order":5067483259,"amount":"-0.01000000","type":"sell","time":"2017-11-25T00:25:39.812Z",
         //  "balance":"0.01431350","id":"5067483260"}
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onTx: data=" + data);
+        log(" onTx: data=" + data);
     }
 
     private static void onObalance(Session session, JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1000000"}
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onObalance: data=" + data);
+        log(" onObalance: data=" + data);
 
         Object symbol = data.get("symbol");
         Object balance = data.get("balance");
-        System.out.println("  symbol=" + symbol + ";  balance=" + balance);
+        log("  symbol=" + symbol + ";  balance=" + balance);
     }
 
     private static void onBalance(Session session, JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1431350"}
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onBalance: data=" + data);
+        log(" onBalance: data=" + data);
 
         Object symbol = data.get("symbol");
         Object balance = data.get("balance");
-        System.out.println("  symbol=" + symbol + ";  balance=" + balance);
+        log("  symbol=" + symbol + ";  balance=" + balance);
     }
 
     private static void onOrder(Session session, JSONObject jsonObject) {
         // {"amount":1000000,"price":"9000.0123","fee":"0.17","remains":"1000000","id":"5067483259","time":"1511569539812",
         //  "type":"sell","pair":{"symbol1":"BTC","symbol2":"USD"}}
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onOrder: data=" + data);
+        log(" onOrder: data=" + data);
     }
 
     private static void onCancelOrder(Session session, JSONObject jsonObject) {
@@ -307,13 +310,13 @@ public class CexIo extends BaseExchImpl {
         String ok = (String) jsonObject.get("ok");
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data);
+        log(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data);
 
         if (Utils.equals(ok, "error")) {
             String error = (String) data.get("error");
-            System.out.println("  Error canceling order: " + error);
+            log("  Error canceling order: " + error);
         } else if (Utils.equals(ok, "ok")) {
-            System.out.println("  order cancelled");
+            log("  order cancelled");
         } else {
             throw new RuntimeException("onCancelOrder: unexpected ok=" + ok);
         }
@@ -325,14 +328,14 @@ public class CexIo extends BaseExchImpl {
         // {"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":1511569539812,"complete":false,"type":"sell"}
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onPlaceOrder[" + oid + "]: data=" + data);
+        log(" onPlaceOrder[" + oid + "]: data=" + data);
 
         Object error = data.get("error");
         if (error != null) {
-            System.out.println("  Error placing order[" + oid + "]: " + error);
+            log("  Error placing order[" + oid + "]: " + error);
         } else {
             Object id = data.get("id");
-            System.out.println("  Order place OK. id=" + id);
+            log("  Order place OK. id=" + id);
         }
     }
 
@@ -340,13 +343,13 @@ public class CexIo extends BaseExchImpl {
         // [{"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":"1511569539812","type":"sell"}]
         Object oid = jsonObject.get("oid");
         JSONArray data = (JSONArray) jsonObject.get("data");
-        System.out.println(" onOpenOrders[" + oid + "]: data=" + data);
+        log(" onOpenOrders[" + oid + "]: data=" + data);
         String orderToCancelId = null;
         for (Object order : data) {
-            System.out.println("  openOrder: " + order);
+            log("  openOrder: " + order);
             JSONObject jsonOrder = (JSONObject) order;
             String orderId = (String) jsonOrder.get("id");
-            System.out.println("   orderId: " + orderId);
+            log("   orderId: " + orderId);
             orderToCancelId = orderId; // will cancel last order
         }
 
@@ -360,7 +363,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private static void cancelOrder(Session session, String orderToCancelId) throws IOException {
-        System.out.println(" cancelOrder() orderToCancelId=" + orderToCancelId);
+        log(" cancelOrder() orderToCancelId=" + orderToCancelId);
 
 //        {
 //            "e": "cancel-order",
@@ -376,7 +379,7 @@ public class CexIo extends BaseExchImpl {
     private static void onOrderBookUnsubscribe(Session session, JSONObject jsonObject) {
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onOrderBookUnsubscribe[" + oid + "]: data=" + data);
+        log(" onOrderBookUnsubscribe[" + oid + "]: data=" + data);
     }
 
     private void onMdUpdate(Session session, JSONObject jsonObject) {
@@ -428,12 +431,11 @@ public class CexIo extends BaseExchImpl {
                     List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
                     List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
 
-//        System.out.println(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
+//        log(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
                     orderBook.update(aBids, aAsks);
-//        System.out.println(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
+//        log(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
                 } catch (Exception e) {
-                    System.out.println("processOrderBook error: " + e);
-                    e.printStackTrace();
+                    err("processOrderBook error: " + e, e);
                 }
             }
         });
@@ -447,8 +449,8 @@ public class CexIo extends BaseExchImpl {
             Number size = (Number) aBid.get(1);
             OrderBook.OrderBookEntry entry = new OrderBook.OrderBookEntry(price.doubleValue(), size.doubleValue());
             aBids.add(entry);
-//            System.out.println("  price=" + price + "; .class=" + price.getClass());
-//            System.out.println("  size=" + size + "; .class=" + size.getClass());
+//            log("  price=" + price + "; .class=" + price.getClass());
+//            log("  size=" + size + "; .class=" + size.getClass());
         }
         return aBids;
     }
@@ -473,12 +475,12 @@ public class CexIo extends BaseExchImpl {
         //  "time":1511566228653}
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onGetBalance[" + oid + "]: data=" + data);
+        log(" onGetBalance[" + oid + "]: data=" + data);
 
         JSONObject balance = (JSONObject) data.get("balance");
         JSONObject obalance = (JSONObject) data.get("obalance");
-        System.out.println("  balance: " + parseBalance(balance));
-        System.out.println("  obalance: " + parseBalance(obalance));
+        log("  balance: " + parseBalance(balance));
+        log("  obalance: " + parseBalance(obalance));
 
         for (Currency currency : m_currencies) {
             String name = currency.m_name.toUpperCase();
@@ -529,7 +531,7 @@ public class CexIo extends BaseExchImpl {
         //  "volume30d":"59773.74906418","bid":8248.99,"pair":["BTC","USD"],"timestamp":"1511565345"}
         Object oid = jsonObject.get("oid");
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" onTicker[" + oid + "]: data=" + data);
+        log(" onTicker[" + oid + "]: data=" + data);
 
         Object bid = data.get("bid");
         Object ask = data.get("ask");
@@ -538,22 +540,22 @@ public class CexIo extends BaseExchImpl {
         String cur2 = (String) pairArray.get(1);
         String pairName = cur1 + "_" + cur2;
         Pair pair = Pair.getByNameInt(pairName.toLowerCase());
-        System.out.println("  " + pairName + ":  bid=" + bid + "; ask=" + ask + "      pair=" + pair);
+        log("  " + pairName + ":  bid=" + bid + "; ask=" + ask + "      pair=" + pair);
     }
 
     private static void onTick(Session session, JSONObject jsonObject) {
         // {"price":"463.2","symbol1":"ETH","symbol2":"USD"}
         Object data = jsonObject.get("data");
-        System.out.println(" onTick: data=" + data);
+        log(" onTick: data=" + data);
     }
 
     private static void onDisconnecting(Session session, JSONObject jsonObject) {
         Object reason = jsonObject.get("reason");
-        System.out.println(" onDisconnecting: " + reason);
+        log(" onDisconnecting: " + reason);
     }
 
     private static void onPing(Session session, JSONObject jsonObject) throws IOException {
-        System.out.println(" got ping: " + jsonObject);
+        log(" got ping: " + jsonObject);
         //cexioWs.send(JSON.stringify({e: "pong"}));
         send(session, "{\"e\": \"pong\"}");
     }
@@ -561,9 +563,9 @@ public class CexIo extends BaseExchImpl {
     private void onAuth(Session session, JSONObject jsonObject) {
         // {"e":"auth","data":{"error":"Invalid API key"},"ok":"error"}
         JSONObject data = (JSONObject) jsonObject.get("data");
-        System.out.println(" data: " + data);
+        log(" data: " + data);
         String error = (String) data.get("error");
-        System.out.println("  error: " + error);
+        log("  error: " + error);
         if (error != null) {
             throw new RuntimeException("auth error: " + error);
         }
@@ -575,7 +577,7 @@ public class CexIo extends BaseExchImpl {
 //                    "ok": "ok"
 //                }
         String ok = (String) data.get("ok");
-        System.out.println("  ok: " + ok);
+        log("  ok: " + ok);
         if (Utils.equals(ok, "ok")) {
             if (m_exchangeConnectListener != null) {
                 m_exchangeConnectListener.onConnected();
@@ -587,7 +589,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private static void onAuthenticated(Session session) throws Exception {
-        System.out.println("onAuthenticated");
+        log("onAuthenticated");
 //        {
 //            "e": "subscribe",
 //            "rooms": ["pair-BTC-USD"]
@@ -597,7 +599,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private static void __onAuthenticated(Session session) throws Exception {
-        System.out.println("onAuthenticated");
+        log("onAuthenticated");
 //        queryTickers(session);
 
         queryTicket(session, "BTC", "USD");
@@ -713,7 +715,7 @@ public class CexIo extends BaseExchImpl {
         // can be received in case WebSocket client has reconnected, which means that client needs to send 'authenticate'
         // request and subscribe for notifications, like by first connection
 
-        System.out.println("onConnected ");
+        log("onConnected ");
 
         long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
         String signature = createSignature(timestamp, m_apiSecret, m_apiKey);
@@ -735,7 +737,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     private static void send(Session session, String str) throws IOException {
-        System.out.println(">> send: " + str);
+        log(">> send: " + str);
         RemoteEndpoint.Basic basicRemote = session.getBasicRemote();
         basicRemote.sendText(str);
     }
@@ -758,7 +760,7 @@ public class CexIo extends BaseExchImpl {
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
-                System.out.println("onOpen");
+                log("onOpen");
                 try {
                     m_session = session;
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
@@ -767,13 +769,13 @@ public class CexIo extends BaseExchImpl {
                         }
                     });
                 } catch (Exception e) {
-                    System.out.println("onOpen ERROR: " + e);
+                    log("onOpen ERROR: " + e);
                     e.printStackTrace();
                 }
             }
 
             @Override public void onClose(Session session, CloseReason closeReason) {
-                System.out.println("onClose: " + closeReason);
+                log("onClose: " + closeReason);
                 m_exchange.onDisconnected();
                 if (m_exchangeConnectListener != null) {
                     m_exchangeConnectListener.onDisconnected();
@@ -781,23 +783,21 @@ public class CexIo extends BaseExchImpl {
             }
 
             @Override public void onError(Session session, Throwable thr) {
-                System.out.println("onError: " + thr);
+                log("onError: " + thr);
                 thr.printStackTrace();
             }
         };
-        System.out.println("connectToServer...");
+        log("connectToServer...");
         connectToServer(endpoint);
-        System.out.println("session isOpen=" + m_session.isOpen());
+        log("session isOpen=" + m_session.isOpen());
     }
 
     @Override public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
         Pair pair = orderBook.m_pair;
-        System.out.println("subscribeOrderBook: " + pair);
-
         Currency fromCurr = pair.m_from;
-        System.out.println(" fromCurr: " + fromCurr);
         Currency toCurr = pair.m_to;
-        System.out.println(" toCurr: " + toCurr);
+
+        log("subscribeOrderBook: " + pair + "; fromCurr: " + fromCurr + "; toCurr: " + toCurr);
 
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
@@ -808,12 +808,10 @@ public class CexIo extends BaseExchImpl {
 
     @Override public void queryOrderBookSnapshot(OrderBook orderBook, int depth) throws Exception {
         Pair pair = orderBook.m_pair;
-        System.out.println("queryOrderBookSnapshot: " + pair);
-
         Currency fromCurr = pair.m_from;
-        System.out.println(" fromCurr: " + fromCurr);
         Currency toCurr = pair.m_to;
-        System.out.println(" toCurr: " + toCurr);
+
+        log("queryOrderBookSnapshot: " + pair + "; fromCurr: " + fromCurr + "; toCurr: " + toCurr);
 
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
@@ -834,8 +832,8 @@ public class CexIo extends BaseExchImpl {
         @Override public boolean onDisconnect(CloseReason closeReason) {
             m_counter++;
             m_connectFailure = 0;
-            System.out.println("onDisconnect() closeReason=" + closeReason);
-            System.out.println(" Reconnecting... (reconnect count: " + m_counter + ")");
+            log("onDisconnect() closeReason=" + closeReason);
+            log(" Reconnecting... (reconnect count: " + m_counter + ")");
             return true;
         }
 
@@ -843,8 +841,8 @@ public class CexIo extends BaseExchImpl {
             m_counter++;
             m_connectFailure++;
 
-            System.out.println("onConnectFailure() exception=" + exception);
-            System.out.println("### Reconnecting... (connectFailure:" + m_connectFailure + "; reconnect count: " + m_counter + ")");
+            log("onConnectFailure() exception=" + exception);
+            log("### Reconnecting... (connectFailure:" + m_connectFailure + "; reconnect count: " + m_counter + ")");
 
             try {
                 TimeUnit.SECONDS.sleep(m_connectFailure);
