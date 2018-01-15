@@ -624,7 +624,7 @@ public class CexIo extends BaseExchImpl {
         String orderSize = "0.01";
         String price = "9000.0123";
         String side = "sell";
-        placeOrder(session, orderSize, price, side);
+        placeOrder(session, Pair.get(Currency.BTC, Currency.USD), orderSize, price, side);
     }
 
     private static void queryTickers(Session session) throws IOException {
@@ -635,7 +635,7 @@ public class CexIo extends BaseExchImpl {
         send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
     }
 
-    private static void placeOrder(Session session, String orderSize, String price, String side) throws IOException {
+    private static void placeOrder(Session session, Pair pair, String orderSize, String price, String side) throws IOException {
         //        {
         //            "e": "place-order",
         //            "data": {
@@ -648,8 +648,25 @@ public class CexIo extends BaseExchImpl {
         //        }
 
         long timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ], \"amount\": " + orderSize
+        send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"" + pair.m_from + "\", \"" + pair.m_to + "\" ], \"amount\": " + orderSize
                 + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + timeMillis + "_place-order\" }");
+    }
+
+    private static void replaceOrder(Session session, String orderId, Pair pair, String orderSize, String price, String side) throws IOException {
+        //        {
+        //            "e": "cancel-replace-order",
+        //            "data": {
+        //                  "order_id": "2477098",
+        //                  "pair": ["BTC","USD"],
+        //                  "amount": 0.04,
+        //                  "price": "243.2500",
+        //                  "type": "buy"
+        //            },
+        //            "oid": "1443464955209_16_cancel-replace-order"
+        //        }
+
+        long timeMillis = System.currentTimeMillis() / 1000;
+        send(session, "{\"e\": \"cancel-replace-order\",\"data\": {\"order_id\": \"" + orderId + "\",\"pair\": [\"" + pair.m_from + "\",\"" + pair.m_to + "\"],\"amount\": " + orderSize + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + timeMillis + "_cancel-replace-order\"}");
     }
 
     private static void queryOpenOrders(Session session) throws IOException {
