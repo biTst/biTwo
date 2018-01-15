@@ -832,8 +832,8 @@ public class CexIo extends BaseExchImpl {
         @Override public boolean onDisconnect(CloseReason closeReason) {
             m_counter++;
             m_connectFailure = 0;
-            log("onDisconnect() closeReason=" + closeReason);
-            log(" Reconnecting... (reconnect count: " + m_counter + ")");
+            log("onDisconnect() closeReason=" + closeReason +
+                   "\n Reconnecting... (reconnect count: " + m_counter + ")");
             return true;
         }
 
@@ -841,7 +841,7 @@ public class CexIo extends BaseExchImpl {
             m_counter++;
             m_connectFailure++;
 
-            log("onConnectFailure() exception=" + exception);
+            err("onConnectFailure() exception=" + exception, exception);
             log("### Reconnecting... (connectFailure:" + m_connectFailure + "; reconnect count: " + m_counter + ")");
 
             try {
