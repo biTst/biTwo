@@ -226,7 +226,7 @@ class RoundDirectedData {
         plans.add(roundPlan);
 
         if (LOG_ROUND_CALC) {
-            System.out.print(roundPlan.log());
+            System.out.print(roundPlan.logFull());
         }
 
         return 1;

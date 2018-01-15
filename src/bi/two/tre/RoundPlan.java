@@ -1,5 +1,7 @@
 package bi.two.tre;
 
+import bi.two.util.Utils;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -53,8 +55,7 @@ public class RoundPlan {
         return Objects.hash(m_rdd, m_roundPlanType);
     }
 
-
-    public String log() {
+    public String logFull() {
         StringBuilder sb = new StringBuilder();
         sb.append("RoundPlan ");
         sb.append(m_rdd);
@@ -71,5 +72,13 @@ public class RoundPlan {
             roundNodePlan.log(sb);
         }
         return sb.toString();
+    }
+
+    public void minLog(StringBuilder sb) {
+        sb.append(m_rdd);
+        sb.append(":");
+        sb.append(m_roundPlanType);
+        sb.append(" ");
+        sb.append(Utils.format8(m_roundRate));
     }
 }

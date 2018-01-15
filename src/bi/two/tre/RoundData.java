@@ -13,7 +13,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static final double MIN_ORDER_SIZE_MUL = 1.1; // do not use in orders like 0.01 - after rounding we may got 0.009987654
 
     private static List<RoundPlan> s_bestPlans = new ArrayList<>();
-    private static List<RoundPlan> s_allPlans = new ArrayList<>();
+    public static List<RoundPlan> s_allPlans = new ArrayList<>();
 
     public final Round m_round;
     public final Exchange m_exchange;

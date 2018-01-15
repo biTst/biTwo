@@ -13,13 +13,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class Tre {
+public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
-    private static final boolean SNAPSHOT_ONLY = true;
+    private static final boolean SNAPSHOT_ONLY = false;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
             {Currency.BTC, Currency.USD, Currency.ETH},
@@ -34,22 +34,11 @@ public class Tre {
     private ArrayList<PairData> m_pairDatas = new ArrayList<>();
     private State m_state = State.watching;
     private ExecutorService m_threadPool;
-    private OrderBook.IOrderBookListener m_bookListener = new OrderBook.IOrderBookListener() {
-        @Override public void onOrderBookUpdated(OrderBook orderBook) {
-            log("onOrderBookUpdated: " + orderBook);
-            Pair pair = orderBook.m_pair;
-            PairData pairData = PairData.get(pair);
-            pairData.onOrderBookUpdated(orderBook);
-        }
-    };
     private Timer m_timer;
     private TimerTask m_secTimerTask;
     private boolean m_initialized;
-    private Runnable m_secRunnable = new Runnable() {
-        @Override public void run() {
-            log("secRunnable.run()");
-        }
-    };
+    private Runnable m_secRunnable = new Runnable() { @Override public void run() { onSecTimer(); } };
+    private String m_lastLogStr = "";
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -201,10 +190,38 @@ public class Tre {
 
         OrderBook orderBook = m_exchange.getOrderBook(pair);
         if (SNAPSHOT_ONLY) {
-            orderBook.snapshot(m_bookListener, SUBSCRIBE_DEPTH);
+            orderBook.snapshot(this, SUBSCRIBE_DEPTH);
         } else {
-            orderBook.subscribe(m_bookListener, SUBSCRIBE_DEPTH);
+            orderBook.subscribe(this, SUBSCRIBE_DEPTH);
         }
+    }
+
+    @Override public void onOrderBookUpdated(OrderBook orderBook) {
+        log("onOrderBookUpdated: " + orderBook);
+        Pair pair = orderBook.m_pair;
+        PairData pairData = PairData.get(pair);
+        pairData.onOrderBookUpdated(orderBook);
+
+        StringBuilder sb = new StringBuilder();
+        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 6);
+        for (RoundPlan roundPlan : roundPlans) {
+            roundPlan.minLog(sb);
+            sb.append("; ");
+        }
+        String line = sb.toString();
+        if (!line.equals(m_lastLogStr)) { // do not log the same twice
+            m_lastLogStr = line;
+            System.out.println(line);
+        }
+    }
+
+    private void onSecTimer() {
+        log("secRunnable.run()");
+
+//        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 6);
+//        for (RoundPlan roundPlan : roundPlans) {
+//            System.out.println(roundPlan.log());
+//        }
     }
 
 
