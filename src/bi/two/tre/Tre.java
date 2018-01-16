@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class Tre implements OrderBook.IOrderBookListener {
+    private static final boolean NO_LOGS = false;
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
@@ -51,8 +52,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private void main() {
         try {
-//            Log.s_impl = new Log.TimestampLog();
-            Log.s_impl = new Log.NoLog();
+            Log.s_impl = NO_LOGS ? new Log.NoLog() : new Log.TimestampLog();
 
             m_timer = new Timer();
 
@@ -90,17 +90,29 @@ public class Tre implements OrderBook.IOrderBookListener {
             log(" queryAccount()...");
             m_exchange.queryAccount(new Exchange.IAccountListener() {
                 @Override public void onUpdated() throws Exception {
-                    log("Account.onAccount() " + m_exchange.m_accountData);
-                    if (!m_initialized) {
-                        initThreadPool();
-                        subscribeBooks();
-                        startSecTimer();
-                        m_initialized = true;
-                    }
+                    onGotAccount();
                 }
             });
         } catch (Exception e) {
             err("onExchangeConnected error: " + e, e);
+        }
+    }
+
+    private void onGotAccount() throws Exception {
+        log("Exchange.onAccount() " + m_exchange.m_accountData);
+        if (!m_initialized) {
+            initThreadPool();
+
+            log(" queryOrders()...");
+            m_exchange.queryOrders(Pair.get(Currency.BTC, Currency.USD), new Exchange.IOrdersListener() {
+                @Override public void onUpdated(){
+                    log("Exchange.onOrders() ");
+                }
+            });
+
+//            subscribeBooks();
+//            startSecTimer();
+            m_initialized = true;
         }
     }
 
@@ -230,7 +242,7 @@ System.out.println(System.currentTimeMillis() + ": " + line);
 
     private void logTop() {
 System.out.println("best plans: ");
-        int num = Math.min(RoundData.s_bestPlans.size(), 8);
+        int num = Math.min(RoundData.s_bestPlans.size(), 20);
         for (int j = 0; j < num; j++) {
             StringBuilder sb = new StringBuilder();
             long timestamp = 0;

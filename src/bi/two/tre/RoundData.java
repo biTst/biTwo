@@ -12,7 +12,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     private static final long RECALC_TIME = TimeUnit.MINUTES.toMillis(5);
     private static final double MIN_ORDER_SIZE_MUL = 1.1; // do not use in orders like 0.01 - after rounding we may got 0.009987654
     private static final boolean LOG_RATES = Tre.LOG_RATES;
-    public static final int BEST_PLANS_COUNT = 8;
+    public static final int BEST_PLANS_COUNT = 20;
 
     public static List<RoundPlan> s_bestPlans = new ArrayList<>();
     public static List<RoundPlan> s_allPlans = new ArrayList<>();

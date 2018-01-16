@@ -4,6 +4,7 @@ import bi.two.util.Utils;
 
 public class OrderData {
     public final Exchange m_exchange;
+    public String m_orderId;
     public final Pair m_pair;
     public final OrderSide m_side;
     public final OrderType m_type;
@@ -12,12 +13,13 @@ public class OrderData {
     public double m_amount;
 
     public long m_placeTime;
-    public String m_orderId;
     public double m_filled; // filled amount
+    private double m_remainedAmount;
 
-    public OrderData(Exchange exchange, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
+    public OrderData(Exchange exchange, String orderId, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
         m_exchange = exchange;
+        m_orderId = orderId;
         m_type = orderType; // like OrderType.LIMIT
         m_side = side; // like OrderSide.BUY
         m_pair = pair; // like Pair.BTC_USD
@@ -50,5 +52,12 @@ public class OrderData {
                 ", price=" + Utils.format5(m_price) +
                 ", filled=" + Utils.format5(m_filled) +
                 '}';
+    }
+
+    public void setFilled(double filled) {
+        m_filled = filled;
+        if (filled > 0) { // something is executed
+            m_status = OrderStatus.PARTIALLY_FILLED;
+        }
     }
 }

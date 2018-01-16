@@ -3,7 +3,6 @@ package bi.two.exch;
 import bi.two.tre.CurrencyValue;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
@@ -20,6 +19,7 @@ public class Exchange {
     private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
     public IAccountListener m_accountListener;
     public ExecutorService m_threadPool;
+    public Map<Pair, LiveOrdersData> m_liveOrdersMap = new HashMap<>();
 
     public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
 
@@ -104,13 +104,28 @@ public class Exchange {
         m_impl.queryOrderBookSnapshot(orderBook, depth);
     }
 
-    public void queryAccount(IAccountListener iAccountListener) throws IOException, InterruptedException {
+    public void queryAccount(IAccountListener iAccountListener) throws Exception {
         m_accountListener = iAccountListener;
         m_impl.queryAccount();
     }
 
     public void onDisconnected() {
         m_orderBooks.clear();
+    }
+
+    public void queryOrders(Pair pair, IOrdersListener listener) throws Exception {
+        LiveOrdersData liveOrders = getLiveOrders(pair);
+        liveOrders.setOrdersListener(listener);
+        m_impl.queryOrders(liveOrders);
+    }
+
+    private LiveOrdersData getLiveOrders(Pair pair) {
+        LiveOrdersData liveOrders = m_liveOrdersMap.get(pair);
+        if (liveOrders == null) {
+            liveOrders = new LiveOrdersData(pair);
+            m_liveOrdersMap.put(pair, liveOrders);
+        }
+        return liveOrders;
     }
 
 
@@ -124,5 +139,11 @@ public class Exchange {
     //----------------------------------------------------------------------------------------
     public interface IAccountListener {
         void onUpdated() throws Exception;
+    }
+
+
+    //----------------------------------------------------------------------------------------
+    public interface IOrdersListener {
+        void onUpdated();
     }
 }

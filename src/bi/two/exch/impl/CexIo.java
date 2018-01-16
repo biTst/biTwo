@@ -37,6 +37,7 @@ public class CexIo extends BaseExchImpl {
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
     private String[] m_supportedCurrencies = new String[]{"BTC", "USD", "EUR", "GHS", "BTG", "GBP", "BCH",};
+    private Map<String,LiveOrdersData> m_liveOrdersMap = new HashMap<>();
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -154,7 +155,7 @@ public class CexIo extends BaseExchImpl {
             } else if (Utils.equals(e, "order-book-unsubscribe")) {
                 onOrderBookUnsubscribe(session, jsonObject);
             } else if (Utils.equals(e, "open-orders")) {
-                onOpenOrders(session, jsonObject);
+                processOpenOrders(session, jsonObject);
             } else if (Utils.equals(e, "place-order")) {
                 onPlaceOrder(session, jsonObject);
             } else if (Utils.equals(e, "cancel-order")) {
@@ -339,29 +340,6 @@ public class CexIo extends BaseExchImpl {
         }
     }
 
-    private static void onOpenOrders(Session session, JSONObject jsonObject) throws Exception {
-        // [{"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":"1511569539812","type":"sell"}]
-        Object oid = jsonObject.get("oid");
-        JSONArray data = (JSONArray) jsonObject.get("data");
-        log(" onOpenOrders[" + oid + "]: data=" + data);
-        String orderToCancelId = null;
-        for (Object order : data) {
-            log("  openOrder: " + order);
-            JSONObject jsonOrder = (JSONObject) order;
-            String orderId = (String) jsonOrder.get("id");
-            log("   orderId: " + orderId);
-            orderToCancelId = orderId; // will cancel last order
-        }
-
-        if (orderToCancelId != null) {
-            cancelOrder(session, orderToCancelId);
-
-            // cancel with invalid order id
-//            Thread.sleep(1000);
-//            cancelOrder(session, orderToCancelId + "_x");
-        }
-    }
-
     private static void cancelOrder(Session session, String orderToCancelId) throws IOException {
         log(" cancelOrder() orderToCancelId=" + orderToCancelId);
 
@@ -371,7 +349,7 @@ public class CexIo extends BaseExchImpl {
 //            "oid": "1435927928274_12_cancel-order"
 //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{ \"e\": \"cancel-order\", \"data\": { \"order_id\": \""
                 + orderToCancelId + "\" }, \"oid\": \"" + timeMillis + "_cancel-order\" }");
     }
@@ -417,7 +395,7 @@ public class CexIo extends BaseExchImpl {
             @Override public void run() {
                 try {
                     JSONObject data = (JSONObject) jsonObject.get("data");
-                    String pair = (String) data.get("pair");
+                    String pair = (String) data.get("pair"); // "pair":"BTC:USD"
                     JSONArray bids = (JSONArray) data.get("bids");
                     JSONArray asks = (JSONArray) data.get("asks");
 
@@ -463,7 +441,7 @@ public class CexIo extends BaseExchImpl {
 //            "oid": "1435927928274_4_order-book-unsubscribe"
 //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{ \"e\": \"order-book-unsubscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_order-book-unsubscribe\" }");
     }
 
@@ -618,7 +596,8 @@ public class CexIo extends BaseExchImpl {
         queryOrderBookSnapshoot(session, cur1, cur2, depth);
 
         Thread.sleep(1000);
-        queryOpenOrders(session);
+        String oid = System.currentTimeMillis() + "_open-orders";
+        queryOpenOrders(session, oid, "BTC", "USD");
 
         Thread.sleep(1000);
         String orderSize = "0.01";
@@ -647,7 +626,7 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1435927928274_7_place-order"
         //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"" + pair.m_from + "\", \"" + pair.m_to + "\" ], \"amount\": " + orderSize
                 + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + timeMillis + "_place-order\" }");
     }
@@ -665,19 +644,8 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1443464955209_16_cancel-replace-order"
         //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{\"e\": \"cancel-replace-order\",\"data\": {\"order_id\": \"" + orderId + "\",\"pair\": [\"" + pair.m_from + "\",\"" + pair.m_to + "\"],\"amount\": " + orderSize + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + timeMillis + "_cancel-replace-order\"}");
-    }
-
-    private static void queryOpenOrders(Session session) throws IOException {
-        //        {
-        //            "e": "open-orders",
-        //            "data": { "pair": [ "BTC", "USD" ] },
-        //            "oid": "1435927928274_6_open-orders"
-        //        }
-
-        long  timeMillis = System.currentTimeMillis() / 1000;
-        send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_open-orders\" }");
     }
 
     private static void queryOrderBookSnapshoot(Session session, String cur1, String cur2, int depth) throws IOException {
@@ -699,7 +667,7 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1435927928274_3_order-book-subscribe"
         //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         String oid = timeMillis + "_order-book-subscribe";
         send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"" + cur1 + "\", \""
                 + cur2 + "\" ], \"subscribe\": " + streaming + ", \"depth\": " + depth + " }, \"oid\": \"" + oid + "\" }");
@@ -712,7 +680,7 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1435927928274_2_get-balance"
         //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{ \"e\": \"get-balance\", \"data\": {}, \"oid\": \"" + timeMillis + "_get-balance\" }");
     }
 
@@ -723,7 +691,7 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1435927928274_1_ticker"
         //        }
 
-        long timeMillis = System.currentTimeMillis() / 1000;
+        long timeMillis = System.currentTimeMillis();
         send(session, "{ \"e\": \"ticker\", \"data\": [ \"" + cur1 + "\", \"" + cur2 + "\" ], \"oid\": \"" + timeMillis + "_ticker\" }");
     }
 
@@ -832,13 +800,97 @@ public class CexIo extends BaseExchImpl {
 
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
-        queryOrderBookSnapshoot(m_session, cur1, cur2, depth);
+
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);
+
+        queryOrderBookSnapshoot(m_session, cur1, cur2, depth);
     }
 
-    @Override public void queryAccount() throws IOException {
+    @Override public void queryAccount() throws Exception {
         queryBalance(m_session);
+    }
+
+    @Override public void queryOrders(LiveOrdersData liveOrders) throws Exception {
+        Pair pair = liveOrders.m_pair;
+        Currency fromCurr = pair.m_from;
+        Currency toCurr = pair.m_to;
+
+        log("queryOrders: " + pair + "; fromCurr: " + fromCurr + "; toCurr: " + toCurr);
+
+        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
+        String cur2 = toCurr.m_name.toUpperCase(); // "USD"
+
+        String oid = System.currentTimeMillis() + "_open-orders";
+        m_liveOrdersMap.put(oid, liveOrders);
+        queryOpenOrders(m_session, oid, cur1, cur2);
+    }
+
+    private static void queryOpenOrders(Session session, String oid, String cur1, String cur2) throws IOException {
+        //        {
+        //            "e": "open-orders",
+        //            "data": { "pair": [ "BTC", "USD" ] },
+        //            "oid": "1435927928274_6_open-orders"
+        //        }
+
+        send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"" + cur1 + "\", \"" + cur2 + "\" ] }, \"oid\": \"" + oid + "\" }");
+    }
+
+    private void processOpenOrders(Session session, final JSONObject jsonObject) throws Exception {
+        m_exchange.m_threadPool.submit(new Runnable() {
+            @Override public void run() {
+                try {
+                    // [{"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":"1511569539812","type":"sell"}]
+                    Object oid = jsonObject.get("oid");
+                    JSONArray data = (JSONArray) jsonObject.get("data");
+                    log(" processOpenOrders[" + oid + "]: data=" + data);
+
+                    LiveOrdersData liveOrdersData = m_liveOrdersMap.get(oid);
+                    log("  liveOrdersData=" + liveOrdersData);
+
+                    if (liveOrdersData != null) {
+                        for (Object order : data) {
+                            log("  openOrder: " + order);
+                            JSONObject jsonOrder = (JSONObject) order;
+                            String orderId = (String) jsonOrder.get("id");
+                            log("   orderId: " + orderId);
+                            String type = (String) jsonOrder.get("type");
+                            log("   type: " + type); // "type":"sell"
+                            boolean isBuy = type.equals("buy");
+                            OrderSide orderSide = OrderSide.get(isBuy);
+                            String priceStr = (String) jsonOrder.get("price");
+                            log("   priceStr: " + priceStr); // "price":"9000.0123"
+                            double price = Double.parseDouble(priceStr);
+                            log("    price: " + price);
+                            String amountStr = (String) jsonOrder.get("amount");
+                            log("   amountStr: " + amountStr); // "amount":"0.01000000"
+                            double amount = Double.parseDouble(amountStr);
+                            log("    amount: " + amount);
+                            String pendingStr = (String) jsonOrder.get("pending");
+                            log("   pendingStr: " + pendingStr); // "pending":"0.01000000"
+                            double pending = Double.parseDouble(pendingStr);
+                            log("    pending: " + pending);
+
+                            OrderData orderData = new OrderData(m_exchange, orderId, liveOrdersData.m_pair, orderSide, OrderType.LIMIT, price, amount);
+                            orderData.setFilled(amount - pending);
+                            liveOrdersData.addOrder(orderData);
+                        }
+                        liveOrdersData.notifyListener();
+                    }
+
+
+//        if (orderToCancelId != null) {
+//            cancelOrder(session, orderToCancelId);
+//
+//            // cancel with invalid order id
+////            Thread.sleep(1000);
+////            cancelOrder(session, orderToCancelId + "_x");
+//        }
+                } catch (Exception e) {
+                    err("processOpenOrders error: " + e, e);
+                }
+            }
+        });
     }
 
     //---------------------------------------------------------------------------------
