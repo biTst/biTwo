@@ -62,7 +62,7 @@ class RoundDirectedData {
         return Objects.hash(m_name);
     }
 
-    public void getPairDatas(List<PairData> pds) {
+    public void fillPairDatas(List<PairData> pds) {
         for (PairDirectionData pdd : m_pdds) {
             PairData pairData = pdd.m_pairData;
             if (!pds.contains(pairData)) {

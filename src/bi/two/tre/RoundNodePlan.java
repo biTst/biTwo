@@ -1,6 +1,7 @@
 package bi.two.tre;
 
 import bi.two.exch.OrderSide;
+import bi.two.exch.Pair;
 
 import java.util.List;
 
@@ -53,13 +54,15 @@ public class RoundNodePlan {
 
     //-------------------------------------------------------
     public static class RoundStep {
+        public final Pair m_pair;
         public final OrderSide m_orderSide;
         public final double m_orderSize;
         public final double m_rate;
         public final CurrencyValue m_inValue;
         public final CurrencyValue m_outValue;
 
-        public RoundStep(OrderSide orderSide, double orderSize, double rate, CurrencyValue inValue, CurrencyValue outValue) {
+        public RoundStep(Pair pair, OrderSide orderSide, double orderSize, double rate, CurrencyValue inValue, CurrencyValue outValue) {
+            m_pair = pair;
             m_orderSide = orderSide;
             m_orderSize = orderSize;
             m_rate = rate;
@@ -68,6 +71,8 @@ public class RoundNodePlan {
         }
 
         public void log(StringBuilder sb) {
+            sb.append(m_pair);
+            sb.append(" ");
             sb.append(m_orderSide);
             sb.append(" ");
             sb.append(m_orderSize);

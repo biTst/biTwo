@@ -1,16 +1,14 @@
 package bi.two.tre;
 
 import bi.two.exch.*;
+import bi.two.exch.Currency;
 import bi.two.exch.impl.CexIo;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -26,11 +24,11 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static final boolean SNAPSHOT_ONLY = true;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
-            {Currency.BTC, Currency.USD, Currency.ETH},
-            {Currency.BTC, Currency.USD, Currency.DASH},
-            {Currency.BTC, Currency.USD, Currency.BTG},
-            {Currency.BTC, Currency.EUR, Currency.BCH},
-            {Currency.BTC, Currency.EUR, Currency.ETH},
+//            {Currency.BTC, Currency.USD, Currency.ETH},
+//            {Currency.BTC, Currency.USD, Currency.DASH},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
+//            {Currency.BTC, Currency.EUR, Currency.BCH},
+//            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
     private Exchange m_exchange;
@@ -43,6 +41,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private boolean m_initialized;
     private Runnable m_secRunnable = new Runnable() { @Override public void run() { onSecTimer(); } };
     private String m_lastLogStr = "";
+    private Map<Pair,Pair> m_waitingBooks;
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -160,7 +159,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         for (Currency[] currencies : TRE_CURRENCIES) {
             RoundData roundData = new RoundData(currencies, m_exchange);
             m_roundDatas.add(roundData);
-            roundData.getPairDatas(m_pairDatas);
+            roundData.fillPairDatas(m_pairDatas);
         }
         log("roundDatas: " + m_roundDatas);
 
@@ -196,6 +195,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private void subscribeBooks() throws Exception {
         log("subscribeBooks()");
+        m_waitingBooks = new HashMap<>();
         for (PairData pairData : m_pairDatas) {
             subscribePairBook(pairData);
         }
@@ -211,6 +211,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         } else {
             orderBook.subscribe(this, SUBSCRIBE_DEPTH);
         }
+        m_waitingBooks.put(pair, pair);
     }
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
@@ -231,7 +232,79 @@ public class Tre implements OrderBook.IOrderBookListener {
 System.out.println(System.currentTimeMillis() + ": " + line);
         }
 
-        evaluate();
+        if (m_waitingBooks != null) {
+            m_waitingBooks.remove(pair);
+            if (m_waitingBooks.isEmpty()) {
+                System.out.println("all books are LIVE");
+                m_waitingBooks = null;
+                minBalance();
+//                evaluate();
+            }
+        }
+    }
+
+    private void minBalance() {
+        System.out.println("minBalance");
+        Map<Pair, CurrencyValue> totalMinPassThruOrdersSize = new HashMap<>();
+        for (RoundData roundData : m_roundDatas) {
+            System.out.println(" roundData: " + roundData);
+            Map<Pair, CurrencyValue> map = roundData.m_minPassThruOrdersSize;
+            System.out.println("  minPassThruOrdersSize: " + map);
+            for (Map.Entry<Pair, CurrencyValue> entry : map.entrySet()) {
+                System.out.println("   entry: " + entry);
+                Pair pair = entry.getKey();
+                CurrencyValue minPassThruOrdersSize = entry.getValue();
+
+                CurrencyValue currentValue = totalMinPassThruOrdersSize.get(pair);
+                if (currentValue != null) {
+                    Currency currentCurrency = currentValue.m_currency;
+                    Currency currency = minPassThruOrdersSize.m_currency;
+                    System.out.println("    current: " + currentValue + "; new=" + minPassThruOrdersSize);
+                    if (currentCurrency != currency) {
+                        throw new RuntimeException("currency mismatch: " + currentCurrency + " != " + currency);
+                    }
+                    double current = currentValue.m_value;
+                    double value = minPassThruOrdersSize.m_value;
+                    if (value <= current) {
+                        continue;
+                    }
+                }
+                System.out.println("     put into totalMinPassThruOrdersSize: " + pair + " -> " + minPassThruOrdersSize);
+                totalMinPassThruOrdersSize.put(pair, minPassThruOrdersSize);
+            }
+        }
+        Map<Currency,Double> minBalanceMap = new HashMap<>();
+        System.out.println(" totalMinPassThruOrdersSize=" + totalMinPassThruOrdersSize);
+        for (Map.Entry<Pair, CurrencyValue> entry : totalMinPassThruOrdersSize.entrySet()) {
+            System.out.println("  entry=" + entry);
+            Pair pair = entry.getKey();
+            CurrencyValue value = entry.getValue();
+            updateMinBalance(minBalanceMap, pair.m_from, value);
+            updateMinBalance(minBalanceMap, pair.m_to, value);
+        }
+        System.out.println(" minBalanceMap=" + minBalanceMap);
+    }
+
+    private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
+        System.out.println("   updateMinBalance for " + currency + "; value=" + value);
+        double newValue = value.m_value;
+
+        Currency valueCurrency = value.m_currency;
+        if (currency != valueCurrency) {
+            double convertedValue = m_exchange.m_accountData.convert(valueCurrency, currency, newValue);
+            System.out.println("    convert " + valueCurrency + "->" + currency + ": " + convertedValue);
+            newValue = convertedValue;
+        }
+
+        Double minBalance = minBalanceMap.get(currency);
+        System.out.println("    minBalance=" + minBalance);
+        if (minBalance != null) {
+            if (newValue <= minBalance) {
+                return;
+            }
+        }
+        System.out.println("    put: " + currency + " -> " + newValue);
+        minBalanceMap.put(currency, newValue);
     }
 
     private void evaluate() {
@@ -256,9 +329,36 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                     double outValueValue = outValue.m_value;
                     double outNeedMore = outValueValue - outCurrencyAvailable;
                     if (outNeedMore > 0) {
-                        System.out.println("       outNeedMore=" + outNeedMore + startCurrency);
+                        System.out.println("       outNeedMore=" + outNeedMore + outCurrency);
+
+                        PairDirectionData pdd = nodePlan.m_pdd;
+                        System.out.println("        pdd=" + pdd);
+                        PairData pairData = pdd.m_pairData;
+                        System.out.println("        pairData=" + pairData);
+                        PairDirection pairDirection = pdd.m_pairDirection;
+                        System.out.println("        pairDirection=" + pairDirection);
+                        boolean forward = pairDirection.m_forward;
+                        System.out.println("        forward=" + forward);
+                        OrderSide orderSide = OrderSide.get(!forward);
+                        System.out.println("        orderSide=" + orderSide);
+                        ExchPairData exchPairData = pairData.m_exchPairData;
+                        System.out.println("        exchPairData=" + exchPairData);
+                        OrderBook orderBook = exchPairData.getOrderBook();
+                        System.out.println("        orderBook=" + orderBook);
+
+                        ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
+                        double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, startValue, steps);
+                        System.out.println("         distribute() rate=" + rate);
+
+                        for (RoundNodePlan.RoundStep step : steps) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("          ");
+                            step.log(sb);
+                            System.out.println(sb.toString());
+                        }
+                        return;
                     } else {
-                        System.out.println("       enough outCurrency " + outCurrencyAvailable + startCurrency);
+                        System.out.println("       enough outCurrency " + outCurrencyAvailable + outCurrency);
                     }
                 } else {
                     System.out.println("    not enough startCurrency " + startCurrency);

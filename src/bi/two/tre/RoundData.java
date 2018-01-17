@@ -63,9 +63,9 @@ class RoundData implements OrderBook.IOrderBookListener {
         m_directedRounds.add(roundDirectedData);
     }
 
-    public void getPairDatas(List<PairData> pds) {
+    public void fillPairDatas(List<PairData> pds) {
         for (RoundDirectedData directedRound : m_directedRounds) {
-            directedRound.getPairDatas(pds);
+            directedRound.fillPairDatas(pds);
         }
     }
 

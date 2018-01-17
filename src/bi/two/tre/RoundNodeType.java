@@ -19,6 +19,10 @@ public enum RoundNodeType {
             Currency bookCurrency = pair.m_from;
             Currency bookCurrency2 = pair.m_to;
 
+            CurrencyValue minPassThruOrderSize = (roundData != null)
+                    ? roundData.m_minPassThruOrdersSize.get(pair)
+                    : exchPairData.m_minOrderToCreate;
+
             List<OrderBook.OrderBookEntry> bookSide = orderSide.isBuy()
                     ? orderBook.m_asks // byu
                     : orderBook.m_bids; // sell
@@ -47,7 +51,6 @@ public enum RoundNodeType {
                 }
                 if (orderSide.isSell()) {
                     if (entrySize < remainedSize) {
-                        CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
                         if (log) {
                             log("           sell book entry has not enough. want " + remainedSize + " " + bookCurrency + " but have only " + entrySize + " " + bookCurrency
                                     + "; minPassThruOrderSize=" + minPassThruOrderSize);
@@ -91,7 +94,6 @@ public enum RoundNodeType {
                     }
                     String oppositeName = oppositeSide.toString().toLowerCase();
                     if (entryGives < remainedSize) {
-                        CurrencyValue minPassThruOrderSize = roundData.m_minPassThruOrdersSize.get(pair);
                         if (log) {
                             log("           buy book entry has not enough. want " + oppositeName + " " + remainedSize + " " + bookCurrency2
                                     + " entry gives only " + entryGives + " " + bookCurrency2  + "; minPassThruOrderSize=" + minPassThruOrderSize);
@@ -206,7 +208,7 @@ public enum RoundNodeType {
         CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
 
         double size = isBuy ? afterFeeValue : startValueValue;
-        RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(orderSide, size, rate, inValue, outValue);
+        RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(pair, orderSide, size, rate, inValue, outValue);
         steps.add(roundStep);
     }
 }

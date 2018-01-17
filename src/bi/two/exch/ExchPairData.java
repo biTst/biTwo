@@ -19,6 +19,10 @@ public class ExchPairData {
         m_pair = pair;
     }
 
+    @Override public String toString() {
+        return m_exchange.m_name + ":" + m_pair;
+    }
+
     public CurrencyValue getMinOrderToCreate() {
         if (m_minOrderToCreate != null) {
             return m_minOrderToCreate;
