@@ -16,10 +16,8 @@ public class Exchange {
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
     public Schedule m_schedule;
-    private Map<Pair, OrderBook> m_orderBooks = new HashMap<>();
     public IAccountListener m_accountListener;
     public ExecutorService m_threadPool;
-    public Map<Pair, LiveOrdersData> m_liveOrdersMap = new HashMap<>();
 
     public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
 
@@ -44,7 +42,7 @@ public class Exchange {
     }
 
     public ExchPairData addPair(Pair pair) {
-        ExchPairData value = new ExchPairData(pair);
+        ExchPairData value = new ExchPairData(this, pair);
         m_pairsMap.put(pair, value);
         return value;
     }
@@ -88,12 +86,8 @@ public class Exchange {
     }
 
     public OrderBook getOrderBook(Pair pair) {
-        OrderBook orderBook = m_orderBooks.get(pair);
-        if (orderBook == null) {
-            orderBook = new OrderBook(this, pair);
-            m_orderBooks.put(pair, orderBook);
-        }
-        return orderBook;
+        ExchPairData exchPairData = getPairData(pair);
+        return exchPairData.getOrderBook();
     }
 
     public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
@@ -110,7 +104,9 @@ public class Exchange {
     }
 
     public void onDisconnected() {
-        m_orderBooks.clear();
+        for (ExchPairData exchPairData : m_pairsMap.values()) {
+            exchPairData.onDisconnected();
+        }
     }
 
     public void queryOrders(Pair pair, IOrdersListener listener) throws Exception {
@@ -120,12 +116,8 @@ public class Exchange {
     }
 
     private LiveOrdersData getLiveOrders(Pair pair) {
-        LiveOrdersData liveOrders = m_liveOrdersMap.get(pair);
-        if (liveOrders == null) {
-            liveOrders = new LiveOrdersData(pair);
-            m_liveOrdersMap.put(pair, liveOrders);
-        }
-        return liveOrders;
+        ExchPairData exchPairData = m_pairsMap.get(pair);
+        return exchPairData.getLiveOrders();
     }
 
 

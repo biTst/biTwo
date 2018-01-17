@@ -5,6 +5,7 @@ import bi.two.exch.impl.CexIo;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +16,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class Tre implements OrderBook.IOrderBookListener {
-    private static final boolean NO_LOGS = true;
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
@@ -23,7 +23,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
-    private static final boolean SNAPSHOT_ONLY = false;
+    private static final boolean SNAPSHOT_ONLY = true;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
             {Currency.BTC, Currency.USD, Currency.ETH},
@@ -220,7 +220,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         pairData.onOrderBookUpdated(orderBook);
 
         StringBuilder sb = new StringBuilder();
-        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 8);
+        List<RoundPlan> roundPlans = Utils.firstItems(RoundData.s_allPlans, 8);
         for (RoundPlan roundPlan : roundPlans) {
             roundPlan.minLog(sb);
             sb.append("; ");
@@ -234,11 +234,6 @@ System.out.println(System.currentTimeMillis() + ": " + line);
 
     private void onSecTimer() {
         log("secRunnable.run()");
-
-//        List<RoundPlan> roundPlans = RoundData.s_allPlans.subList(0, 6);
-//        for (RoundPlan roundPlan : roundPlans) {
-//            System.out.println(roundPlan.log());
-//        }
     }
 
     private void logTop() {

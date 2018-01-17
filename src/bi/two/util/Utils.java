@@ -1,6 +1,7 @@
 package bi.two.util;
 
 import java.text.DecimalFormat;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -130,5 +131,9 @@ public class Utils {
         return str1 == null
                 ? (str2 == null)
                 : (str2 != null) && str1.equals(str2);
+    }
+
+    public static <E> List<E> firstItems(List<E> list, int len){
+        return (list.size() > len) ? list.subList(0, len) : list;
     }
 }

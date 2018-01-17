@@ -134,8 +134,8 @@ class RoundData implements OrderBook.IOrderBookListener {
 
         if (!unique.isEmpty()) {
             s_bestPlans.addAll(unique);
-            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-            s_bestPlans = new ArrayList<>(s_bestPlans.subList(0, Tre.BEST_PLANS_COUNT));
+            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);;
+            s_bestPlans = new ArrayList<>(Utils.firstItems(s_bestPlans, Tre.BEST_PLANS_COUNT));
         }
         logRates(" best :: ", s_bestPlans);
     }
