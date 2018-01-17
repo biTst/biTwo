@@ -15,10 +15,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class Tre implements OrderBook.IOrderBookListener {
-    private static final boolean NO_LOGS = false;
+    private static final boolean NO_LOGS = true;
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
+    public static final int BEST_PLANS_COUNT = 40;
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
@@ -52,7 +53,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private void main() {
         try {
-            Log.s_impl = NO_LOGS ? new Log.NoLog() : new Log.TimestampLog();
+            Log.s_impl = new Log.FileLog();
 
             m_timer = new Timer();
 
@@ -110,8 +111,8 @@ public class Tre implements OrderBook.IOrderBookListener {
                 }
             });
 
-//            subscribeBooks();
-//            startSecTimer();
+            subscribeBooks();
+            startSecTimer();
             m_initialized = true;
         }
     }
@@ -242,7 +243,7 @@ System.out.println(System.currentTimeMillis() + ": " + line);
 
     private void logTop() {
 System.out.println("best plans: ");
-        int num = Math.min(RoundData.s_bestPlans.size(), 20);
+        int num = Math.min(RoundData.s_bestPlans.size(), BEST_PLANS_COUNT);
         for (int j = 0; j < num; j++) {
             StringBuilder sb = new StringBuilder();
             long timestamp = 0;

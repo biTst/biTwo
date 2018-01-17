@@ -23,7 +23,7 @@ public class LiveOrdersData {
     }
 
     public void notifyListener() {
-        if(m_ordersListener != null) {
+        if (m_ordersListener != null) {
             m_ordersListener.onUpdated();
         }
     }
