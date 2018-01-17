@@ -137,7 +137,7 @@ public class MarketConfig {
                         if (verbose) {
                             System.out.println("     currencyValue: " + currencyValue);
                         }
-                        exchPairData.m_minOrderStep = currencyValue;
+                        exchPairData.setMinOrderStep(currencyValue);
                     }
 
                     String minPriceStepStr = prop.getProperty(pairPrefix + ".minPriceStep");
@@ -145,7 +145,7 @@ public class MarketConfig {
                         if (verbose) {
                             System.out.println("    minPriceStepStr: " + minPriceStepStr);
                         }
-                        exchPairData.m_minPriceStep = Double.parseDouble(minPriceStepStr);
+                        exchPairData.setMinPriceStep(Double.parseDouble(minPriceStepStr));
                     }
 
                     String initBalanceStr = prop.getProperty(pairPrefix + ".initBalance");

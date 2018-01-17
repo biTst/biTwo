@@ -49,6 +49,8 @@ public class Pair {
         s_pairsByNameMap.put(m_name, this);
     }
 
+    public static List<Pair> getAllPairs() { return s_pairsList; }
+
     public static Pair getByName(String name) {
         Pair pair = getByNameInt(name);
         if (pair != null) {

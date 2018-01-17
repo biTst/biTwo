@@ -2,9 +2,14 @@ package bi.two.exch;
 
 import bi.two.util.Utils;
 
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
+
 public class OrderData {
     public final Exchange m_exchange;
     public String m_orderId;
+    public String m_clientOrderId;
     public final Pair m_pair;
     public final OrderSide m_side;
     public final OrderType m_type;
@@ -14,7 +19,9 @@ public class OrderData {
 
     public long m_placeTime;
     public double m_filled; // filled amount
-    private double m_remainedAmount;
+    private DecimalFormat m_priceFormat;
+    private DecimalFormat m_sizeFormat;
+    private List<IOrderListener> m_listeners;
 
     public OrderData(Exchange exchange, String orderId, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
@@ -25,6 +32,7 @@ public class OrderData {
         m_pair = pair; // like Pair.BTC_USD
         m_price = price;
         m_amount = amount;
+        m_clientOrderId = Long.toString(System.currentTimeMillis());
     }
 
     public boolean isActive() { return m_status.isActive(); }
@@ -59,5 +67,39 @@ public class OrderData {
         if (filled > 0) { // something is executed
             m_status = OrderStatus.PARTIALLY_FILLED;
         }
+    }
+
+    public void setFormats(DecimalFormat priceFormat, DecimalFormat sizeFormat) {
+        m_priceFormat = priceFormat;
+        m_sizeFormat = sizeFormat;
+    }
+
+    public String formatPrice(double price) {
+        return m_priceFormat.format(price);
+    }
+
+    public String formatSize(double size) {
+        return m_sizeFormat.format(size);
+    }
+
+    public void addOrderListener(IOrderListener listener) {
+        if (m_listeners == null) { // lazy
+            m_listeners = new ArrayList<>();
+        }
+        m_listeners.add(listener);
+    }
+
+    public void notifyListeners() {
+        if (m_listeners != null) {
+            for (IOrderListener listener : m_listeners) {
+                listener.onUpdated(this);
+            }
+        }
+    }
+
+
+    //-----------------------------------------------------------
+    public interface IOrderListener {
+        void onUpdated(OrderData orderData);
     }
 }

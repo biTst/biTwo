@@ -3,6 +3,7 @@ package bi.two.exch;
 import bi.two.tre.CurrencyValue;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
@@ -120,6 +121,21 @@ public class Exchange {
         return exchPairData.getLiveOrders();
     }
 
+    public void submitOrder(OrderData orderData) throws IOException {
+System.out.println("Exchange.submitOrder: orderData=" + orderData);
+        ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
+//        double minPriceStep = exchPairData.m_minPriceStep;
+//        CurrencyValue minOrderStep = exchPairData.m_minOrderStep;
+//        double minOrderStepValue = minOrderStep.m_value;
+//System.out.println(" minPriceStep=" + minPriceStep + "; minOrderStep=" + minOrderStep + "; minOrderStepValue=" + minOrderStepValue);
+
+        exchPairData.submitOrder(orderData);
+    }
+
+    public void cancelOrder(OrderData orderData) throws IOException {
+        m_impl.cancelOrder(orderData);
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
@@ -136,6 +152,6 @@ public class Exchange {
 
     //----------------------------------------------------------------------------------------
     public interface IOrdersListener {
-        void onUpdated();
+        void onUpdated(Map<String, OrderData> m_orders);
     }
 }

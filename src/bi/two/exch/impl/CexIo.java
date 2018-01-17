@@ -826,6 +826,17 @@ public class CexIo extends BaseExchImpl {
         queryOpenOrders(m_session, oid, cur1, cur2);
     }
 
+    @Override public void submitOrder(OrderData orderData) throws IOException {
+        String orderSize = orderData.formatSize(orderData.m_amount);
+        String orderPrice = orderData.formatPrice(orderData.m_price);
+        String orderSide = orderData.m_side.getName();
+        placeOrder(m_session, orderData.m_pair, orderSize, orderPrice, orderSide);
+    }
+
+    @Override public void cancelOrder(OrderData orderData) throws IOException {
+        cancelOrder(m_session, orderData.m_orderId);
+    }
+
     private static void queryOpenOrders(Session session, String oid, String cur1, String cur2) throws IOException {
         //        {
         //            "e": "open-orders",

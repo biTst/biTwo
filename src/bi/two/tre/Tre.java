@@ -12,11 +12,13 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
+    public static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     public static final int BEST_PLANS_COUNT = 40;
 
     private static final String CONFIG = "cfg/tre.properties";
@@ -34,7 +36,6 @@ public class Tre implements OrderBook.IOrderBookListener {
     private Exchange m_exchange;
     private List<RoundData> m_roundDatas = new ArrayList<>();
     private ArrayList<PairData> m_pairDatas = new ArrayList<>();
-    private State m_state = State.watching;
     private ExecutorService m_threadPool;
     private Timer m_timer;
     private TimerTask m_secTimerTask;
@@ -42,6 +43,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private Runnable m_secRunnable = new Runnable() { @Override public void run() { onSecTimer(); } };
     private String m_lastLogStr = "";
     private Map<Pair,Pair> m_waitingBooks;
+    private List<OrderWatcher> m_orderWatchers = new ArrayList<>();
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -52,7 +54,8 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private void main() {
         try {
-            Log.s_impl = new Log.FileLog();
+//            Log.s_impl = new Log.FileLog();
+            Log.s_impl = new Log.StdLog();
 
             m_timer = new Timer();
 
@@ -101,19 +104,82 @@ public class Tre implements OrderBook.IOrderBookListener {
     private void onGotAccount() throws Exception {
         log("Exchange.onAccount() " + m_exchange.m_accountData);
         if (!m_initialized) {
+            m_initialized = true;
             initThreadPool();
 
-            log(" queryOrders()...");
-            m_exchange.queryOrders(Pair.get(Currency.BTC, Currency.USD), new Exchange.IOrdersListener() {
-                @Override public void onUpdated(){
-                    log("Exchange.onOrders() ");
+            if (CANCEL_ALL_ORDERS_AT_START) {
+                cancelAllOrders();
+            } else {
+                continueInit();
+            }
+        }
+    }
+
+    private void cancelAllOrders() throws Exception {
+        List<Pair> allPairs = Pair.getAllPairs();
+        log(" queryOrders() allPairs=" + allPairs + "...");
+        final List<Pair> waitingLiveOrders = new ArrayList<>();
+        final List<String> orderIdsToCancel = new ArrayList<>();
+        final AtomicInteger orderToCancelCounter = new AtomicInteger();
+        for (final Pair pair : allPairs) {
+            waitingLiveOrders.add(pair);
+            m_exchange.queryOrders(pair, new Exchange.IOrdersListener() {
+                @Override public void onUpdated(Map<String, OrderData> orders) {
+                    log("queryOrders.onOrders(" + pair + ") orders=" + orders);
+                    try {
+                        for (OrderData orderData : orders.values()) {
+                            String orderId = orderData.m_orderId;
+                            orderIdsToCancel.add(orderId);
+                            orderToCancelCounter.incrementAndGet();
+                            orderData.addOrderListener(new OrderData.IOrderListener() {
+                                @Override public void onUpdated(OrderData orderData) {
+                                    log("IOrderListener.onUpdated() " + orderData);
+                                    try {
+                                        OrderStatus status = orderData.m_status;
+                                        if (status == OrderStatus.CANCELLED) {
+                                            String cancelledOrderId = orderData.m_orderId;
+                                            log("order cancelled: cancelledOrderId=" + cancelledOrderId);
+                                            orderIdsToCancel.remove(cancelledOrderId);
+                                            if (orderIdsToCancel.isEmpty()) {
+                                                int ordersToCancelNum = orderToCancelCounter.get();
+                                                log("all orders cancelled. ordersToCancelNum=" + ordersToCancelNum);
+                                                onAllOrdersCancelled();
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        err("IOrderListener.onUpdated error: " + e, e);
+                                    }
+                                }
+                            });
+                            log(" cancelOrder() " + orderData);
+                            m_exchange.cancelOrder(orderData);
+                        }
+                        waitingLiveOrders.remove(pair);
+                        if (waitingLiveOrders.isEmpty()) {
+                            log("all pairs LiveOrders received");
+                            int ordersToCancelNum = orderToCancelCounter.get();
+                            if (ordersToCancelNum == 0) {
+                                log(" no orders cancelled - finish");
+                                onAllOrdersCancelled();
+                            }
+                        }
+                    } catch (Exception e) {
+                        err("queryOrders.onOrders error: " + e, e);
+                    }
                 }
             });
-
-            subscribeBooks();
-            startSecTimer();
-            m_initialized = true;
         }
+    }
+
+    private void onAllOrdersCancelled() throws Exception {
+        log("onAllOrdersCancelled()");
+        continueInit();
+    }
+
+    private void continueInit() throws Exception {
+        log("continueInit()");
+        subscribeBooks();
+        startSecTimer();
     }
 
     private void onExchangeDisconnected() {
@@ -325,6 +391,19 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                     CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
                     System.out.println("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
 
+                    double minOrder = minOrderToCreate.m_value;
+                    Currency minOrderCurrency = minOrderToCreate.m_currency;
+                    if (minOrderCurrency != currency) {
+                        double minOrderConverted = m_exchange.m_accountData.convert(minOrderCurrency, currency, minOrder);
+                        System.out.println("     minOrderConverted=" + minOrderConverted + " " + currency);
+                        minOrder = minOrderConverted;
+                    }
+
+                    if (need < minOrder) {
+                        System.out.println("    need=" + need + " is less than minOrder=" + minOrder + "; need increased to " + minOrder);
+                        need = minOrder;
+                    }
+
                     Currency sourceCurrency = pairDirection.getSourceCurrency();
                     Currency fromCurrency = pair.m_from;
                     OrderSide orderSide = OrderSide.get(sourceCurrency != fromCurrency);
@@ -345,11 +424,24 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                         step.log(sb);
                         System.out.println(sb.toString());
                     }
+
+                    if (rate > 0) { // plan found
+                        if (steps.size() == 1) { // run one-order nodes for now
+                            OrderWatcher orderWatcher = new OrderWatcher(m_exchange, steps.get(0));
+                            addOrderWatcher(orderWatcher);
+                            orderWatcher.start();
+                            break; // run only one order for now
+                        }
+                    }
                 }
             } else {
                 System.out.println("    enough balance");
             }
         }
+    }
+
+    private void addOrderWatcher(OrderWatcher orderWatcher) {
+        m_orderWatchers.add(orderWatcher);
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
@@ -484,12 +576,40 @@ System.out.println(sb.toString());
 
 
     // -----------------------------------------------------------------------------------------------------------
-    private enum State {
-        watching,
-        catching;
+    private static class OrderWatcher {
+        public final Exchange m_exchange;
+        public final RoundNodePlan.RoundStep m_roundStep;
+        private final Pair m_pair;
+        public State m_state = State.none;
+        public final ExchPairData m_exchPairData;
 
-        public State onBooksUpdated() {
-            return null; // no state change
+        public OrderWatcher(Exchange exchange, RoundNodePlan.RoundStep roundStep) {
+            m_exchange = exchange;
+            m_roundStep = roundStep;
+
+            m_pair = roundStep.m_pair;
+            PairData pairData = PairData.get(m_pair);
+            pairData.addOrderBookListener(new OrderBook.IOrderBookListener() {
+                @Override public void onOrderBookUpdated(OrderBook orderBook) {
+                    System.out.println("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
+                    OrderBook.Spread topSpread = orderBook.getTopSpread();
+                    System.out.println(" topSpread=" + topSpread);
+                }
+            });
+            m_exchPairData = exchange.getPairData(m_pair);
+        }
+
+        public void start() {
+            System.out.println("OrderWatcher.start()");
+            OrderData orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
+            System.out.println(" submitOrder: " + orderData);
+//            m_exchange.submitOrder(orderData);
+//            m_state = State.submitted;
+        }
+
+        private enum State {
+            none,
+            submitted,
         }
     }
 }
