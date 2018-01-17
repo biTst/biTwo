@@ -22,8 +22,18 @@ public class RoundNodePlan {
         m_steps = steps;
     }
 
-    public String log(StringBuilder sb) {
-        sb.append("  RoundNodePlan ");
+    public void log(StringBuilder sb) {
+        toString(sb);
+        sb.append("\n");
+        for (RoundStep step : m_steps) {
+            sb.append("    ");
+            step.log(sb);
+            sb.append("\n");
+        }
+    }
+
+    private void toString(StringBuilder sb) {
+        sb.append("RoundNodePlan ");
         sb.append(m_pdd);
         sb.append(" ");
         sb.append(m_roundNodeType);
@@ -33,12 +43,11 @@ public class RoundNodePlan {
         sb.append(m_startValue);
         sb.append("->");
         sb.append(m_outValue);
-        sb.append("\n");
-        for (RoundStep step : m_steps) {
-            sb.append("    ");
-            step.log(sb);
-            sb.append("\n");
-        }
+    }
+
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        toString(sb);
         return sb.toString();
     }
 

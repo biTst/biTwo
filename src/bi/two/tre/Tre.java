@@ -230,6 +230,46 @@ public class Tre implements OrderBook.IOrderBookListener {
             m_lastLogStr = line;
 System.out.println(System.currentTimeMillis() + ": " + line);
         }
+
+        evaluate();
+    }
+
+    private void evaluate() {
+        AccountData accountData = m_exchange.m_accountData;
+        for (RoundPlan plan : RoundData.s_allPlans) {
+            System.out.println("evaluate " + plan);
+            boolean allEnough = true;
+            for (RoundNodePlan nodePlan : plan.m_roundNodePlans) {
+                System.out.println(" " + nodePlan);
+                CurrencyValue startValue = nodePlan.m_startValue;
+                System.out.println("  startValue=" + startValue);
+                Currency startCurrency = startValue.m_currency;
+                double startCurrencyAvailable = accountData.available(startCurrency);
+                System.out.println("   acct.available" + startCurrency + "=" + startCurrencyAvailable);
+                if (startCurrencyAvailable > startValue.m_value * 2) {
+                    System.out.println("    enough startCurrency " + startCurrency);
+                    CurrencyValue outValue = nodePlan.m_outValue;
+                    System.out.println("     outValue " + outValue);
+                    Currency outCurrency = outValue.m_currency;
+                    double outCurrencyAvailable = accountData.available(outCurrency);
+                    System.out.println("      acct.available" + outCurrency + "=" + outCurrencyAvailable);
+                    double outValueValue = outValue.m_value;
+                    double outNeedMore = outValueValue - outCurrencyAvailable;
+                    if (outNeedMore > 0) {
+                        System.out.println("       outNeedMore=" + outNeedMore + startCurrency);
+                    } else {
+                        System.out.println("       enough outCurrency " + outCurrencyAvailable + startCurrency);
+                    }
+                } else {
+                    System.out.println("    not enough startCurrency " + startCurrency);
+                    allEnough = false;
+                    break;
+                }
+            }
+            if (allEnough) {
+                System.out.println(" allEnough");
+            }
+        }
     }
 
     private void onSecTimer() {

@@ -24,8 +24,8 @@ public class RoundPlan {
     public final List<RoundNodePlan> m_roundNodePlans;
     public final double m_roundRate;
     public final long m_timestamp;
-    private final CurrencyValue m_startValue;
-    private final CurrencyValue m_outValue;
+    public final CurrencyValue m_startValue;
+    public final CurrencyValue m_outValue;
     public long m_liveTime;
     public RoundPlan m_nextPlan; // plan for next tick if plan is changed
 
@@ -58,6 +58,16 @@ public class RoundPlan {
 
     public String logFull() {
         StringBuilder sb = new StringBuilder();
+        toString(sb);
+        sb.append("\n");
+        for (RoundNodePlan roundNodePlan : m_roundNodePlans) {
+            sb.append("  ");
+            roundNodePlan.log(sb);
+        }
+        return sb.toString();
+    }
+
+    private void toString(StringBuilder sb) {
         sb.append("RoundPlan ");
         sb.append(m_rdd);
         sb.append(" ");
@@ -68,10 +78,11 @@ public class RoundPlan {
         sb.append(m_outValue);
         sb.append(" ");
         sb.append(m_roundRate);
-        sb.append("\n");
-        for (RoundNodePlan roundNodePlan : m_roundNodePlans) {
-            roundNodePlan.log(sb);
-        }
+    }
+
+    @Override public String toString() {
+        StringBuilder sb = new StringBuilder();
+        toString(sb);
         return sb.toString();
     }
 

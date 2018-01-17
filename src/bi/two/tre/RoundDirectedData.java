@@ -10,6 +10,7 @@ import java.util.Objects;
 
 class RoundDirectedData {
     private static final boolean LOG_ROUND_CALC = Tre.LOG_ROUND_CALC;
+    public static final double PASS_THRU_MULT = 1.3;
 
     public final RoundData m_roundData;
     public final Currency[] m_currencies;
@@ -83,7 +84,7 @@ class RoundDirectedData {
         }
         Currency startCurrency = startPdPairDirection.getSourceCurrency();
         CurrencyValue startValue = m_roundData.m_minPassThruOrdersSize.get(startPair);
-        startValue = new CurrencyValue(startValue.m_value * 2, startValue.m_currency); // simulate start with double min
+        startValue = new CurrencyValue(startValue.m_value * PASS_THRU_MULT, startValue.m_currency); // simulate start with increased min
         Currency startValueCurrency = startValue.m_currency;
         if (LOG_ROUND_CALC) {
             log("    startCurrency=" + startCurrency + "; startValue(minPassThru)=" + startValue + "; startValueCurrency=" + startValueCurrency);
