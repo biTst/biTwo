@@ -195,28 +195,36 @@ System.out.println(" topSpread=" + topSpread + "; step=" + step + "; rate=" + ra
     protected void createRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
 System.out.println("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
         Pair pair = pd.m_pair;
+        Currency valueCurrency = value.m_currency;
         boolean isBuy = orderSide.isBuy();
         Currency inCurrency = isBuy ? pair.m_to : pair.m_from;
         Currency outCurrency = isBuy ? pair.m_from : pair.m_to;
-System.out.println(" isBuy=" + isBuy + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency);
+        boolean distributeSource = (valueCurrency == inCurrency);
+System.out.println(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency + "; distributeSource=" + distributeSource);
 
         double startValueValue = value.m_value;
         double fee = fee(pd.m_exchPairData); // 0.0023
 
         // BUY 1 BTC @ 1000 (with 0.001 fee) meant: -1001 USD; +1 BTC
         // SELL 1 BTC @ 1000 (with 0.001 fee) meant: -1 BTC; +999 USD
-        double translatedValue = isBuy
-                ? startValueValue / rate
-                : startValueValue * rate;
+        double translatedValue = distributeSource
+                                    ? isBuy
+                                        ? startValueValue / rate
+                                        : startValueValue * rate
+                                    : isBuy
+                                        ? startValueValue * rate
+                                        : startValueValue / rate;
 
-        double afterFeeValue = translatedValue * (1 - fee);
+        double afterFeeValue = translatedValue * (distributeSource ? (1 - fee) : (1 + fee));
 System.out.println(" translatedValue=" + translatedValue + "; afterFeeValue=" + afterFeeValue);
 
-        CurrencyValue inValue = new CurrencyValue(startValueValue, inCurrency);
-        CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
+        CurrencyValue inValue = new CurrencyValue(distributeSource ? startValueValue : afterFeeValue, inCurrency);
+        CurrencyValue outValue = new CurrencyValue(distributeSource ? afterFeeValue : startValueValue, outCurrency);
 System.out.println("  inValue=" + inValue + "; outValue=" + outValue);
 
-        double size = isBuy ? afterFeeValue : startValueValue;
+        double size = distributeSource
+                        ? isBuy ? afterFeeValue : startValueValue
+                        : isBuy ? startValueValue : afterFeeValue;
 System.out.println("   size=" + size);
         RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(pair, orderSide, size, rate, inValue, outValue);
         steps.add(roundStep);
