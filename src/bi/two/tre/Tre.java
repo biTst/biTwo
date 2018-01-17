@@ -283,6 +283,73 @@ System.out.println(System.currentTimeMillis() + ": " + line);
             updateMinBalance(minBalanceMap, pair.m_to, value);
         }
         System.out.println(" minBalanceMap=" + minBalanceMap);
+
+        Map<Double, Currency> availableRateMap = new TreeMap<>(new Comparator<Double>() {
+            @Override public int compare(Double d1, Double d2) { return Double.compare(d2, d1); } // decreasing
+        });
+        AccountData m_accountData = m_exchange.m_accountData;
+        for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
+            System.out.println("  entry=" + entry);
+            Currency currency = entry.getKey();
+            Double min = entry.getValue();
+            double available = m_accountData.available(currency);
+            System.out.println("   min=" + min + "; available=" + available);
+            if (available > 0) {
+                double rate = available / min;
+                System.out.println("    rate=" + rate);
+                availableRateMap.put(rate, currency);
+            }
+        }
+        System.out.println(" availableRateMap=" + availableRateMap);
+        Double bestRate = availableRateMap.keySet().iterator().next();
+        System.out.println("  bestRate=" + bestRate);
+        Currency bestBalanceCurrency = availableRateMap.get(bestRate);
+        System.out.println("  bestBalanceCurrency=" + bestBalanceCurrency);
+
+        for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
+            System.out.println("  entry=" + entry);
+            Currency currency = entry.getKey();
+            Double min = entry.getValue();
+            double available = m_accountData.available(currency);
+            System.out.println("   min=" + min + "; available=" + available);
+
+            double need = min - available;
+            if (need > 0) {
+                System.out.println("    not enough balance, need " + need + " " + currency);
+                PairDirection pairDirection = PairDirection.get(bestBalanceCurrency, currency);
+                Pair pair = pairDirection.m_pair;
+                boolean supportPair = m_exchange.supportPair(pair);
+                System.out.println("    pairDirection=" + pairDirection + "; pair=" + pair + "; supportPair=" + supportPair);
+                if (supportPair) {
+                    ExchPairData exchPairData = m_exchange.getPairData(pair);
+                    CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
+                    System.out.println("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
+
+                    Currency sourceCurrency = pairDirection.getSourceCurrency();
+                    Currency fromCurrency = pair.m_from;
+                    OrderSide orderSide = OrderSide.get(sourceCurrency != fromCurrency);
+                    System.out.println("    sourceCurrency=" + sourceCurrency + "; fromCurrency=" + fromCurrency + "  => orderSide=" + orderSide + " " + fromCurrency.m_name);
+
+                    PairData pairData = PairData.get(pair);
+                    OrderBook orderBook = exchPairData.getOrderBook();
+                    System.out.println("     pairData=" + pairData + "; orderBook=" + orderBook);
+
+                    ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
+                    CurrencyValue needValue = new CurrencyValue(need, currency);
+                    double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, needValue, steps);
+                    System.out.println("         distribute() rate=" + rate);
+
+                    for (RoundNodePlan.RoundStep step : steps) {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("          ");
+                        step.log(sb);
+                        System.out.println(sb.toString());
+                    }
+                }
+            } else {
+                System.out.println("    enough balance");
+            }
+        }
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {

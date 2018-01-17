@@ -34,6 +34,7 @@ public enum RoundNodeType {
 
             double volume = 0;
             int index = 0;
+            Currency valueCurrency = value.m_currency;
             double toDistribute = value.m_value;
             double remainedSize = toDistribute;
             while(remainedSize > 0) {
@@ -63,7 +64,7 @@ public enum RoundNodeType {
                             double entryVolume = entrySize * entryPrice;
                             volume += entryVolume;
                             remainedSize -= entrySize;
-                            createRoundStep(pd, orderSide, entrySize, entryPrice, steps);
+                            createRoundStep(pd, orderSide, new CurrencyValue(entrySize, valueCurrency), entryPrice, steps);
                             if (log) {
                                 log("             entry gives " + entryVolume + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                             }
@@ -81,7 +82,7 @@ public enum RoundNodeType {
                         }
                         double sizeVolume = remainedSize * entryPrice;
                         volume += sizeVolume;
-                        createRoundStep(pd, orderSide, remainedSize, entryPrice, steps);
+                        createRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
                         remainedSize = 0;
                         if (log) {
                             log("            remained gives " + sizeVolume + " " + bookCurrency2 + "; volume=" + volume);
@@ -105,7 +106,7 @@ public enum RoundNodeType {
                             }
                             volume += entrySize;
                             remainedSize -= entryGives;
-                            createRoundStep(pd, orderSide, entryGives, entryPrice, steps);
+                            createRoundStep(pd, orderSide, new CurrencyValue(entryGives, valueCurrency), entryPrice, steps);
                             if (log) {
                                 log("             entry gives " + entryGives + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                             }
@@ -124,7 +125,7 @@ public enum RoundNodeType {
                                     + " can " + oppositeName + " " + entryGives + " " + bookCurrency2);
                         }
                         volume += sizeVolume;
-                        createRoundStep(pd, orderSide, remainedSize, entryPrice, steps);
+                        createRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
                         remainedSize = 0;
                         if (log) {
                             log("             remained gives " + sizeVolume + " " + bookCurrency + "; volume=" + volume);
@@ -153,13 +154,16 @@ public enum RoundNodeType {
         @Override public String getPrefix() { return "lmt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
         @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
+System.out.println("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
+            OrderBook.Spread topSpread = orderBook.getTopSpread();
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
             double rate = orderSide.isBuy()
                     ? orderBook.getTopBidPrice() + step
                     : orderBook.getTopAskPrice() - step;
+System.out.println(" topSpread=" + topSpread + "; step=" + step + "; rate=" + rate);
 
-            createRoundStep(pd, orderSide, value.m_value, rate, steps);
+            createRoundStep(pd, orderSide, value, rate, steps);
             return rate;
         }
     },
@@ -173,7 +177,7 @@ public enum RoundNodeType {
                     ? orderBook.getTopAskPrice() - step // byu
                     : orderBook.getTopBidPrice() + step; // sell
 
-            createRoundStep(pd, orderSide, value.m_value, rate, steps);
+            createRoundStep(pd, orderSide, value, rate, steps);
             return rate;
         }
     },
@@ -188,9 +192,16 @@ public enum RoundNodeType {
 
     @Override public String toString() { return getPrefix(); }
 
-    protected void createRoundStep(PairData pd, OrderSide orderSide, double startValueValue, double rate, List<RoundNodePlan.RoundStep> steps) {
-        double fee = fee(pd.m_exchPairData); // 0.0023
+    protected void createRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
+System.out.println("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
+        Pair pair = pd.m_pair;
         boolean isBuy = orderSide.isBuy();
+        Currency inCurrency = isBuy ? pair.m_to : pair.m_from;
+        Currency outCurrency = isBuy ? pair.m_from : pair.m_to;
+System.out.println(" isBuy=" + isBuy + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency);
+
+        double startValueValue = value.m_value;
+        double fee = fee(pd.m_exchPairData); // 0.0023
 
         // BUY 1 BTC @ 1000 (with 0.001 fee) meant: -1001 USD; +1 BTC
         // SELL 1 BTC @ 1000 (with 0.001 fee) meant: -1 BTC; +999 USD
@@ -199,15 +210,14 @@ public enum RoundNodeType {
                 : startValueValue * rate;
 
         double afterFeeValue = translatedValue * (1 - fee);
-        Pair pair = pd.m_pair;
+System.out.println(" translatedValue=" + translatedValue + "; afterFeeValue=" + afterFeeValue);
 
-        Currency inCurrency = isBuy ? pair.m_to : pair.m_from;
         CurrencyValue inValue = new CurrencyValue(startValueValue, inCurrency);
-
-        Currency outCurrency = isBuy ? pair.m_from : pair.m_to;
         CurrencyValue outValue = new CurrencyValue(afterFeeValue, outCurrency);
+System.out.println("  inValue=" + inValue + "; outValue=" + outValue);
 
         double size = isBuy ? afterFeeValue : startValueValue;
+System.out.println("   size=" + size);
         RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(pair, orderSide, size, rate, inValue, outValue);
         steps.add(roundStep);
     }
