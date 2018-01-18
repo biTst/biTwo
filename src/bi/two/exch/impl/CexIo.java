@@ -39,6 +39,7 @@ public class CexIo extends BaseExchImpl {
     private String[] m_supportedCurrencies = new String[]{"BTC", "USD", "EUR", "GHS", "BTG", "GBP", "BCH",};
     private Map<String,LiveOrdersData> m_liveOrdersMap = new HashMap<>();
 
+    private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
@@ -827,10 +828,14 @@ public class CexIo extends BaseExchImpl {
     }
 
     @Override public void submitOrder(OrderData orderData) throws IOException {
+        console("CexIo.submitOrder() orderData=" + orderData);
         String orderSize = orderData.formatSize(orderData.m_amount);
         String orderPrice = orderData.formatPrice(orderData.m_price);
         String orderSide = orderData.m_side.getName();
+        console(" orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
         placeOrder(m_session, orderData.m_pair, orderSize, orderPrice, orderSide);
+        orderData.m_status = OrderStatus.SUBMITTED;
+        orderData.notifyListeners();
     }
 
     @Override public void cancelOrder(OrderData orderData) throws IOException {

@@ -1,6 +1,7 @@
 package bi.two.exch;
 
 import bi.two.tre.CurrencyValue;
+import bi.two.util.Log;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -21,6 +22,8 @@ public class Exchange {
     public ExecutorService m_threadPool;
 
     public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
+
+    private static void console(String s) { Log.console(s); }
 
     public Exchange(String name, Currency baseCurrency) {
         m_name = name;
@@ -122,13 +125,8 @@ public class Exchange {
     }
 
     public void submitOrder(OrderData orderData) throws IOException {
-System.out.println("Exchange.submitOrder: orderData=" + orderData);
+        console("Exchange.submitOrder: orderData=" + orderData);
         ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
-//        double minPriceStep = exchPairData.m_minPriceStep;
-//        CurrencyValue minOrderStep = exchPairData.m_minOrderStep;
-//        double minOrderStepValue = minOrderStep.m_value;
-//System.out.println(" minPriceStep=" + minPriceStep + "; minOrderStep=" + minOrderStep + "; minOrderStepValue=" + minOrderStepValue);
-
         exchPairData.submitOrder(orderData);
     }
 

@@ -11,17 +11,23 @@ public class Log {
         s_impl.log(s);
     }
 
+    public static void console(String s) {
+        s_impl.console(s);
+    }
+
     public static void err(String s, Throwable t) {
         s_impl.err(s, t);
     }
 
     public interface ILog {
         void log(String s);
+        void console(String s);
         void err(String s, Throwable t);
     }
 
     public static class NoLog implements ILog {
         @Override public void log(String s) { }
+        @Override public void console(String s) {}
         @Override public void err(String s, Throwable t) { }
     }
 
@@ -32,6 +38,8 @@ public class Log {
         @Override public synchronized void log(String s) {
             System.out.println(s);
         }
+
+        @Override public void console(String s) {}
 
         // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void err(String s, Throwable t) {
@@ -45,13 +53,21 @@ public class Log {
     public static class TimestampLog implements ILog {
         // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void log(String s) {
-            System.out.println(System.currentTimeMillis() + ": " + s);
+            logInt(s);
+        }
+
+        @Override public void console(String s) {
+            logInt(s);
         }
 
         // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void err(String s, Throwable t) {
-            System.out.println(System.currentTimeMillis() + ": " + s);
+            logInt(s);
             t.printStackTrace();
+        }
+
+        private void logInt(String s) {
+            System.out.println(System.currentTimeMillis() + ": " + s);
         }
     }
 
@@ -81,14 +97,28 @@ public class Log {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     String str = System.currentTimeMillis() + ": " + s + "\n";
-                    try {
-                        m_fos.write(str.getBytes());
-                    } catch (IOException e) {
-                        System.out.println("log error: " + e);
-                        e.printStackTrace();
-                    }
+                    logInt(str);
                 }
             });
+        }
+
+        @Override public void console(final String s) {
+            m_threadPool.execute(new Runnable() {
+                @Override public void run() {
+                    String str = System.currentTimeMillis() + ": " + s + "\n";
+                    logInt(str);
+                    System.out.print(str);
+                }
+            });
+        }
+
+        private void logInt(String str) {
+            try {
+                m_fos.write(str.getBytes());
+            } catch (IOException e) {
+                System.out.println("log error: " + e);
+                e.printStackTrace();
+            }
         }
 
         @Override public void err(final String s, final Throwable t) {
