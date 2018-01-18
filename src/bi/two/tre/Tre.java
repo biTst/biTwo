@@ -8,11 +8,11 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
@@ -45,6 +45,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private Map<Pair,Pair> m_waitingBooks;
     private List<OrderWatcher> m_orderWatchers = new ArrayList<>();
 
+    private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
@@ -54,8 +55,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private void main() {
         try {
-//            Log.s_impl = new Log.FileLog();
-            Log.s_impl = new Log.StdLog();
+            Log.s_impl = new Log.FileLog();
 
             m_timer = new Timer();
 
@@ -102,7 +102,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void onGotAccount() throws Exception {
-        log("Exchange.onAccount() " + m_exchange.m_accountData);
+        console("Exchange.onAccount() " + m_exchange.m_accountData);
         if (!m_initialized) {
             m_initialized = true;
             initThreadPool();
@@ -116,68 +116,79 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void cancelAllOrders() throws Exception {
-        List<Pair> allPairs = Pair.getAllPairs();
-        log(" queryOrders() allPairs=" + allPairs + "...");
-        final List<Pair> waitingLiveOrders = new ArrayList<>();
-        final List<String> orderIdsToCancel = new ArrayList<>();
-        final AtomicInteger orderToCancelCounter = new AtomicInteger();
-        for (final Pair pair : allPairs) {
-            waitingLiveOrders.add(pair);
+        console(" queryOrders() pairDatas=" + m_pairDatas + "...");
+        Iterator<PairData> iterator = m_pairDatas.iterator();
+        cancelAllOrders(iterator);
+    }
+
+    private void cancelAllOrders(final Iterator<PairData> pairsIterator) throws Exception {
+        if (pairsIterator.hasNext()) {
+            PairData nextPair = pairsIterator.next();
+            console("cancelAllOrders() nextPair=" + nextPair);
+
+            TimeUnit.MILLISECONDS.sleep(500); // small delay
+
+            final Pair pair = nextPair.m_pair;
             m_exchange.queryOrders(pair, new Exchange.IOrdersListener() {
                 @Override public void onUpdated(Map<String, OrderData> orders) {
-                    log("queryOrders.onOrders(" + pair + ") orders=" + orders);
+                    console("queryOrders.onOrders(" + pair + ") orders=" + orders);
                     try {
-                        for (OrderData orderData : orders.values()) {
-                            String orderId = orderData.m_orderId;
-                            orderIdsToCancel.add(orderId);
-                            orderToCancelCounter.incrementAndGet();
-                            orderData.addOrderListener(new OrderData.IOrderListener() {
-                                @Override public void onUpdated(OrderData orderData) {
-                                    log("IOrderListener.onUpdated() " + orderData);
-                                    try {
-                                        OrderStatus status = orderData.m_status;
-                                        if (status == OrderStatus.CANCELLED) {
-                                            String cancelledOrderId = orderData.m_orderId;
-                                            log("order cancelled: cancelledOrderId=" + cancelledOrderId);
-                                            orderIdsToCancel.remove(cancelledOrderId);
-                                            if (orderIdsToCancel.isEmpty()) {
-                                                int ordersToCancelNum = orderToCancelCounter.get();
-                                                log("all orders cancelled. ordersToCancelNum=" + ordersToCancelNum);
-                                                onAllOrdersCancelled();
-                                            }
-                                        }
-                                    } catch (Exception e) {
-                                        err("IOrderListener.onUpdated error: " + e, e);
-                                    }
-                                }
-                            });
-                            log(" cancelOrder() " + orderData);
-                            m_exchange.cancelOrder(orderData);
-                        }
-                        waitingLiveOrders.remove(pair);
-                        if (waitingLiveOrders.isEmpty()) {
-                            log("all pairs LiveOrders received");
-                            int ordersToCancelNum = orderToCancelCounter.get();
-                            if (ordersToCancelNum == 0) {
-                                log(" no orders cancelled - finish");
-                                onAllOrdersCancelled();
-                            }
+                        if (orders.isEmpty()) {
+                            console(" no live orders for pair: " + pair);
+                            cancelAllOrders(pairsIterator);
+                        } else {
+                            Iterator<OrderData> ordersIterator = orders.values().iterator();
+                            cancelAllOrders(pairsIterator, ordersIterator);
                         }
                     } catch (Exception e) {
-                        err("queryOrders.onOrders error: " + e, e);
+                        String msg = "queryOrders.onOrders error: " + e;
+                        console(msg);
+                        err(msg, e);
                     }
                 }
             });
+        } else {
+            console("cancelAllOrders() no more pairs - all cancelled");
+            onAllOrdersCancelled();
+        }
+    }
+
+    private void cancelAllOrders(final Iterator<PairData> pairsIterator, final Iterator<OrderData> ordersIterator) throws Exception {
+        if (ordersIterator.hasNext()) {
+            final OrderData nextOrder = ordersIterator.next();
+            console("cancelAllOrders() nextOrder=" + nextOrder);
+            nextOrder.addOrderListener(new OrderData.IOrderListener() {
+                @Override public void onUpdated(OrderData orderData) {
+                    console("IOrderListener.onUpdated() " + orderData);
+                    try {
+                        OrderStatus status = orderData.m_status;
+                        if (status == OrderStatus.CANCELLED) {
+                            String cancelledOrderId = orderData.m_orderId;
+                            console("order cancelled: cancelledOrderId=" + cancelledOrderId);
+                            cancelAllOrders(pairsIterator, ordersIterator);
+                        }
+                    } catch (Exception e) {
+                        String msg = "IOrderListener.onUpdated error: " + e;
+                        console(msg);
+                        err(msg, e);
+                    }
+                }
+            });
+            console(" cancelOrder() " + nextOrder);
+            m_exchange.cancelOrder(nextOrder);
+        } else {
+            console("cancelAllOrders() no more live orders - all cancelled");
+            cancelAllOrders(pairsIterator);
         }
     }
 
     private void onAllOrdersCancelled() throws Exception {
-        log("onAllOrdersCancelled()");
+        console("onAllOrdersCancelled()");
         continueInit();
     }
 
     private void continueInit() throws Exception {
-        log("continueInit()");
+        console("continueInit()");
         subscribeBooks();
         startSecTimer();
     }
@@ -295,13 +306,13 @@ public class Tre implements OrderBook.IOrderBookListener {
         String line = sb.toString();
         if (!line.equals(m_lastLogStr)) { // do not log the same twice
             m_lastLogStr = line;
-System.out.println(System.currentTimeMillis() + ": " + line);
+console(System.currentTimeMillis() + ": " + line);
         }
 
         if (m_waitingBooks != null) {
             m_waitingBooks.remove(pair);
             if (m_waitingBooks.isEmpty()) {
-                System.out.println("all books are LIVE");
+                console("all books are LIVE");
                 m_waitingBooks = null;
                 minBalance();
 //                evaluate();
@@ -310,14 +321,14 @@ System.out.println(System.currentTimeMillis() + ": " + line);
     }
 
     private void minBalance() {
-        System.out.println("minBalance");
+        console("minBalance");
         Map<Pair, CurrencyValue> totalMinPassThruOrdersSize = new HashMap<>();
         for (RoundData roundData : m_roundDatas) {
-            System.out.println(" roundData: " + roundData);
+            console(" roundData: " + roundData);
             Map<Pair, CurrencyValue> map = roundData.m_minPassThruOrdersSize;
-            System.out.println("  minPassThruOrdersSize: " + map);
+            console("  minPassThruOrdersSize: " + map);
             for (Map.Entry<Pair, CurrencyValue> entry : map.entrySet()) {
-                System.out.println("   entry: " + entry);
+                console("   entry: " + entry);
                 Pair pair = entry.getKey();
                 CurrencyValue minPassThruOrdersSize = entry.getValue();
 
@@ -325,7 +336,7 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                 if (currentValue != null) {
                     Currency currentCurrency = currentValue.m_currency;
                     Currency currency = minPassThruOrdersSize.m_currency;
-                    System.out.println("    current: " + currentValue + "; new=" + minPassThruOrdersSize);
+                    console("    current: " + currentValue + "; new=" + minPassThruOrdersSize);
                     if (currentCurrency != currency) {
                         throw new RuntimeException("currency mismatch: " + currentCurrency + " != " + currency);
                     }
@@ -335,94 +346,94 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                         continue;
                     }
                 }
-                System.out.println("     put into totalMinPassThruOrdersSize: " + pair + " -> " + minPassThruOrdersSize);
+                console("     put into totalMinPassThruOrdersSize: " + pair + " -> " + minPassThruOrdersSize);
                 totalMinPassThruOrdersSize.put(pair, minPassThruOrdersSize);
             }
         }
         Map<Currency,Double> minBalanceMap = new HashMap<>();
-        System.out.println(" totalMinPassThruOrdersSize=" + totalMinPassThruOrdersSize);
+        console(" totalMinPassThruOrdersSize=" + totalMinPassThruOrdersSize);
         for (Map.Entry<Pair, CurrencyValue> entry : totalMinPassThruOrdersSize.entrySet()) {
-            System.out.println("  entry=" + entry);
+            console("  entry=" + entry);
             Pair pair = entry.getKey();
             CurrencyValue value = entry.getValue();
             updateMinBalance(minBalanceMap, pair.m_from, value);
             updateMinBalance(minBalanceMap, pair.m_to, value);
         }
-        System.out.println(" minBalanceMap=" + minBalanceMap);
+        console(" minBalanceMap=" + minBalanceMap);
 
         Map<Double, Currency> availableRateMap = new TreeMap<>(new Comparator<Double>() {
             @Override public int compare(Double d1, Double d2) { return Double.compare(d2, d1); } // decreasing
         });
         AccountData m_accountData = m_exchange.m_accountData;
         for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
-            System.out.println("  entry=" + entry);
+            console("  entry=" + entry);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
             double available = m_accountData.available(currency);
-            System.out.println("   min=" + min + "; available=" + available);
+            console("   min=" + min + "; available=" + available);
             if (available > 0) {
                 double rate = available / min;
-                System.out.println("    rate=" + rate);
+                console("    rate=" + rate);
                 availableRateMap.put(rate, currency);
             }
         }
-        System.out.println(" availableRateMap=" + availableRateMap);
+        console(" availableRateMap=" + availableRateMap);
         Double bestRate = availableRateMap.keySet().iterator().next();
-        System.out.println("  bestRate=" + bestRate);
+        console("  bestRate=" + bestRate);
         Currency bestBalanceCurrency = availableRateMap.get(bestRate);
-        System.out.println("  bestBalanceCurrency=" + bestBalanceCurrency);
+        console("  bestBalanceCurrency=" + bestBalanceCurrency);
 
         for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
-            System.out.println("  entry=" + entry);
+            console("  entry=" + entry);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
             double available = m_accountData.available(currency);
-            System.out.println("   min=" + min + "; available=" + available);
+            console("   min=" + min + "; available=" + available);
 
             double need = min - available;
             if (need > 0) {
-                System.out.println("    not enough balance, need " + need + " " + currency);
+                console("    not enough balance, need " + need + " " + currency);
                 PairDirection pairDirection = PairDirection.get(bestBalanceCurrency, currency);
                 Pair pair = pairDirection.m_pair;
                 boolean supportPair = m_exchange.supportPair(pair);
-                System.out.println("    pairDirection=" + pairDirection + "; pair=" + pair + "; supportPair=" + supportPair);
+                console("    pairDirection=" + pairDirection + "; pair=" + pair + "; supportPair=" + supportPair);
                 if (supportPair) {
                     ExchPairData exchPairData = m_exchange.getPairData(pair);
                     CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
-                    System.out.println("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
+                    console("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
 
                     double minOrder = minOrderToCreate.m_value;
                     Currency minOrderCurrency = minOrderToCreate.m_currency;
                     if (minOrderCurrency != currency) {
                         double minOrderConverted = m_exchange.m_accountData.convert(minOrderCurrency, currency, minOrder);
-                        System.out.println("     minOrderConverted=" + minOrderConverted + " " + currency);
+                        console("     minOrderConverted=" + minOrderConverted + " " + currency);
                         minOrder = minOrderConverted;
                     }
 
                     if (need < minOrder) {
-                        System.out.println("    need=" + need + " is less than minOrder=" + minOrder + "; need increased to " + minOrder);
+                        console("    need=" + need + " is less than minOrder=" + minOrder + "; need increased to " + minOrder);
                         need = minOrder;
                     }
 
                     Currency sourceCurrency = pairDirection.getSourceCurrency();
                     Currency fromCurrency = pair.m_from;
                     OrderSide orderSide = OrderSide.get(sourceCurrency != fromCurrency);
-                    System.out.println("    sourceCurrency=" + sourceCurrency + "; fromCurrency=" + fromCurrency + "  => orderSide=" + orderSide + " " + fromCurrency.m_name);
+                    console("    sourceCurrency=" + sourceCurrency + "; fromCurrency=" + fromCurrency + "  => orderSide=" + orderSide + " " + fromCurrency.m_name);
 
                     PairData pairData = PairData.get(pair);
                     OrderBook orderBook = exchPairData.getOrderBook();
-                    System.out.println("     pairData=" + pairData + "; orderBook=" + orderBook);
+                    console("     pairData=" + pairData + "; orderBook=" + orderBook);
 
                     ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
                     CurrencyValue needValue = new CurrencyValue(need, currency);
                     double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, needValue, steps);
-                    System.out.println("         distribute() rate=" + rate);
+                    console("         distribute() rate=" + rate);
 
                     for (RoundNodePlan.RoundStep step : steps) {
                         StringBuilder sb = new StringBuilder();
                         sb.append("          ");
                         step.log(sb);
-                        System.out.println(sb.toString());
+                        console(sb.toString());
                     }
 
                     if (rate > 0) { // plan found
@@ -435,7 +446,7 @@ System.out.println(System.currentTimeMillis() + ": " + line);
                     }
                 }
             } else {
-                System.out.println("    enough balance");
+                console("    enough balance");
             }
         }
     }
@@ -445,88 +456,88 @@ System.out.println(System.currentTimeMillis() + ": " + line);
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
-        System.out.println("   updateMinBalance for " + currency + "; value=" + value);
+        console("   updateMinBalance for " + currency + "; value=" + value);
         double newValue = value.m_value;
 
         Currency valueCurrency = value.m_currency;
         if (currency != valueCurrency) {
             double convertedValue = m_exchange.m_accountData.convert(valueCurrency, currency, newValue);
-            System.out.println("    convert " + valueCurrency + "->" + currency + ": " + convertedValue);
+            console("    convert " + valueCurrency + "->" + currency + ": " + convertedValue);
             newValue = convertedValue;
         }
 
         Double minBalance = minBalanceMap.get(currency);
-        System.out.println("    minBalance=" + minBalance);
+        console("    minBalance=" + minBalance);
         if (minBalance != null) {
             if (newValue <= minBalance) {
                 return;
             }
         }
-        System.out.println("    put: " + currency + " -> " + newValue);
+        console("    put: " + currency + " -> " + newValue);
         minBalanceMap.put(currency, newValue);
     }
 
     private void evaluate() {
         AccountData accountData = m_exchange.m_accountData;
         for (RoundPlan plan : RoundData.s_allPlans) {
-            System.out.println("evaluate " + plan);
+            console("evaluate " + plan);
             boolean allEnough = true;
             for (RoundNodePlan nodePlan : plan.m_roundNodePlans) {
-                System.out.println(" " + nodePlan);
+                console(" " + nodePlan);
                 CurrencyValue startValue = nodePlan.m_startValue;
-                System.out.println("  startValue=" + startValue);
+                console("  startValue=" + startValue);
                 Currency startCurrency = startValue.m_currency;
                 double startCurrencyAvailable = accountData.available(startCurrency);
-                System.out.println("   acct.available" + startCurrency + "=" + startCurrencyAvailable);
+                console("   acct.available" + startCurrency + "=" + startCurrencyAvailable);
                 if (startCurrencyAvailable > startValue.m_value * 2) {
-                    System.out.println("    enough startCurrency " + startCurrency);
+                    console("    enough startCurrency " + startCurrency);
                     CurrencyValue outValue = nodePlan.m_outValue;
-                    System.out.println("     outValue " + outValue);
+                    console("     outValue " + outValue);
                     Currency outCurrency = outValue.m_currency;
                     double outCurrencyAvailable = accountData.available(outCurrency);
-                    System.out.println("      acct.available" + outCurrency + "=" + outCurrencyAvailable);
+                    console("      acct.available" + outCurrency + "=" + outCurrencyAvailable);
                     double outValueValue = outValue.m_value;
                     double outNeedMore = outValueValue - outCurrencyAvailable;
                     if (outNeedMore > 0) {
-                        System.out.println("       outNeedMore=" + outNeedMore + outCurrency);
+                        console("       outNeedMore=" + outNeedMore + outCurrency);
 
                         PairDirectionData pdd = nodePlan.m_pdd;
-                        System.out.println("        pdd=" + pdd);
+                        console("        pdd=" + pdd);
                         PairData pairData = pdd.m_pairData;
-                        System.out.println("        pairData=" + pairData);
+                        console("        pairData=" + pairData);
                         PairDirection pairDirection = pdd.m_pairDirection;
-                        System.out.println("        pairDirection=" + pairDirection);
+                        console("        pairDirection=" + pairDirection);
                         boolean forward = pairDirection.m_forward;
-                        System.out.println("        forward=" + forward);
+                        console("        forward=" + forward);
                         OrderSide orderSide = OrderSide.get(!forward);
-                        System.out.println("        orderSide=" + orderSide);
+                        console("        orderSide=" + orderSide);
                         ExchPairData exchPairData = pairData.m_exchPairData;
-                        System.out.println("        exchPairData=" + exchPairData);
+                        console("        exchPairData=" + exchPairData);
                         OrderBook orderBook = exchPairData.getOrderBook();
-                        System.out.println("        orderBook=" + orderBook);
+                        console("        orderBook=" + orderBook);
 
                         ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
                         double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, startValue, steps);
-                        System.out.println("         distribute() rate=" + rate);
+                        console("         distribute() rate=" + rate);
 
                         for (RoundNodePlan.RoundStep step : steps) {
                             StringBuilder sb = new StringBuilder();
                             sb.append("          ");
                             step.log(sb);
-                            System.out.println(sb.toString());
+                            console(sb.toString());
                         }
                         return;
                     } else {
-                        System.out.println("       enough outCurrency " + outCurrencyAvailable + outCurrency);
+                        console("       enough outCurrency " + outCurrencyAvailable + outCurrency);
                     }
                 } else {
-                    System.out.println("    not enough startCurrency " + startCurrency);
+                    console("    not enough startCurrency " + startCurrency);
                     allEnough = false;
                     break;
                 }
             }
             if (allEnough) {
-                System.out.println(" allEnough");
+                console(" allEnough");
             }
         }
     }
@@ -536,7 +547,7 @@ System.out.println(System.currentTimeMillis() + ": " + line);
     }
 
     private void logTop() {
-System.out.println("best plans: ");
+console("best plans: ");
         int num = Math.min(RoundData.s_bestPlans.size(), BEST_PLANS_COUNT);
         for (int j = 0; j < num; j++) {
             StringBuilder sb = new StringBuilder();
@@ -554,7 +565,7 @@ System.out.println("best plans: ");
                 }
                 timestamp = nextTimestamp;
             }
-System.out.println(sb.toString());
+console(sb.toString());
         }
     }
 
@@ -591,20 +602,26 @@ System.out.println(sb.toString());
             PairData pairData = PairData.get(m_pair);
             pairData.addOrderBookListener(new OrderBook.IOrderBookListener() {
                 @Override public void onOrderBookUpdated(OrderBook orderBook) {
-                    System.out.println("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
+                    console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
                     OrderBook.Spread topSpread = orderBook.getTopSpread();
-                    System.out.println(" topSpread=" + topSpread);
+                    console(" topSpread=" + topSpread);
                 }
             });
             m_exchPairData = exchange.getPairData(m_pair);
         }
 
         public void start() {
-            System.out.println("OrderWatcher.start()");
-            OrderData orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
-            System.out.println(" submitOrder: " + orderData);
-//            m_exchange.submitOrder(orderData);
-//            m_state = State.submitted;
+            try {
+                console("OrderWatcher.start()");
+                OrderData orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
+                console(" submitOrder: " + orderData);
+                m_exchange.submitOrder(orderData);
+                m_state = State.submitted;
+            } catch (IOException e) {
+                String msg = "OrderWatcher.start() error: " + e;
+                console(msg);
+                err(msg, e);
+            }
         }
 
         private enum State {
