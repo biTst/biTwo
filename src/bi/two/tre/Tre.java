@@ -271,7 +271,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void subscribeBooks() throws Exception {
-        log("subscribeBooks()");
+        console("subscribeBooks()");
         m_waitingBooks = new HashMap<>();
         for (PairData pairData : m_pairDatas) {
             subscribePairBook(pairData);
@@ -292,7 +292,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
-        log("onOrderBookUpdated: " + orderBook);
+        console("onOrderBookUpdated: " + orderBook);
         Pair pair = orderBook.m_pair;
         PairData pairData = PairData.get(pair);
         pairData.onOrderBookUpdated(orderBook);
@@ -614,6 +614,11 @@ console(sb.toString());
             try {
                 console("OrderWatcher.start()");
                 OrderData orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
+                orderData.addOrderListener(new OrderData.IOrderListener() {
+                    @Override public void onUpdated(OrderData orderData) {
+                        console("Order.onUpdated() orderData=" + orderData);
+                    }
+                });
                 console(" submitOrder: " + orderData);
                 m_exchange.submitOrder(orderData);
                 m_state = State.submitted;

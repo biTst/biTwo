@@ -23,7 +23,19 @@ public class LiveOrdersData {
     }
 
     public void addOrder(OrderData orderData) {
-        m_orders.put(orderData.m_orderId, orderData);
+        String orderId = orderData.m_orderId;
+        if (orderId == null) {
+            throw new RuntimeException("can not add order with null orderId");
+        }
+        boolean containsKey = m_orders.containsKey(orderId);
+        if (containsKey) {
+            throw new RuntimeException("order with orderId=" + orderId + " already exist");
+        }
+        String clientOrderId = orderData.m_clientOrderId;
+        if (clientOrderId != null) {
+            m_clientOrders.remove(clientOrderId);
+        }
+        m_orders.put(orderId, orderData);
     }
 
     public void notifyListener() {

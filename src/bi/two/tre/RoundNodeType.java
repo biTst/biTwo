@@ -154,14 +154,14 @@ public enum RoundNodeType {
         @Override public String getPrefix() { return "lmt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
         @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
-System.out.println("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
+console("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
             double rate = orderSide.isBuy()
                     ? orderBook.getTopBidPrice() + step
                     : orderBook.getTopAskPrice() - step;
-System.out.println(" topSpread=" + topSpread + "; step=" + step + "; rate=" + rate);
+console(" topSpread=" + topSpread + "; step=" + step + "; rate=" + rate);
 
             createRoundStep(pd, orderSide, value, rate, steps);
             return rate;
@@ -183,6 +183,7 @@ System.out.println(" topSpread=" + topSpread + "; step=" + step + "; rate=" + ra
     },
     ;
 
+    private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
@@ -193,14 +194,14 @@ System.out.println(" topSpread=" + topSpread + "; step=" + step + "; rate=" + ra
     @Override public String toString() { return getPrefix(); }
 
     protected void createRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
-System.out.println("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
+console("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
         Pair pair = pd.m_pair;
         Currency valueCurrency = value.m_currency;
         boolean isBuy = orderSide.isBuy();
         Currency inCurrency = isBuy ? pair.m_to : pair.m_from;
         Currency outCurrency = isBuy ? pair.m_from : pair.m_to;
         boolean distributeSource = (valueCurrency == inCurrency);
-System.out.println(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency + "; distributeSource=" + distributeSource);
+console(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency + "; distributeSource=" + distributeSource);
 
         double startValueValue = value.m_value;
         double fee = fee(pd.m_exchPairData); // 0.0023
@@ -216,16 +217,16 @@ System.out.println(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; i
                                         : startValueValue / rate;
 
         double afterFeeValue = translatedValue * (distributeSource ? (1 - fee) : (1 + fee));
-System.out.println(" translatedValue=" + translatedValue + "; afterFeeValue=" + afterFeeValue);
+console(" translatedValue=" + translatedValue + "; afterFeeValue=" + afterFeeValue);
 
         CurrencyValue inValue = new CurrencyValue(distributeSource ? startValueValue : afterFeeValue, inCurrency);
         CurrencyValue outValue = new CurrencyValue(distributeSource ? afterFeeValue : startValueValue, outCurrency);
-System.out.println("  inValue=" + inValue + "; outValue=" + outValue);
+console("  inValue=" + inValue + "; outValue=" + outValue);
 
         double size = distributeSource
                         ? isBuy ? afterFeeValue : startValueValue
                         : isBuy ? startValueValue : afterFeeValue;
-System.out.println("   size=" + size);
+console("   size=" + size);
         RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(pair, orderSide, size, rate, inValue, outValue);
         steps.add(roundStep);
     }

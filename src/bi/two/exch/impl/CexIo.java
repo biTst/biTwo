@@ -8,6 +8,7 @@ import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.client.ClientProperties;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
+import org.jetbrains.annotations.NotNull;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -37,7 +38,8 @@ public class CexIo extends BaseExchImpl {
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
     private String[] m_supportedCurrencies = new String[]{"BTC", "USD", "EUR", "GHS", "BTG", "GBP", "BCH",};
-    private Map<String,LiveOrdersData> m_liveOrdersMap = new HashMap<>();
+    private Map<String,LiveOrdersData> m_liveOrdersRequestsMap = new HashMap<>();
+    private Map<String,OrderData> m_submitOrderRequestsMap = new HashMap<>();
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -324,7 +326,7 @@ public class CexIo extends BaseExchImpl {
         }
     }
 
-    private static void onPlaceOrder(Session session, JSONObject jsonObject) {
+    private void onPlaceOrder(Session session, JSONObject jsonObject) {
         // {"error":"There was an error while placing your order: Invalid amount"}
         // {"error":"Error: Place order error: Insufficient funds."}
         // {"amount":"0.01000000","price":"9000.0123","pending":"0.01000000","id":"5067483259","time":1511569539812,"complete":false,"type":"sell"}
@@ -332,12 +334,27 @@ public class CexIo extends BaseExchImpl {
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onPlaceOrder[" + oid + "]: data=" + data);
 
-        Object error = data.get("error");
-        if (error != null) {
-            log("  Error placing order[" + oid + "]: " + error);
+        OrderData orderData = m_submitOrderRequestsMap.get(oid);
+        if (orderData != null) {
+            Object error = data.get("error");
+            if (error == null) {
+                Object id = data.get("id");
+                log("  Order place OK. id=" + id);
+                orderData.m_orderId = id.toString();
+                orderData.m_status = OrderStatus.SUBMITTED;
+                // todo: check - can be partially/filled
+                Pair pair = orderData.m_pair;
+                ExchPairData pairData = m_exchange.getPairData(pair);
+                LiveOrdersData liveOrders = pairData.getLiveOrders();
+                liveOrders.addOrder(orderData);
+            } else {
+                log("  Error placing order[" + oid + "]: " + error);
+                orderData.m_status = OrderStatus.ERROR;
+                orderData.m_error = error.toString();
+            }
+            orderData.notifyListeners();
         } else {
-            Object id = data.get("id");
-            log("  Order place OK. id=" + id);
+            log("Error in onPlaceOrder, not expected oid=" + oid);
         }
     }
 
@@ -434,7 +451,7 @@ public class CexIo extends BaseExchImpl {
         return aBids;
     }
 
-    private static void unsubscribeOrderBook(Session session) throws IOException {
+    private static void unsubscribeOrderBook(Session session, Pair pair) throws IOException {
 //        {
 //            "e": "order-book-unsubscribe",
 //            "data": {
@@ -443,7 +460,7 @@ public class CexIo extends BaseExchImpl {
 //        }
 
         long timeMillis = System.currentTimeMillis();
-        send(session, "{ \"e\": \"order-book-unsubscribe\", \"data\": { \"pair\": [ \"BTC\", \"USD\" ] }, \"oid\": \"" + timeMillis + "_order-book-unsubscribe\" }");
+        send(session, "{ \"e\": \"order-book-unsubscribe\", \"data\": { " + pairToStr(pair) +  " }, \"oid\": \"" + timeMillis + "_order-book-unsubscribe\" }");
     }
 
     private void onGetBalance(Session session, JSONObject jsonObject) throws Exception {
@@ -592,19 +609,19 @@ public class CexIo extends BaseExchImpl {
 
         Thread.sleep(1000);
         int depth = 3;
-        String cur1 = "BTC";
-        String cur2 = "USD";
-        queryOrderBookSnapshoot(session, cur1, cur2, depth);
+        Pair pair = Pair.get(Currency.BTC, Currency.USD);
+        queryOrderBookSnapshoot(session, pair, depth);
 
         Thread.sleep(1000);
         String oid = System.currentTimeMillis() + "_open-orders";
-        queryOpenOrders(session, oid, "BTC", "USD");
+        queryOpenOrders(session, oid, pair);
 
         Thread.sleep(1000);
         String orderSize = "0.01";
         String price = "9000.0123";
         String side = "sell";
-        placeOrder(session, Pair.get(Currency.BTC, Currency.USD), orderSize, price, side);
+        oid = System.currentTimeMillis() + "_place-order";
+        placeOrder(session, oid, pair, orderSize, price, side);
     }
 
     private static void queryTickers(Session session) throws IOException {
@@ -615,7 +632,7 @@ public class CexIo extends BaseExchImpl {
         send(session, "{\"e\": \"subscribe\", \"rooms\": [ \"tickers\" ]}");
     }
 
-    private static void placeOrder(Session session, Pair pair, String orderSize, String price, String side) throws IOException {
+    private static void placeOrder(Session session, String oid, Pair pair, String orderSize, String price, String side) throws IOException {
         //        {
         //            "e": "place-order",
         //            "data": {
@@ -627,9 +644,12 @@ public class CexIo extends BaseExchImpl {
         //            "oid": "1435927928274_7_place-order"
         //        }
 
-        long timeMillis = System.currentTimeMillis();
-        send(session, "{ \"e\": \"place-order\", \"data\": { \"pair\": [ \"" + pair.m_from + "\", \"" + pair.m_to + "\" ], \"amount\": " + orderSize
-                + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + timeMillis + "_place-order\" }");
+        send(session, "{ \"e\": \"place-order\", \"data\": { " + pairToStr(pair) + ", \"amount\": " + orderSize
+                + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + oid + "\" }");
+    }
+
+    @NotNull private static String pairToStr(Pair pair) {
+        return "\"pair\": [ \"" + pair.m_from.name().toUpperCase() + "\", \"" + pair.m_to.name().toUpperCase() + "\" ]";
     }
 
     private static void replaceOrder(Session session, String orderId, Pair pair, String orderSize, String price, String side) throws IOException {
@@ -646,18 +666,19 @@ public class CexIo extends BaseExchImpl {
         //        }
 
         long timeMillis = System.currentTimeMillis();
-        send(session, "{\"e\": \"cancel-replace-order\",\"data\": {\"order_id\": \"" + orderId + "\",\"pair\": [\"" + pair.m_from + "\",\"" + pair.m_to + "\"],\"amount\": " + orderSize + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + timeMillis + "_cancel-replace-order\"}");
+        send(session, "{\"e\": \"cancel-replace-order\",\"data\": {\"order_id\": \"" + orderId + "\"," + pairToStr(pair) + ",\"amount\": " + orderSize
+                + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + timeMillis + "_cancel-replace-order\"}");
     }
 
-    private static void queryOrderBookSnapshoot(Session session, String cur1, String cur2, int depth) throws IOException {
-        queryOrderBook(session, cur1, cur2, depth, false);
+    private static void queryOrderBookSnapshoot(Session session, Pair pair, int depth) throws IOException {
+        queryOrderBook(session, pair, depth, false);
     }
 
-    private static void subscribeOrderBook(Session session, String cur1, String cur2, int depth) throws IOException {
-        queryOrderBook(session, cur1, cur2, depth, true);
+    private static void subscribeOrderBook(Session session, Pair pair, int depth) throws IOException {
+        queryOrderBook(session, pair, depth, true);
     }
 
-    private static void queryOrderBook(Session session, String cur1, String cur2, int depth, boolean streaming) throws IOException {
+    private static void queryOrderBook(Session session, Pair pair, int depth, boolean streaming) throws IOException {
         //        {
         //            "e": "order-book-subscribe",
         //            "data": {
@@ -670,8 +691,8 @@ public class CexIo extends BaseExchImpl {
 
         long timeMillis = System.currentTimeMillis();
         String oid = timeMillis + "_order-book-subscribe";
-        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { \"pair\": [ \"" + cur1 + "\", \""
-                + cur2 + "\" ], \"subscribe\": " + streaming + ", \"depth\": " + depth + " }, \"oid\": \"" + oid + "\" }");
+        send(session, "{ \"e\": \"order-book-subscribe\", \"data\": { " + pairToStr(pair) +
+                ", \"subscribe\": " + streaming + ", \"depth\": " + depth + " }, \"oid\": \"" + oid + "\" }");
     }
 
     private static void queryBalance(Session session) throws IOException {
@@ -787,9 +808,10 @@ public class CexIo extends BaseExchImpl {
 
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
-        subscribeOrderBook(m_session, cur1, cur2, depth);
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);
+
+        subscribeOrderBook(m_session, pair, depth);
     }
 
     @Override public void queryOrderBookSnapshot(OrderBook orderBook, int depth) throws Exception {
@@ -801,11 +823,10 @@ public class CexIo extends BaseExchImpl {
 
         String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
         String cur2 = toCurr.m_name.toUpperCase(); // "USD"
-
         String key = cur1 + ":" + cur2;
         m_orderBooks.put(key, orderBook);
 
-        queryOrderBookSnapshoot(m_session, cur1, cur2, depth);
+        queryOrderBookSnapshoot(m_session, pair, depth);
     }
 
     @Override public void queryAccount() throws Exception {
@@ -819,12 +840,9 @@ public class CexIo extends BaseExchImpl {
 
         log("queryOrders: " + pair + "; fromCurr: " + fromCurr + "; toCurr: " + toCurr);
 
-        String cur1 = fromCurr.m_name.toUpperCase(); // "BTC"
-        String cur2 = toCurr.m_name.toUpperCase(); // "USD"
-
         String oid = System.currentTimeMillis() + "_open-orders";
-        m_liveOrdersMap.put(oid, liveOrders);
-        queryOpenOrders(m_session, oid, cur1, cur2);
+        m_liveOrdersRequestsMap.put(oid, liveOrders);
+        queryOpenOrders(m_session, oid, pair);
     }
 
     @Override public void submitOrder(OrderData orderData) throws IOException {
@@ -833,7 +851,9 @@ public class CexIo extends BaseExchImpl {
         String orderPrice = orderData.formatPrice(orderData.m_price);
         String orderSide = orderData.m_side.getName();
         console(" orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
-        placeOrder(m_session, orderData.m_pair, orderSize, orderPrice, orderSide);
+        String oid = System.currentTimeMillis() + "_place-order";
+        m_submitOrderRequestsMap.put(oid, orderData);
+        placeOrder(m_session, oid, orderData.m_pair, orderSize, orderPrice, orderSide);
         orderData.m_status = OrderStatus.SUBMITTED;
         orderData.notifyListeners();
     }
@@ -842,14 +862,14 @@ public class CexIo extends BaseExchImpl {
         cancelOrder(m_session, orderData.m_orderId);
     }
 
-    private static void queryOpenOrders(Session session, String oid, String cur1, String cur2) throws IOException {
+    private static void queryOpenOrders(Session session, String oid, Pair pair) throws IOException {
         //        {
         //            "e": "open-orders",
         //            "data": { "pair": [ "BTC", "USD" ] },
         //            "oid": "1435927928274_6_open-orders"
         //        }
 
-        send(session, "{ \"e\": \"open-orders\", \"data\": { \"pair\": [ \"" + cur1 + "\", \"" + cur2 + "\" ] }, \"oid\": \"" + oid + "\" }");
+        send(session, "{ \"e\": \"open-orders\", \"data\": { " + pairToStr(pair) + " }, \"oid\": \"" + oid + "\" }");
     }
 
     private void processOpenOrders(Session session, final JSONObject jsonObject) throws Exception {
@@ -861,7 +881,7 @@ public class CexIo extends BaseExchImpl {
                     JSONArray data = (JSONArray) jsonObject.get("data");
                     log(" processOpenOrders[" + oid + "]: data=" + data);
 
-                    LiveOrdersData liveOrdersData = m_liveOrdersMap.get(oid);
+                    LiveOrdersData liveOrdersData = m_liveOrdersRequestsMap.get(oid);
                     log("  liveOrdersData=" + liveOrdersData);
 
                     if (liveOrdersData != null) {

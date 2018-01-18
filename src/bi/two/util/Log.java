@@ -74,7 +74,7 @@ public class Log {
 
     // -----------------------------------------------------------------------------
     public static class FileLog implements ILog {
-        public static final String LOG_FILE = "log.log";
+        static final String LOG_FILE = "log.log";
 
         private final ExecutorService m_threadPool;
         private final FileOutputStream m_fos;
@@ -82,7 +82,7 @@ public class Log {
         public FileLog() {
             m_threadPool = Executors.newSingleThreadExecutor();
             File file = new File(LOG_FILE);
-            if(file.exists()) {
+            if (file.exists()) {
                 String newFileName = "log-" + System.currentTimeMillis() + ".log";
                 file.renameTo(new File(newFileName));
             }
@@ -123,8 +123,8 @@ public class Log {
 
         @Override public void err(final String s, final Throwable t) {
             m_threadPool.execute(new Runnable() {
-                @Override
-                public void run() {
+                @Override public void run() {
+                    System.out.println(s);
                     ByteArrayOutputStream bos = new ByteArrayOutputStream();
                     PrintStream ps = new PrintStream(bos);
                     try {

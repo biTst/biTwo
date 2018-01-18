@@ -22,6 +22,7 @@ public class OrderData {
     private DecimalFormat m_priceFormat;
     private DecimalFormat m_sizeFormat;
     private List<IOrderListener> m_listeners;
+    public String m_error;
 
     public OrderData(Exchange exchange, String orderId, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
@@ -50,16 +51,23 @@ public class OrderData {
     }
 
     @Override public String toString() {
-        return "OrderData{" +
-                ((m_orderId != null) ? "id=" + m_orderId + " " : "") +
-                "status=" + m_status +
-                ", pair=" + m_pair +
-                ", side=" + m_side +
-                ", type=" + m_type+
-                ", amount=" + Utils.format5(m_amount) +
-                ", price=" + Utils.format5(m_price) +
-                ", filled=" + Utils.format5(m_filled) +
-                '}';
+        StringBuilder sb = new StringBuilder();
+        sb.append("OrderData{");
+        if (m_orderId != null) {
+            sb.append("id=").append(m_orderId).append(' ');
+        }
+        sb.append("status=").append(m_status);
+        sb.append(", pair=").append(m_pair);
+        sb.append(", side=").append(m_side);
+        sb.append(", type=").append(m_type);
+        sb.append(", amount=").append(formatSize(m_amount));
+        sb.append(", price=").append(formatPrice(m_price));
+        sb.append(", filled=").append(formatSize(m_filled));
+        if (m_error != null) {
+            sb.append(", ").append(m_error);
+        }
+        sb.append('}');
+        return sb.toString();
     }
 
     public void setFilled(double filled) {
@@ -75,11 +83,11 @@ public class OrderData {
     }
 
     public String formatPrice(double price) {
-        return m_priceFormat.format(price);
+        return (m_priceFormat == null) ? Utils.format8(price) : m_priceFormat.format(price);
     }
 
     public String formatSize(double size) {
-        return m_sizeFormat.format(size);
+        return (m_sizeFormat == null) ? Utils.format8(size) : m_sizeFormat.format(size);
     }
 
     public void addOrderListener(IOrderListener listener) {
