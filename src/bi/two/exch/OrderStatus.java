@@ -2,12 +2,11 @@ package bi.two.exch;
 
 public enum OrderStatus {
     NEW,
-    SUBMITTED {
+    SUBMITTED { // order was sent to exh
         @Override public boolean isActive() {
             return true;
         }
     },
-    // ACKNOWLEDGED ?
     PARTIALLY_FILLED {
         @Override public boolean partialOrFilled() { return true; }
         @Override public boolean isActive() {

@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.*;
 import bi.two.util.Log;
+import bi.two.util.Utils;
 
 import java.util.List;
 
@@ -161,7 +162,7 @@ console("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + o
             double rate = orderSide.isBuy()
                     ? orderBook.getTopBidPrice() + step
                     : orderBook.getTopAskPrice() - step;
-console(" topSpread=" + topSpread + "; step=" + step + "; rate=" + rate);
+console(" topSpread=" + topSpread + "; step=" + Utils.format8(step) + "; rate=" + rate);
 
             createRoundStep(pd, orderSide, value, rate, steps);
             return rate;
@@ -217,7 +218,8 @@ console(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency="
                                         : startValueValue / rate;
 
         double afterFeeValue = translatedValue * (distributeSource ? (1 - fee) : (1 + fee));
-console(" translatedValue=" + translatedValue + "; afterFeeValue=" + afterFeeValue);
+        double feeValue = translatedValue * fee;
+console(" translatedValue=" + Utils.format8(translatedValue) + "; fee=" + Utils.format8(fee) + "; feeValue=" + Utils.format8(feeValue) + "; afterFeeValue=" + Utils.format8(afterFeeValue));
 
         CurrencyValue inValue = new CurrencyValue(distributeSource ? startValueValue : afterFeeValue, inCurrency);
         CurrencyValue outValue = new CurrencyValue(distributeSource ? afterFeeValue : startValueValue, outCurrency);

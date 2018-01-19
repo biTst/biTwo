@@ -1,6 +1,7 @@
 package bi.two.exch.impl;
 
 import bi.two.exch.*;
+import bi.two.tre.CurrencyValue;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -277,35 +278,119 @@ public class CexIo extends BaseExchImpl {
         // {"d":"user:up100734377:a:BTC","c":"order:5067483259:a:BTC","a":"0.01000000","ds":"0.01431350","cs":"0.01000000",
         //  "user":"up100734377","symbol":"BTC","order":5067483259,"amount":"-0.01000000","type":"sell","time":"2017-11-25T00:25:39.812Z",
         //  "balance":"0.01431350","id":"5067483260"}
+
+        // for order [pair=bch_btc, side=BUY, type=LIMIT, amount=0.11000000, price=0.15652204] we have followed
+        //
+        // {"a":"0.00001378",                    {"a":"0.11000000",                    {"a":"0.00000001",
+        //  "symbol":"BTC",                       "symbol":"BCH",                       "symbol":"BTC",
+        //  "amount":"-0.01724326",               "amount":"0.11000000",                "amount":"0.00000001",
+        //  "c":"user:up100734377:a:BTC",         "c":"user:up100734377:a:BCH",         "c":"user:up100734377:a:BTC",
+        //  "d":"order:5456707271:a:BTC",         "d":"order:5456707271:a:BCH",         "d":"order:5456707271:a:BTC",
+        //  "type":"buy",                         "buy":5456707271,                     "type":"costsNothing",
+        //  "ds":"0.01724326",                    "sell":5456711383,                    "ds":0,
+        //  "cs":"0.39942936",                    "type":"buy",                         "cs":"0.39942937",
+        //  "balance":"0.39942936",               "ds":0,                               "balance":"0.39942937",
+        //  "time":"2018-01-18T01:43:36.661Z",    "symbol2":"BTC",                      "time":"2018-01-18T01:44:03.758Z",
+        //  "id":"5456707273",                    "cs":"0.11000000",                    "id":"5456711393",
+        //  "user":"up100734377",                 "fee_amount":"0.00002583",            "user":"up100734377",
+        //  "order":5456707271}                   "balance":"0.11000000",               "order":5456707271}
+        //                                        "price":0.15652204,
+        //                                        "time":"2018-01-18T01:44:03.758Z",
+        //                                        "id":"5456711392",
+        //                                        "user":"up100734377",
+        //                                        "order":5456707271}
+
+        // Transaction created (Order successfully completed)
+
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onTx: data=" + data);
     }
 
-    private static void onObalance(Session session, JSONObject jsonObject) {
+    private void onObalance(Session session, JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1000000"}
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onObalance: data=" + data);
 
-        Object symbol = data.get("symbol");
-        Object balance = data.get("balance");
-        log("  symbol=" + symbol + ";  balance=" + balance);
+        setAccountValue(data, false);
     }
 
-    private static void onBalance(Session session, JSONObject jsonObject) {
+    private void onBalance(Session session, JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1431350"}
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onBalance: data=" + data);
 
-        Object symbol = data.get("symbol");
-        Object balance = data.get("balance");
-        log("  symbol=" + symbol + ";  balance=" + balance);
+        setAccountValue(data, true);
     }
 
-    private static void onOrder(Session session, JSONObject jsonObject) {
+    private void setAccountValue(JSONObject data, boolean setAvailable) {
+        Object symbol = data.get("symbol");
+        Object balance = data.get("balance");
+        log("  symbol=" + symbol + ";  balance=" + balance); // symbol=BTC;  balance=39942936
+
+        String symbolStr = symbol.toString().toLowerCase();
+        Currency currency = Currency.getByName(symbolStr);
+        log("   symbolStr=" + symbolStr + ";  currency=" + currency);
+
+        String balanceStr = balance.toString();
+        double value = Double.parseDouble(balanceStr);
+        log("   balanceStr=" + balanceStr + ";  " + (setAvailable ? "available" : "allocated") + "=" + value);
+
+        AccountData accountData = m_exchange.m_accountData;
+        if (setAvailable) {
+            accountData.setAvailable(currency, value);
+        } else {
+            accountData.setAllocated(currency, value);
+        }
+        log("    accountData=" + accountData);
+    }
+
+    private void onOrder(Session session, JSONObject jsonObject) {
         // {"amount":1000000,"price":"9000.0123","fee":"0.17","remains":"1000000","id":"5067483259","time":"1511569539812",
         //  "type":"sell","pair":{"symbol1":"BTC","symbol2":"USD"}}
+
+        // for order [pair=bch_btc, side=BUY, type=LIMIT, amount=0.11000000, price=0.15652204] we have followed
+        // after submit:
+        //  {"amount":11000000,"price":"0.15652204","fee":"0.23","remains":"11000000","id":"5456707271","time":"1516239816661","type":"buy","pair":{"symbol1":"BCH","symbol2":"BTC"}}
+        // after fil;:
+        //  {"remains":"0","id":"5456707271","pair":{"symbol1":"BCH","symbol2":"BTC"}}
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onOrder: data=" + data);
+        JSONObject pair = (JSONObject) data.get("pair");
+        log("  pair=" + pair);
+        String symbol1 = (String) pair.get("symbol1");
+        String symbol2 = (String) pair.get("symbol2");
+        log("   symbol1=" + symbol1 + "; symbol2=" + symbol2);
+        Currency currency1 = Currency.get(symbol1.toLowerCase());
+        Currency currency2 = Currency.get(symbol2.toLowerCase());
+        log("   currency1=" + currency1 + "; currency2=" + currency2);
+        Pair pairObj = Pair.get(currency1, currency2);
+        log("    pairObj=" + pairObj);
+        ExchPairData exchPairData = m_exchange.getPairData(pairObj);
+        log("     exchPairData=" + exchPairData);
+        LiveOrdersData liveOrders = exchPairData.getLiveOrders();
+        String id = (String) jsonObject.get("id");
+        log("     order id=" + id);
+        OrderData od = liveOrders.getOrder(id);
+        log("      OrderData=" + od);
+
+        String remainsStr = (String) jsonObject.get("remains");
+        double remainsDouble = Double.parseDouble(remainsStr);
+        CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
+        double remains = remainsDouble * minOrderToCreate.m_value;
+        log("       remainsStr=" + remainsStr + "; remainsDouble=" + remainsDouble + "; remains=" + remains);
+
+        double filled = od.m_amount - remains;
+        od.setFilled(filled);
+
+        String fee = (String) jsonObject.get("fee");
+        Execution.Type execType = (fee != null)
+                                    ? Execution.Type.acknowledged // fee comes with first exec
+                                    : (remains == 0)
+                                        ? Execution.Type.fill
+                                        : Execution.Type.partialFill;
+        Execution execution = new Execution(execType, data.toString());
+        od.addExecution(execution);
+        od.notifyListeners();
     }
 
     private static void onCancelOrder(Session session, JSONObject jsonObject) {
@@ -334,15 +419,38 @@ public class CexIo extends BaseExchImpl {
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" onPlaceOrder[" + oid + "]: data=" + data);
 
-        OrderData orderData = m_submitOrderRequestsMap.get(oid);
+        OrderData orderData = m_submitOrderRequestsMap.remove(oid);
+        log("  orderData=" + orderData);
         if (orderData != null) {
             Object error = data.get("error");
             if (error == null) {
                 Object id = data.get("id");
                 log("  Order place OK. id=" + id);
                 orderData.m_orderId = id.toString();
-                orderData.m_status = OrderStatus.SUBMITTED;
+
                 // todo: check - can be partially/filled
+                Object complete = data.get("complete"); // "complete":false; complete - boolean - Order completion status
+                Object amount = data.get("amount"); // "amount":"0.01000000" : amount - decimal - Order amount
+                Object pending = data.get("pending"); // "pending":"0.01000000" : pending - decimal - Order pending amount
+
+                log("   complete=" + complete + "; amount=" + amount + "; pending=" + pending);
+
+                orderData.m_status = OrderStatus.SUBMITTED;
+
+                if (!amount.equals(pending)) { // some part of order executed immediately at the time of order placing
+                    double pend = Double.parseDouble(pending.toString());
+                    double filled = orderData.m_amount - pend;
+                    log("    pend=" + pend + "; amount=" + amount + "; filled=" + filled);
+                    orderData.setFilled(filled);
+
+                    boolean orderFilled = orderData.isFilled();
+                    log("     orderFilled=" + orderFilled);
+
+                    Execution.Type execType = orderFilled ? Execution.Type.fill : Execution.Type.partialFill;
+                    Execution execution = new Execution(execType, data.toString());
+                    orderData.addExecution(execution);
+                }
+
                 Pair pair = orderData.m_pair;
                 ExchPairData pairData = m_exchange.getPairData(pair);
                 LiveOrdersData liveOrders = pairData.getLiveOrders();
@@ -853,6 +961,7 @@ public class CexIo extends BaseExchImpl {
         console(" orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
         String oid = System.currentTimeMillis() + "_place-order";
         m_submitOrderRequestsMap.put(oid, orderData);
+        orderData.m_submitTime = System.currentTimeMillis();
         placeOrder(m_session, oid, orderData.m_pair, orderSize, orderPrice, orderSide);
         orderData.m_status = OrderStatus.SUBMITTED;
         orderData.notifyListeners();
@@ -905,10 +1014,11 @@ public class CexIo extends BaseExchImpl {
                             String pendingStr = (String) jsonOrder.get("pending");
                             log("   pendingStr: " + pendingStr); // "pending":"0.01000000"
                             double pending = Double.parseDouble(pendingStr);
-                            log("    pending: " + pending);
+                            double filled = amount - pending;
+                            log("    pending: " + pending + "; filled=" + filled);
 
                             OrderData orderData = new OrderData(m_exchange, orderId, liveOrdersData.m_pair, orderSide, OrderType.LIMIT, price, amount);
-                            orderData.setFilled(amount - pending);
+                            orderData.setFilled(filled);
                             liveOrdersData.addOrder(orderData);
                         }
                         liveOrdersData.notifyListener();

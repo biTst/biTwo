@@ -10,6 +10,7 @@ public class OrderData {
     public final Exchange m_exchange;
     public String m_orderId;
     public String m_clientOrderId;
+    public long m_submitTime;
     public final Pair m_pair;
     public final OrderSide m_side;
     public final OrderType m_type;
@@ -18,11 +19,12 @@ public class OrderData {
     public double m_amount;
 
     public long m_placeTime;
-    public double m_filled; // filled amount
+    private double m_filled; // filled amount
     private DecimalFormat m_priceFormat;
     private DecimalFormat m_sizeFormat;
     private List<IOrderListener> m_listeners;
     public String m_error;
+    public List<Execution> m_executions = new ArrayList<>();
 
     public OrderData(Exchange exchange, String orderId, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
@@ -71,9 +73,13 @@ public class OrderData {
     }
 
     public void setFilled(double filled) {
-        m_filled = filled;
-        if (filled > 0) { // something is executed
-            m_status = OrderStatus.PARTIALLY_FILLED;
+        if (m_filled != filled) {
+            m_filled = filled;
+            if (filled > 0) { // something is executed
+                m_status = (filled == m_amount)
+                        ? OrderStatus.FILLED
+                        : OrderStatus.PARTIALLY_FILLED;
+            }
         }
     }
 
@@ -104,6 +110,11 @@ public class OrderData {
             }
         }
     }
+
+    public void addExecution(Execution execution) {
+        m_executions.add(execution);
+    }
+
 
 
     //-----------------------------------------------------------

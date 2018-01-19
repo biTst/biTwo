@@ -48,4 +48,8 @@ public class LiveOrdersData {
         m_clientOrders.put(orderData.m_clientOrderId, orderData);
         m_exchange.m_impl.submitOrder(orderData);
     }
+
+    public OrderData getOrder(String oid) {
+        return m_orders.get(oid);
+    }
 }

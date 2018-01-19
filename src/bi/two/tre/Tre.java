@@ -19,6 +19,8 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
     public static final boolean CANCEL_ALL_ORDERS_AT_START = true;
+    private static final boolean DO_MIN_BALANCE = true;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
     public static final int BEST_PLANS_COUNT = 40;
 
     private static final String CONFIG = "cfg/tre.properties";
@@ -314,7 +316,9 @@ console(System.currentTimeMillis() + ": " + line);
             if (m_waitingBooks.isEmpty()) {
                 console("all books are LIVE");
                 m_waitingBooks = null;
-                minBalance();
+                if (DO_MIN_BALANCE) {
+                    minBalance();
+                }
 //                evaluate();
             }
         }
@@ -388,10 +392,11 @@ console(System.currentTimeMillis() + ": " + line);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
             double available = m_accountData.available(currency);
-            console("   min=" + min + "; available=" + available);
-
             double need = min - available;
-            if (need > 0) {
+            double needRate = need / min;
+            console("   min=" + min + "; available=" + available + "; need=" + need + "; needRate=" + needRate);
+
+            if (needRate > 0.1) {
                 console("    not enough balance, need " + need + " " + currency);
                 PairDirection pairDirection = PairDirection.get(bestBalanceCurrency, currency);
                 Pair pair = pairDirection.m_pair;
@@ -436,12 +441,14 @@ console(System.currentTimeMillis() + ": " + line);
                         console(sb.toString());
                     }
 
-                    if (rate > 0) { // plan found
-                        if (steps.size() == 1) { // run one-order nodes for now
-                            OrderWatcher orderWatcher = new OrderWatcher(m_exchange, steps.get(0));
-                            addOrderWatcher(orderWatcher);
-                            orderWatcher.start();
-                            break; // run only one order for now
+                    if (PLACE_MIN_BALANCE_ORDERS) {
+                        if (rate > 0) { // plan found
+                            if (steps.size() == 1) { // run one-order nodes for now
+                                OrderWatcher orderWatcher = new OrderWatcher(m_exchange, steps.get(0));
+                                addOrderWatcher(orderWatcher);
+                                orderWatcher.start();
+                                break; // run only one order for now
+                            }
                         }
                     }
                 }
