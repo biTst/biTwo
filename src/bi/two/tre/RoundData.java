@@ -80,16 +80,21 @@ class RoundData implements OrderBook.IOrderBookListener {
             }
             m_allLive = allLive;
             if (m_allLive) {
-                onBecomesLive();
+                log("ALL books becomes LIVE for round: " + this);
             }
         }
+
         if (m_allLive) {
-            List<RoundPlan> plans = new ArrayList<>(); // plans related to this book update only
-            for (RoundDirectedData directedRound : m_directedRounds) {
-                directedRound.onUpdated(m_exchange, plans);
+            recalcPassThruOrdersIfNeeded();
+
+            if (Tre.s_analyzeRounds) {
+                List<RoundPlan> plans = new ArrayList<>(); // plans related to this book update only
+                for (RoundDirectedData directedRound : m_directedRounds) {
+                    directedRound.onUpdated(m_exchange, plans);
+                }
+                Collections.sort(plans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
+                logPlans(plans);
             }
-            Collections.sort(plans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
-            logPlans(plans);
         }
     }
 
@@ -150,8 +155,7 @@ class RoundData implements OrderBook.IOrderBookListener {
         }
     }
 
-    private void onBecomesLive() {
-        log("ALL becomes LIVE for round: " + this);
+    private void recalcPassThruOrdersIfNeeded() {
         long diff = System.currentTimeMillis() - m_minPassThruOrdersSizeRecalcTime;
         if (diff > RECALC_TIME) {
             recalcPassThruOrders();

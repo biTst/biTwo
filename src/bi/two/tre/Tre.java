@@ -18,22 +18,26 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
+
     public static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
     private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
+
     public static final int BEST_PLANS_COUNT = 40;
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
-    private static final boolean SNAPSHOT_ONLY = true;
+    private static final boolean SNAPSHOT_ONLY = false;
     private static final Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.BCH},
-//            {Currency.BTC, Currency.USD, Currency.ETH},
+            {Currency.BTC, Currency.USD, Currency.ETH},
 //            {Currency.BTC, Currency.USD, Currency.DASH},
 //            {Currency.BTC, Currency.USD, Currency.BTG},
 //            {Currency.BTC, Currency.EUR, Currency.BCH},
 //            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
+
+    public static boolean s_analyzeRounds = false;
 
     private Exchange m_exchange;
     private List<RoundData> m_roundDatas = new ArrayList<>();
@@ -294,8 +298,9 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
-        console("onOrderBookUpdated: " + orderBook);
+        log("onOrderBookUpdated: " + orderBook);
         Pair pair = orderBook.m_pair;
+
         PairData pairData = PairData.get(pair);
         pairData.onOrderBookUpdated(orderBook);
 
@@ -308,7 +313,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         String line = sb.toString();
         if (!line.equals(m_lastLogStr)) { // do not log the same twice
             m_lastLogStr = line;
-console(System.currentTimeMillis() + ": " + line);
+            console(System.currentTimeMillis() + ": " + line);
         }
 
         if (m_waitingBooks != null) {
@@ -322,17 +327,21 @@ console(System.currentTimeMillis() + ": " + line);
 //                evaluate();
             }
         }
+
+        if (m_orderWatchers.isEmpty()) { // feed pairs->rounds if not min_balance orders
+            s_analyzeRounds = true;
+        }
     }
 
     private void minBalance() {
         console("minBalance");
         Map<Pair, CurrencyValue> totalMinPassThruOrdersSize = new HashMap<>();
         for (RoundData roundData : m_roundDatas) {
-            console(" roundData: " + roundData);
+            log(" roundData: " + roundData);
             Map<Pair, CurrencyValue> map = roundData.m_minPassThruOrdersSize;
-            console("  minPassThruOrdersSize: " + map);
+            console("  minPassThruOrdersSize[" + roundData + "]: " + map);
             for (Map.Entry<Pair, CurrencyValue> entry : map.entrySet()) {
-                console("   entry: " + entry);
+                log("   entry: " + entry);
                 Pair pair = entry.getKey();
                 CurrencyValue minPassThruOrdersSize = entry.getValue();
 
@@ -340,7 +349,7 @@ console(System.currentTimeMillis() + ": " + line);
                 if (currentValue != null) {
                     Currency currentCurrency = currentValue.m_currency;
                     Currency currency = minPassThruOrdersSize.m_currency;
-                    console("    current: " + currentValue + "; new=" + minPassThruOrdersSize);
+                    log("    current: " + currentValue + "; new=" + minPassThruOrdersSize);
                     if (currentCurrency != currency) {
                         throw new RuntimeException("currency mismatch: " + currentCurrency + " != " + currency);
                     }
@@ -350,14 +359,14 @@ console(System.currentTimeMillis() + ": " + line);
                         continue;
                     }
                 }
-                console("     put into totalMinPassThruOrdersSize: " + pair + " -> " + minPassThruOrdersSize);
+                log("     put into totalMinPassThruOrdersSize: " + pair + " -> " + minPassThruOrdersSize);
                 totalMinPassThruOrdersSize.put(pair, minPassThruOrdersSize);
             }
         }
         Map<Currency,Double> minBalanceMap = new HashMap<>();
         console(" totalMinPassThruOrdersSize=" + totalMinPassThruOrdersSize);
         for (Map.Entry<Pair, CurrencyValue> entry : totalMinPassThruOrdersSize.entrySet()) {
-            console("  entry=" + entry);
+            log("  entry=" + entry);
             Pair pair = entry.getKey();
             CurrencyValue value = entry.getValue();
             updateMinBalance(minBalanceMap, pair.m_from, value);
@@ -370,14 +379,14 @@ console(System.currentTimeMillis() + ": " + line);
         });
         AccountData m_accountData = m_exchange.m_accountData;
         for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
-            console("  entry=" + entry);
+            log("  entry=" + entry);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
             double available = m_accountData.available(currency);
-            console("   min=" + min + "; available=" + available);
+            log("   min=" + min + "; available=" + available);
             if (available > 0) {
                 double rate = available / min;
-                console("    rate=" + rate);
+                log("    rate=" + rate);
                 availableRateMap.put(rate, currency);
             }
         }
@@ -429,6 +438,9 @@ console(System.currentTimeMillis() + ": " + line);
                     OrderBook orderBook = exchPairData.getOrderBook();
                     console("     pairData=" + pairData + "; orderBook=" + orderBook);
 
+                    OrderBook.Spread topSpread = orderBook.getTopSpread();
+                    console("      topSpread=" + topSpread);
+
                     ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
                     CurrencyValue needValue = new CurrencyValue(need, currency);
                     double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, needValue, steps);
@@ -463,24 +475,24 @@ console(System.currentTimeMillis() + ": " + line);
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
-        console("   updateMinBalance for " + currency + "; value=" + value);
+        log("   updateMinBalance for " + currency + "; value=" + value);
         double newValue = value.m_value;
 
         Currency valueCurrency = value.m_currency;
         if (currency != valueCurrency) {
             double convertedValue = m_exchange.m_accountData.convert(valueCurrency, currency, newValue);
-            console("    convert " + valueCurrency + "->" + currency + ": " + convertedValue);
+            log("    convert " + valueCurrency + "->" + currency + ": " + convertedValue);
             newValue = convertedValue;
         }
 
         Double minBalance = minBalanceMap.get(currency);
-        console("    minBalance=" + minBalance);
+        log("    minBalance=" + minBalance);
         if (minBalance != null) {
             if (newValue <= minBalance) {
                 return;
             }
         }
-        console("    put: " + currency + " -> " + newValue);
+        log("    put: " + currency + " -> " + newValue);
         minBalanceMap.put(currency, newValue);
     }
 
@@ -551,6 +563,9 @@ console(System.currentTimeMillis() + ": " + line);
 
     private void onSecTimer() {
         log("secRunnable.run()");
+        for (OrderWatcher orderWatcher : m_orderWatchers) {
+            orderWatcher.onSecTimer();
+        }
     }
 
     private void logTop() {
@@ -598,42 +613,70 @@ console(sb.toString());
         public final Exchange m_exchange;
         public final RoundNodePlan.RoundStep m_roundStep;
         private final Pair m_pair;
+        private final OrderBook.IOrderBookListener m_orderBookListener;
+        private final PairData m_pairData;
         public State m_state = State.none;
         public final ExchPairData m_exchPairData;
+        private final OrderData m_orderData;
 
         public OrderWatcher(Exchange exchange, RoundNodePlan.RoundStep roundStep) {
             m_exchange = exchange;
             m_roundStep = roundStep;
-
             m_pair = roundStep.m_pair;
-            PairData pairData = PairData.get(m_pair);
-            pairData.addOrderBookListener(new OrderBook.IOrderBookListener() {
+            m_orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
+
+            m_orderBookListener = new OrderBook.IOrderBookListener() {
+                private OrderBook.Spread m_lastTopSpread;
+
                 @Override public void onOrderBookUpdated(OrderBook orderBook) {
                     console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
                     OrderBook.Spread topSpread = orderBook.getTopSpread();
-                    console(" topSpread=" + topSpread);
+                    if ((m_lastTopSpread == null) || !topSpread.equals(m_lastTopSpread)) {
+                        double orderPrice = m_orderData.m_price;
+                        console(" changed topSpread=" + topSpread + "; orderPrice: " + orderPrice);
+                        m_lastTopSpread = topSpread;
+
+                        double bidPrice = topSpread.m_bidEntry.m_price;
+                        double askPrice = topSpread.m_askEntry.m_price;
+
+                        if ((bidPrice < orderPrice) && (orderPrice < askPrice)) { // order is within bid-ask spread
+
+                        } else { // need order price update
+                            console("  !!! need order price update");
+                        }
+                    }
                 }
-            });
+            };
+            m_pairData = PairData.get(m_pair);
+            m_pairData.addOrderBookListener(m_orderBookListener);
             m_exchPairData = exchange.getPairData(m_pair);
         }
 
         public void start() {
             try {
                 console("OrderWatcher.start()");
-                OrderData orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
-                orderData.addOrderListener(new OrderData.IOrderListener() {
+                m_orderData.addOrderListener(new OrderData.IOrderListener() {
                     @Override public void onUpdated(OrderData orderData) {
                         console("Order.onUpdated() orderData=" + orderData);
+                        boolean isFilled = orderData.isFilled();
+                        if (isFilled) {
+                            console(" order is FILLED => DONE");
+                            m_pairData.removeOrderBookListener(m_orderBookListener);
+                        }
                     }
                 });
-                console(" submitOrder: " + orderData);
-                m_exchange.submitOrder(orderData);
+                console(" submitOrder: " + m_orderData);
+                m_exchange.submitOrder(m_orderData);
                 m_state = State.submitted;
             } catch (IOException e) {
                 String msg = "OrderWatcher.start() error: " + e;
                 console(msg);
                 err(msg, e);
             }
+        }
+
+        public void onSecTimer() {
+
         }
 
         private enum State {
