@@ -2,10 +2,7 @@ package bi.two.exch;
 
 import bi.two.util.Utils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class OrderBook {
     public final Exchange m_exchange;
@@ -87,7 +84,7 @@ public class OrderBook {
     }
 
     @Override public String toString() {
-        return "OrderBook{bids:" + m_bids + ", asks:" + m_asks + '}';
+        return "OrderBook{" + m_pair + " bids:" + m_bids + ", asks:" + m_asks + '}';
     }
 
     public Spread getTopSpread() {
@@ -128,6 +125,22 @@ public class OrderBook {
             return "[" + m_price + ";" + Utils.format8(m_size) + ']';
         }
 
+        @Override public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if ((o == null) || (getClass() != o.getClass())) {
+                return false;
+            }
+            OrderBookEntry that = (OrderBookEntry) o;
+            return (Double.compare(that.m_price, m_price) == 0) &&
+                    (Double.compare(that.m_size, m_size) == 0);
+        }
+
+        @Override public int hashCode() {
+            return Objects.hash(m_price, m_size);
+        }
+
         public static Comparator<OrderBookEntry> getComparator(boolean reverse) {
             return reverse ? OrderBookEntry.REVERSE_BY_PRICE_COMPARATOR : OrderBookEntry.FORWARD_BY_PRICE_COMPARATOR;
         }
@@ -148,6 +161,22 @@ public class OrderBook {
                     "bid=" + m_bidEntry +
                     ", ask=" + m_askEntry +
                     '}';
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if ((o == null) || (getClass() != o.getClass())) {
+                return false;
+            }
+            Spread spread = (Spread) o;
+            return Objects.equals(m_bidEntry, spread.m_bidEntry) &&
+                    Objects.equals(m_askEntry, spread.m_askEntry);
+        }
+
+        @Override public int hashCode() {
+            return Objects.hash(m_bidEntry, m_askEntry);
         }
     }
 
