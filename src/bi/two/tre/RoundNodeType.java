@@ -155,14 +155,19 @@ public enum RoundNodeType {
         @Override public String getPrefix() { return "lmt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
         @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
-console("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
+            boolean log = Tre.LOG_MKT_DISTRIBUTION;
+            if (log) {
+                log("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
+            }
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
             double rate = orderSide.isBuy()
                     ? orderBook.getTopBidPrice() + step
                     : orderBook.getTopAskPrice() - step;
-console(" topSpread=" + topSpread + "; step=" + Utils.format8(step) + "; rate=" + rate);
+            if (log) {
+                log(" topSpread=" + topSpread + "; step=" + Utils.format8(step) + "; rate=" + rate);
+            }
 
             createRoundStep(pd, orderSide, value, rate, steps);
             return rate;
@@ -195,14 +200,19 @@ console(" topSpread=" + topSpread + "; step=" + Utils.format8(step) + "; rate=" 
     @Override public String toString() { return getPrefix(); }
 
     protected void createRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
-console("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
+        boolean log = Tre.LOG_ROUND_CALC;
+        if (log) {
+            log("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
+        }
         Pair pair = pd.m_pair;
         Currency valueCurrency = value.m_currency;
         boolean isBuy = orderSide.isBuy();
         Currency inCurrency = isBuy ? pair.m_to : pair.m_from;
         Currency outCurrency = isBuy ? pair.m_from : pair.m_to;
         boolean distributeSource = (valueCurrency == inCurrency);
-console(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency + "; distributeSource=" + distributeSource);
+        if (log) {
+            log(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency=" + inCurrency + "; outCurrency=" + outCurrency + "; distributeSource=" + distributeSource);
+        }
 
         double startValueValue = value.m_value;
         double fee = fee(pd.m_exchPairData); // 0.0023
@@ -219,16 +229,22 @@ console(" isBuy=" + isBuy + "; valueCurrency=" + valueCurrency + "; inCurrency="
 
         double afterFeeValue = translatedValue * (distributeSource ? (1 - fee) : (1 + fee));
         double feeValue = translatedValue * fee;
-console(" translatedValue=" + Utils.format8(translatedValue) + "; fee=" + Utils.format8(fee) + "; feeValue=" + Utils.format8(feeValue) + "; afterFeeValue=" + Utils.format8(afterFeeValue));
+        if (log) {
+            log(" translatedValue=" + Utils.format8(translatedValue) + "; fee=" + Utils.format8(fee) + "; feeValue=" + Utils.format8(feeValue) + "; afterFeeValue=" + Utils.format8(afterFeeValue));
+        }
 
         CurrencyValue inValue = new CurrencyValue(distributeSource ? startValueValue : afterFeeValue, inCurrency);
         CurrencyValue outValue = new CurrencyValue(distributeSource ? afterFeeValue : startValueValue, outCurrency);
-console("  inValue=" + inValue + "; outValue=" + outValue);
+        if (log) {
+            log("  inValue=" + inValue + "; outValue=" + outValue);
+        }
 
         double size = distributeSource
                         ? isBuy ? afterFeeValue : startValueValue
                         : isBuy ? startValueValue : afterFeeValue;
-console("   size=" + size);
+        if (log) {
+            log("   size=" + size);
+        }
         RoundNodePlan.RoundStep roundStep = new RoundNodePlan.RoundStep(pair, orderSide, size, rate, inValue, outValue);
         steps.add(roundStep);
     }
