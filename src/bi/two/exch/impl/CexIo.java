@@ -368,12 +368,12 @@ public class CexIo extends BaseExchImpl {
         ExchPairData exchPairData = m_exchange.getPairData(pairObj);
         log("     exchPairData=" + exchPairData);
         LiveOrdersData liveOrders = exchPairData.getLiveOrders();
-        String id = (String) jsonObject.get("id");
+        String id = (String) data.get("id");
         log("     order id=" + id);
         OrderData od = liveOrders.getOrder(id);
         log("      OrderData=" + od);
 
-        String remainsStr = (String) jsonObject.get("remains");
+        String remainsStr = (String) data.get("remains");
         double remainsDouble = Double.parseDouble(remainsStr);
         CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
         double remains = remainsDouble * minOrderToCreate.m_value;
@@ -382,7 +382,7 @@ public class CexIo extends BaseExchImpl {
         double filled = od.m_amount - remains;
         od.setFilled(filled);
 
-        String fee = (String) jsonObject.get("fee");
+        String fee = (String) data.get("fee");
         Execution.Type execType = (fee != null)
                                     ? Execution.Type.acknowledged // fee comes with first exec
                                     : (remains == 0)
