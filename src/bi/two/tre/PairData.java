@@ -59,6 +59,10 @@ public class PairData {
         m_listeners.add(listener);
     }
 
+    public void removeOrderBookListener(OrderBook.IOrderBookListener listener) {
+        m_listeners.remove(listener);
+    }
+
     public void onOrderBookUpdated(OrderBook orderBook) {
         m_orderBookIsLive = true; // we got at least one order book update
         for (OrderBook.IOrderBookListener listener : m_listeners) {
@@ -69,4 +73,5 @@ public class PairData {
     public void onDisconnected() {
         m_orderBookIsLive = false;
     }
+
 }
