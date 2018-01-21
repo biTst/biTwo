@@ -19,9 +19,9 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
 
-    public static final boolean CANCEL_ALL_ORDERS_AT_START = true;
+    private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
-    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
 
     public static final int BEST_PLANS_COUNT = 40;
 
@@ -33,7 +33,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             {Currency.BTC, Currency.USD, Currency.ETH},
 //            {Currency.BTC, Currency.USD, Currency.DASH},
 //            {Currency.BTC, Currency.USD, Currency.BTG},
-//            {Currency.BTC, Currency.EUR, Currency.BCH},
+            {Currency.BTC, Currency.EUR, Currency.BCH},
 //            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
@@ -90,7 +90,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     // can be called on reconnect
     private void onExchangeConnected() {
         try {
-            log("onConnected() " + m_exchange);
+            console("onConnected() " + m_exchange);
 
             if (m_roundDatas.isEmpty()) { // initIfNeeded
                 mainInit();
@@ -313,7 +313,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         String line = sb.toString();
         if (!line.equals(m_lastLogStr)) { // do not log the same twice
             m_lastLogStr = line;
-            console(System.currentTimeMillis() + ": " + line);
+            console(line);
         }
 
         if (m_waitingBooks != null) {
@@ -636,13 +636,25 @@ console(sb.toString());
                         console(" changed topSpread=" + topSpread + "; orderPrice: " + orderPrice);
                         m_lastTopSpread = topSpread;
 
-                        double bidPrice = topSpread.m_bidEntry.m_price;
-                        double askPrice = topSpread.m_askEntry.m_price;
+                        OrderSide side = m_orderData.m_side;
+                        boolean isBuy = side.isBuy();
+                        OrderBook.OrderBookEntry entry = isBuy ? topSpread.m_bidEntry : topSpread.m_askEntry;
+                        double sidePrice = entry.m_price;
+                        console("  side price " + (isBuy ? "buy" : "ask") + "Price=" + sidePrice);
 
-                        if ((bidPrice < orderPrice) && (orderPrice < askPrice)) { // order is within bid-ask spread
-
+                        if (sidePrice == orderPrice) {
+                            console("  order is on spread side");
+                            double entrySize = entry.m_size;
+                            double orderRemained = m_orderData.remained();
+                            console("   entrySize=" + entrySize + "; orderRemained=" + orderRemained);
+                            if (entrySize > orderRemained) {
+                                console("    !!! some other order on the same price");
+                            } else {
+                                console("    all fine - order on spread side alone");
+                            }
                         } else { // need order price update
-                            console("  !!! need order price update");
+                            double delta = sidePrice - orderPrice;
+                            console("  !!! need order price update.  delta=" + delta);
                         }
                     }
                 }

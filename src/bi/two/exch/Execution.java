@@ -15,6 +15,7 @@ public class Execution {
         acknowledged,
         partialFill,
         fill,
-        ;
+        cancel,
+        cancelled,
     }
 }

@@ -2,7 +2,7 @@ package bi.two.exch;
 
 public enum OrderStatus {
     NEW,
-    SUBMITTED { // order was sent to exh
+    SUBMITTED { // order was sent to exch
         @Override public boolean isActive() {
             return true;
         }
