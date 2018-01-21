@@ -669,7 +669,6 @@ public class CexIo extends BaseExchImpl {
         JSONObject data = (JSONObject) jsonObject.get("data");
         log(" data: " + data);
         String error = (String) data.get("error");
-        log("  error: " + error);
         if (error != null) {
             throw new RuntimeException("auth error: " + error);
         }

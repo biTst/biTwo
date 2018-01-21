@@ -7,8 +7,8 @@ import java.util.*;
 public class OrderBook {
     public final Exchange m_exchange;
     public final Pair m_pair;
-    public List<OrderBookEntry> m_bids = new ArrayList<>();
-    public List<OrderBookEntry> m_asks = new ArrayList<>();
+    public final List<OrderBookEntry> m_bids = new ArrayList<>();
+    public final List<OrderBookEntry> m_asks = new ArrayList<>();
     private IOrderBookListener m_listener;
 
     public OrderBook(Exchange exchange, Pair pair) {
@@ -96,6 +96,11 @@ public class OrderBook {
 
     public double getTopAskPrice() { return m_asks.get(0).m_price; }
     public double getTopBidPrice(){ return m_bids.get(0).m_price; }
+
+    public void onDisconnected() {
+        m_asks.clear();
+        m_bids.clear();
+    }
 
 
     //------------------------------------------------------------------------------

@@ -21,7 +21,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
-    private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
 
     public static final int BEST_PLANS_COUNT = 40;
 

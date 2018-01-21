@@ -46,7 +46,9 @@ public class ExchPairData {
     }
 
     public void onDisconnected() {
-        m_orderBook = null;
+        if (m_orderBook != null) {
+            m_orderBook.onDisconnected();
+        }
     }
 
     public LiveOrdersData getLiveOrders() {
