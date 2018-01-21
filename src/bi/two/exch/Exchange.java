@@ -130,6 +130,12 @@ public class Exchange {
         exchPairData.submitOrder(orderData);
     }
 
+    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+        console("Exchange.submitOrderReplace: orderId=" + orderId + "; orderData=" + orderData);
+        ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
+        exchPairData.submitOrderReplace(orderId, orderData);
+    }
+
     public void cancelOrder(OrderData orderData) throws IOException {
         m_impl.cancelOrder(orderData);
     }

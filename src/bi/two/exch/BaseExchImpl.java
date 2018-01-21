@@ -27,6 +27,10 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
+    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+        throw new RuntimeException("not implemented: " + this);
+    }
+
     public void cancelOrder(OrderData orderData) throws IOException {
         throw new RuntimeException("not implemented: " + this);
     }

@@ -56,7 +56,7 @@ public class CexIo extends BaseExchImpl {
         m_currencyUnitsMap.put("LTC", 100000000L);
         m_currencyUnitsMap.put("GHS", 100000000L);
         m_currencyUnitsMap.put("ETH", 1000000L);
-        m_currencyUnitsMap.put("BTG", 1000000L);
+        m_currencyUnitsMap.put("BTG", 100000000L);
 
 //        m_currencyUnitsMap.put("BCH", 1000000L);
 //        m_currencyUnitsMap.put("DASH", 1000000L);
@@ -189,6 +189,8 @@ public class CexIo extends BaseExchImpl {
                 processOpenOrders(jsonObject);
             } else if (Utils.equals(e, "place-order")) {
                 onPlaceOrder(jsonObject);
+            } else if (Utils.equals(e, "cancel-replace-order")) {
+                onCancelReplaceOrder(jsonObject);
             } else if (Utils.equals(e, "cancel-order")) {
                 onCancelOrder(jsonObject);
             } else if (Utils.equals(e, "order")) {
@@ -371,14 +373,14 @@ public class CexIo extends BaseExchImpl {
             if (setAvailable) {
                 double available = accountData.available(currency);
                 double delta = value - available;
-                String msg = "account[" + symbolStr + "] " + (delta > 0 ? "+" : "") + delta;
+                String msg = "account[" + symbolStr + "] " + (delta > 0 ? "+" : "") + Utils.format8(delta);
                 console(msg);
                 log("      " + msg);
                 accountData.setAvailable(currency, value);
             } else {
                 double allocated = accountData.allocated(currency);
                 double delta = value - allocated;
-                log("      account[" + symbolStr + "].allocated " + (delta > 0 ? "+" : "") + delta);
+                log("      account[" + symbolStr + "].allocated " + (delta > 0 ? "+" : "") + Utils.format8(delta));
                 accountData.setAllocated(currency, value);
             }
             log("    accountData=" + accountData);
@@ -744,8 +746,12 @@ public class CexIo extends BaseExchImpl {
         String orderSize = orderData.formatSize(orderData.m_amount);
         String orderPrice = orderData.formatPrice(orderData.m_price);
         String orderSide = orderData.m_side.getName();
-        console(" orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
-        String oid = System.currentTimeMillis() + "_place-order";
+        String clientOrderId = orderData.m_clientOrderId;
+        console(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        if (clientOrderId == null) {
+            throw new RuntimeException("no clientOrderId");
+        }
+        String oid = clientOrderId + "_place-order";
         m_submitOrderRequestsMap.put(oid, orderData);
         orderData.m_submitTime = System.currentTimeMillis();
         placeOrder(m_session, oid, orderData.m_pair, orderSize, orderPrice, orderSide);
@@ -769,6 +775,22 @@ public class CexIo extends BaseExchImpl {
                 + ", \"price\": " + price + ", \"type\": \"" + side + "\" }, \"oid\": \"" + oid + "\" }");
     }
 
+    private void onCancelReplaceOrder(final JSONObject jsonObject) {
+        //onPlaceOrder(jsonObject);
+        m_exchange.m_threadPool.submit(new Runnable() {
+            @Override public void run() {
+                try {
+                    Object oid = jsonObject.get("oid");
+                    JSONObject data = (JSONObject) jsonObject.get("data");
+                    log(" onCancelReplaceOrder[" + oid + "]: data=" + data);
+
+                    onPlaceOrReplaceOrder(oid, data, true);
+                } catch (Exception e) {
+                    err("onCancelReplaceOrder error: " + e, e);
+                }
+            }
+        });
+    }
     private void onPlaceOrder(final JSONObject jsonObject) {
         // {"error":"There was an error while placing your order: Invalid amount"}
         // {"error":"Error: Place order error: Insufficient funds."}
@@ -780,58 +802,7 @@ public class CexIo extends BaseExchImpl {
                     JSONObject data = (JSONObject) jsonObject.get("data");
                     log(" onPlaceOrder[" + oid + "]: data=" + data);
 
-                    OrderData orderData = m_submitOrderRequestsMap.remove(oid);
-                    log("  orderData=" + orderData);
-                    if (orderData != null) {
-                        Object error = data.get("error");
-                        if (error == null) {
-                            Object id = data.get("id");
-                            log("  Order place OK. id=" + id);
-                            orderData.m_orderId = id.toString();
-
-                            // todo: check - can be partially/filled
-                            Object complete = data.get("complete"); // "complete":false; complete - boolean - Order completion status
-                            Object amount = data.get("amount"); // "amount":"0.01000000" : amount - decimal - Order amount
-                            Object pending = data.get("pending"); // "pending":"0.01000000" : pending - decimal - Order pending amount
-
-                            log("   complete=" + complete + "; amount=" + amount + "; pending=" + pending);
-
-                            if (!amount.equals(pending)) { // some part of order executed immediately at the time of order placing
-                                double pend = Double.parseDouble(pending.toString());
-                                double filled = orderData.m_amount - pend;
-                                log("    pend=" + pend + "; amount=" + amount + "; filled=" + filled);
-                                orderData.setFilled(filled); // will set m_status inside
-
-                                boolean orderFilled = orderData.isFilled();
-                                log("     orderFilled=" + orderFilled);
-
-                                Execution.Type execType = orderFilled ? Execution.Type.fill : Execution.Type.partialFill;
-                                Execution execution = new Execution(execType, data.toString());
-                                orderData.addExecution(execution);
-                            } else {
-                                orderData.m_status = OrderStatus.SUBMITTED;
-                            }
-
-                            if (complete.toString().equals("true")) {
-                                OrderStatus status = orderData.m_status;
-                                if (status != OrderStatus.FILLED) {
-                                    log("Error: onPlaceOrder: complete:false but orderStatus=" + status);
-                                }
-                            }
-
-                            Pair pair = orderData.m_pair;
-                            ExchPairData pairData = m_exchange.getPairData(pair);
-                            LiveOrdersData liveOrders = pairData.getLiveOrders();
-                            liveOrders.addOrder(orderData);
-                        } else {
-                            log("  Error placing order[" + oid + "]: " + error);
-                            orderData.m_status = OrderStatus.ERROR;
-                            orderData.m_error = error.toString();
-                        }
-                        orderData.notifyListeners();
-                    } else {
-                        log("Error in onPlaceOrder, not expected oid=" + oid);
-                    }
+                    onPlaceOrReplaceOrder(oid, data, false);
                 } catch (Exception e) {
                     err("onPlaceOrder error: " + e, e);
                 }
@@ -839,11 +810,81 @@ public class CexIo extends BaseExchImpl {
         });
     }
 
-    @NotNull private static String pairToStr(Pair pair) {
-        return "\"pair\": [ \"" + pair.m_from.name().toUpperCase() + "\", \"" + pair.m_to.name().toUpperCase() + "\" ]";
+    private void onPlaceOrReplaceOrder(Object oid, JSONObject data, boolean isOrderReplace) {
+        String name = isOrderReplace ? "Replace" : "Place";
+        OrderData orderData = m_submitOrderRequestsMap.remove(oid);
+        log("  orderData=" + orderData);
+        if (orderData != null) {
+            Object error = data.get("error");
+            if (error == null) {
+                Object id = data.get("id");
+                log("  Order " + name + " OK. id=" + id);
+                orderData.m_orderId = id.toString();
+
+                // todo: check - can be partially/filled
+                Object complete = data.get("complete"); // "complete":false; complete - boolean - Order completion status
+                Object amount = data.get("amount"); // "amount":"0.01000000" : amount - decimal - Order amount
+                Object pending = data.get("pending"); // "pending":"0.01000000" : pending - decimal - Order pending amount
+
+                log("   complete=" + complete + "; amount=" + amount + "; pending=" + pending);
+
+                if (!amount.equals(pending)) { // some part of order executed immediately at the time of order placing
+                    double pend = Double.parseDouble(pending.toString());
+                    double filled = orderData.m_amount - pend;
+                    log("    pend=" + pend + "; amount=" + amount + "; filled=" + filled);
+                    orderData.setFilled(filled); // will set m_status inside
+
+                    boolean orderFilled = orderData.isFilled();
+                    log("     orderFilled=" + orderFilled);
+
+                    Execution.Type execType = orderFilled ? Execution.Type.fill : Execution.Type.partialFill;
+                    Execution execution = new Execution(execType, data.toString());
+                    orderData.addExecution(execution);
+                } else {
+                    orderData.m_status = OrderStatus.SUBMITTED;
+                }
+
+                if (complete.toString().equals("true")) {
+                    OrderStatus status = orderData.m_status;
+                    if (status != OrderStatus.FILLED) {
+                        log("Error: on" + name + "Order: complete:false but orderStatus=" + status);
+                    }
+                }
+
+                Pair pair = orderData.m_pair;
+                ExchPairData pairData = m_exchange.getPairData(pair);
+                LiveOrdersData liveOrders = pairData.getLiveOrders();
+                liveOrders.addOrder(orderData);
+            } else {
+                console("  Error on" + name + "Order[" + oid + "]: " + error);
+                orderData.m_status = OrderStatus.ERROR;
+                orderData.m_error = error.toString();
+            }
+            orderData.notifyListeners();
+        } else {
+            log("Error in on" + name + "Order, not expected oid=" + oid);
+        }
     }
 
-    private static void replaceOrder(Session session, String orderId, Pair pair, String orderSize, String price, String side) throws IOException {
+    @Override public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+        console("CexIo.submitOrderReplace() orderId=" + orderId + "; orderData=" + orderData);
+        String orderSize = orderData.formatSize(orderData.m_amount);
+        String orderPrice = orderData.formatPrice(orderData.m_price);
+        String orderSide = orderData.m_side.getName();
+        String clientOrderId = orderData.m_clientOrderId;
+        console(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        if (clientOrderId == null) {
+            throw new RuntimeException("no clientOrderId");
+        }
+        String oid = clientOrderId + "_cancel-replace-order";
+        m_submitOrderRequestsMap.put(oid, orderData);
+        orderData.m_submitTime = System.currentTimeMillis();
+        replaceOrder(m_session, oid, orderId, orderData.m_pair, orderSize, orderPrice, orderSide);
+        orderData.m_status = OrderStatus.SUBMITTED;
+        orderData.notifyListeners();
+    }
+
+    private static void replaceOrder(Session session, String oid, String orderId, Pair pair, String orderSize, String price, String side) throws IOException {
         //        {
         //            "e": "cancel-replace-order",
         //            "data": {
@@ -855,10 +896,8 @@ public class CexIo extends BaseExchImpl {
         //            },
         //            "oid": "1443464955209_16_cancel-replace-order"
         //        }
-
-        long timeMillis = System.currentTimeMillis();
         send(session, "{\"e\": \"cancel-replace-order\",\"data\": {\"order_id\": \"" + orderId + "\"," + pairToStr(pair) + ",\"amount\": " + orderSize
-                + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + timeMillis + "_cancel-replace-order\"}");
+                + ",\"price\": \"" + price + "\",\"type\": \"" + side + "\"},\"oid\": \"" + oid + "\"}");
     }
 
     private static void queryOrderBookSnapshoot(Session session, Pair pair, int depth) throws IOException {
@@ -1060,7 +1099,7 @@ public class CexIo extends BaseExchImpl {
 
                     if (Utils.equals(ok, "error")) {
                         String error = (String) data.get("error");
-                        log("  Error canceling order: " + error);
+                        console("  Error canceling order: " + error);
                     } else if (Utils.equals(ok, "ok")) {
                         log("  order cancelled");
 
@@ -1160,6 +1199,11 @@ public class CexIo extends BaseExchImpl {
             }
         });
     }
+
+    @NotNull private static String pairToStr(Pair pair) {
+        return "\"pair\": [ \"" + pair.m_from.name().toUpperCase() + "\", \"" + pair.m_to.name().toUpperCase() + "\" ]";
+    }
+
 
     //---------------------------------------------------------------------------------
     private static class ReconnectHandler extends ClientManager.ReconnectHandler {

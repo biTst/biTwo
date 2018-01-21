@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OrderData {
+    private static long s_clientOrderIdCounter = System.currentTimeMillis();
+
     public final Exchange m_exchange;
     public String m_orderId;
     public String m_clientOrderId;
@@ -25,6 +27,9 @@ public class OrderData {
     private List<IOrderListener> m_listeners;
     public String m_error;
     public List<Execution> m_executions = new ArrayList<>();
+    public OrderData m_replaceOrder; // cancel-replace link
+    public OrderData m_cancelOrder; // cancel-replace link
+
 
     public OrderData(Exchange exchange, String orderId, Pair pair, OrderSide side, OrderType orderType, double price, double amount) {
         // Pair.BTC_USD OrderSide.BUY meant buy BTC for USD
@@ -35,7 +40,15 @@ public class OrderData {
         m_pair = pair; // like Pair.BTC_USD
         m_price = price;
         m_amount = amount;
-        m_clientOrderId = Long.toString(System.currentTimeMillis());
+        synchronized (getClass()) {
+            s_clientOrderIdCounter++;
+            m_clientOrderId = Long.toString(s_clientOrderIdCounter);
+        }
+    }
+
+    public OrderData copyForReplace() {
+        OrderData orderData = new OrderData(m_exchange, null, m_pair, m_side, m_type, m_price, remained());
+        return orderData;
     }
 
     public boolean isActive() { return m_status.isActive(); }

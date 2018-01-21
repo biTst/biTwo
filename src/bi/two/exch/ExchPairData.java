@@ -15,7 +15,7 @@ public class ExchPairData {
     public double m_commission = 0;
     public double m_makerCommission = 0;
     public double m_initBalance;
-    public OrderBook m_orderBook;
+    private OrderBook m_orderBook; // lazy
     public LiveOrdersData m_liveOrders;
     public int m_priceStepDecimals;
     public DecimalFormat m_priceFormat;
@@ -49,6 +49,9 @@ public class ExchPairData {
         if (m_orderBook != null) {
             m_orderBook.onDisconnected();
         }
+        if (m_liveOrders == null) {
+            m_liveOrders.onDisconnected();
+        }
     }
 
     public LiveOrdersData getLiveOrders() {
@@ -62,6 +65,11 @@ public class ExchPairData {
         LiveOrdersData liveOrders = getLiveOrders();
         orderData.setFormats(m_priceFormat, m_sizeFormat);
         liveOrders.submitOrder(orderData);
+    }
+
+    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+        LiveOrdersData liveOrders = getLiveOrders();
+        liveOrders.submitOrderReplace(orderId, orderData);
     }
 
     public void setMinPriceStep(double minPriceStep) {

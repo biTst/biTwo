@@ -49,7 +49,24 @@ public class LiveOrdersData {
         m_exchange.m_impl.submitOrder(orderData);
     }
 
+    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+        OrderData parentOrderData = m_orders.get(orderId);
+        if (parentOrderData == null) {
+            throw new RuntimeException("no order with id=" + orderId);
+        }
+        parentOrderData.m_replaceOrder = orderData;
+        orderData.m_cancelOrder = parentOrderData;
+
+        m_clientOrders.put(orderData.m_clientOrderId, orderData);
+        m_exchange.m_impl.submitOrderReplace(orderId, orderData);
+    }
+
     public OrderData getOrder(String oid) {
         return m_orders.get(oid);
+    }
+
+    public void onDisconnected() {
+        m_orders.clear();
+        m_clientOrders.clear();
     }
 }
