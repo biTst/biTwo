@@ -31,6 +31,17 @@ public class Pair {
         return pair;
     }
 
+    public static boolean contain(Currency from, Currency to) {
+        Map<Currency, Pair> map = s_map.get(from);
+        if (map != null) {
+            Pair pair = map.get(to);
+            if (pair != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void insert(Currency from, Currency to, Pair pair) {
         Map<Currency, Pair> map = s_map.get(from);
         if (map == null) {

@@ -15,6 +15,7 @@ public enum Currency {
     BCH("bch", "h"),
     BTG("btg", "g"),
     DASH("dash", "d"),
+    XRP("xrp", "x"),
     ;
     
     public final String m_name;
