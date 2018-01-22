@@ -17,22 +17,24 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
+    private static final boolean LOOK_ALL_ROUNDS = false;
 
     private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
     private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
+    private static final boolean SEND_REPLACE = true;
 
     public static final int BEST_PLANS_COUNT = 40;
 
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
     private static final boolean SNAPSHOT_ONLY = false;
-    private static final Currency[][] TRE_CURRENCIES = {
-            {Currency.BTC, Currency.USD, Currency.BCH},
+    private static Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.ETH},
+//            {Currency.BTC, Currency.USD, Currency.BCH},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
 //            {Currency.BTC, Currency.USD, Currency.DASH},
-            {Currency.BTC, Currency.USD, Currency.BTG},
-            {Currency.BTC, Currency.EUR, Currency.BCH},
+//            {Currency.BTC, Currency.EUR, Currency.BCH},
 //            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
@@ -72,6 +74,10 @@ public class Tre implements OrderBook.IOrderBookListener {
             m_exchange = Exchange.get("cex");
             m_exchange.m_impl = new CexIo(config, m_exchange);
 
+            if (LOOK_ALL_ROUNDS) {
+                iterateRounds();
+            }
+
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() { onExchangeConnected(); }
                 @Override public void onDisconnected() { onExchangeDisconnected(); }
@@ -83,6 +89,65 @@ public class Tre implements OrderBook.IOrderBookListener {
             log("done");
         } catch (Exception e) {
             err("ERROR: " + e, e);
+        }
+    }
+
+    private void iterateRounds() {
+        ArrayList<Currency> curr = new ArrayList<Currency>();
+        ArrayList<Pair> pairs = new ArrayList<>(m_exchange.m_pairsMap.keySet()); // supported
+        console("onConnected() pairs=" + pairs);
+        for (Pair pair : pairs) {
+            Currency c1 = pair.m_from;
+            if (!curr.contains(c1)) {
+                curr.add(c1);
+            }
+            Currency c2 = pair.m_to;
+            if (!curr.contains(c2)) {
+                curr.add(c2);
+            }
+        }
+        console(" curr=" + curr);
+        Currency[] array = new Currency[3];
+        ArrayList<Currency[]> out = new ArrayList<>();
+        iterateRounds(array, 0, curr, 0, m_exchange.m_pairsMap, out);
+        Currency[][] currencies = out.toArray(new Currency[out.size()][]);
+        TRE_CURRENCIES = currencies;
+    }
+
+    private void iterateRounds(Currency[] array, int i, ArrayList<Currency> curr, int j, Map<Pair, ExchPairData> map, List<Currency[]> out) {
+        for (int k = j; k < curr.size(); k++) {
+            Currency currency = curr.get(k);
+            if (i > 0) {
+                Currency currencyFrom = array[i - 1];
+                Pair pair = Pair.get(currencyFrom, currency);
+                boolean contain = map.containsKey(pair);
+                if (!contain) {
+                    pair = Pair.get(currency, currencyFrom);
+                    contain = map.containsKey(pair);
+                }
+                if (contain) {
+                    array[i] = currency;
+                    if (i == 2) { // got round
+                        Currency currencyTo = array[0];
+                        pair = Pair.get(currency, currencyTo);
+                        contain = map.containsKey(pair);
+                        if (!contain) {
+                            pair = Pair.get(currencyTo, currency);
+                            contain = map.containsKey(pair);
+                        }
+                        if (contain) {
+                            console("got round: " + array[0].m_name + "-" + array[1].m_name + "-" + array[2].m_name);
+                            Currency[] currencies = {array[0], array[1], array[2]};
+                            out.add(currencies);
+                        }
+                    } else {
+                        iterateRounds(array, i + 1, curr, j + 1, map, out);
+                    }
+                }
+            } else {
+                array[i] = currency;
+                iterateRounds(array, i + 1, curr, j + 1, map, out);
+            }
         }
     }
 
@@ -280,6 +345,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         m_waitingBooks = new HashMap<>();
         for (PairData pairData : m_pairDatas) {
             subscribePairBook(pairData);
+            TimeUnit.MILLISECONDS.sleep(500); // small delay
         }
     }
 
@@ -710,11 +776,15 @@ console(sb.toString());
 
                         String replaceOrderId = m_orderData.m_orderId;
                         OrderData orderData = m_orderData.copyForReplace();
+                        // todo: check for minOrderSize
                         orderData.m_price = price;
                         console("    submitOrderReplace: " + orderData);
-//                        orderData.addOrderListener(m_orderListener);
-//                        m_orderData = orderData;
-//                        m_exchange.submitOrderReplace(replaceOrderId, orderData);
+                        if (SEND_REPLACE) {
+                            orderData.addOrderListener(m_orderListener);
+                            m_orderData = orderData;
+                            m_exchange.submitOrderReplace(replaceOrderId, orderData);
+                            m_outOfTopSpreadTime = 0; // reset
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -754,7 +824,7 @@ console(sb.toString());
                 console("  side price " + (isBuy ? "buy" : "ask") + "Price=" + Utils.format8(sidePrice)
                         + "; delta=" + Utils.format12(delta) + "; minPriceStep=" + Utils.format8(minPriceStep));
 
-                if (Math.abs(delta) > (minPriceStep / 2)) {
+                if (Math.abs(delta) < (minPriceStep / 2)) {
                     console("  order is on spread side");
                     double entrySize = entry.m_size;
                     double orderRemained = m_orderData.remained();
@@ -768,7 +838,7 @@ console(sb.toString());
                 } else { // need order price update
                     console("  !!! need order price update.");
                     double topSpreadDiff = topSpread.m_askEntry.m_price - topSpread.m_bidEntry.m_price;
-                    console("       topSpreadDiff=" + topSpreadDiff);
+                    console("       topSpreadDiff=" + Utils.format8(topSpreadDiff));
                     m_outOfTopSpreadTime = System.currentTimeMillis();
                 }
             }
