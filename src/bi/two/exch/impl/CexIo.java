@@ -1,7 +1,6 @@
 package bi.two.exch.impl;
 
 import bi.two.exch.*;
-import bi.two.tre.CurrencyValue;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -38,7 +37,7 @@ public class CexIo extends BaseExchImpl {
     private Exchange.IExchangeConnectListener m_exchangeConnectListener;
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
-    private String[] m_supportedCurrencies = new String[]{ "BTC", "BCH", "BTG", "ETH", "USD", "EUR", "DASH", "XRP", "ZEC", "GBP", "RUB", "GHS", };
+    private String[] m_supportedCurrencies = new String[]{ "BTC", "USD", "EUR", "GBP", "ETH", "XRP", "BCH", "BTG", "DASH", "ZEC", "RUB", };
     private Map<String,LiveOrdersData> m_liveOrdersRequestsMap = new HashMap<>();
     private Map<String,OrderData> m_submitOrderRequestsMap = new HashMap<>();
     private Map<String,OrderData> m_cancelOrderRequestsMap = new HashMap<>();
@@ -57,8 +56,8 @@ public class CexIo extends BaseExchImpl {
         m_currencyUnitsMap.put("GHS", 100000000L);
         m_currencyUnitsMap.put("ETH", 1000000L);
         m_currencyUnitsMap.put("BTG", 100000000L);
+        m_currencyUnitsMap.put("BCH", 1000000L); // ??
 
-//        m_currencyUnitsMap.put("BCH", 1000000L);
 //        m_currencyUnitsMap.put("DASH", 1000000L);
 //        m_currencyUnitsMap.put("XRP", 1000000L);
 //        m_currencyUnitsMap.put("ZEC", 1000000L);
@@ -422,16 +421,15 @@ public class CexIo extends BaseExchImpl {
 
                     String remainsStr = (String) data.get("remains");
                     double remainsDouble = Double.parseDouble(remainsStr);
-                    CurrencyValue minOrderStep = exchPairData.m_minOrderStep;
-                    double minOrderStepValue = minOrderStep.m_value;
-                    double remains = remainsDouble * minOrderStepValue;
+                    Long units = m_currencyUnitsMap.get(symbol1);
+                    double remains = remainsDouble / units;
                     double amount = od.m_amount;
                     double filled = amount - remains;
-                    log("       remainsStr=" + remainsStr + "; remainsDouble=" + remainsDouble + "; minOrderStepValue=" + minOrderStepValue
+                    log("       remainsStr=" + remainsStr + "; remainsDouble=" + remainsDouble + "; units=" + units
                             + "; remains=" + remains + "; amount=" + amount + "; filled=" + filled);
                     if (filled >= 0) {
                         Execution.Type execType = null;
-                        Object cancel = pair.get("cancel");
+                        Object cancel = data.get("cancel");
                         if (cancel != null) {
                             String cancelStr = cancel.toString();
                             if (cancelStr.equals("true")) { // cancelled
