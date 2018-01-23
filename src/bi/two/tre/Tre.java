@@ -19,10 +19,10 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_RATES = true;
     private static final boolean LOOK_ALL_ROUNDS = false;
 
-    private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
+    private static final boolean CANCEL_ALL_ORDERS_AT_START = false;
     private static final boolean DO_MIN_BALANCE = true;
-    private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
-    private static final boolean SEND_REPLACE = true;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
+    static final boolean SEND_REPLACE = true;
 
     public static final int BEST_PLANS_COUNT = 40;
 
@@ -93,7 +93,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void iterateRounds() {
-        ArrayList<Currency> curr = new ArrayList<Currency>();
+        ArrayList<Currency> curr = new ArrayList<>();
         ArrayList<Pair> pairs = new ArrayList<>(m_exchange.m_pairsMap.keySet()); // supported
         console("onConnected() pairs=" + pairs);
         for (Pair pair : pairs) {
@@ -389,7 +389,6 @@ public class Tre implements OrderBook.IOrderBookListener {
                 if (DO_MIN_BALANCE) {
                     minBalance();
                 }
-//                evaluate();
             }
         }
 
@@ -561,71 +560,6 @@ public class Tre implements OrderBook.IOrderBookListener {
         minBalanceMap.put(currency, newValue);
     }
 
-    private void evaluate() {
-        AccountData accountData = m_exchange.m_accountData;
-        for (RoundPlan plan : RoundData.s_allPlans) {
-            console("evaluate " + plan);
-            boolean allEnough = true;
-            for (RoundNodePlan nodePlan : plan.m_roundNodePlans) {
-                console(" " + nodePlan);
-                CurrencyValue startValue = nodePlan.m_startValue;
-                console("  startValue=" + startValue);
-                Currency startCurrency = startValue.m_currency;
-                double startCurrencyAvailable = accountData.available(startCurrency);
-                console("   acct.available" + startCurrency + "=" + startCurrencyAvailable);
-                if (startCurrencyAvailable > startValue.m_value * 2) {
-                    console("    enough startCurrency " + startCurrency);
-                    CurrencyValue outValue = nodePlan.m_outValue;
-                    console("     outValue " + outValue);
-                    Currency outCurrency = outValue.m_currency;
-                    double outCurrencyAvailable = accountData.available(outCurrency);
-                    console("      acct.available" + outCurrency + "=" + outCurrencyAvailable);
-                    double outValueValue = outValue.m_value;
-                    double outNeedMore = outValueValue - outCurrencyAvailable;
-                    if (outNeedMore > 0) {
-                        console("       outNeedMore=" + outNeedMore + outCurrency);
-
-                        PairDirectionData pdd = nodePlan.m_pdd;
-                        console("        pdd=" + pdd);
-                        PairData pairData = pdd.m_pairData;
-                        console("        pairData=" + pairData);
-                        PairDirection pairDirection = pdd.m_pairDirection;
-                        console("        pairDirection=" + pairDirection);
-                        boolean forward = pairDirection.m_forward;
-                        console("        forward=" + forward);
-                        OrderSide orderSide = OrderSide.get(!forward);
-                        console("        orderSide=" + orderSide);
-                        ExchPairData exchPairData = pairData.m_exchPairData;
-                        console("        exchPairData=" + exchPairData);
-                        OrderBook orderBook = exchPairData.getOrderBook();
-                        console("        orderBook=" + orderBook);
-
-                        ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
-                        double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, startValue, steps);
-                        console("         distribute() rate=" + rate);
-
-                        for (RoundNodePlan.RoundStep step : steps) {
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("          ");
-                            step.log(sb);
-                            console(sb.toString());
-                        }
-                        return;
-                    } else {
-                        console("       enough outCurrency " + outCurrencyAvailable + outCurrency);
-                    }
-                } else {
-                    console("    not enough startCurrency " + startCurrency);
-                    allEnough = false;
-                    break;
-                }
-            }
-            if (allEnough) {
-                console(" allEnough");
-            }
-        }
-    }
-
     private void onSecTimer() {
         log("secRunnable.run()");
 
@@ -634,14 +568,14 @@ public class Tre implements OrderBook.IOrderBookListener {
             OrderWatcher orderWatcher = iterator.next();
             boolean done = orderWatcher.onSecTimer();
             if (done) {
-                log("orderWatcher id DONE: " + orderWatcher);
+                log("orderWatcher id DONE, removing: " + orderWatcher);
                 iterator.remove();
             }
         }
     }
 
     private void logTop() {
-console("best plans: ");
+console("best plans----------------------------------------------------------------------------------------");
         int num = Math.min(RoundData.s_bestPlans.size(), BEST_PLANS_COUNT);
         for (int j = 0; j < num; j++) {
             StringBuilder sb = new StringBuilder();
@@ -660,6 +594,7 @@ console("best plans: ");
                 timestamp = nextTimestamp;
             }
 console(sb.toString());
+console("--------------------------------------------------------------------------------------------------");
         }
     }
 
@@ -677,187 +612,5 @@ console(sb.toString());
     private class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
-    }
-
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class OrderWatcher {
-        public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(5);
-
-        public final Exchange m_exchange;
-        public final RoundNodePlan.RoundStep m_roundStep;
-        private final Pair m_pair;
-        private final PairData m_pairData;
-        public State m_state = State.none;
-        public final ExchPairData m_exchPairData;
-        private OrderData m_orderData;
-        public long m_outOfTopSpreadTime; // time when order becomes ot of spread
-        private OrderBook.Spread m_lastTopSpread;
-        private OrderData.IOrderListener m_orderListener = new OrderData.IOrderListener() {
-            @Override public void onUpdated(OrderData orderData) {
-                onOrderUpdated(orderData);
-            }
-        };
-        private final OrderBook.IOrderBookListener m_orderBookListener = new OrderBook.IOrderBookListener() {
-            @Override public void onOrderBookUpdated(OrderBook orderBook) {
-                onBookUpdated(orderBook);
-            }
-        };
-
-        public OrderWatcher(Exchange exchange, RoundNodePlan.RoundStep roundStep) {
-            m_exchange = exchange;
-            m_roundStep = roundStep;
-            m_pair = roundStep.m_pair;
-            m_orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
-
-            m_pairData = PairData.get(m_pair);
-            m_pairData.addOrderBookListener(m_orderBookListener);
-            m_exchPairData = exchange.getPairData(m_pair);
-        }
-
-        @Override public String toString() {
-            return "OrderWatcher: " + m_orderData;
-        }
-
-        public void start() {
-            try {
-                console("OrderWatcher.start()");
-                m_orderData.addOrderListener(m_orderListener);
-                console(" submitOrder: " + m_orderData);
-                m_exchange.submitOrder(m_orderData);
-                m_state = State.submitted;
-            } catch (Exception e) {
-                String msg = "OrderWatcher.start() error: " + e;
-                console(msg);
-                err(msg, e);
-            }
-        }
-
-        boolean onSecTimer() {
-            if (m_state == State.done) {
-                return true;
-            }
-            OrderStatus orderStatus = m_orderData.m_status;
-            if (orderStatus == OrderStatus.NEW) {
-                console("onSecTimer: order not yet submitted");
-                return false;
-            }
-            if (orderStatus == OrderStatus.FILLED) {
-                console("onSecTimer: order is already filled");
-                m_state = State.done;
-                return true;
-            }
-            try {
-                if (m_outOfTopSpreadTime > 0) { // order is out of spread
-                    long outOfSpreadOld = System.currentTimeMillis() - m_outOfTopSpreadTime;
-                    if (outOfSpreadOld > MAX_LIVE_OUT_OF_SPREAD) {
-                        console("onSecTimer: order out of top spread already " + outOfSpreadOld + " ms. moving...");
-
-                        OrderBook orderBook = m_exchPairData.getOrderBook();
-                        OrderBook.Spread topSpread = orderBook.getTopSpread();
-                        double orderPrice = m_orderData.m_price;
-                        double minPriceStep = m_exchPairData.m_minPriceStep;
-                        console(" orderBook.topSpread=" + topSpread + "; orderPrice=" + orderPrice + "; minPriceStep=" + Utils.format8(minPriceStep));
-                        OrderSide side = m_orderData.m_side;
-                        boolean isBuy = side.isBuy();
-
-                        double askPrice = topSpread.m_askEntry.m_price;
-                        double bidPrice = topSpread.m_bidEntry.m_price;
-                        double topSpreadDiff = askPrice - bidPrice;
-                        double priceStep = topSpreadDiff / 10;
-                        console(" topSpreadDiff=" + Utils.format8(topSpreadDiff) + "; priceStep=" + Utils.format8(priceStep));
-                        if (priceStep < minPriceStep) {
-                            priceStep = minPriceStep;
-                            console("  priceStep fixed to minPriceStep=" + minPriceStep);
-                        }
-
-                        double price = isBuy ? bidPrice + priceStep : askPrice - priceStep;
-                        console("   price=" + price + ";  spread=" + topSpread);
-
-                        String replaceOrderId = m_orderData.m_orderId;
-                        OrderData orderData = m_orderData.copyForReplace();
-                        // todo: check for minOrderSize
-                        orderData.m_price = price;
-                        console("    submitOrderReplace: " + orderData);
-                        if (SEND_REPLACE) {
-                            orderData.addOrderListener(m_orderListener);
-                            m_orderData = orderData;
-                            m_exchange.submitOrderReplace(replaceOrderId, orderData);
-                            m_outOfTopSpreadTime = 0; // reset
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                String msg = "OrderWatcher.onSecTimer() error: " + e;
-                console(msg);
-                err(msg, e);
-            }
-            return (m_state == State.done);
-        }
-
-        private void onBookUpdated(OrderBook orderBook) {
-            console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
-
-            OrderStatus orderStatus = m_orderData.m_status;
-            if (orderStatus == OrderStatus.NEW) {
-                console(" order not yet submitted");
-                return;
-            }
-            if (orderStatus == OrderStatus.FILLED) {
-                console(" order is already filled");
-                m_state = State.done;
-                return;
-            }
-
-            OrderBook.Spread topSpread = orderBook.getTopSpread();
-            if ((m_lastTopSpread == null) || !topSpread.equals(m_lastTopSpread)) {
-                double orderPrice = m_orderData.m_price;
-                console(" changed topSpread=" + topSpread + "; orderPrice: " + Utils.format8(orderPrice));
-                m_lastTopSpread = topSpread;
-
-                OrderSide side = m_orderData.m_side;
-                boolean isBuy = side.isBuy();
-                OrderBook.OrderBookEntry entry = isBuy ? topSpread.m_bidEntry : topSpread.m_askEntry;
-                double sidePrice = entry.m_price;
-                double delta = sidePrice - orderPrice;
-                double minPriceStep = m_exchPairData.m_minPriceStep;
-                console("  side price " + (isBuy ? "buy" : "ask") + "Price=" + Utils.format8(sidePrice)
-                        + "; delta=" + Utils.format12(delta) + "; minPriceStep=" + Utils.format8(minPriceStep));
-
-                if (Math.abs(delta) < (minPriceStep / 2)) {
-                    console("  order is on spread side");
-                    double entrySize = entry.m_size;
-                    double orderRemained = m_orderData.remained();
-                    console("   entrySize=" + entrySize + "; orderRemained=" + orderRemained);
-                    if (entrySize > orderRemained) {
-                        console("    !!! some other order on the same price");
-                    } else {
-                        console("    all fine - order on spread side alone");
-                    }
-                    m_outOfTopSpreadTime = 0; // order is on spread
-                } else { // need order price update
-                    console("  !!! need order price update.");
-                    double topSpreadDiff = topSpread.m_askEntry.m_price - topSpread.m_bidEntry.m_price;
-                    console("       topSpreadDiff=" + Utils.format8(topSpreadDiff));
-                    m_outOfTopSpreadTime = System.currentTimeMillis();
-                }
-            }
-        }
-
-        private void onOrderUpdated(OrderData orderData) {
-            console("Order.onUpdated() orderData=" + orderData);
-            boolean isFilled = orderData.isFilled();
-            if (isFilled) {
-                console(" order is FILLED => DONE");
-                m_pairData.removeOrderBookListener(m_orderBookListener);
-                m_state = State.done;
-            }
-        }
-
-        private enum State {
-            none,
-            submitted,
-            done,
-        }
     }
 }
