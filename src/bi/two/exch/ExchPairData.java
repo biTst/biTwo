@@ -49,7 +49,7 @@ public class ExchPairData {
         if (m_orderBook != null) {
             m_orderBook.onDisconnected();
         }
-        if (m_liveOrders == null) {
+        if (m_liveOrders != null) {
             m_liveOrders.onDisconnected();
         }
     }
