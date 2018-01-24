@@ -19,9 +19,9 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_RATES = true;
     private static final boolean LOOK_ALL_ROUNDS = false;
 
-    private static final boolean CANCEL_ALL_ORDERS_AT_START = false;
+    private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
-    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
     static final boolean SEND_REPLACE = true;
 
     public static final int BEST_PLANS_COUNT = 40;
@@ -31,7 +31,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static final boolean SNAPSHOT_ONLY = false;
     private static Currency[][] TRE_CURRENCIES = {
             {Currency.BTC, Currency.USD, Currency.ETH},
-//            {Currency.BTC, Currency.USD, Currency.BCH},
+            {Currency.BTC, Currency.USD, Currency.BCH},
 //            {Currency.BTC, Currency.USD, Currency.BTG},
 //            {Currency.BTC, Currency.USD, Currency.DASH},
 //            {Currency.BTC, Currency.EUR, Currency.BCH},
@@ -480,19 +480,6 @@ public class Tre implements OrderBook.IOrderBookListener {
                     CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
                     console("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
 
-                    double minOrder = minOrderToCreate.m_value;
-                    Currency minOrderCurrency = minOrderToCreate.m_currency;
-                    if (minOrderCurrency != currency) {
-                        double minOrderConverted = m_exchange.m_accountData.convert(minOrderCurrency, currency, minOrder);
-                        console("     minOrderConverted=" + minOrderConverted + " " + currency);
-                        minOrder = minOrderConverted;
-                    }
-
-                    if (need < minOrder) {
-                        console("    need=" + need + " is less than minOrder=" + minOrder + "; need increased to " + minOrder);
-                        need = minOrder;
-                    }
-
                     Currency sourceCurrency = pairDirection.getSourceCurrency();
                     Currency fromCurrency = pair.m_from;
                     OrderSide orderSide = OrderSide.get(sourceCurrency != fromCurrency);
@@ -504,6 +491,24 @@ public class Tre implements OrderBook.IOrderBookListener {
 
                     OrderBook.Spread topSpread = orderBook.getTopSpread();
                     console("      topSpread=" + topSpread);
+
+                    double minOrder = minOrderToCreate.m_value;
+                    Currency minOrderCurrency = minOrderToCreate.m_currency;
+                    if (minOrderCurrency != currency) {
+                        double minPriceStep = exchPairData.m_minPriceStep;
+                        double rate = orderSide.isBuy()
+                                ? topSpread.m_bidEntry.m_price + minPriceStep
+                                : topSpread.m_askEntry.m_price - minPriceStep;
+
+                        double minOrderConverted = minOrder * rate;
+                        console("     rate=" + rate + "; minOrderConverted=" + minOrderConverted + " " + currency);
+                        minOrder = minOrderConverted;
+                    }
+
+                    if (need < minOrder) {
+                        console("    need=" + need + " is less than minOrder=" + minOrder + "; need increased to " + minOrder);
+                        need = minOrder;
+                    }
 
                     ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
                     CurrencyValue needValue = new CurrencyValue(need, currency);
