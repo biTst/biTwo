@@ -29,13 +29,16 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static final String CONFIG = "cfg/tre.properties";
     private static final int SUBSCRIBE_DEPTH = 7;
     private static final boolean SNAPSHOT_ONLY = false;
+    private static final long TIMER_DELAY = 500; // 500 ms = 1/2 sec
     private static Currency[][] TRE_CURRENCIES = {
+            // BTC ETH BCH XRP BTG
             {Currency.BTC, Currency.USD, Currency.ETH},
             {Currency.BTC, Currency.USD, Currency.BCH},
-//            {Currency.BTC, Currency.USD, Currency.BTG},
-//            {Currency.BTC, Currency.USD, Currency.DASH},
+            {Currency.BTC, Currency.USD, Currency.XRP},
+            {Currency.BTC, Currency.USD, Currency.BTG},
+            {Currency.BTC, Currency.USD, Currency.DASH},
+            {Currency.BTC, Currency.EUR, Currency.ETH},
 //            {Currency.BTC, Currency.EUR, Currency.BCH},
-//            {Currency.BTC, Currency.EUR, Currency.ETH},
     };
 
     public static boolean s_analyzeRounds = false;
@@ -45,9 +48,9 @@ public class Tre implements OrderBook.IOrderBookListener {
     private ArrayList<PairData> m_pairDatas = new ArrayList<>();
     private ExecutorService m_threadPool;
     private Timer m_timer;
-    private TimerTask m_secTimerTask;
     private boolean m_initialized;
-    private Runnable m_secRunnable = new Runnable() { @Override public void run() { onSecTimer(); } };
+    private TimerTask m_timerTask;
+    private Runnable m_timerRunnable = new Runnable() { @Override public void run() { onTimer(); } };
     private String m_lastLogStr = "";
     private Map<Pair,Pair> m_waitingBooks;
     private List<OrderWatcher> m_orderWatchers = new ArrayList<>();
@@ -325,18 +328,18 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void startSecTimer() {
-        m_secTimerTask = new TimerTask() {
+        m_timerTask = new TimerTask() {
             @Override public void run() {
                 if (m_threadPool != null) {
-                    m_threadPool.submit(m_secRunnable);
+                    m_threadPool.submit(m_timerRunnable);
                 }
             }
         };
-        m_timer.scheduleAtFixedRate(m_secTimerTask, 1000, 1000);
+        m_timer.scheduleAtFixedRate(m_timerTask, TIMER_DELAY, TIMER_DELAY);
     }
 
     private void stopSecTimer() {
-        m_secTimerTask.cancel();
+        m_timerTask.cancel();
         m_timer.purge();
     }
 
@@ -384,16 +387,20 @@ public class Tre implements OrderBook.IOrderBookListener {
         if (m_waitingBooks != null) {
             m_waitingBooks.remove(pair);
             if (m_waitingBooks.isEmpty()) {
-                console("all books are LIVE");
                 m_waitingBooks = null;
-                if (DO_MIN_BALANCE) {
-                    minBalance();
-                }
+                onAllBooksLive();
             }
         }
+    }
 
-        if (m_orderWatchers.isEmpty()) { // feed pairs->rounds if not min_balance orders
+    private void onAllBooksLive() {
+        console("all books are LIVE");
+        if (DO_MIN_BALANCE) {
+            minBalance();
+        }
+        if (m_orderWatchers.isEmpty()) { // feed pairs->rounds if no min_balance orders
             s_analyzeRounds = true;
+            log("orderWatcher empty - can start analyzeRounds");
         }
     }
 
@@ -403,7 +410,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         for (RoundData roundData : m_roundDatas) {
             log(" roundData: " + roundData);
             Map<Pair, CurrencyValue> map = roundData.m_minPassThruOrdersSize;
-            console("  minPassThruOrdersSize[" + roundData + "]: " + map);
+            console("  minPassThruOrdersSize[" + roundData + "]: " + toString1(map));
             for (Map.Entry<Pair, CurrencyValue> entry : map.entrySet()) {
                 log("   entry: " + entry);
                 Pair pair = entry.getKey();
@@ -428,7 +435,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             }
         }
         Map<Currency,Double> minBalanceMap = new HashMap<>();
-        console(" totalMinPassThruOrdersSize=" + totalMinPassThruOrdersSize);
+        console(" totalMinPassThruOrdersSize=" + toString1(totalMinPassThruOrdersSize));
         for (Map.Entry<Pair, CurrencyValue> entry : totalMinPassThruOrdersSize.entrySet()) {
             log("  entry=" + entry);
             Pair pair = entry.getKey();
@@ -436,7 +443,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             updateMinBalance(minBalanceMap, pair.m_from, value);
             updateMinBalance(minBalanceMap, pair.m_to, value);
         }
-        console(" minBalanceMap=" + minBalanceMap);
+        console(" minBalanceMap=" + toString2(minBalanceMap));
 
         Map<Double, Currency> availableRateMap = new TreeMap<>(new Comparator<Double>() {
             @Override public int compare(Double d1, Double d2) { return Double.compare(d2, d1); } // decreasing
@@ -456,38 +463,34 @@ public class Tre implements OrderBook.IOrderBookListener {
         }
         console(" availableRateMap=" + availableRateMap);
         Double bestRate = availableRateMap.keySet().iterator().next();
-        console("  bestRate=" + bestRate);
         Currency bestBalanceCurrency = availableRateMap.get(bestRate);
-        console("  bestBalanceCurrency=" + bestBalanceCurrency);
+        console("  bestRate=" + bestRate + "  =>  bestBalanceCurrency=" + bestBalanceCurrency);
 
         for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
-            console("  entry=" + entry);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
             double available = m_accountData.available(currency);
             double need = min - available;
             double needRate = need / min;
-            console("   min=" + min + "; available=" + available + "; need=" + need + "; needRate=" + needRate);
+            console("  entry=" + entry+":  min=" + Utils.format8(min) + "; available=" + available + "; need=" + Utils.format8(need) + "; needRate=" + Utils.format8(needRate));
 
             if (needRate > 0.1) {
-                console("    not enough balance, need " + need + " " + currency);
                 PairDirection pairDirection = PairDirection.get(bestBalanceCurrency, currency);
                 Pair pair = pairDirection.m_pair;
                 boolean supportPair = m_exchange.supportPair(pair);
-                console("    pairDirection=" + pairDirection + "; pair=" + pair + "; supportPair=" + supportPair);
+                console("    not enough balance, need " + Utils.format8(need) + " " + currency + "; pairDirection=" + pairDirection + "; pair=" + pair + "; supportPair=" + supportPair);
                 if (supportPair) {
                     ExchPairData exchPairData = m_exchange.getPairData(pair);
                     CurrencyValue minOrderToCreate = exchPairData.m_minOrderToCreate;
-                    console("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate);
 
                     Currency sourceCurrency = pairDirection.getSourceCurrency();
                     Currency fromCurrency = pair.m_from;
                     OrderSide orderSide = OrderSide.get(sourceCurrency != fromCurrency);
-                    console("    sourceCurrency=" + sourceCurrency + "; fromCurrency=" + fromCurrency + "  => orderSide=" + orderSide + " " + fromCurrency.m_name);
+                    console("    exchPairData=" + exchPairData + "; minOrderToCreate=" + minOrderToCreate + ";  sourceCurrency=" + sourceCurrency + "; fromCurrency=" + fromCurrency + "  => orderSide=" + orderSide + " " + fromCurrency.m_name);
 
                     PairData pairData = PairData.get(pair);
                     OrderBook orderBook = exchPairData.getOrderBook();
-                    console("     pairData=" + pairData + "; orderBook=" + orderBook);
+                    log("     pairData=" + pairData + "; orderBook=" + orderBook);
 
                     OrderBook.Spread topSpread = orderBook.getTopSpread();
                     console("      topSpread=" + topSpread);
@@ -513,7 +516,7 @@ public class Tre implements OrderBook.IOrderBookListener {
                     ArrayList<RoundNodePlan.RoundStep> steps = new ArrayList<>();
                     CurrencyValue needValue = new CurrencyValue(need, currency);
                     double rate = RoundNodeType.LMT.distribute(pairData, null, orderSide, orderBook, needValue, steps);
-                    console("         distribute() rate=" + rate);
+                    log("         distribute() rate=" + Utils.format8(rate));
 
                     for (RoundNodePlan.RoundStep step : steps) {
                         StringBuilder sb = new StringBuilder();
@@ -532,11 +535,51 @@ public class Tre implements OrderBook.IOrderBookListener {
                             }
                         }
                     }
+                } else {
+                    console("    not supported pair: " + pair);
                 }
             } else {
                 console("    enough balance");
             }
         }
+    }
+
+    private <T extends Object> String toString1(Map<T, CurrencyValue> map) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        Iterator<Map.Entry<T, CurrencyValue>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<T, CurrencyValue> entry = iterator.next();
+            T key = entry.getKey();
+            CurrencyValue value = entry.getValue();
+            sb.append(key.toString());
+            sb.append("=");
+            sb.append(value.format8());
+            if (iterator.hasNext()) {
+                sb.append("; ");
+            }
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private <T extends Object> String toString2(Map<T, Double> map) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        Iterator<Map.Entry<T, Double>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<T, Double> entry = iterator.next();
+            T key = entry.getKey();
+            Double value = entry.getValue();
+            sb.append(key.toString());
+            sb.append("=");
+            sb.append(Utils.format8(value));
+            if (iterator.hasNext()) {
+                sb.append("; ");
+            }
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     private void addOrderWatcher(OrderWatcher orderWatcher) {
@@ -565,22 +608,29 @@ public class Tre implements OrderBook.IOrderBookListener {
         minBalanceMap.put(currency, newValue);
     }
 
-    private void onSecTimer() {
-        log("secRunnable.run()");
+    private void onTimer() {
+        log("onTimer()");
 
-        ListIterator<OrderWatcher> iterator = m_orderWatchers.listIterator();
-        while (iterator.hasNext()) {
-            OrderWatcher orderWatcher = iterator.next();
-            boolean done = orderWatcher.onSecTimer();
-            if (done) {
-                log("orderWatcher id DONE, removing: " + orderWatcher);
-                iterator.remove();
+        if (!m_orderWatchers.isEmpty()) {
+            ListIterator<OrderWatcher> iterator = m_orderWatchers.listIterator();
+            while (iterator.hasNext()) {
+                OrderWatcher orderWatcher = iterator.next();
+                boolean done = orderWatcher.onTimer();
+                if (done) {
+                    log("orderWatcher id DONE, removing: " + orderWatcher);
+                    iterator.remove();
+                }
+            }
+
+            if (m_orderWatchers.isEmpty()) {
+                s_analyzeRounds = true; // feed pairs->rounds
+                log("orderWatcher empty - can start analyzeRounds");
             }
         }
     }
 
     private void logTop() {
-console("best plans----------------------------------------------------------------------------------------");
+        console("best plans----------------------------------------------------------------------------------------");
         int num = Math.min(RoundData.s_bestPlans.size(), BEST_PLANS_COUNT);
         for (int j = 0; j < num; j++) {
             StringBuilder sb = new StringBuilder();
@@ -598,9 +648,9 @@ console("best plans-------------------------------------------------------------
                 }
                 timestamp = nextTimestamp;
             }
-console(sb.toString());
-console("--------------------------------------------------------------------------------------------------");
+            console(sb.toString());
         }
+        console("--------------------------------------------------------------------------------------------------");
     }
 
     private boolean onConsoleLine(String line) {
