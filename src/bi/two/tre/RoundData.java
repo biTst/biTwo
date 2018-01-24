@@ -22,7 +22,7 @@ class RoundData implements OrderBook.IOrderBookListener {
     public final List<PairData> m_pds = new ArrayList<>();
     public boolean m_allLive;
     public Map<Pair, CurrencyValue> m_minPassThruOrdersSize = new HashMap<>();
-    private long m_minPassThruOrdersSizeRecalcTime;
+    private long m_minPassThruOrdersSizeRecalcTime; // last time when minPassThruOrdersSize recalculation was done
 
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
@@ -139,7 +139,7 @@ class RoundData implements OrderBook.IOrderBookListener {
 
         if (!unique.isEmpty()) {
             s_bestPlans.addAll(unique);
-            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);;
+            Collections.sort(s_bestPlans, RoundPlan.BY_RATE_PRIO_COMPARATOR);
             s_bestPlans = new ArrayList<>(Utils.firstItems(s_bestPlans, Tre.BEST_PLANS_COUNT));
         }
         logRates(" best :: ", s_bestPlans);
@@ -149,7 +149,15 @@ class RoundData implements OrderBook.IOrderBookListener {
         if (LOG_RATES) {
             StringBuilder sb = new StringBuilder(prefix);
             for (RoundPlan plan : bestPlans) {
-                sb.append("  " + plan.m_roundPlanType.getPrefix() + ":" + plan.m_rdd + ":" + Utils.format8(plan.m_roundRate) + " " + Utils.millisToYDHMSStr(plan.m_liveTime) + ';');
+                sb.append("  ");
+                sb.append(plan.m_roundPlanType.getPrefix());
+                sb.append(":");
+                sb.append(plan.m_rdd);
+                sb.append(":");
+                sb.append(Utils.format8(plan.m_roundRate));
+                sb.append(" ");
+                sb.append(Utils.millisToYDHMSStr(plan.m_liveTime));
+                sb.append(';');
             }
             log(sb.toString());
         }
