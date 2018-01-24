@@ -54,12 +54,12 @@ public class CexIo extends BaseExchImpl {
         m_currencyUnitsMap.put("BTC", 100000000L);
         m_currencyUnitsMap.put("LTC", 100000000L);
         m_currencyUnitsMap.put("GHS", 100000000L);
-        m_currencyUnitsMap.put("ETH", 1000000L);
         m_currencyUnitsMap.put("BTG", 100000000L);
-        m_currencyUnitsMap.put("BCH", 1000000L); // ??
+        m_currencyUnitsMap.put("DASH", 100000000L);
+        m_currencyUnitsMap.put("ETH", 1000000L);
+        m_currencyUnitsMap.put("BCH", 1000000L);
+        m_currencyUnitsMap.put("XRP", 1000000L);
 
-//        m_currencyUnitsMap.put("DASH", 1000000L);
-//        m_currencyUnitsMap.put("XRP", 1000000L);
 //        m_currencyUnitsMap.put("ZEC", 1000000L);
 
         // "BCH": "0.11000000",
@@ -334,20 +334,34 @@ public class CexIo extends BaseExchImpl {
         log(" onTx: data=" + data);
     }
 
-    private void onObalance(Session session, JSONObject jsonObject) {
+    private void onObalance(Session session, final JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1000000"}
-        JSONObject data = (JSONObject) jsonObject.get("data");
-        log(" onObalance: data=" + data);
-
-        setAccountValue(data, false);
+        m_exchange.m_threadPool.submit(new Runnable() {
+            @Override public void run() {
+                try {
+                    JSONObject data = (JSONObject) jsonObject.get("data");
+                    log(" onObalance: data=" + data);
+                    setAccountValue(data, false);
+                } catch (Exception e) {
+                    err("onObalance error: " + e, e);
+                }
+            }
+        });
     }
 
-    private void onBalance(Session session, JSONObject jsonObject) {
+    private void onBalance(Session session, final JSONObject jsonObject) {
         // {"symbol":"BTC","balance":"1431350"}
-        JSONObject data = (JSONObject) jsonObject.get("data");
-        log(" onBalance: data=" + data);
-
-        setAccountValue(data, true);
+        m_exchange.m_threadPool.submit(new Runnable() {
+            @Override public void run() {
+                try {
+                    JSONObject data = (JSONObject) jsonObject.get("data");
+                    log(" onBalance: data=" + data);
+                    setAccountValue(data, true);
+                } catch (Exception e) {
+                    err("onBalance error: " + e, e);
+                }
+            }
+        });
     }
 
     private void setAccountValue(JSONObject data, boolean setAvailable) {
@@ -422,6 +436,9 @@ public class CexIo extends BaseExchImpl {
                     String remainsStr = (String) data.get("remains");
                     double remainsDouble = Double.parseDouble(remainsStr);
                     Long units = m_currencyUnitsMap.get(symbol1);
+                    if (units == null) {
+                        throw new RuntimeException("no unit for symbol " + symbol1);
+                    }
                     double remains = remainsDouble / units;
                     double amount = od.m_amount;
                     double filled = amount - remains;
@@ -740,14 +757,14 @@ public class CexIo extends BaseExchImpl {
     }
 
     @Override public void submitOrder(OrderData orderData) throws IOException {
-        console("CexIo.submitOrder() orderData=" + orderData);
+        log("CexIo.submitOrder() orderData=" + orderData);
         String orderSize = orderData.formatSize(orderData.m_amount);
         String orderPrice = orderData.formatPrice(orderData.m_price);
         String orderSide = orderData.m_side.getName();
         String clientOrderId = orderData.m_clientOrderId;
-        console(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        log(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
         if (clientOrderId == null) {
-            throw new RuntimeException("no clientOrderId");
+            throw new RuntimeException("no clientOrderId. orderData=" + orderData);
         }
         String oid = clientOrderId + "_place-order";
         m_submitOrderRequestsMap.put(oid, orderData);
@@ -865,12 +882,12 @@ public class CexIo extends BaseExchImpl {
     }
 
     @Override public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
-        console("CexIo.submitOrderReplace() orderId=" + orderId + "; orderData=" + orderData);
+        log("CexIo.submitOrderReplace() orderId=" + orderId + "; orderData=" + orderData);
         String orderSize = orderData.formatSize(orderData.m_amount);
         String orderPrice = orderData.formatPrice(orderData.m_price);
         String orderSide = orderData.m_side.getName();
         String clientOrderId = orderData.m_clientOrderId;
-        console(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        log(" clientOrderId=" + clientOrderId + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
         if (clientOrderId == null) {
             throw new RuntimeException("no clientOrderId");
         }
