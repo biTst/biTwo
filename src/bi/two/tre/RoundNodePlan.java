@@ -2,6 +2,7 @@ package bi.two.tre;
 
 import bi.two.exch.OrderSide;
 import bi.two.exch.Pair;
+import bi.two.util.Utils;
 
 import java.util.List;
 
@@ -72,16 +73,18 @@ public class RoundNodePlan {
 
         public void log(StringBuilder sb) {
             sb.append(m_pair);
-            sb.append(" ");
+            sb.append(": ");
             sb.append(m_orderSide);
             sb.append(" ");
-            sb.append(m_orderSize);
-            sb.append(" @ ");
-            sb.append(m_rate);
+            sb.append(Utils.format8(m_orderSize));
             sb.append(" ");
-            sb.append(m_inValue);
+            sb.append(m_pair.m_from);
+            sb.append(" @ ");
+            sb.append(Utils.format8(m_rate));
+            sb.append(" ");
+            sb.append(m_inValue.format8());
             sb.append("->");
-            sb.append(m_outValue);
+            sb.append(m_outValue.format8());
         }
     }
 }

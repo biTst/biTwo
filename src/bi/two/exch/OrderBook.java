@@ -127,7 +127,7 @@ public class OrderBook {
         }
 
         @Override public String toString() {
-            return "[" + m_price + ";" + Utils.format8(m_size) + ']';
+            return "[" + Utils.format8(m_price) + ";" + Utils.format8(m_size) + ']';
         }
 
         @Override public boolean equals(Object o) {
