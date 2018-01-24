@@ -69,6 +69,7 @@ public class ExchPairData {
 
     public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
         LiveOrdersData liveOrders = getLiveOrders();
+        orderData.setFormats(m_priceFormat, m_sizeFormat);
         liveOrders.submitOrderReplace(orderId, orderData);
     }
 
@@ -76,7 +77,7 @@ public class ExchPairData {
         m_minPriceStep = minPriceStep;
         double log10 = Math.log10(minPriceStep);
         m_priceStepDecimals = (int) -log10;
-        m_priceFormat = newDecimalFormat(m_orderStepDecimals); // "price": "241.9477"
+        m_priceFormat = newDecimalFormat(m_priceStepDecimals); // "price": "241.9477"
     }
 
     public void setMinOrderStep(CurrencyValue minOrderStep) {
