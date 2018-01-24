@@ -9,13 +9,12 @@ import java.util.concurrent.TimeUnit;
 
 // -----------------------------------------------------------------------------------------------------------
 class OrderWatcher {
-    public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(5);
-    public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(7);
-    public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(10);
+    public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(4);
+    public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(6);
+    public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(8);
 
     public final Exchange m_exchange;
     public final RoundNodePlan.RoundStep m_roundStep;
-    private final Pair m_pair;
     private final PairData m_pairData;
     public State m_state = State.none;
     public final ExchPairData m_exchPairData;
@@ -42,12 +41,12 @@ class OrderWatcher {
     public OrderWatcher(Exchange exchange, RoundNodePlan.RoundStep roundStep) {
         m_exchange = exchange;
         m_roundStep = roundStep;
-        m_pair = roundStep.m_pair;
-        m_orderData = new OrderData(m_exchange, null, m_pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
+        Pair pair = roundStep.m_pair;
+        m_orderData = new OrderData(m_exchange, null, pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
 
-        m_pairData = PairData.get(m_pair);
+        m_pairData = PairData.get(pair);
         m_pairData.addOrderBookListener(m_orderBookListener);
-        m_exchPairData = exchange.getPairData(m_pair);
+        m_exchPairData = exchange.getPairData(pair);
     }
 
     @Override public String toString() {
@@ -83,26 +82,37 @@ class OrderWatcher {
             return true;
         }
         try {
+            double priceStepRate = 0;
             boolean move = false;
             long outOfSpreadOld = m_outOfTopSpreadStamp.getPassedMillis();
             if (outOfSpreadOld > MAX_LIVE_OUT_OF_SPREAD) {
                 console("onSecTimer: order out of top spread already " + outOfSpreadOld + " ms. moving...");
                 move = true;
+                priceStepRate = 0.05;
             } else {
                 long onTopSpreadWithOthersOld = m_onTopSpreadWithOthersStamp.getPassedMillis();
                 if (onTopSpreadWithOthersOld > MAX_LIVE_ON_SPREAD_WITH_OTHERS) {
                     console("onSecTimer: order on top spread with others already " + onTopSpreadWithOthersOld + " ms. moving...");
                     move = true;
+                    priceStepRate = 0.1;
                 } else {
                     long onTopSpreadOld = m_onTopSpreadAloneStamp.getPassedMillis();
                     if (onTopSpreadOld > MAX_LIVE_ON_SPREAD) {
                         console("onSecTimer: order on top spread alone already " + onTopSpreadOld + " ms. moving...");
                         move = true;
+                        priceStepRate = 0.15;
                     }
                 }
             }
 
             if (move) {
+                double minOrderToCreate = m_exchPairData.m_minOrderToCreate.m_value;
+                double remained = m_orderData.remained();
+                console(" remained=" + remained + "; minOrderToCreate=" + minOrderToCreate);
+                if (remained < minOrderToCreate) {
+                    console("  remained qty is too low for move order" );
+                }
+
                 OrderBook orderBook = m_exchPairData.getOrderBook();
                 OrderBook.Spread topSpread = orderBook.getTopSpread();
                 double orderPrice = m_orderData.m_price;
@@ -114,8 +124,8 @@ class OrderWatcher {
                 double askPrice = topSpread.m_askEntry.m_price;
                 double bidPrice = topSpread.m_bidEntry.m_price;
                 double topSpreadDiff = askPrice - bidPrice;
-                double priceStep = topSpreadDiff / 10;
-                console(" topSpreadDiff=" + Utils.format8(topSpreadDiff) + "; priceStep=" + Utils.format8(priceStep));
+                double priceStep = topSpreadDiff * priceStepRate;
+                console(" topSpreadDiff=" + Utils.format8(topSpreadDiff) + ";priceStepRate=" + priceStepRate + ";  priceStep=" + Utils.format8(priceStep));
                 if (priceStep < minPriceStep) {
                     priceStep = minPriceStep;
                     console("  priceStep fixed to minPriceStep=" + minPriceStep);
@@ -126,7 +136,6 @@ class OrderWatcher {
 
                 String replaceOrderId = m_orderData.m_orderId;
                 OrderData orderData = m_orderData.copyForReplace();
-                // todo: check for minOrderSize
                 orderData.m_price = price;
                 console("    submitOrderReplace: " + orderData);
                 if (Tre.SEND_REPLACE) {
