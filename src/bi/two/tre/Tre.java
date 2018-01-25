@@ -38,7 +38,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             {Currency.BTC, Currency.USD, Currency.BTG},
             {Currency.BTC, Currency.USD, Currency.DASH},
             {Currency.BTC, Currency.EUR, Currency.ETH},
-//            {Currency.BTC, Currency.EUR, Currency.BCH},
+            {Currency.BTC, Currency.GBP, Currency.BCH},
     };
 
     public static boolean s_analyzeRounds = false;

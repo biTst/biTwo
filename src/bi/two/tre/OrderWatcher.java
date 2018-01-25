@@ -9,9 +9,12 @@ import java.util.concurrent.TimeUnit;
 
 // -----------------------------------------------------------------------------------------------------------
 class OrderWatcher {
-    public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(4);
-    public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(6);
-    public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(8);
+    public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(2);
+    public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
+    public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
+    public static final double OUT_OF_SPREAD_PRICE_STEP_RATE = 0.10;
+    public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.15;
+    public static final double ON_SPREAD_PRICE_STEP_RATE = 0.20;
 
     public final Exchange m_exchange;
     public final RoundNodePlan.RoundStep m_roundStep;
@@ -86,21 +89,21 @@ class OrderWatcher {
             boolean move = false;
             long outOfSpreadOld = m_outOfTopSpreadStamp.getPassedMillis();
             if (outOfSpreadOld > MAX_LIVE_OUT_OF_SPREAD) {
-                console("onTimer: order out of top spread already " + outOfSpreadOld + " ms. moving...");
+                console("onTimer: order out of top spread already " + m_outOfTopSpreadStamp.getPassed() + ". moving...");
                 move = true;
-                priceStepRate = 0.05;
+                priceStepRate = OUT_OF_SPREAD_PRICE_STEP_RATE;
             } else {
                 long onTopSpreadWithOthersOld = m_onTopSpreadWithOthersStamp.getPassedMillis();
                 if (onTopSpreadWithOthersOld > MAX_LIVE_ON_SPREAD_WITH_OTHERS) {
-                    console("onTimer: order on top spread with others already " + onTopSpreadWithOthersOld + " ms. moving...");
+                    console("onTimer: order on top spread with others already " + m_onTopSpreadWithOthersStamp.getPassed() + ". moving...");
                     move = true;
-                    priceStepRate = 0.1;
+                    priceStepRate = ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE;
                 } else {
                     long onTopSpreadOld = m_onTopSpreadAloneStamp.getPassedMillis();
                     if (onTopSpreadOld > MAX_LIVE_ON_SPREAD) {
-                        console("onTimer: order on top spread alone already " + onTopSpreadOld + " ms. moving...");
+                        console("onTimer: order on top spread alone already " + m_onTopSpreadAloneStamp.getPassed() + ". moving...");
                         move = true;
-                        priceStepRate = 0.15;
+                        priceStepRate = ON_SPREAD_PRICE_STEP_RATE;
                     }
                 }
             }
