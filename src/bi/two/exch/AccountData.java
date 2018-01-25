@@ -21,10 +21,23 @@ public class AccountData {
     public double allocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
     private double notNull(Double aDouble) { return aDouble == null ? 0 : aDouble.doubleValue(); }
 
-    public void setAvailable(Currency currency, double value) { m_funds.put(currency, round(value)); }
-    public void setAllocated(Currency currency, double value) { m_allocatedFunds.put(currency, round(value)); }
+    public void setAvailable(Currency currency, double value) {
+        setMapValue(m_funds, currency, value);
+    }
+    public void setAllocated(Currency currency, double value) {
+        setMapValue(m_allocatedFunds, currency, value);
+    }
 
-    private Double round(double value) {
+    private void setMapValue(HashMap<Currency, Double> map, Currency currency, double value) {
+        double round = round(value);
+        if (round == 0) {
+            map.remove(currency);
+        } else {
+            map.put(currency, round);
+        }
+    }
+
+    private double round(double value) {
         return Math.round(value * 1000000000d) / 1000000000d;
     }
 
@@ -244,5 +257,9 @@ public class AccountData {
         if(LOG_MOVE || VERBOSE) {
             System.out.println(s);
         }
+    }
+
+    public boolean hasAllocated() {
+        return !m_allocatedFunds.isEmpty();
     }
 }

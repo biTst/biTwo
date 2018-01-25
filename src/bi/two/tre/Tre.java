@@ -17,7 +17,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
-    private static final boolean LOOK_ALL_ROUNDS = false;
+    private static final boolean LOOK_ALL_ROUNDS = true; // search for all possible rings
 
     private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
@@ -35,10 +35,10 @@ public class Tre implements OrderBook.IOrderBookListener {
             {Currency.BTC, Currency.USD, Currency.ETH},
             {Currency.BTC, Currency.USD, Currency.BCH},
             {Currency.BTC, Currency.USD, Currency.XRP},
-            {Currency.BTC, Currency.USD, Currency.BTG},
-            {Currency.BTC, Currency.USD, Currency.DASH},
-            {Currency.BTC, Currency.EUR, Currency.ETH},
-            {Currency.BTC, Currency.GBP, Currency.BCH},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
+//            {Currency.BTC, Currency.USD, Currency.DASH},
+//            {Currency.BTC, Currency.EUR, Currency.ETH},
+//            {Currency.BTC, Currency.GBP, Currency.BCH},
     };
 
     public static boolean s_analyzeRounds = false;
@@ -180,7 +180,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             m_initialized = true;
             initThreadPool();
 
-            if (CANCEL_ALL_ORDERS_AT_START) {
+            if (CANCEL_ALL_ORDERS_AT_START && m_exchange.m_accountData.hasAllocated()) {
                 cancelAllOrders();
             } else {
                 continueInit();
@@ -263,7 +263,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private void continueInit() throws Exception {
         console("continueInit()");
         subscribeBooks();
-        startSecTimer();
+        startTimer();
     }
 
     private void onExchangeDisconnected() {
@@ -327,7 +327,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         log("pairDatas: " + m_pairDatas);
     }
 
-    private void startSecTimer() {
+    private void startTimer() {
         m_timerTask = new TimerTask() {
             @Override public void run() {
                 if (m_threadPool != null) {
@@ -373,9 +373,34 @@ public class Tre implements OrderBook.IOrderBookListener {
         pairData.onOrderBookUpdated(orderBook);
 
         StringBuilder sb = new StringBuilder();
-        List<RoundPlan> roundPlans = Utils.firstItems(RoundData.s_allPlans, 8);
-        for (RoundPlan roundPlan : roundPlans) {
+
+        List<RoundPlan> filteredPlans = new ArrayList<>();
+        Map<RoundDirectedData, RoundPlan> lmmMap = new HashMap<>();
+        Map<RoundDirectedData, RoundPlan> llmMap = new HashMap<>();
+        Map<RoundDirectedData, RoundPlan> lllMap = new HashMap<>();
+        for (RoundPlan roundPlan : RoundData.s_allPlans) {
+            if (roundPlan.m_roundPlanType == RoundPlanType.LMT_LMT_LMT) {
+                lllMap.put(roundPlan.m_rdd, roundPlan);
+            } else if (roundPlan.m_roundPlanType == RoundPlanType.LMT_LMT_MKT) {
+                llmMap.put(roundPlan.m_rdd, roundPlan);
+            } else if (roundPlan.m_roundPlanType == RoundPlanType.LMT_MKT_MKT) {
+                lmmMap.put(roundPlan.m_rdd, roundPlan);
+            } else {
+                filteredPlans.add(roundPlan);
+            }
+        }
+        filteredPlans = Utils.firstItems(filteredPlans, 5);
+        for (RoundPlan roundPlan : filteredPlans) {
             roundPlan.minLog(sb);
+            sb.append("-");
+            RoundPlan lmmPlan = lmmMap.get(roundPlan.m_rdd);
+            sb.append(Utils.format6(lmmPlan.m_roundRate));
+            sb.append("-");
+            RoundPlan llmPlan = llmMap.get(roundPlan.m_rdd);
+            sb.append(Utils.format6(llmPlan.m_roundRate));
+            sb.append("-");
+            RoundPlan lllPlan = lllMap.get(roundPlan.m_rdd);
+            sb.append(Utils.format6(lllPlan.m_roundRate));
             sb.append("; ");
         }
         String line = sb.toString();
