@@ -8,7 +8,7 @@ import bi.two.util.Utils;
 import java.util.concurrent.TimeUnit;
 
 // -----------------------------------------------------------------------------------------------------------
-class OrderWatcher {
+class OrderWatcher implements Tre.IWatcher {
     public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(2);
     public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
     public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
@@ -70,7 +70,7 @@ class OrderWatcher {
         }
     }
 
-    boolean onTimer() {
+    @Override public boolean onTimer() {
         if (m_state == State.done) {
             return true;
         }

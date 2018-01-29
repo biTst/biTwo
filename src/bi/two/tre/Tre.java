@@ -53,7 +53,10 @@ public class Tre implements OrderBook.IOrderBookListener {
     private Runnable m_timerRunnable = new Runnable() { @Override public void run() { onTimer(); } };
     private String m_lastLogStr = "";
     private Map<Pair,Pair> m_waitingBooks;
-    private List<OrderWatcher> m_orderWatchers = new ArrayList<>();
+    private List<IWatcher> m_watchers = new ArrayList<>();
+    private long m_firstBookUpdateTime;
+    private int m_bookUpdatesNum;
+    private boolean m_pauseLog;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -367,6 +370,11 @@ public class Tre implements OrderBook.IOrderBookListener {
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
         log("onOrderBookUpdated: " + orderBook);
+
+        if (m_pauseLog) {
+            return;
+        }
+
         Pair pair = orderBook.m_pair;
 
         PairData pairData = PairData.get(pair);
@@ -389,24 +397,74 @@ public class Tre implements OrderBook.IOrderBookListener {
                 filteredPlans.add(roundPlan);
             }
         }
+        TreeMap<Double, RoundPlan> matchedRoundsMap = null;
         filteredPlans = Utils.firstItems(filteredPlans, 5);
         for (RoundPlan roundPlan : filteredPlans) {
+            RoundDirectedData rdd = roundPlan.m_rdd;
             roundPlan.minLog(sb);
             sb.append("-");
-            RoundPlan lmmPlan = lmmMap.get(roundPlan.m_rdd);
-            sb.append(Utils.format6(lmmPlan.m_roundRate));
+            RoundPlan lmmPlan = lmmMap.get(rdd);
+            double lmmRate = lmmPlan.m_roundRate;
+            sb.append(Utils.format6(lmmRate));
             sb.append("-");
-            RoundPlan llmPlan = llmMap.get(roundPlan.m_rdd);
-            sb.append(Utils.format6(llmPlan.m_roundRate));
+            RoundPlan llmPlan = llmMap.get(rdd);
+            double llmRate = llmPlan.m_roundRate;
+            sb.append(Utils.format6(llmRate));
             sb.append("-");
-            RoundPlan lllPlan = lllMap.get(roundPlan.m_rdd);
-            sb.append(Utils.format6(lllPlan.m_roundRate));
+            RoundPlan lllPlan = lllMap.get(rdd);
+            double lllRate = lllPlan.m_roundRate;
+            sb.append(Utils.format6(lllRate));
             sb.append("; ");
+
+            double roundRate = roundPlan.m_roundRate;
+            if ((roundRate > 1) || ((lmmRate > 1) && (llmRate > 1) && (lllRate > 1.005))) {
+                double rateSum = roundRate + lmmRate + llmRate + lllRate;
+                if (matchedRoundsMap == null) {
+                    matchedRoundsMap = new TreeMap<>(new Comparator<Double>() {
+                        @Override public int compare(Double d1, Double d2) {
+                            return Double.compare(d2, d1);
+                        }
+                    });
+                }
+                matchedRoundsMap.put(rateSum, roundPlan);
+            }
         }
         String line = sb.toString();
         if (!line.equals(m_lastLogStr)) { // do not log the same twice
             m_lastLogStr = line;
             console(line);
+
+            if (matchedRoundsMap != null) {
+                console("  matched : " + matchedRoundsMap);
+                RoundPlan best = matchedRoundsMap.entrySet().iterator().next().getValue();
+                RoundDirectedData rdd = best.m_rdd;
+
+                console("best: " + best.logFull());
+
+                RoundPlan lmmPlan = lmmMap.get(rdd);
+                console("lmm : " + lmmPlan.logFull());
+
+                RoundPlan llmPlan = llmMap.get(rdd);
+                console("llm : " + llmPlan.logFull());
+
+                RoundPlan lllPlan = lllMap.get(rdd);
+                console("lll : " + lllPlan.logFull());
+
+                RoundWatcher roundWatcher = new RoundWatcher(best);
+                m_watchers.add(roundWatcher);
+
+                m_pauseLog = true;
+            }
+        }
+
+        long millis = System.currentTimeMillis();
+        if (m_firstBookUpdateTime == 0) {
+            m_firstBookUpdateTime = millis;
+        }
+        m_bookUpdatesNum++;
+        if ((millis > m_firstBookUpdateTime) && (m_bookUpdatesNum % 50 == 0)) {
+            double speed = ((double) m_bookUpdatesNum) / (millis - m_firstBookUpdateTime) * 1000; // upd/sec
+            console("  speed: " + speed + " upd/sec");
         }
 
         if (m_waitingBooks != null) {
@@ -423,7 +481,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         if (DO_MIN_BALANCE) {
             minBalance();
         }
-        if (m_orderWatchers.isEmpty()) { // feed pairs->rounds if no min_balance orders
+        if (m_watchers.isEmpty()) { // feed pairs->rounds if no min_balance orders
             s_analyzeRounds = true;
             log("orderWatcher empty - can start analyzeRounds");
         }
@@ -608,7 +666,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     }
 
     private void addOrderWatcher(OrderWatcher orderWatcher) {
-        m_orderWatchers.add(orderWatcher);
+        m_watchers.add(orderWatcher);
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
@@ -636,18 +694,17 @@ public class Tre implements OrderBook.IOrderBookListener {
     private void onTimer() {
         log("onTimer()");
 
-        if (!m_orderWatchers.isEmpty()) {
-            ListIterator<OrderWatcher> iterator = m_orderWatchers.listIterator();
+        if (!m_watchers.isEmpty()) {
+            ListIterator<IWatcher> iterator = m_watchers.listIterator();
             while (iterator.hasNext()) {
-                OrderWatcher orderWatcher = iterator.next();
-                boolean done = orderWatcher.onTimer();
+                IWatcher watcher = iterator.next();
+                boolean done = watcher.onTimer();
                 if (done) {
-                    log("orderWatcher id DONE, removing: " + orderWatcher);
+                    log("Watcher is DONE, removing: " + watcher);
                     iterator.remove();
                 }
             }
-
-            if (m_orderWatchers.isEmpty()) {
+            if (m_watchers.isEmpty()) {
                 s_analyzeRounds = true; // feed pairs->rounds
                 log("orderWatcher empty - can start analyzeRounds");
             }
@@ -692,5 +749,22 @@ public class Tre implements OrderBook.IOrderBookListener {
     private class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    private class RoundWatcher implements IWatcher {
+        public RoundWatcher(RoundPlan plan) {
+        }
+
+        @Override public boolean onTimer() {
+            return false;
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    public interface IWatcher {
+        /** @return true if watcher is Done. */
+        boolean onTimer();
     }
 }
