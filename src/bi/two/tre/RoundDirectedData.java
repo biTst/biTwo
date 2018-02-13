@@ -185,7 +185,7 @@ class RoundDirectedData {
 
             RoundNodeType roundNodeType = roundPlanType.getRoundNodeType(i);
             List<RoundNodePlan.RoundStep> steps = new ArrayList<>();
-            double rate = roundNodeType.distribute(pd, m_roundData, orderSide, orderBook, value, steps);
+            double rate = roundNodeType.distribute(pd, m_roundData, orderSide, orderBook, value, steps, null);
             if (rate < 0) { // need scale
                 if (LOG_ROUND_CALC) {
                     log(" need scale a rate " + rate);

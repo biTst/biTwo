@@ -10,7 +10,7 @@ public enum RoundNodeType {
     MKT {
         @Override public String getPrefix() { return "mkt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_commission; }
-        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
+        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps, Double fixedPrice) {
             boolean log = Tre.LOG_MKT_DISTRIBUTION;
 
             ExchPairData exchPairData = pd.m_exchPairData;
@@ -65,7 +65,7 @@ public enum RoundNodeType {
                             double entryVolume = entrySize * entryPrice;
                             volume += entryVolume;
                             remainedSize -= entrySize;
-                            createRoundStep(pd, orderSide, new CurrencyValue(entrySize, valueCurrency), entryPrice, steps);
+                            addRoundStep(pd, orderSide, new CurrencyValue(entrySize, valueCurrency), entryPrice, steps);
                             if (log) {
                                 log("             entry gives " + entryVolume + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                             }
@@ -83,7 +83,7 @@ public enum RoundNodeType {
                         }
                         double sizeVolume = remainedSize * entryPrice;
                         volume += sizeVolume;
-                        createRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
+                        addRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
                         remainedSize = 0;
                         if (log) {
                             log("            remained gives " + sizeVolume + " " + bookCurrency2 + "; volume=" + volume);
@@ -107,7 +107,7 @@ public enum RoundNodeType {
                             }
                             volume += entrySize;
                             remainedSize -= entryGives;
-                            createRoundStep(pd, orderSide, new CurrencyValue(entryGives, valueCurrency), entryPrice, steps);
+                            addRoundStep(pd, orderSide, new CurrencyValue(entryGives, valueCurrency), entryPrice, steps);
                             if (log) {
                                 log("             entry gives " + entryGives + " " + bookCurrency2 + "; volume=" + volume + "; remainedSize=" + remainedSize);
                             }
@@ -126,7 +126,7 @@ public enum RoundNodeType {
                                     + " can " + oppositeName + " " + entryGives + " " + bookCurrency2);
                         }
                         volume += sizeVolume;
-                        createRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
+                        addRoundStep(pd, orderSide, new CurrencyValue(remainedSize, valueCurrency), entryPrice, steps);
                         remainedSize = 0;
                         if (log) {
                             log("             remained gives " + sizeVolume + " " + bookCurrency + "; volume=" + volume);
@@ -154,7 +154,7 @@ public enum RoundNodeType {
     LMT { // best limit price
         @Override public String getPrefix() { return "lmt"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
+        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps, Double fixedPrice) {
             boolean log = Tre.LOG_MKT_DISTRIBUTION;
             if (log) {
                 log("distribute: pd=" + pd + "; roundData=" + roundData + "; orderSide=" + orderSide + "; value=" + value);
@@ -169,22 +169,30 @@ public enum RoundNodeType {
                 log(" topSpread=" + topSpread + "; step=" + Utils.format8(step) + "; rate=" + rate);
             }
 
-            createRoundStep(pd, orderSide, value, rate, steps);
+            addRoundStep(pd, orderSide, value, rate, steps);
             return rate;
         }
     },
     TCH {
         @Override public String getPrefix() { return "tch"; }
         @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; }
-        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps) {
+        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps, Double fixedPrice) {
             ExchPairData exchPairData = pd.m_exchPairData;
             double step = exchPairData.m_minPriceStep;
             double rate = orderSide.isBuy()
                     ? orderBook.getTopAskPrice() - step // byu
                     : orderBook.getTopBidPrice() + step; // sell
 
-            createRoundStep(pd, orderSide, value, rate, steps);
+            addRoundStep(pd, orderSide, value, rate, steps);
             return rate;
+        }
+    },
+    FIXED {
+        @Override public String getPrefix() { return "fix"; }
+        @Override public double fee(ExchPairData exchPairData) { return exchPairData.m_makerCommission; } // todo: actually can be taker too
+        @Override public double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps, Double fixedPrice) {
+            addRoundStep(pd, orderSide, value, fixedPrice, steps);
+            return fixedPrice;
         }
     },
     ;
@@ -195,14 +203,14 @@ public enum RoundNodeType {
 
     public abstract String getPrefix();
     public abstract double fee(ExchPairData exchPairData);
-    public abstract double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps);
+    public abstract double distribute(PairData pd, RoundData roundData, OrderSide orderSide, OrderBook orderBook, CurrencyValue value, List<RoundNodePlan.RoundStep> steps, Double fixedPrice);
 
     @Override public String toString() { return getPrefix(); }
 
-    protected void createRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
+    protected void addRoundStep(PairData pd, OrderSide orderSide, CurrencyValue value, double rate, List<RoundNodePlan.RoundStep> steps) {
         boolean log = Tre.LOG_ROUND_CALC;
         if (log) {
-            log("createRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
+            log("addRoundStep pd=" + pd + "; orderSide=" + orderSide + "; value=" + value + "; rate=" + rate);
         }
         Pair pair = pd.m_pair;
         Currency valueCurrency = value.m_currency;

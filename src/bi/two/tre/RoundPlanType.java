@@ -2,7 +2,7 @@ package bi.two.tre;
 
 public enum RoundPlanType {
     MKT_MKT_MKT {
-        @Override public int getPriority() { return 500; }
+        @Override public int getPriority() { return 1000; }
         @Override public String getPrefix() { return "mkt_mkt_mkt"; }
         @Override public String getShortName() { return "mmm"; }
         @Override public RoundNodeType getRoundNodeType(int indx) { return RoundNodeType.MKT; }

@@ -1,14 +1,15 @@
 package bi.two.tre;
 
-import bi.two.exch.*;
-import bi.two.util.Log;
+import bi.two.exch.Exchange;
+import bi.two.exch.OrderBook;
+import bi.two.exch.OrderData;
+import bi.two.exch.OrderSide;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.util.concurrent.TimeUnit;
 
-// -----------------------------------------------------------------------------------------------------------
-class OrderWatcher implements Tre.IWatcher {
+class OrderWatcher extends BaseOrderWatcher {
     public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(2);
     public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
     public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
@@ -16,74 +17,20 @@ class OrderWatcher implements Tre.IWatcher {
     public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.15;
     public static final double ON_SPREAD_PRICE_STEP_RATE = 0.20;
 
-    public final Exchange m_exchange;
-    public final RoundNodePlan.RoundStep m_roundStep;
-    private final PairData m_pairData;
-    public State m_state = State.none;
-    public final ExchPairData m_exchPairData;
-    private OrderData m_orderData;
     public TimeStamp m_outOfTopSpreadStamp = new TimeStamp(0); // time when order becomes out of spread
     public TimeStamp m_onTopSpreadAloneStamp = new TimeStamp(0); // time when order appears on spread alone
     public TimeStamp m_onTopSpreadWithOthersStamp = new TimeStamp(0); // time when order appears on spread with other
     private OrderBook.Spread m_lastTopSpread;
-    private OrderData.IOrderListener m_orderListener = new OrderData.IOrderListener() {
-        @Override public void onUpdated(OrderData orderData) {
-            onOrderUpdated(orderData);
-        }
-    };
-    private final OrderBook.IOrderBookListener m_orderBookListener = new OrderBook.IOrderBookListener() {
-        @Override public void onOrderBookUpdated(OrderBook orderBook) {
-            onBookUpdated(orderBook);
-        }
-    };
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public OrderWatcher(Exchange exchange, RoundNodePlan.RoundStep roundStep) {
-        m_exchange = exchange;
-        m_roundStep = roundStep;
-        Pair pair = roundStep.m_pair;
-        m_orderData = new OrderData(m_exchange, null, pair, m_roundStep.m_orderSide, OrderType.LIMIT, m_roundStep.m_rate, m_roundStep.m_orderSize);
-
-        m_pairData = PairData.get(pair);
-        m_pairData.addOrderBookListener(m_orderBookListener);
-        m_exchPairData = exchange.getPairData(pair);
+        super(exchange, roundStep);
     }
 
     @Override public String toString() {
         return "OrderWatcher: " + m_orderData;
     }
 
-    public void start() {
-        try {
-            console("OrderWatcher.start()");
-            m_orderData.addOrderListener(m_orderListener);
-            console(" submitOrder: " + m_orderData);
-            m_exchange.submitOrder(m_orderData);
-            m_state = State.submitted;
-        } catch (Exception e) {
-            String msg = "OrderWatcher.start() error: " + e;
-            console(msg);
-            err(msg, e);
-        }
-    }
-
-    @Override public boolean onTimer() {
-        if (m_state == State.done) {
-            return true;
-        }
-        OrderStatus orderStatus = m_orderData.m_status;
-        if (orderStatus == OrderStatus.NEW) {
-            console("onTimer: order not yet submitted");
-            return false;
-        }
-        if (orderStatus == OrderStatus.FILLED) {
-            console("onTimer: order is already filled");
-            m_state = State.done;
-            return true;
-        }
+    @Override public boolean onTimerInt() {
         try {
             double priceStepRate = 0;
             boolean move = false;
@@ -158,19 +105,8 @@ class OrderWatcher implements Tre.IWatcher {
         return (m_state == State.done);
     }
 
-    private void onBookUpdated(OrderBook orderBook) {
+     @Override protected void onBookUpdatedInt(OrderBook orderBook) {
 //        console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
-
-        OrderStatus orderStatus = m_orderData.m_status;
-        if (orderStatus == OrderStatus.NEW) {
-            console(" order not yet submitted");
-            return;
-        }
-        if (orderStatus == OrderStatus.FILLED) {
-            console(" order is already filled");
-            m_state = State.done;
-            return;
-        }
 
         OrderBook.Spread topSpread = orderBook.getTopSpread();
         if ((m_lastTopSpread == null) || !topSpread.equals(m_lastTopSpread)) {
@@ -208,29 +144,5 @@ class OrderWatcher implements Tre.IWatcher {
                 console("  !!! need order price update for " + m_outOfTopSpreadStamp.getPassed());
             }
         }
-    }
-
-    private void onOrderUpdated(OrderData orderData) {
-        console("Order.onUpdated() orderData=" + orderData);
-        boolean isFilled = orderData.isFilled();
-        if (isFilled) {
-            console(" order is FILLED => DONE");
-            m_pairData.removeOrderBookListener(m_orderBookListener);
-            m_state = State.done;
-        } else {
-            if (orderData.m_status == OrderStatus.ERROR) {
-                console(" order in ERROR => FINISHING");
-                m_pairData.removeOrderBookListener(m_orderBookListener);
-                m_state = State.error;
-            }
-        }
-    }
-
-    //-------------------------------------------------------------------
-    private enum State {
-        none,
-        submitted,
-        done,
-        error,
     }
 }

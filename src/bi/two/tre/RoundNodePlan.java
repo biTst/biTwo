@@ -86,5 +86,11 @@ public class RoundNodePlan {
             sb.append("->");
             sb.append(m_outValue.format8());
         }
+
+        @Override public String toString() {
+            StringBuilder sb = new StringBuilder();
+            log(sb);
+            return sb.toString();
+        }
     }
 }
