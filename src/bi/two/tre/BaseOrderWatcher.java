@@ -5,11 +5,11 @@ import bi.two.util.Log;
 
 class BaseOrderWatcher implements Tre.IWatcher {
     public final Exchange m_exchange;
-    public OrderData m_orderData;
-    public State m_state = State.none;
     public final RoundNodePlan.RoundStep m_roundStep;
     public final PairData m_pairData;
     public final ExchPairData m_exchPairData;
+    public OrderData m_orderData;
+    public State m_state = State.none;
 
     @Override public String toString() {
         return "BaseOrderWatcher: state=" + m_state + "; order=" + m_orderData;
@@ -62,8 +62,12 @@ class BaseOrderWatcher implements Tre.IWatcher {
             m_state = State.error;
         }
         if (isFinal()) {
-            m_pairData.removeOrderBookListener(m_orderBookListener);
+            onFinish();
         }
+    }
+
+    protected void onFinish() {
+        m_pairData.removeOrderBookListener(m_orderBookListener);
     }
 
     public void start() {

@@ -17,5 +17,6 @@ public class Execution {
         fill,
         cancel,
         cancelled,
+        error,
     }
 }

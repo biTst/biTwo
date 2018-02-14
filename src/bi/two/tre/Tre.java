@@ -417,7 +417,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             sb.append("; ");
 
             double roundRate = roundPlan.m_roundRate;
-            if ((roundRate > 1) || ((lmmRate > 1) && (llmRate > 1) && (lllRate > 1.005))) {
+            if ((roundRate > 1) || ((roundRate > 0.99) && (lmmRate > 1.003) && (llmRate > 1.005) && (lllRate > 1.008))) {
                 double rateSum = roundRate + lmmRate + llmRate + lllRate;
                 if (matchedRoundsMap == null) {
                     matchedRoundsMap = new TreeMap<>(new Comparator<Double>() {

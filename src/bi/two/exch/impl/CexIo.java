@@ -1111,15 +1111,27 @@ public class CexIo extends BaseExchImpl {
                     Object oid = jsonObject.get("oid");
                     JSONObject data = (JSONObject) jsonObject.get("data");
                     log(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data);
+                    OrderData orderData = m_cancelOrderRequestsMap.remove(oid);
+                    log("  orderData=" + orderData);
 
                     if (Utils.equals(ok, "error")) {
                         String error = (String) data.get("error");
-                        console("  Error canceling order: " + error);
+                        console("   Error canceling order: " + error + "; oid=" + oid);
+                        if (orderData != null) {
+                            double remained = orderData.remained();
+                            console("    remained=" + remained);
+
+                            orderData.m_status = OrderStatus.ERROR;
+
+                            Execution.Type execType = Execution.Type.error;
+                            Execution execution = new Execution(execType, data.toString());
+                            orderData.addExecution(execution);
+
+                            orderData.notifyListeners();
+                        }
                     } else if (Utils.equals(ok, "ok")) {
                         log("  order cancelled");
 
-                        OrderData orderData = m_cancelOrderRequestsMap.remove(oid);
-                        log("  orderData=" + orderData);
                         if (orderData != null) {
                             double remained = orderData.remained();
 
