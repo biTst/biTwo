@@ -261,11 +261,11 @@ public class RoundWatcher implements Tre.IWatcher {
         }
 
         @Override protected void onBookUpdatedInt(OrderBook orderBook) {
-            console("RoundNodeWatcher.onBookUpdatedInt() orderBook=" + orderBook);
+            log("RoundNodeWatcher.onBookUpdatedInt() orderBook=" + orderBook);
             OrderBook.Spread topSpread = orderBook.getTopSpread();
             if ((m_lastTopSpread == null) || !topSpread.equals(m_lastTopSpread)) {
                 double orderPrice = m_orderData.m_price;
-                console("OrderWatcher.onOrderBookUpdated()  changed topSpread=" + topSpread + "; orderPrice: " + Utils.format8(orderPrice));
+                console("RoundNodeWatcher.onOrderBookUpdated()  changed topSpread=" + topSpread + "; orderPrice: " + Utils.format8(orderPrice));
                 m_lastTopSpread = topSpread;
 
                 double minPriceStep = m_exchPairData.m_minPriceStep;

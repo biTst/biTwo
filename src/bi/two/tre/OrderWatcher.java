@@ -58,8 +58,8 @@ class OrderWatcher extends BaseOrderWatcher {
             if (move) {
                 double minOrderToCreate = m_exchPairData.m_minOrderToCreate.m_value;
                 double remained = m_orderData.remained();
-                console(" remained=" + Utils.format8(remained) + "; minOrderToCreate=" + minOrderToCreate);
                 if (remained >= minOrderToCreate) {
+                    console(" remained=" + Utils.format8(remained) + "; minOrderToCreate=" + minOrderToCreate);
                     OrderBook orderBook = m_exchPairData.getOrderBook();
                     OrderBook.Spread topSpread = orderBook.getTopSpread();
                     double orderPrice = m_orderData.m_price;
@@ -94,7 +94,7 @@ class OrderWatcher extends BaseOrderWatcher {
                         m_onTopSpreadWithOthersStamp.reset(); // reset
                     }
                 } else {
-                    console("  remained qty is too low for move order" );
+                    console("  remained " + Utils.format8(remained) + " is too low for move order; minOrderToCreate=" + minOrderToCreate);
                 }
             }
         } catch (Exception e) {
