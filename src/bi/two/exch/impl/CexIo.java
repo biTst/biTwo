@@ -52,12 +52,12 @@ public class CexIo extends BaseExchImpl {
         m_currencyUnitsMap.put("GBP", 100L);
         m_currencyUnitsMap.put("RUB", 100L);
         m_currencyUnitsMap.put("BTC", 100000000L);
+        m_currencyUnitsMap.put("BCH", 100000000L);
         m_currencyUnitsMap.put("LTC", 100000000L);
         m_currencyUnitsMap.put("GHS", 100000000L);
         m_currencyUnitsMap.put("BTG", 100000000L);
         m_currencyUnitsMap.put("DASH", 100000000L);
         m_currencyUnitsMap.put("ETH", 1000000L);
-        m_currencyUnitsMap.put("BCH", 1000000L);
         m_currencyUnitsMap.put("XRP", 1000000L);
 
 //        m_currencyUnitsMap.put("ZEC", 1000000L);
@@ -375,11 +375,11 @@ public class CexIo extends BaseExchImpl {
         log("   symbolStr=" + symbolStrLow + ";  currency=" + currency);
 
         String balanceStr = balance.toString();
-        double valueLong = Double.parseDouble(balanceStr);
+        long valueLong = Long.parseLong(balanceStr);
         Long units = m_currencyUnitsMap.get(symbolStr);
         log("    balanceStr=" + balanceStr + ";  valueLong=" + valueLong + "; units=" + units);
         if (units != null) {
-            double value = valueLong / units;
+            double value = ((double) valueLong) / units;
             log("     " + (setAvailable ? "available" : "allocated") + "=" + value);
 
             AccountData accountData = m_exchange.m_accountData;
@@ -432,6 +432,11 @@ public class CexIo extends BaseExchImpl {
                     String id = (String) data.get("id");
                     OrderData od = liveOrders.getOrder(id);
                     log("     order id=" + id + "; OrderData=" + od);
+
+                    if (od == null) {
+                        console("got update to unknown order. ignoring. id=" + id);
+                        return;
+                    }
 
                     String remainsStr = (String) data.get("remains");
                     double remainsDouble = Double.parseDouble(remainsStr);
