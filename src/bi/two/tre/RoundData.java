@@ -70,6 +70,10 @@ class RoundData implements OrderBook.IOrderBookListener {
     }
 
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
+        if (Tre.m_pauseBookRoundNotify) {
+            return;
+        }
+
         if (!m_allLive) { // recheck allLive
             boolean allLive = true;
             for (PairData pairData : m_pds) {

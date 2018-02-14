@@ -11,13 +11,17 @@ class BaseOrderWatcher implements Tre.IWatcher {
     public final PairData m_pairData;
     public final ExchPairData m_exchPairData;
 
+    @Override public String toString() {
+        return "BaseOrderWatcher: state=" + m_state + "; order=" + m_orderData;
+    }
+
     OrderData.IOrderListener m_orderListener = new OrderData.IOrderListener() { // todo: seems need to remove listener when done
         @Override public void onUpdated(OrderData orderData) {
             onOrderUpdated(orderData);
         }
     };
 
-    final OrderBook.IOrderBookListener m_orderBookListener = new OrderBook.IOrderBookListener() {
+    private final OrderBook.IOrderBookListener m_orderBookListener = new OrderBook.IOrderBookListener() {
         @Override public void onOrderBookUpdated(OrderBook orderBook) {
             onBookUpdated(orderBook);
         }
@@ -34,33 +38,32 @@ class BaseOrderWatcher implements Tre.IWatcher {
         m_exchPairData = exchange.getPairData(pair);
     }
 
-    static void console(String s) { Log.console(s); }
-    static void log(String s) { Log.log(s); }
-    static void err(String s, Throwable t) { Log.err(s, t); }
+    void console(String s) { Log.console(s); }
+    void log(String s) { Log.log(s); }
+    void err(String s, Throwable t) { Log.err(s, t); }
 
+    public boolean isFinal() { return (m_state == State.done) || (m_state == State.error); }
+    public boolean isError() { return (m_state == State.error); }
 
-    protected void onBookUpdatedInt(OrderBook orderBook) {
-
-    }
+    protected void onBookUpdatedInt(OrderBook orderBook) { }
+    protected boolean onTimerInt() { return false; }
 
     protected void onOrderUpdated(OrderData orderData) {
         console("Order.onUpdated() orderData=" + orderData);
         boolean isFilled = orderData.isFilled();
         if (isFilled) {
             console(" order is FILLED => DONE");
-            m_pairData.removeOrderBookListener(m_orderBookListener);
             m_state = State.done;
-        } else {
-            if (orderData.m_status == OrderStatus.ERROR) {
-                console(" order in ERROR => FINISHING");
-                m_pairData.removeOrderBookListener(m_orderBookListener);
-                m_state = State.error;
-            }
+        } else if (orderData.m_status == OrderStatus.CANCELLED) {
+            console(" order is CANCELLED => FINISHING");
+            m_state = State.done;
+        } else if (orderData.m_status == OrderStatus.ERROR) {
+            console(" order in ERROR => FINISHING");
+            m_state = State.error;
         }
-    }
-
-    protected boolean onTimerInt() {
-        return false;
+        if (isFinal()) {
+            m_pairData.removeOrderBookListener(m_orderBookListener);
+        }
     }
 
     public void start() {
@@ -98,12 +101,17 @@ class BaseOrderWatcher implements Tre.IWatcher {
 //        console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
 
         OrderStatus orderStatus = m_orderData.m_status;
-        if (orderStatus == OrderStatus.NEW) {
-            console(" order not yet submitted");
-            return;
-        }
+//if (orderStatus == OrderStatus.NEW) {
+//    console(" order not yet submitted");
+//    return;
+//}
         if (orderStatus == OrderStatus.FILLED) {
             console(" order is already filled");
+            m_state = State.done;
+            return;
+        }
+        if (orderStatus == OrderStatus.CANCELLED) {
+            console(" order is already cancelled");
             m_state = State.done;
             return;
         }

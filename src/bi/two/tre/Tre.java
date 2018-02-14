@@ -17,7 +17,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
     public static final boolean LOG_RATES = true;
-    private static final boolean LOOK_ALL_ROUNDS = false; // search for all possible rings
+    private static final boolean LOOK_ALL_ROUNDS = true; // search for all possible rings
 
     private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
@@ -33,12 +33,12 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static Currency[][] TRE_CURRENCIES = {
             // BTC ETH BCH XRP BTG
             {Currency.BTC, Currency.USD, Currency.ETH},
-            {Currency.BTC, Currency.USD, Currency.BCH},
-            {Currency.BTC, Currency.USD, Currency.XRP},
-            {Currency.BTC, Currency.USD, Currency.BTG},
-            {Currency.BTC, Currency.USD, Currency.DASH},
-            {Currency.BTC, Currency.EUR, Currency.ETH},
-            {Currency.BTC, Currency.GBP, Currency.BCH},
+//            {Currency.BTC, Currency.USD, Currency.BCH},
+//            {Currency.BTC, Currency.USD, Currency.XRP},
+//            {Currency.BTC, Currency.USD, Currency.BTG},
+//            {Currency.BTC, Currency.USD, Currency.DASH},
+//            {Currency.BTC, Currency.EUR, Currency.ETH},
+//            {Currency.BTC, Currency.GBP, Currency.BCH},
     };
 
     public static boolean s_analyzeRounds = false;
@@ -56,7 +56,7 @@ public class Tre implements OrderBook.IOrderBookListener {
     private List<IWatcher> m_watchers = new ArrayList<>();
     private long m_firstBookUpdateTime;
     private int m_bookUpdatesNum;
-    private boolean m_pauseLog;
+    public static boolean m_pauseBookRoundNotify;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -372,14 +372,13 @@ public class Tre implements OrderBook.IOrderBookListener {
     @Override public void onOrderBookUpdated(OrderBook orderBook) {
         log("onOrderBookUpdated: " + orderBook);
 
-        if (m_pauseLog) {
-            return;
-        }
-
         Pair pair = orderBook.m_pair;
-
         PairData pairData = PairData.get(pair);
         pairData.onOrderBookUpdated(orderBook);
+
+        if (m_pauseBookRoundNotify) {
+            return;
+        }
 
         StringBuilder sb = new StringBuilder();
 
@@ -452,9 +451,10 @@ public class Tre implements OrderBook.IOrderBookListener {
                 console("lll : " + lllPlan.logFull());
 
                 RoundWatcher roundWatcher = new RoundWatcher(m_exchange, best, lllPlan);
-                m_watchers.add(roundWatcher);
+                addOrderWatcher(roundWatcher);
+                roundWatcher.start();
 
-                m_pauseLog = true;
+                m_pauseBookRoundNotify = true;
             }
         }
 
@@ -667,8 +667,8 @@ public class Tre implements OrderBook.IOrderBookListener {
         return sb.toString();
     }
 
-    private void addOrderWatcher(OrderWatcher orderWatcher) {
-        m_watchers.add(orderWatcher);
+    private void addOrderWatcher(IWatcher watcher) {
+        m_watchers.add(watcher);
     }
 
     private void updateMinBalance(Map<Currency, Double> minBalanceMap, Currency currency, CurrencyValue value) {
@@ -753,74 +753,6 @@ public class Tre implements OrderBook.IOrderBookListener {
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
 
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class RoundWatcher implements IWatcher {
-        private final RoundPlan m_lllPlan;
-        private final List<RoundNodeWatcher> m_nodeWatchers = new ArrayList<>();
-
-        public RoundWatcher(Exchange exchange, RoundPlan plan, RoundPlan lllPlan) {
-            m_lllPlan = lllPlan;
-            console("about to start plan: " + plan.toString());
-            console(" lllPlan: " + lllPlan.toString());
-
-            List<RoundNodePlan> rnps = lllPlan.m_roundNodePlans;
-            for (RoundNodePlan rnp : rnps) {
-                RoundNodeWatcher rmw = new RoundNodeWatcher(exchange, rnp);
-                m_nodeWatchers.add(rmw);
-            }
-
-            logNodePlans();
-        }
-
-        private void logNodePlans() {
-            CurrencyValue startValue = m_lllPlan.m_startValue;
-            console("  startValue: " + startValue);
-
-            for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
-                nodeWatcher.logNodePlan();
-            }
-        }
-
-        @Override public boolean onTimer() {
-            return false;
-        }
-    }
-
-
-    // -----------------------------------------------------------------------------------------------------------
-    private static class RoundNodeWatcher extends BaseOrderWatcher {
-        private final RoundNodePlan m_rnpInitial;
-        private RoundNodePlan m_rnp;
-
-        public RoundNodeWatcher(Exchange exchange, RoundNodePlan rnp) {
-            super(exchange, rnp.m_steps.get(0));
-            m_rnpInitial = rnp;
-            m_rnp = rnp;
-        }
-
-        public void logNodePlan() {
-            console("   " + m_rnp);
-            console("    " + m_rnp.m_steps.get(0));
-            console("     " + m_orderData);
-            console("      " + m_pairData.m_orderBook.getTopSpread());
-
-//            double rate = RoundNodeType.FIXED.distribute(pairData, null, orderSide, orderBook, needValue, steps, null);
-//            log("         distribute() rate=" + Utils.format8(rate));
-//
-//            for (RoundNodePlan.RoundStep step : steps) {
-//                StringBuilder sb = new StringBuilder();
-//                sb.append("          ");
-//                step.log(sb);
-//                console(sb.toString());
-//            }
-
-        }
-
-        @Override protected void onBookUpdatedInt(OrderBook orderBook) {
-            console("RoundNodeWatcher.onBookUpdatedInt() orderBook=" + orderBook);
-        }
-    }
 
     // -----------------------------------------------------------------------------------------------------------
     public interface IWatcher {

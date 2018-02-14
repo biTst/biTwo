@@ -105,7 +105,7 @@ class OrderWatcher extends BaseOrderWatcher {
         return (m_state == State.done);
     }
 
-     @Override protected void onBookUpdatedInt(OrderBook orderBook) {
+    @Override protected void onBookUpdatedInt(OrderBook orderBook) {
 //        console("OrderWatcher.onOrderBookUpdated() orderBook=" + orderBook);
 
         OrderBook.Spread topSpread = orderBook.getTopSpread();
