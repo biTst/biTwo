@@ -65,10 +65,14 @@ public class AccountData {
             Pair pair = Pair.get(from, to);
             if (pair != null) {
                 TopData topData = m_topDatas.get(pair);
-                boolean forward = (pair.m_from == from);
-                rate = forward ? topData.m_bid : topData.m_ask;
-                if (!forward) {
-                    rate = 1 / rate;
+                if (topData == null) {
+                    rate = 0; // not topData
+                } else {
+                    boolean forward = (pair.m_from == from);
+                    rate = forward ? topData.m_bid : topData.m_ask;
+                    if (!forward) {
+                        rate = 1 / rate;
+                    }
                 }
             } else { // no direct pair support - try via base currency
                 Currency baseCurrency = m_exch.m_baseCurrency;
