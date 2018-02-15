@@ -550,16 +550,16 @@ public class CexIo extends BaseExchImpl {
                     // "pair":"BTC:USD"
                     // [[8228.1220,0.00606695],[8226.6111,0.01433840]]
                     OrderBook orderBook = m_orderBooks.get(pair);
-                    if (orderBook == null) {
-                        throw new RuntimeException("no orderBook for pair=" + pair);
-                    }
-
-                    List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
-                    List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
+                    if (orderBook != null) {
+                        List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
+                        List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
 
 //        log(" input orderBook[" + orderBook.getPair() + "]: " + orderBook);
-                    orderBook.update(aBids, aAsks);
+                        orderBook.update(aBids, aAsks);
 //        log(" updated orderBook[" + orderBook.getPair() + "]: " + orderBook.toString(2));
+                    } else {
+                        throw new RuntimeException("no orderBook for pair=" + pair);
+                    }
                 } catch (Exception e) {
                     err("processOrderBook error: " + e, e);
                 }
@@ -704,6 +704,7 @@ public class CexIo extends BaseExchImpl {
         String ok = (String) data.get("ok");
         log("  ok: " + ok);
         if (Utils.equals(ok, "ok")) {
+            m_exchange.m_live = true; // mark as connected
             if (m_exchangeConnectListener != null) {
                 m_exchangeConnectListener.onConnected();
             }
@@ -1033,10 +1034,17 @@ public class CexIo extends BaseExchImpl {
 
             @Override public void onClose(Session session, CloseReason closeReason) {
                 log("onClose: " + closeReason);
-                m_exchange.onDisconnected();
-                if (m_exchangeConnectListener != null) {
-                    m_exchangeConnectListener.onDisconnected();
-                }
+
+                m_exchange.m_live = false; // mark as disconnected
+
+                m_exchange.m_threadPool.submit(new Runnable() {
+                    @Override public void run() {
+                        m_exchange.onDisconnected();
+                        if (m_exchangeConnectListener != null) {
+                            m_exchangeConnectListener.onDisconnected();
+                        }
+                    }
+                });
             }
 
             @Override public void onError(Session session, Throwable thr) {

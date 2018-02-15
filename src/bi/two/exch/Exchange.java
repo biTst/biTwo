@@ -20,6 +20,7 @@ public class Exchange {
     public Schedule m_schedule;
     public IAccountListener m_accountListener;
     public ExecutorService m_threadPool;
+    public boolean m_live; // true if connected
 
     public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
 
@@ -124,16 +125,28 @@ public class Exchange {
         return exchPairData.getLiveOrders();
     }
 
-    public void submitOrder(OrderData orderData) throws IOException {
+    public boolean submitOrder(OrderData orderData) throws IOException {
         console("Exchange.submitOrder: orderData=" + orderData);
-        ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
-        exchPairData.submitOrder(orderData);
+        if (m_live) {
+            ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
+            exchPairData.submitOrder(orderData);
+            return true;
+        } else {
+            console("Exchange.submitOrder error: exchange not connected; orderData=" + orderData);
+            return false;
+        }
     }
 
-    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+    public boolean submitOrderReplace(String orderId, OrderData orderData) throws IOException {
         console("Exchange.submitOrderReplace: orderId=" + orderId + "; orderData=" + orderData);
-        ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
-        exchPairData.submitOrderReplace(orderId, orderData);
+        if (m_live) {
+            ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
+            exchPairData.submitOrderReplace(orderId, orderData);
+            return true;
+        } else {
+            console("Exchange.submitOrderReplace error: exchange not connected; orderData=" + orderData);
+            return false;
+        }
     }
 
     public void cancelOrder(OrderData orderData) throws IOException {
