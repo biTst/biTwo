@@ -16,12 +16,12 @@ import java.util.concurrent.TimeUnit;
 public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
-    public static final boolean LOG_RATES = true;
+    public static final boolean LOG_RATES = false; // false - for smaller log file
     private static final boolean LOOK_ALL_ROUNDS = true; // search for all possible rings
 
     private static final boolean CANCEL_ALL_ORDERS_AT_START = true;
     private static final boolean DO_MIN_BALANCE = true;
-    private static final boolean PLACE_MIN_BALANCE_ORDERS = false;
+    private static final boolean PLACE_MIN_BALANCE_ORDERS = true;
     static final boolean SEND_REPLACE = true;
 
     public static final int BEST_PLANS_COUNT = 40;
@@ -33,10 +33,10 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static Currency[][] TRE_CURRENCIES = {
             // BTC ETH BCH XRP BTG
             {Currency.BTC, Currency.USD, Currency.ETH},
-//            {Currency.BTC, Currency.USD, Currency.BCH},
-//            {Currency.BTC, Currency.USD, Currency.XRP},
-//            {Currency.BTC, Currency.USD, Currency.BTG},
-//            {Currency.BTC, Currency.USD, Currency.DASH},
+            {Currency.BTC, Currency.USD, Currency.BCH},
+            {Currency.BTC, Currency.USD, Currency.XRP},
+            {Currency.BTC, Currency.USD, Currency.BTG},
+            {Currency.BTC, Currency.USD, Currency.DASH},
 //            {Currency.BTC, Currency.EUR, Currency.ETH},
 //            {Currency.BTC, Currency.GBP, Currency.BCH},
     };
@@ -417,7 +417,15 @@ public class Tre implements OrderBook.IOrderBookListener {
             sb.append("; ");
 
             double roundRate = roundPlan.m_roundRate;
-            if ((roundRate > 1) || ((roundRate > 0.999) && (lmmRate > 1.004) && (llmRate > 1.006) && (lllRate > 1.009))) {
+            if ((roundRate > 1)
+                    || ((roundRate > 0.999) && (lmmRate > 1.005) && (llmRate > 1.006) && (lllRate > 1.007))
+                    || ((roundRate > 0.998) && (lmmRate > 1.007) && (llmRate > 1.009) && (lllRate > 1.011))
+                    || ((roundRate > 0.997) && (lmmRate > 1.009) && (llmRate > 1.012) && (lllRate > 1.015))
+                    || ((roundRate > 0.996) && (lmmRate > 1.011) && (llmRate > 1.015) && (lllRate > 1.019))
+                    || ((roundRate > 0.995) && (lmmRate > 1.013) && (llmRate > 1.018) && (lllRate > 1.023))
+                    || ((roundRate > 0.994) && (lmmRate > 1.015) && (llmRate > 1.021) && (lllRate > 1.027))
+//                    || ((roundRate > 0.9948) && (lmmRate > 1.002) && (llmRate > 1.003) && (lllRate > 1.004))
+                    ) {
                 double rateSum = roundRate + lmmRate + llmRate + lllRate;
                 if (matchedRoundsMap == null) {
                     matchedRoundsMap = new TreeMap<>(new Comparator<Double>() {
@@ -482,8 +490,8 @@ public class Tre implements OrderBook.IOrderBookListener {
         if (DO_MIN_BALANCE) {
             minBalance();
         }
-        if (m_watchers.isEmpty()) { // feed pairs->rounds if no min_balance orders
-            s_analyzeRounds = true;
+        if (m_watchers.isEmpty()) {
+            s_analyzeRounds = true; // feed pairs->rounds if no min_balance orders
             log("orderWatcher empty - can start analyzeRounds");
         }
     }
@@ -706,8 +714,10 @@ public class Tre implements OrderBook.IOrderBookListener {
                     iterator.remove();
                 }
             }
+
             if (m_watchers.isEmpty()) {
                 s_analyzeRounds = true; // feed pairs->rounds
+                m_pauseBookRoundNotify = false;
                 log("orderWatcher empty - can start analyzeRounds");
             }
         }
