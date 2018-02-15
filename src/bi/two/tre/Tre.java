@@ -281,6 +281,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             for (PairData pairData : m_pairDatas) {
                 pairData.onDisconnected();
             }
+            m_watchers.clear();
         } catch (Exception e) {
             err("onExchangeDisconnected error: " + e, e);
         }
