@@ -15,6 +15,7 @@ public class RoundWatcher implements Tre.IWatcher {
     private final RoundPlan m_lllPlan;
     private final List<RoundNodeWatcher> m_nodeWatchers = new ArrayList<>();
     private double m_startEvaluateAll;
+    private TimeStamp m_startStamp;
 
     static void console(String s) { Log.console(s); }
     static void log(String s) { Log.log(s); }
@@ -48,6 +49,7 @@ public class RoundWatcher implements Tre.IWatcher {
         Currency baseCurrency = m_exchange.m_baseCurrency;
         m_startEvaluateAll = m_exchange.m_accountData.evaluateAll(baseCurrency);
         console("start(): evaluateAll=" + m_startEvaluateAll + " " + baseCurrency);
+        m_startStamp = new TimeStamp();
 
         for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
             nodeWatcher.start();
@@ -73,16 +75,7 @@ public class RoundWatcher implements Tre.IWatcher {
 
             done = (countCompleted(false) == size);
             if (done) {
-                console("RoundWatcher is  DONE");
-
-                Currency baseCurrency = m_exchange.m_baseCurrency;
-                double endEvaluateAll = m_exchange.m_accountData.evaluateAll(baseCurrency);
-                double rate = endEvaluateAll / m_startEvaluateAll;
-                console(" end.evaluateAll=" + endEvaluateAll + " " + baseCurrency + "; start.evaluateAll=" + m_startEvaluateAll + " " + baseCurrency + ";  rate=" + rate);
-
-                for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
-                    nodeWatcher.logOnDone();
-                }
+                onRoundDone();
             }
         } catch (Exception e) {
             String msg = "RoundWatcher.onTimer() error: " + e;
@@ -90,6 +83,23 @@ public class RoundWatcher implements Tre.IWatcher {
             err(msg, e);
         }
         return done;
+    }
+
+    private void onRoundDone() {
+        console("RoundWatcher is  DONE");
+
+        Currency baseCurrency = m_exchange.m_baseCurrency;
+        double endEvaluateAll = m_exchange.m_accountData.evaluateAll(baseCurrency);
+        double rate = endEvaluateAll / m_startEvaluateAll;
+        console(" end.evaluateAll=" + endEvaluateAll + " " + baseCurrency + "; start.evaluateAll=" + m_startEvaluateAll + " " + baseCurrency + ";  rate=" + rate);
+
+        for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
+            nodeWatcher.logOnDone();
+        }
+
+        console("Round done in " + m_startStamp.getPassed());
+        console("===============================================================================================");
+        console("===============================================================================================");
     }
 
     private int countCompleted(boolean orSmall) {
@@ -112,12 +122,12 @@ public class RoundWatcher implements Tre.IWatcher {
 
     // -----------------------------------------------------------------------------------------------------------
     private static class RoundNodeWatcher extends BaseOrderWatcher {
-        public static final long MAX_LIVE_OUT_OF_SPREAD = TimeUnit.SECONDS.toMillis(2);
-        public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
-        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
-        public static final double OUT_OF_SPREAD_PRICE_STEP_RATE = 0.10;
-        public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.15;
-        public static final double ON_SPREAD_PRICE_STEP_RATE = 0.20;
+        public static final long MAX_LIVE_OUT_OF_SPREAD = 1500;
+        public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(2);
+        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(4);
+        public static final double OUT_OF_SPREAD_PRICE_STEP_RATE = 0.2;
+        public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.3;
+        public static final double ON_SPREAD_PRICE_STEP_RATE = 0.4;
 
         private final RoundWatcher m_roundWatcher;
         private final RoundNodePlan m_rnpInitial;
@@ -129,6 +139,7 @@ public class RoundWatcher implements Tre.IWatcher {
         public TimeStamp m_onTopSpreadWithOthersStamp = new TimeStamp(0); // time when order appears on spread with other
         private OrderBook.Spread m_lastTopSpread;
         private boolean m_isTooSmallRemained; // remained qty is too small for order change-replace
+        private List<Double> m_prices = new ArrayList<>();
 
         void console(String s) { super.console(m_pairData + ": " + s); }
         void log(String s) { super.log(m_pairData + ": " + s); }
@@ -140,6 +151,7 @@ public class RoundWatcher implements Tre.IWatcher {
             m_rnpInitial = rnp;
             m_rnp = rnp;
             m_initialSpread = m_pairData.m_orderBook.getTopSpread();
+            m_prices.add(m_orderData.m_price);
         }
 
         public void logNodePlan() {
@@ -217,7 +229,7 @@ public class RoundWatcher implements Tre.IWatcher {
 
                         int completedOrSmallCount = m_roundWatcher.countCompleted(true);
                         if (completedOrSmallCount > 0) {
-                            priceStepRate *= (completedOrSmallCount + 1); // go faster if some nodes are done
+                            priceStepRate *= Math.sqrt(completedOrSmallCount + 1); // go faster if some nodes are done
                             console(" go faster - some nodes are done; completedOrSmallCount=" + completedOrSmallCount + "; priceStepRate=" + priceStepRate);
                         }
 
@@ -232,15 +244,17 @@ public class RoundWatcher implements Tre.IWatcher {
                         }
 
                         double price = isBuy ? bidPrice + priceStep : askPrice - priceStep;
-                        console("   price=" + Utils.format8(price) + ";  spread=" + topSpread);
+                        double roundPrice = Utils.round(price, m_exchPairData.m_priceStepDecimals);
+                        console("   price=" + Utils.format8(price) + ";  roundPrice=" + Utils.format8(roundPrice) + "; spread=" + topSpread);
 
                         String replaceOrderId = m_orderData.m_orderId;
                         OrderData orderData = m_orderData.copyForReplace();
-                        orderData.m_price = price;
+                        orderData.m_price = roundPrice;
                         console("    submitOrderReplace: " + orderData);
                         if (Tre.SEND_REPLACE) {
                             orderData.addOrderListener(m_orderListener);
                             m_orderData = orderData;
+                            m_prices.add(roundPrice);
                             m_exchange.submitOrderReplace(replaceOrderId, orderData);
                             sent = true;
                             m_outOfTopSpreadStamp.reset(); // reset
@@ -282,7 +296,7 @@ public class RoundWatcher implements Tre.IWatcher {
                     OrderBook.OrderBookEntry entry = isBuy ? bidEntry : askEntry;
                     double sidePrice = entry.m_price;
                     double priceDelta = sidePrice - orderPrice;
-console("  side price " + (isBuy ? "buy" : "ask") + "Price=" + Utils.format8(sidePrice)
+                    log("  side price " + (isBuy ? "buy" : "ask") + "Price=" + Utils.format8(sidePrice)
                             + "; priceDelta=" + Utils.format12(priceDelta) + "; minPriceStep=" + Utils.format8(minPriceStep));
 
                     if (Math.abs(priceDelta) < halfMinPriceStep) {
@@ -352,6 +366,7 @@ console("  side price " + (isBuy ? "buy" : "ask") + "Price=" + Utils.format8(sid
             console("   " + m_orderData);
             console("    initialSpread=" + m_initialSpread);
             console("    doneSpread=" + doneSpread);
+            console("     prices: " + m_prices);
         }
     }
 }
