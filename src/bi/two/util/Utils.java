@@ -1,5 +1,7 @@
 package bi.two.util;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -135,5 +137,11 @@ public class Utils {
 
     public static <E> List<E> firstItems(List<E> list, int len){
         return (list.size() > len) ? list.subList(0, len) : list;
+    }
+
+    public static double round(double value, int decimals) {
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(decimals, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 }
