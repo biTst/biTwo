@@ -75,8 +75,10 @@ class BaseOrderWatcher implements Tre.IWatcher {
             console("OrderWatcher.start()");
             m_orderData.addOrderListener(m_orderListener);
             console(" submitOrder: " + m_orderData);
-            m_exchange.submitOrder(m_orderData);
-            m_state = OrderWatcher.State.submitted;
+            boolean sent = m_exchange.submitOrder(m_orderData);
+            if (sent) {
+                m_state = OrderWatcher.State.submitted;
+            }
         } catch (Exception e) {
             String msg = "OrderWatcher.start() error: " + e;
             console(msg);

@@ -88,10 +88,12 @@ class OrderWatcher extends BaseOrderWatcher {
                     if (Tre.SEND_REPLACE) {
                         orderData.addOrderListener(m_orderListener);
                         m_orderData = orderData;
-                        m_exchange.submitOrderReplace(replaceOrderId, orderData);
-                        m_outOfTopSpreadStamp.reset(); // reset
-                        m_onTopSpreadAloneStamp.reset(); // reset
-                        m_onTopSpreadWithOthersStamp.reset(); // reset
+                        boolean sent = m_exchange.submitOrderReplace(replaceOrderId, orderData);
+                        if (sent) {
+                            m_outOfTopSpreadStamp.reset(); // reset
+                            m_onTopSpreadAloneStamp.reset(); // reset
+                            m_onTopSpreadWithOthersStamp.reset(); // reset
+                        }
                     }
                 } else {
                     console("  remained " + Utils.format8(remained) + " is too low for move order; minOrderToCreate=" + minOrderToCreate);

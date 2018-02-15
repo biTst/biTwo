@@ -217,8 +217,8 @@ public class RoundWatcher implements Tre.IWatcher {
                 if (move) {
                     double minOrderToCreate = m_exchPairData.m_minOrderToCreate.m_value;
                     double remained = m_orderData.remained();
-                    console(" remained=" + Utils.format8(remained) + "; minOrderToCreate=" + minOrderToCreate + "; priceStepRate=" + priceStepRate);
                     if (remained >= minOrderToCreate) {
+                        console(" remained=" + Utils.format8(remained) + "; minOrderToCreate=" + minOrderToCreate + "; priceStepRate=" + priceStepRate);
                         OrderBook orderBook = m_exchPairData.getOrderBook();
                         OrderBook.Spread topSpread = orderBook.getTopSpread();
                         double orderPrice = m_orderData.m_price;
@@ -255,14 +255,15 @@ public class RoundWatcher implements Tre.IWatcher {
                             orderData.addOrderListener(m_orderListener);
                             m_orderData = orderData;
                             m_prices.add(roundPrice);
-                            m_exchange.submitOrderReplace(replaceOrderId, orderData);
-                            sent = true;
-                            m_outOfTopSpreadStamp.reset(); // reset
-                            m_onTopSpreadAloneStamp.reset(); // reset
-                            m_onTopSpreadWithOthersStamp.reset(); // reset
+                            sent = m_exchange.submitOrderReplace(replaceOrderId, orderData);
+                            if (sent) {
+                                m_outOfTopSpreadStamp.reset(); // reset
+                                m_onTopSpreadAloneStamp.reset(); // reset
+                                m_onTopSpreadWithOthersStamp.reset(); // reset
+                            }
                         }
                     } else {
-                        console("  remained qty is too low for move order" );
+                        console(" remained=" + Utils.format8(remained) + "; minOrderToCreate=" + minOrderToCreate + "; priceStepRate=" + priceStepRate+";  remained qty is too low for move order" );
                         m_isTooSmallRemained = true;
                     }
                 }
