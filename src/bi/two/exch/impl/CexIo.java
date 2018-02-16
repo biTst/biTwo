@@ -1298,6 +1298,9 @@ public class CexIo extends BaseExchImpl {
 
 
     //---------------------------------------------------------------------------------
+    // CEX.IO API is limited to 600 requests per 10 minutes.
+    // Server limits WebSocket client to 600 requests per 10 minutes.
+    // << received: {"e":"cancel-order","data":{"error":"Rate limit exceeded","time":1518739156571},"oid":"5673152656_cancel-order"}
     public static class RateLimiter {
         public boolean m_active;
         private long m_lastTimestamp = 0;

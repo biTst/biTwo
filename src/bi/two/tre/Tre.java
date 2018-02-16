@@ -172,6 +172,9 @@ public class Tre implements OrderBook.IOrderBookListener {
                 mainInit();
             }
 
+            s_analyzeRounds = true; // feed pairs->rounds
+            m_pauseBookRoundNotify = false;
+
             log(" queryAccount()...");
             m_exchange.queryAccount(new Exchange.IAccountListener() {
                 @Override public void onUpdated() throws Exception {
@@ -434,12 +437,12 @@ public class Tre implements OrderBook.IOrderBookListener {
 
             double roundRate = roundPlan.m_roundRate;
             if ((roundRate > 1)
-                    || ((roundRate > 0.999) && (lmmRate > 1.005) && (llmRate > 1.006) && (lllRate > 1.007))
-                    || ((roundRate > 0.998) && (lmmRate > 1.007) && (llmRate > 1.009) && (lllRate > 1.011))
-                    || ((roundRate > 0.997) && (lmmRate > 1.009) && (llmRate > 1.012) && (lllRate > 1.015))
-                    || ((roundRate > 0.996) && (lmmRate > 1.011) && (llmRate > 1.015) && (lllRate > 1.019))
-                    || ((roundRate > 0.995) && (lmmRate > 1.013) && (llmRate > 1.018) && (lllRate > 1.023))
-                    || ((roundRate > 0.994) && (lmmRate > 1.015) && (llmRate > 1.021) && (lllRate > 1.027))
+                    || ((roundRate > 0.999) && (lmmRate > 1.004) && (llmRate > 1.005) && (lllRate > 1.006))
+                    || ((roundRate > 0.998) && (lmmRate > 1.006) && (llmRate > 1.008) && (lllRate > 1.010))
+                    || ((roundRate > 0.997) && (lmmRate > 1.008) && (llmRate > 1.011) && (lllRate > 1.014))
+                    || ((roundRate > 0.996) && (lmmRate > 1.010) && (llmRate > 1.014) && (lllRate > 1.018))
+                    || ((roundRate > 0.995) && (lmmRate > 1.012) && (llmRate > 1.017) && (lllRate > 1.022))
+                    || ((roundRate > 0.994) && (lmmRate > 1.014) && (llmRate > 1.020) && (lllRate > 1.026))
 //                    || ((roundRate > 0.9948) && (lmmRate > 1.002) && (llmRate > 1.003) && (lllRate > 1.004))
                     ) {
                 double rateSum = roundRate + lmmRate + llmRate + lllRate;

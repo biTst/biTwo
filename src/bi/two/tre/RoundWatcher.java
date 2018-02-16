@@ -143,9 +143,9 @@ public class RoundWatcher implements Tre.IWatcher {
 
     // -----------------------------------------------------------------------------------------------------------
     private static class RoundNodeWatcher extends BaseOrderWatcher {
-        public static final long MAX_LIVE_OUT_OF_SPREAD = 1500;
+        public static final long MAX_LIVE_OUT_OF_SPREAD = 1200;
         public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
-        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
+        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(8);
         public static final double OUT_OF_SPREAD_PRICE_STEP_RATE = 0.2;
         public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.3;
         public static final double ON_SPREAD_PRICE_STEP_RATE = 0.4;
@@ -387,13 +387,17 @@ public class RoundWatcher implements Tre.IWatcher {
 
         public void cancelOrderIfNotFinal() throws IOException {
             console("cancelOrderIfNotFinal() " + this);
-            if (!isFinal()) { // todo: seems not need if already cancelRequested
-                String orderId = m_orderData.m_orderId;
-                if (orderId != null) {
-                    console(" cancelOrder: " + m_orderData);
-                    m_exchange.cancelOrder(m_orderData);
+            if (!isFinal()) {
+                if (m_orderData.m_status != OrderStatus.CANCELING) { // if already cancelRequested
+                    String orderId = m_orderData.m_orderId;
+                    if (orderId != null) {
+                        console(" cancelOrder: " + m_orderData);
+                        m_exchange.cancelOrder(m_orderData);
+                    } else {
+                        console(" can not cancel Order: orderId ont yet known");
+                    }
                 } else {
-                    console(" can not cancel Order: orderId ont yet known");
+                    console(" ignored - already cancelRequested: " + m_orderData);
                 }
             }
         }
