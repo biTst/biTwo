@@ -34,4 +34,6 @@ public class BaseExchImpl {
     public void cancelOrder(OrderData orderData) throws IOException {
         throw new RuntimeException("not implemented: " + this);
     }
+
+    public void rateLimiterActive(boolean active) { /*noop by def*/ }
 }

@@ -153,6 +153,10 @@ public class Exchange {
         m_impl.cancelOrder(orderData);
     }
 
+    public void rateLimiterActive(boolean active) {
+        m_impl.rateLimiterActive(active);
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {

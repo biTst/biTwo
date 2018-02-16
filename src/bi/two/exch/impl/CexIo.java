@@ -30,6 +30,9 @@ import java.util.concurrent.TimeUnit;
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
 
+    public static long s_reconnectTimeout = 2;
+    private static RateLimiter m_rateLimiter = new RateLimiter();
+
     private final Exchange m_exchange;
     private final String m_apiKey;
     private final String m_apiSecret;
@@ -880,6 +883,10 @@ public class CexIo extends BaseExchImpl {
                 console("  Error on" + name + "Order[" + oid + "]: " + error);
                 orderData.m_status = OrderStatus.ERROR;
                 orderData.m_error = error.toString();
+
+                Execution.Type execType = Execution.Type.error;
+                Execution execution = new Execution(execType, error.toString());
+                orderData.addExecution(execution);
             }
             orderData.notifyListeners();
         } else {
@@ -996,6 +1003,7 @@ public class CexIo extends BaseExchImpl {
 
     private static void send(Session session, String str) throws IOException {
         log(">> send: " + str);
+        m_rateLimiter.enter();
         RemoteEndpoint.Basic basicRemote = session.getBasicRemote();
         basicRemote.sendText(str);
     }
@@ -1114,21 +1122,26 @@ public class CexIo extends BaseExchImpl {
         orderData.notifyListeners();
     }
 
+    @Override public void rateLimiterActive(boolean active) {
+        m_rateLimiter.m_active = true;
+    }
+
     private void onCancelOrder(final JSONObject jsonObject) {
         // {"e":"cancel-order","data":{"error":"There was an error while canceling your order: Invalid Order ID"},"oid":"1511575385_cancel-order","ok":"error"}
         // {"e":"cancel-order","data":{"order_id":"5067483259","fremains":"0.01000000"},"oid":"1511575384_cancel-order","ok":"ok"}
+        // {"e":"cancel-order","data":{"error":"Rate limit exceeded","time":1518739156571},"oid":"5673152656_cancel-order"}
         m_exchange.m_threadPool.submit(new Runnable() {
             @Override public void run() {
                 try {
                     String ok = (String) jsonObject.get("ok");
                     Object oid = jsonObject.get("oid");
                     JSONObject data = (JSONObject) jsonObject.get("data");
-                    log(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data);
+                    String error = (String) data.get("error");
+                    log(" onCancelOrder[" + oid + "]: ok=" + ok + "; data=" + data + "; error=" + error);
                     OrderData orderData = m_cancelOrderRequestsMap.remove(oid);
                     log("  orderData=" + orderData);
 
-                    if (Utils.equals(ok, "error")) {
-                        String error = (String) data.get("error");
+                    if (Utils.equals(ok, "error") || (error != null)) {
                         console("   Error canceling order: " + error + "; oid=" + oid);
                         if (orderData != null) {
                             double remained = orderData.remained();
@@ -1250,6 +1263,7 @@ public class CexIo extends BaseExchImpl {
         private int m_counter;
         private int m_connectFailure;
 
+        /** @return When true is returned, client container will reconnect. */
         @Override public boolean onDisconnect(CloseReason closeReason) {
             m_counter++;
             m_connectFailure = 0;
@@ -1257,6 +1271,8 @@ public class CexIo extends BaseExchImpl {
             return true;
         }
 
+        /** Called when there is a connection failure
+         * @return When true is returned, client container will reconnect. */
         @Override public boolean onConnectFailure(Exception exception) {
             m_counter++;
             m_connectFailure++;
@@ -1273,8 +1289,32 @@ public class CexIo extends BaseExchImpl {
             return true;
         }
 
+        /** Get reconnect delay.
+         * @return When positive value is returned, next connection attempt will be made after that number of seconds. */
         @Override public long getDelay() {
-            return 1;
+            return s_reconnectTimeout;
+        }
+    }
+
+
+    //---------------------------------------------------------------------------------
+    public static class RateLimiter {
+        public boolean m_active;
+        private long m_lastTimestamp = 0;
+
+        public void enter() {
+            long millis = System.currentTimeMillis();
+            if (m_active) {
+                long diff = millis - m_lastTimestamp;
+                if (diff < 1000) {
+                    long sleep = 1000 - diff;
+                    log(" RateLimiter: sleep " + sleep + " ms");
+                    try {
+                        Thread.sleep(sleep);
+                    } catch (InterruptedException e) { /*noop*/ }
+                }
+            }
+            m_lastTimestamp = millis;
         }
     }
 }
