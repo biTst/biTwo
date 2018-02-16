@@ -16,6 +16,7 @@ public class RoundWatcher implements Tre.IWatcher {
     private final List<RoundNodeWatcher> m_nodeWatchers = new ArrayList<>();
     private double m_startEvaluateAll;
     private TimeStamp m_startStamp;
+    private RoundWatcherState m_state = RoundWatcherState.none;
 
     static void console(String s) { Log.console(s); }
     static void log(String s) { Log.log(s); }
@@ -54,6 +55,8 @@ public class RoundWatcher implements Tre.IWatcher {
         for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
             nodeWatcher.start();
         }
+
+        m_state = RoundWatcherState.active;
     }
 
     /** @return true if watcher is Done. */
@@ -88,6 +91,8 @@ public class RoundWatcher implements Tre.IWatcher {
     private void onRoundDone() {
         console("RoundWatcher is  DONE");
 
+        m_state = RoundWatcherState.done;
+
         Currency baseCurrency = m_exchange.m_baseCurrency;
         double endEvaluateAll = m_exchange.m_accountData.evaluateAll(baseCurrency);
         double rate = endEvaluateAll / m_startEvaluateAll;
@@ -119,12 +124,28 @@ public class RoundWatcher implements Tre.IWatcher {
         }
     }
 
+    private void onOrderError() throws IOException {
+        m_state = RoundWatcherState.error;
+        console("some order error: cancelOrdersWhichNotFinal...");
+        cancelOrdersWhichNotFinal();
+    }
+
+
+    //-------------------------------------------------------------------
+    enum RoundWatcherState {
+        none,
+        active,
+        done,
+        error,
+    }
+
+
 
     // -----------------------------------------------------------------------------------------------------------
     private static class RoundNodeWatcher extends BaseOrderWatcher {
         public static final long MAX_LIVE_OUT_OF_SPREAD = 1500;
-        public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(2);
-        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(4);
+        public static final long MAX_LIVE_ON_SPREAD_WITH_OTHERS = TimeUnit.SECONDS.toMillis(4);
+        public static final long MAX_LIVE_ON_SPREAD = TimeUnit.SECONDS.toMillis(6);
         public static final double OUT_OF_SPREAD_PRICE_STEP_RATE = 0.2;
         public static final double ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE = 0.3;
         public static final double ON_SPREAD_PRICE_STEP_RATE = 0.4;
@@ -193,6 +214,7 @@ public class RoundWatcher implements Tre.IWatcher {
             try {
                 double priceStepRate = 0;
                 boolean move = false;
+                int completedOrSmallCount = m_roundWatcher.countCompleted(true);
                 long outOfSpreadOld = m_outOfTopSpreadStamp.getPassedMillis();
                 if (outOfSpreadOld > MAX_LIVE_OUT_OF_SPREAD) {
                     console("onTimer: order out of top spread already " + m_outOfTopSpreadStamp.getPassed() + ". moving...");
@@ -200,13 +222,21 @@ public class RoundWatcher implements Tre.IWatcher {
                     priceStepRate = OUT_OF_SPREAD_PRICE_STEP_RATE;
                 } else {
                     long onTopSpreadWithOthersOld = m_onTopSpreadWithOthersStamp.getPassedMillis();
-                    if (onTopSpreadWithOthersOld > MAX_LIVE_ON_SPREAD_WITH_OTHERS) {
+                    long maxLiveOnSpreadWithOthers = MAX_LIVE_ON_SPREAD_WITH_OTHERS;
+                    if (completedOrSmallCount > 0) {
+                        maxLiveOnSpreadWithOthers /= 2;
+                    }
+                    if (onTopSpreadWithOthersOld > maxLiveOnSpreadWithOthers) {
                         console("onTimer: order on top spread with others already " + m_onTopSpreadWithOthersStamp.getPassed() + ". moving...");
                         move = true;
                         priceStepRate = ON_SPREAD_WITH_OTHERS_PRICE_STEP_RATE;
                     } else {
                         long onTopSpreadOld = m_onTopSpreadAloneStamp.getPassedMillis();
-                        if (onTopSpreadOld > MAX_LIVE_ON_SPREAD) {
+                        long maxLiveOnSpread = MAX_LIVE_ON_SPREAD;
+                        if (completedOrSmallCount > 0) {
+                            maxLiveOnSpread /= 2;
+                        }
+                        if (onTopSpreadOld > maxLiveOnSpread) {
                             console("onTimer: order on top spread alone already " + m_onTopSpreadAloneStamp.getPassed() + ". moving...");
                             move = true;
                             priceStepRate = ON_SPREAD_PRICE_STEP_RATE;
@@ -227,7 +257,6 @@ public class RoundWatcher implements Tre.IWatcher {
                         OrderSide side = m_orderData.m_side;
                         boolean isBuy = side.isBuy();
 
-                        int completedOrSmallCount = m_roundWatcher.countCompleted(true);
                         if (completedOrSmallCount > 0) {
                             priceStepRate *= Math.sqrt(completedOrSmallCount + 1); // go faster if some nodes are done
                             console(" go faster - some nodes are done; completedOrSmallCount=" + completedOrSmallCount + "; priceStepRate=" + priceStepRate);
@@ -335,7 +364,12 @@ public class RoundWatcher implements Tre.IWatcher {
                 super.onOrderUpdated(orderData);
                 if (isError()) {
                     console(" error order state -> cancel all other");
-                    m_roundWatcher.cancelOrdersWhichNotFinal();
+                    m_roundWatcher.onOrderError();
+                } else {
+                    if (m_roundWatcher.m_state == RoundWatcherState.error) {
+                        console("  roundWatcher.state == error; cancelOrderIfNotFinal...");
+                        cancelOrderIfNotFinal();
+                    }
                 }
             } catch (Exception e) {
                 String msg = "RoundNodeWatcher.onOrderUpdated() error: " + e;
@@ -354,8 +388,13 @@ public class RoundWatcher implements Tre.IWatcher {
         public void cancelOrderIfNotFinal() throws IOException {
             console("cancelOrderIfNotFinal() " + this);
             if (!isFinal()) { // todo: seems not need if already cancelRequested
-                console(" cancelOrder: " + m_orderData);
-                m_exchange.cancelOrder(m_orderData);
+                String orderId = m_orderData.m_orderId;
+                if (orderId != null) {
+                    console(" cancelOrder: " + m_orderData);
+                    m_exchange.cancelOrder(m_orderData);
+                } else {
+                    console(" can not cancel Order: orderId ont yet known");
+                }
             }
         }
 
