@@ -30,6 +30,8 @@ public class Tre implements OrderBook.IOrderBookListener {
     private static final int SUBSCRIBE_DEPTH = 7;
     private static final boolean SNAPSHOT_ONLY = false;
     private static final long TIMER_DELAY = 500; // 500 ms = 1/2 sec
+    private static final int THREAD_POOL_SHUTDOWN_WAIT = 5; // 5 sec
+
     private static Currency[][] TRE_CURRENCIES = {
             // BTC ETH BCH XRP BTG
             {Currency.BTC, Currency.USD, Currency.ETH},
@@ -77,8 +79,12 @@ public class Tre implements OrderBook.IOrderBookListener {
             MapConfig config = new MapConfig();
             config.loadAndEncrypted(CONFIG);
 
+            CexIo.s_reconnectTimeout = THREAD_POOL_SHUTDOWN_WAIT + 2; // thread pool waits 5 sec to finish tasks, start reconnect after that
+
             m_exchange = Exchange.get("cex");
             m_exchange.m_impl = new CexIo(config, m_exchange);
+
+            m_exchange.rateLimiterActive(false); // initially allow frequent requests
 
             if (LOOK_ALL_ROUNDS) {
                 iterateRounds();
@@ -234,11 +240,14 @@ public class Tre implements OrderBook.IOrderBookListener {
             final OrderData nextOrder = ordersIterator.next();
             console("cancelAllOrders() nextOrder=" + nextOrder);
             nextOrder.addOrderListener(new OrderData.IOrderListener() {
+                private boolean m_done;
+
                 @Override public void onUpdated(OrderData orderData) {
                     console("IOrderListener.onUpdated() " + orderData);
                     try {
                         OrderStatus status = orderData.m_status;
-                        if (status == OrderStatus.CANCELLED) {
+                        if ((status == OrderStatus.CANCELLED) && !m_done) {
+                            m_done = true; // CANCELLED can come twice; process only once
                             String cancelledOrderId = orderData.m_orderId;
                             console("order cancelled: cancelledOrderId=" + cancelledOrderId);
                             cancelAllOrders(pairsIterator, ordersIterator);
@@ -267,12 +276,14 @@ public class Tre implements OrderBook.IOrderBookListener {
         console("continueInit()");
         subscribeBooks();
         startTimer();
+        m_exchange.rateLimiterActive(true);
     }
 
     private void onExchangeDisconnected() {
         try {
             log("onExchangeDisconnected");
             m_initialized = false;
+            m_exchange.rateLimiterActive(false);
             stopSecTimer();
             shutdownThreadPool();
             for (RoundData roundData : m_roundDatas) {
@@ -296,7 +307,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         try {
             log("attempt to shutdown ThreadPool");
             m_threadPool.shutdown();
-            m_threadPool.awaitTermination(5, TimeUnit.SECONDS);
+            m_threadPool.awaitTermination(THREAD_POOL_SHUTDOWN_WAIT, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             log("tasks interrupted");
         } finally {
@@ -335,7 +346,11 @@ public class Tre implements OrderBook.IOrderBookListener {
         m_timerTask = new TimerTask() {
             @Override public void run() {
                 if (m_threadPool != null) {
-                    m_threadPool.submit(m_timerRunnable);
+                    if (!m_threadPool.isTerminated() && !m_threadPool.isShutdown()) {
+                        m_threadPool.submit(m_timerRunnable);
+                    } else {
+                        log("timerRunnable skipped - threadPool is Terminated or Shutdown");
+                    }
                 }
             }
         };
