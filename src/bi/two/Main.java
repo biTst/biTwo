@@ -37,7 +37,7 @@ public class Main {
 
     private static void loadData(final ChartFrame frame, String[] args) {
         try {
-            String file = "vary.properties";
+            String file = "cfg\\vary.properties";
             if (args.length > 0) {
                 file = args[0];
             }
@@ -110,7 +110,7 @@ public class Main {
 
         try {
             Runtime.getRuntime().gc();
-            Thread.sleep(TimeUnit.DAYS.toMillis(3));
+            TimeUnit.DAYS.sleep(3);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
