@@ -81,7 +81,10 @@ System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
                     leftTickIndex--;
                     break;
                 }
-                leftTickIndex++; // ticks are in reverse order than on screen. older ticks are  with bigger index
+                leftTickIndex++; // ticks are in reverse order than on screen. older ticks are with bigger index
+            }
+            if (leftTickIndex >= size) {
+                leftTickIndex = size - 1;
             }
             if (leftTickIndex > rightTickIndex) { // ticks are in reverse order than on screen
                 ITickData leftTick = ticks.get(leftTickIndex);
