@@ -3,6 +3,7 @@ package bi.two.exch.impl;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
+import bi.two.util.Log;
 import bi.two.util.Post;
 import bi.two.util.Utils;
 
@@ -13,10 +14,16 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+// // https://bitfinex.readme.io/v2/reference
 public class Bitfinex extends BaseExchImpl {
     private static final int DEF_TICKS_TO_LOAD = 100;
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
-    public static final String CACHE_FILE_NAME = "bitfinex.trades";
+    private static final String CACHE_FILE_NAME = "bitfinex.trades";
+    private static final int MAX_ATTEMPTS = 20;
+
+    private static void console(String s) { Log.console(s); }
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(String[] args) {
 //        MarketConfig.initMarkets();
@@ -29,8 +36,7 @@ public class Bitfinex extends BaseExchImpl {
 
                     logTicks(allTicks, "ALL ticks: ", false);
                 } catch (Exception e) {
-                    System.out.println("error: " + e);
-                    e.printStackTrace();
+                    err("Bitfinex.main.error: " + e, e);
                 }
             }
 
@@ -38,7 +44,7 @@ public class Bitfinex extends BaseExchImpl {
     }
 
     public static List<TradeTickData> readTicks(long period) throws Exception {
-        System.out.println("readTicks() period=" + Utils.millisToYDHMSStr(period));
+        log("readTicks() period=" + Utils.millisToYDHMSStr(period));
 
         boolean emptyCache = true;
         long newestCacheTickTime = 0;
@@ -57,7 +63,7 @@ public class Bitfinex extends BaseExchImpl {
         int reads = 0;
         long timestamp = 0;
         while(true) {
-            System.out.println("read: " + reads + "; allTicks.size=" + allTicks.size());
+            log("read: " + reads + "; allTicks.size=" + allTicks.size());
             if (reads > 0) {
                 Thread.sleep(6000); // do not DDoS
             }
@@ -71,7 +77,7 @@ public class Bitfinex extends BaseExchImpl {
             long newestTickTimestamp = newestTick.getTimestamp();
 
             if (oldestTickTimestamp < newestCacheTickTime) { //
-                System.out.println("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
+                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
                         + "; newestCacheTickTime=" + newestCacheTickTime);
                 mergeTicksWithCache(allTicks, cacheTicks);
 
@@ -108,7 +114,7 @@ public class Bitfinex extends BaseExchImpl {
             TradeTickData cacheTick = cacheTicks.get(i);
             long cacheTickTimestamp = cacheTick.getTimestamp();
             if (cacheTickTimestamp < oldestTickTimestamp) {
-                System.out.println("ERROR merge with cache: index=" + i + "; cacheTickTimestamp=" + cacheTickTimestamp
+                log("ERROR merge with cache: index=" + i + "; cacheTickTimestamp=" + cacheTickTimestamp
                         + "; oldestTickTimestamp=" + oldestTickTimestamp);
                 return;
             }
@@ -120,7 +126,7 @@ public class Bitfinex extends BaseExchImpl {
                         cacheTick = cacheTicks.get(j);
                         allTicks.add(cacheTick);
                     }
-                    System.out.println("merged " + (cacheTicksSize - i - 1) + " ticks from cache");
+                    log("merged " + (cacheTicksSize - i - 1) + " ticks from cache");
                     logTicks(allTicks, "MERGED ticks: ", false);
                     return;
                 }
@@ -141,7 +147,7 @@ public class Bitfinex extends BaseExchImpl {
                 long newestTickTimestamp = newestTick.getTimestamp();
                 long needTime = System.currentTimeMillis() - period;
                 if (needTime < newestTickTimestamp) {
-                    System.out.println(" can use cache: needTime=" + needTime + "; newestTickTimestamp=" + newestTickTimestamp);
+                    log(" can use cache: needTime=" + needTime + "; newestTickTimestamp=" + newestTickTimestamp);
                     return ticks;
                 }
             }
@@ -207,7 +213,7 @@ public class Bitfinex extends BaseExchImpl {
         List<TradeTickData> ticks = execute(timestamp);
 
         int size = ticks.size();
-        System.out.println(" got " + size + " ticks");
+        log(" got " + size + " ticks");
         if (size == 0) {
             throw new Exception("no ticks");
         }
@@ -229,7 +235,7 @@ public class Bitfinex extends BaseExchImpl {
         for (int i = 1; i <= toDelete; i++) {
             allTicks.remove(allTicksSize - i);
         }
-        System.out.println(" got " + toDelete + " ticks with timestamp=" + timestamp + " at the end of allTicks. deleted");
+        log(" got " + toDelete + " ticks with timestamp=" + timestamp + " at the end of allTicks. deleted");
 
         allTicks.addAll(ticks);
         logTicks(allTicks, "glued", false);
@@ -244,11 +250,11 @@ public class Bitfinex extends BaseExchImpl {
         long oldestTickTimestamp = oldestTick.getTimestamp();
         long newestTickTimestamp = newestTick.getTimestamp();
         String timePeriod = Utils.millisToYDHMSStr(newestTickTimestamp - oldestTickTimestamp);
-        System.out.println(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
+        log(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
         if (logArray) {
             for (int i = 0; i < size; i++) {
                 TickVolumeData tick = ticks.get(i);
-                System.out.println(" tick[" + i + "]: " + tick);
+                log(" tick[" + i + "]: " + tick);
             }
         }
     }
@@ -269,26 +275,40 @@ public class Bitfinex extends BaseExchImpl {
 
         String pair = "tBTCUSD";
         String address = "https://api.bitfinex.com/v2/trades/" + pair + "/hist?" + postData;
-        URL url = new URL(address);
-        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-        try {
-            con.setRequestMethod("GET");
-            con.setUseCaches(false);
 
-            int responseCode = con.getResponseCode();
+        int timeout = 1000;
+        int timeoutStep = 2000;
+        String error = "";
+        for(int i = 0; i < MAX_ATTEMPTS; i++) {
+            URL url = new URL(address);
+            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+            try {
+                con.setRequestMethod("GET");
+                con.setUseCaches(false);
 
-            if (responseCode == HttpsURLConnection.HTTP_OK) {
-                List<TradeTickData> ticks = readAllTicks(con.getInputStream());
-                return ticks;
-            } else if (responseCode == HTTP_TOO_MANY_REQUESTS) {
-                String retryAfter = con.getHeaderField("Retry-After");
-                throw new Exception("ERROR: HTTP_TOO_MANY_REQUESTS: retryAfter=" + retryAfter);
-            } else {
-                throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
+                int responseCode = con.getResponseCode();
+
+                if (responseCode == HttpsURLConnection.HTTP_OK) {
+                    List<TradeTickData> ticks = readAllTicks(con.getInputStream());
+                    return ticks;
+                } else if (responseCode == HTTP_TOO_MANY_REQUESTS) {
+                    String retryAfter = con.getHeaderField("Retry-After");
+                    throw new Exception("ERROR: HTTP_TOO_MANY_REQUESTS: retryAfter=" + retryAfter);
+                } else if (responseCode == HttpsURLConnection.HTTP_GATEWAY_TIMEOUT) {
+                    log("HTTP_GATEWAY_TIMEOUT error");
+                    error = "HTTP_GATEWAY_TIMEOUT error";
+                } else {
+                    throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
+                }
+                Thread.sleep(timeout);
+            } finally {
+                con.disconnect();
             }
-        } finally {
-            con.disconnect();
+            log(" sleep " + timeout + "ms...");
+            Thread.sleep(timeout);
+            timeout += timeoutStep;
         }
+        throw new Exception(error);
     }
 
     private static List<TradeTickData> readAllTicks(InputStream inputStream) throws IOException {
@@ -349,7 +369,7 @@ public class Bitfinex extends BaseExchImpl {
             }
         } else {
             String line = readLine(pbis);
-            System.out.println("line=" + line);
+            log("line=" + line);
             throw new RuntimeException("expected [");
         }
     }
