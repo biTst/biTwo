@@ -1,9 +1,6 @@
 package bi.two.algo;
 
-import bi.two.algo.impl.EmaTrendAlgo;
-import bi.two.algo.impl.Mmar3Algo;
-import bi.two.algo.impl.MmarAlgo;
-import bi.two.algo.impl.RegressionAlgo;
+import bi.two.algo.impl.*;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.util.MapConfig;
 
@@ -29,6 +26,11 @@ public enum Algo {
     mmar3 {
         @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {
             return new Mmar3Algo(algoConfig, parent);
+        }
+    },
+    ummar {
+        @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {
+            return new UmmarAlgo(algoConfig, parent);
         }
     },
     ;
