@@ -40,21 +40,26 @@ public class Bitfinex extends BaseExchImpl {
     public static List<TradeTickData> readTicks(long period) throws Exception {
         System.out.println("readTicks() period=" + Utils.millisToYDHMSStr(period));
 
+        boolean emptyCache = true;
         long newestCacheTickTime = 0;
         List<TradeTickData> cacheTicks = readCache(period);
         if (cacheTicks != null) {
-            TickVolumeData newestTick = cacheTicks.get(0);
-            newestCacheTickTime = newestTick.getTimestamp();
+            if (cacheTicks.size() > 0) {
+                emptyCache = false;
+                TickVolumeData newestTick = cacheTicks.get(0);
+                newestCacheTickTime = newestTick.getTimestamp();
+            }
         }
 
         List<TradeTickData> allTicks = new ArrayList<>();
 
+        boolean merged = false;
         int reads = 0;
         long timestamp = 0;
         while(true) {
             System.out.println("read: " + reads + "; allTicks.size=" + allTicks.size());
             if (reads > 0) {
-                Thread.sleep(2000); // do not DDoS
+                Thread.sleep(6000); // do not DDoS
             }
             timestamp = readAndLog(allTicks, timestamp);
             reads++;
@@ -76,11 +81,16 @@ public class Bitfinex extends BaseExchImpl {
                 oldestTick = allTicks.get(size - 1);
                 oldestTickTimestamp = oldestTick.getTimestamp();
                 newestTickTimestamp = newestTick.getTimestamp();
+                timestamp = oldestTickTimestamp;
+                merged = true;
             }
 
             long allPeriod = newestTickTimestamp - oldestTickTimestamp;
             if (allPeriod > period) {
                 break;
+            }
+            if (emptyCache || merged) {
+                writeCache(allTicks);
             }
         }
         logTicks(allTicks, "ALL ticks: ", false);
