@@ -39,7 +39,7 @@ public class Log {
             System.out.println(s);
         }
 
-        @Override public void console(String s) {}
+        @Override public void console(String s) { System.out.println(s); }
 
         // synchronized -- do not mess 2 threads outputs
         @Override public synchronized void err(String s, Throwable t) {

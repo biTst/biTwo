@@ -13,6 +13,7 @@ import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.ts.TimesSeriesData;
+import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
     public static void main(final String[] args) {
+        Log.s_impl = new Log.StdLog();
         MarketConfig.initMarkets(false);
 
         final ChartFrame frame = new ChartFrame();
