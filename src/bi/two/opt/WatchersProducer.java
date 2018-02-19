@@ -81,7 +81,7 @@ public class WatchersProducer {
                     throw new RuntimeException("vary not found with name " + name + " for config: " + s);
                 }
             } else {
-                System.out.println("IterateConfig '" + s + "' is invalid");
+                System.out.println("OptimizeConfig '" + s + "' is invalid");
             }
         }
         return ret;
@@ -243,6 +243,9 @@ public class WatchersProducer {
 
         @Override protected BaseAlgo createAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
             String algoName = algoConfig.getPropertyNoComment(BaseAlgo.ALGO_NAME_KEY);
+            if (algoName == null) {
+                throw new RuntimeException("no '" + BaseAlgo.ALGO_NAME_KEY + "' param");
+            }
             Algo algo = Algo.valueOf(algoName);
             BaseAlgo algoImpl = algo.createAlgo(algoConfig, parent);
             return algoImpl;
