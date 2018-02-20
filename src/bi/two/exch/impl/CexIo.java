@@ -1,5 +1,6 @@
 package bi.two.exch.impl;
 
+import bi.two.chart.TradeTickData;
 import bi.two.exch.*;
 import bi.two.util.Hex;
 import bi.two.util.Log;
@@ -25,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-// based on info from https://cex.io/websocket-api
+// based on info from
+//  https://cex.io/websocket-api
+//  https://cex.io/rest-api
 //  to check: https://github.com/zackurben/cex.io-api-java  https://github.com/joshho/cex.io-api-java
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
@@ -1255,6 +1258,13 @@ public class CexIo extends BaseExchImpl {
 
     @NotNull private static String pairToStr(Pair pair) {
         return "\"pair\": [ \"" + pair.m_from.name().toUpperCase() + "\", \"" + pair.m_to.name().toUpperCase() + "\" ]";
+    }
+
+    // https://cex.io/rest-api#trade-history
+    public static List<TradeTickData> readTicks(long period) {
+        // [{"type":"sell","date":"1519040965","amount":"0.02611252","price":"11142.3","tid":"6213558"},
+        //  {"type":"buy","date":"1519040926","amount":"0.03700000","price":"11142.3","tid":"6213557"}]
+        return null;
     }
 
 
