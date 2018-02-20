@@ -50,11 +50,13 @@ public class UmmarAlgo extends BaseAlgo {
             iEmas.add(ema);
             length += m_step;
         }
-        float fraction = m_count - countFloor;
-        float fractionLength = length - m_step + m_step * fraction;
-        BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength);
-        m_emas.add(ema);
-        iEmas.add(ema);
+        if (m_count != countFloor) {
+            float fraction = m_count - countFloor;
+            float fractionLength = length - m_step + m_step * fraction;
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength);
+            m_emas.add(ema);
+            iEmas.add(ema);
+        }
 
         m_minMaxSpread = new MinMaxSpread(iEmas, tsd, collectValues);
     }
@@ -103,14 +105,14 @@ public class UmmarAlgo extends BaseAlgo {
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
             }
 
-//            addChart(chartData, m_minMaxSpread.getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.MAGENTA, TickPainter.LINE);
-//
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
-//
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
+
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
+
+            //            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
 //            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
 //            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidTs.getJoinNonChangedTs(), topLayers, "fadeMid", Color.green, TickPainter.LINE);
 //            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidTs.getJoinNonChangedTs(), topLayers, "fadeMidMid", Color.yellow, TickPainter.LINE);
@@ -177,9 +179,9 @@ public class UmmarAlgo extends BaseAlgo {
 //        private final BaseTimesSeriesData m_ribbonSpreadFadingMidTs;
 //        private BaseTimesSeriesData m_midTs;
 //        private float m_mid;
-//        private float m_ribbonSpreadMax;
-//        private float m_ribbonSpreadMaxTop;
-//        private float m_ribbonSpreadMaxBottom;
+        private float m_ribbonSpreadMax;
+        private float m_ribbonSpreadMaxTop;
+        private float m_ribbonSpreadMaxBottom;
 //        private float m_ribbonSpreadFading;
 //        private float m_ribbonSpreadFadingTop;
 //        private float m_ribbonSpreadFadingBottom;
@@ -291,13 +293,11 @@ public class UmmarAlgo extends BaseAlgo {
                     float ribbonSpread = max - min;
 //                    m_ribbonRate = (m_leadEmaValue - min) / ribbonSpread; // [0...1]
 //
-//                    m_ribbonSpreadMax = (goUp != m_goUp) // direction changed
-//                            ? ribbonSpread //reset
-//                            : ribbonSpread < m_ribbonSpread
-//                            ? Math.max(ribbonSpread, m_ribbonSpreadMax)
-//                            : Math.max(ribbonSpread, m_ribbonSpreadMax);
-//                    m_ribbonSpreadMaxTop = goUp ? min + m_ribbonSpreadMax : max;
-//                    m_ribbonSpreadMaxBottom = goUp ? min : max - m_ribbonSpreadMax;
+                    m_ribbonSpreadMax = (goUp != m_goUp) // direction changed
+                            ? ribbonSpread //reset
+                            : Math.max(ribbonSpread, m_ribbonSpreadMax);
+                    m_ribbonSpreadMaxTop = goUp ? min + m_ribbonSpreadMax : max;
+                    m_ribbonSpreadMaxBottom = goUp ? min : max - m_ribbonSpreadMax;
 //
 //                    m_ribbonSpreadFading = (goUp != m_goUp)
 //                            ? ribbonSpread
@@ -329,20 +329,24 @@ public class UmmarAlgo extends BaseAlgo {
             return m_tick;
         }
 
-//        TimesSeriesData<TickData> getMinTs() {
-//            return new JoinNonChangedInnerTimesSeriesData(this) {
-//                @Override protected Float getValue() {
-//                    return m_min;
-//                }
-//            };
-//        }
-//
-//        TimesSeriesData<TickData> getMaxTs() {
-//            return new JoinNonChangedInnerTimesSeriesData(this) {
-//                @Override protected Float getValue() {
-//                    return m_max;
-//                }
-//            };
+        TimesSeriesData<TickData> getMinTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_min;
+                }
+            };
+        }
+
+        TimesSeriesData<TickData> getMaxTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_max;
+                }
+            };
+        }
+
+//        ITicksData<TickData> getMidTs() {
+//            return m_midTs.getJoinNonChangedTs();
 //        }
 //
 //        TimesSeriesData<TickData> getRibbonSpreadMaxTs() {
@@ -353,21 +357,21 @@ public class UmmarAlgo extends BaseAlgo {
 //            };
 //        }
 //
-//        TimesSeriesData<TickData> getRibbonSpreadMaxTopTs() {
-//            return new JoinNonChangedInnerTimesSeriesData(this) {
-//                @Override protected Float getValue() {
-//                    return m_ribbonSpreadMaxTop;
-//                }
-//            };
-//        }
-//
-//        TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() {
-//            return new JoinNonChangedInnerTimesSeriesData(this) {
-//                @Override protected Float getValue() {
-//                    return m_ribbonSpreadMaxBottom;
-//                }
-//            };
-//        }
+        TimesSeriesData<TickData> getRibbonSpreadMaxTopTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_ribbonSpreadMaxTop;
+                }
+            };
+        }
+
+        TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() {
+            return new JoinNonChangedInnerTimesSeriesData(this) {
+                @Override protected Float getValue() {
+                    return m_ribbonSpreadMaxBottom;
+                }
+            };
+        }
 //
 //        TimesSeriesData<TickData> getRibbonSpreadFadingTs() {
 //            return new JoinNonChangedInnerTimesSeriesData(this) {
@@ -393,8 +397,5 @@ public class UmmarAlgo extends BaseAlgo {
 //            };
 //        }
 //
-//        ITicksData<TickData> getMidTs() {
-//            return m_midTs.getJoinNonChangedTs();
-//        }
     }
 }
