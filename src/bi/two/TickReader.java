@@ -4,6 +4,7 @@ import bi.two.chart.TickData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.Bitfinex;
+import bi.two.exch.impl.CexIo;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -109,16 +110,18 @@ public enum TickReader {
     },
     BITFINEX("bitfinex") {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-//            long period = TimeUnit.MINUTES.toMillis(200);
+//            long period = TimeUnit.HOURS.toMillis(21);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TradeTickData> ticks = Bitfinex.readTicks(period);
-            for (int i = ticks.size() - 1; i >= 0; i--) {
-                TradeTickData tick = ticks.get(i);
-                ticksTs.addNewestTick(tick);
-                if (callback != null) {
-                    callback.run();
-                }
-            }
+            feedTicks(ticksTs, callback, ticks);
+        }
+    },
+    CEX("cex") {
+        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+//            long period = TimeUnit.MINUTES.toMillis(200);
+            long period = TimeUnit.DAYS.toMillis(365);
+            List<TradeTickData> ticks = CexIo.readTicks(period);
+            feedTicks(ticksTs, callback, ticks);
         }
     };
 
@@ -139,5 +142,15 @@ public enum TickReader {
 
     public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
         throw new RuntimeException("must be overridden");
+    }
+
+    private static void feedTicks(TimesSeriesData<TickData> ticksTs, Runnable callback, List<TradeTickData> ticks) {
+        for (int i = ticks.size() - 1; i >= 0; i--) {
+            TradeTickData tick = ticks.get(i);
+            ticksTs.addNewestTick(tick);
+            if (callback != null) {
+                callback.run();
+            }
+        }
     }
 }
