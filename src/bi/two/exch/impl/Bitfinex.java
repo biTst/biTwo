@@ -43,6 +43,8 @@ public class Bitfinex extends BaseExchImpl {
         }.start();
     }
 
+    private static final boolean LOAD_NEWEST = false;
+
     public static List<TradeTickData> readTicks(long period) throws Exception {
         log("readTicks() period=" + Utils.millisToYDHMSStr(period));
 
@@ -58,12 +60,13 @@ public class Bitfinex extends BaseExchImpl {
         }
 
         List<TradeTickData> allTicks = new ArrayList<>();
+        if(!LOAD_NEWEST) {
+            allTicks.addAll(cacheTicks);
+        }
 
-        allTicks.addAll(cacheTicks);
-
-        boolean merged = true;
+        boolean merged = !LOAD_NEWEST;
         int reads = 0;
-        long timestamp = allTicks.get(allTicks.size() - 1).getTimestamp();
+        long timestamp = LOAD_NEWEST ? 0 : allTicks.get(allTicks.size() - 1).getTimestamp();
         while(true) {
             log("read: " + reads + "; allTicks.size=" + allTicks.size());
             if (reads > 0) {
@@ -78,20 +81,20 @@ public class Bitfinex extends BaseExchImpl {
             long oldestTickTimestamp = oldestTick.getTimestamp();
             long newestTickTimestamp = newestTick.getTimestamp();
 
-//            if (oldestTickTimestamp < newestCacheTickTime) { //
-//                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
-//                        + "; newestCacheTickTime=" + newestCacheTickTime);
-//                mergeTicksWithCache(allTicks, cacheTicks);
-//
-//                // refresh
-//                size = allTicks.size();
-//                newestTick = allTicks.get(0);
-//                newestTickTimestamp = newestTick.getTimestamp();
-//                oldestTick = allTicks.get(size - 1);
-//                oldestTickTimestamp = oldestTick.getTimestamp();
-//                timestamp = oldestTickTimestamp;
-//                merged = true;
-//            }
+            if (LOAD_NEWEST && (oldestTickTimestamp < newestCacheTickTime)) { //
+                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
+                        + "; newestCacheTickTime=" + newestCacheTickTime);
+                mergeTicksWithCache(allTicks, cacheTicks);
+
+                // refresh
+                size = allTicks.size();
+                newestTick = allTicks.get(0);
+                newestTickTimestamp = newestTick.getTimestamp();
+                oldestTick = allTicks.get(size - 1);
+                oldestTickTimestamp = oldestTick.getTimestamp();
+                timestamp = oldestTickTimestamp;
+                merged = true;
+            }
 
             long allPeriod = newestTickTimestamp - oldestTickTimestamp;
             if (allPeriod > period) {

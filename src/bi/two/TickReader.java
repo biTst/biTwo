@@ -110,8 +110,8 @@ public enum TickReader {
     },
     BITFINEX("bitfinex") {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-//            long period = TimeUnit.HOURS.toMillis(21);
-            long period = TimeUnit.DAYS.toMillis(365);
+            long period = TimeUnit.HOURS.toMillis(10);
+//            long period = TimeUnit.DAYS.toMillis(365);
             List<TradeTickData> ticks = Bitfinex.readTicks(period);
             feedTicks(ticksTs, callback, ticks);
         }
