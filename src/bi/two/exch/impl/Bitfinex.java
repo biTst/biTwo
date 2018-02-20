@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 // // https://bitfinex.readme.io/v2/reference
 public class Bitfinex extends BaseExchImpl {
-    private static final int DEF_TICKS_TO_LOAD = 100;
+    private static final int DEF_TICKS_TO_LOAD = 1000;
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
     private static final String CACHE_FILE_NAME = "bitfinex.trades";
     private static final int MAX_ATTEMPTS = 20;
@@ -48,7 +48,7 @@ public class Bitfinex extends BaseExchImpl {
 
         boolean emptyCache = true;
         long newestCacheTickTime = 0;
-        List<TradeTickData> cacheTicks = readCache(period);
+        List<TradeTickData> cacheTicks = readCache();
         if (cacheTicks != null) {
             if (cacheTicks.size() > 0) {
                 emptyCache = false;
@@ -59,9 +59,11 @@ public class Bitfinex extends BaseExchImpl {
 
         List<TradeTickData> allTicks = new ArrayList<>();
 
-        boolean merged = false;
+        allTicks.addAll(cacheTicks);
+
+        boolean merged = true;
         int reads = 0;
-        long timestamp = 0;
+        long timestamp = allTicks.get(allTicks.size() - 1).getTimestamp();
         while(true) {
             log("read: " + reads + "; allTicks.size=" + allTicks.size());
             if (reads > 0) {
@@ -76,20 +78,20 @@ public class Bitfinex extends BaseExchImpl {
             long oldestTickTimestamp = oldestTick.getTimestamp();
             long newestTickTimestamp = newestTick.getTimestamp();
 
-            if (oldestTickTimestamp < newestCacheTickTime) { //
-                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
-                        + "; newestCacheTickTime=" + newestCacheTickTime);
-                mergeTicksWithCache(allTicks, cacheTicks);
-
-                // refresh
-                size = allTicks.size();
-                newestTick = allTicks.get(0);
-                oldestTick = allTicks.get(size - 1);
-                oldestTickTimestamp = oldestTick.getTimestamp();
-                newestTickTimestamp = newestTick.getTimestamp();
-                timestamp = oldestTickTimestamp;
-                merged = true;
-            }
+//            if (oldestTickTimestamp < newestCacheTickTime) { //
+//                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
+//                        + "; newestCacheTickTime=" + newestCacheTickTime);
+//                mergeTicksWithCache(allTicks, cacheTicks);
+//
+//                // refresh
+//                size = allTicks.size();
+//                newestTick = allTicks.get(0);
+//                newestTickTimestamp = newestTick.getTimestamp();
+//                oldestTick = allTicks.get(size - 1);
+//                oldestTickTimestamp = oldestTick.getTimestamp();
+//                timestamp = oldestTickTimestamp;
+//                merged = true;
+//            }
 
             long allPeriod = newestTickTimestamp - oldestTickTimestamp;
             if (allPeriod > period) {
@@ -134,22 +136,15 @@ public class Bitfinex extends BaseExchImpl {
         }
     }
 
-    private static List<TradeTickData> readCache(long period) throws Exception {
+    private static List<TradeTickData> readCache() throws Exception {
         File file = new File(CACHE_FILE_NAME);
         if (file.exists()) {
             FileInputStream fis = new FileInputStream(file);
             List<TradeTickData> ticks = readAllTicks(fis);
 
             logTicks(ticks, "CACHE: ", false);
-
             if (ticks.size() > 0) {
-                TickVolumeData newestTick = ticks.get(0);
-                long newestTickTimestamp = newestTick.getTimestamp();
-                long needTime = System.currentTimeMillis() - period;
-                if (needTime < newestTickTimestamp) {
-                    log(" can use cache: needTime=" + needTime + "; newestTickTimestamp=" + newestTickTimestamp);
-                    return ticks;
-                }
+                return ticks;
             }
         }
         return null;
@@ -168,7 +163,7 @@ public class Bitfinex extends BaseExchImpl {
                 volumeFormat.setMaximumFractionDigits(8);
                 volumeFormat.setGroupingUsed(false);
                 NumberFormat priceFormat = NumberFormat.getInstance();
-                priceFormat.setMaximumFractionDigits(4);
+                priceFormat.setMaximumFractionDigits(8);
                 priceFormat.setGroupingUsed(false);
                 // [[49448138,1501893566000,-0.74891095,2863.8],[49448101,1501893563000,-0.65,2863.8],   ,[49447948,1501893542000,0.03284317,2864.9]]
                 bw.write("[\n");
@@ -298,7 +293,8 @@ public class Bitfinex extends BaseExchImpl {
                     log("HTTP_GATEWAY_TIMEOUT error");
                     error = "HTTP_GATEWAY_TIMEOUT error";
                 } else {
-                    throw new Exception("ERROR: unexpected ResponseCode: " + responseCode);
+                    String responseMessage = con.getResponseMessage();
+                    throw new Exception("ERROR: unexpected ResponseCode: " + responseCode + "; responseMessage=" + responseMessage);
                 }
                 Thread.sleep(timeout);
             } finally {
