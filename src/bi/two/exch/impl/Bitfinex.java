@@ -19,7 +19,7 @@ public class Bitfinex extends BaseExchImpl {
     private static final int DEF_TICKS_TO_LOAD = 1000;
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
     private static final String CACHE_FILE_NAME = "bitfinex.trades";
-    private static final int MAX_ATTEMPTS = 20;
+    private static final int MAX_ATTEMPTS = 50;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -43,7 +43,7 @@ public class Bitfinex extends BaseExchImpl {
         }.start();
     }
 
-    private static final boolean LOAD_NEWEST = false;
+    private static final boolean LOAD_NEWEST = true;
 
     public static List<TradeTickData> readTicks(long period) throws Exception {
         log("readTicks() period=" + Utils.millisToYDHMSStr(period));
@@ -248,7 +248,7 @@ public class Bitfinex extends BaseExchImpl {
         long oldestTickTimestamp = oldestTick.getTimestamp();
         long newestTickTimestamp = newestTick.getTimestamp();
         String timePeriod = Utils.millisToYDHMSStr(newestTickTimestamp - oldestTickTimestamp);
-        log(" " + prefix + ": size=" + size + "; time from " + new Date(newestTickTimestamp) + " to " + new Date(oldestTickTimestamp) + "; timePeriod=" + timePeriod);
+        log(" " + prefix + ": size=" + size + "; time from " + new Date(oldestTickTimestamp) + " to " + new Date(newestTickTimestamp) + "; timePeriod=" + timePeriod);
         if (logArray) {
             for (int i = 0; i < size; i++) {
                 TickVolumeData tick = ticks.get(i);
@@ -274,10 +274,11 @@ public class Bitfinex extends BaseExchImpl {
         String pair = "tBTCUSD";
         String address = "https://api.bitfinex.com/v2/trades/" + pair + "/hist?" + postData;
 
+        int retryAfterTimeout = 0;
         int timeout = 1000;
         int timeoutStep = 2000;
         String error = "";
-        for(int i = 0; i < MAX_ATTEMPTS; i++) {
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
             URL url = new URL(address);
             HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
             try {
@@ -291,21 +292,31 @@ public class Bitfinex extends BaseExchImpl {
                     return ticks;
                 } else if (responseCode == HTTP_TOO_MANY_REQUESTS) {
                     String retryAfter = con.getHeaderField("Retry-After");
-                    throw new Exception("ERROR: HTTP_TOO_MANY_REQUESTS: retryAfter=" + retryAfter);
+                    log("ERROR: HTTP_TOO_MANY_REQUESTS: retryAfter=" + retryAfter);
+                    int sec = Integer.parseInt(retryAfter);
+                    retryAfterTimeout = sec * 1000;
                 } else if (responseCode == HttpsURLConnection.HTTP_GATEWAY_TIMEOUT) {
-                    log("HTTP_GATEWAY_TIMEOUT error");
-                    error = "HTTP_GATEWAY_TIMEOUT error";
+                    String msg = "HTTP_GATEWAY_TIMEOUT error";
+                    log(msg);
+                    error = msg;
                 } else {
-                    String responseMessage = con.getResponseMessage();
-                    throw new Exception("ERROR: unexpected ResponseCode: " + responseCode + "; responseMessage=" + responseMessage);
+                    String msg = "ERROR: unexpected ResponseCode: " + responseCode + "; responseMessage=" + con.getResponseMessage();
+                    error = msg;
+                    log(msg);
                 }
-                Thread.sleep(timeout);
+            } catch (Exception e) {
+                String msg = "ERROR: " + e;
+                error = msg;
+                err(msg, e);
+                retryAfterTimeout = 5000;
             } finally {
                 con.disconnect();
             }
-            log(" sleep " + timeout + "ms...");
-            Thread.sleep(timeout);
+            int toWait = timeout + retryAfterTimeout;
+            log(" sleep " + toWait + "ms...");
+            Thread.sleep(toWait);
             timeout += timeoutStep;
+            retryAfterTimeout = 0;
         }
         throw new Exception(error);
     }
