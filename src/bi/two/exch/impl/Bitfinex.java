@@ -4,6 +4,7 @@ import bi.two.chart.TickVolumeData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
 import bi.two.util.Log;
+import bi.two.util.MapConfig;
 import bi.two.util.Post;
 import bi.two.util.Utils;
 
@@ -32,7 +33,7 @@ public class Bitfinex extends BaseExchImpl {
             @Override public void run() {
                 setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
                 try {
-                    List<TradeTickData> allTicks = readTicks(TimeUnit.MINUTES.toMillis(5));
+                    List<TradeTickData> allTicks = readTicks(null, TimeUnit.MINUTES.toMillis(5));
 
                     logTicks(allTicks, "ALL ticks: ", false);
                 } catch (Exception e) {
@@ -43,9 +44,7 @@ public class Bitfinex extends BaseExchImpl {
         }.start();
     }
 
-    private static final boolean LOAD_NEWEST = true;
-
-    public static List<TradeTickData> readTicks(long period) throws Exception {
+    public static List<TradeTickData> readTicks(MapConfig config, long period) throws Exception {
         log("readTicks() period=" + Utils.millisToYDHMSStr(period));
 
         boolean emptyCache = true;
@@ -59,55 +58,62 @@ public class Bitfinex extends BaseExchImpl {
             }
         }
 
+        boolean downloadTicks = (config == null) || config.getBoolean("download.ticks");
+        boolean downloadNewestTicks = downloadTicks && ((config == null) || config.getBoolean("download.newest.ticks"));
+        log(" downloadTicks=" + downloadTicks + "; downloadNewestTicks=" + downloadNewestTicks);
+
         List<TradeTickData> allTicks = new ArrayList<>();
-        if(!LOAD_NEWEST) {
+        if(!downloadNewestTicks) {
             allTicks.addAll(cacheTicks);
         }
 
-        boolean merged = !LOAD_NEWEST;
-        int reads = 0;
-        long timestamp = LOAD_NEWEST ? 0 : allTicks.get(allTicks.size() - 1).getTimestamp();
-        while(true) {
-            log("read: " + reads + "; allTicks.size=" + allTicks.size());
-            if (reads > 0) {
-                Thread.sleep(6000); // do not DDoS
-            }
-            timestamp = readAndLog(allTicks, timestamp);
-            reads++;
+        if(downloadTicks) {
+            boolean merged = !downloadNewestTicks;
+            int reads = 0;
+            long timestamp = downloadNewestTicks ? 0 : allTicks.get(allTicks.size() - 1).getTimestamp();
+            while(true) {
+                log("read: " + reads + "; allTicks.size=" + allTicks.size());
+                if (reads > 0) {
+                    Thread.sleep(6000); // do not DDoS
+                }
+                timestamp = readAndLog(allTicks, timestamp);
+                reads++;
 
-            int size = allTicks.size();
-            TickVolumeData newestTick = allTicks.get(0);
-            TickVolumeData oldestTick = allTicks.get(size - 1);
-            long oldestTickTimestamp = oldestTick.getTimestamp();
-            long newestTickTimestamp = newestTick.getTimestamp();
+                int size = allTicks.size();
+                TickVolumeData newestTick = allTicks.get(0);
+                TickVolumeData oldestTick = allTicks.get(size - 1);
+                long oldestTickTimestamp = oldestTick.getTimestamp();
+                long newestTickTimestamp = newestTick.getTimestamp();
 
-            if (LOAD_NEWEST && (oldestTickTimestamp < newestCacheTickTime)) { //
-                log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
-                        + "; newestCacheTickTime=" + newestCacheTickTime);
-                mergeTicksWithCache(allTicks, cacheTicks);
+                if (downloadNewestTicks && (oldestTickTimestamp < newestCacheTickTime)) { //
+                    log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
+                            + "; newestCacheTickTime=" + newestCacheTickTime);
+                    mergeTicksWithCache(allTicks, cacheTicks);
 
-                // refresh
-                size = allTicks.size();
-                newestTick = allTicks.get(0);
-                newestTickTimestamp = newestTick.getTimestamp();
-                oldestTick = allTicks.get(size - 1);
-                oldestTickTimestamp = oldestTick.getTimestamp();
-                timestamp = oldestTickTimestamp;
-                merged = true;
+                    // refresh
+                    size = allTicks.size();
+                    newestTick = allTicks.get(0);
+                    newestTickTimestamp = newestTick.getTimestamp();
+                    oldestTick = allTicks.get(size - 1);
+                    oldestTickTimestamp = oldestTick.getTimestamp();
+                    timestamp = oldestTickTimestamp;
+                    merged = true;
+                }
+
+                long allPeriod = newestTickTimestamp - oldestTickTimestamp;
+                if (allPeriod > period) {
+                    break;
+                }
+                if (emptyCache || merged) {
+                    writeCache(allTicks);
+                }
             }
 
-            long allPeriod = newestTickTimestamp - oldestTickTimestamp;
-            if (allPeriod > period) {
-                break;
-            }
-            if (emptyCache || merged) {
-                writeCache(allTicks);
-            }
+            writeCache(allTicks);
         }
+
         logTicks(allTicks, "ALL ticks: ", false);
 
-        writeCache(allTicks);
-        
         return allTicks;
     }
 
@@ -200,8 +206,10 @@ public class Bitfinex extends BaseExchImpl {
                 bw.write("]");
             } finally {
                 bw.flush();
+                bw.close();
             }
         } finally {
+            fw.flush();
             fw.close();
         }
     }
