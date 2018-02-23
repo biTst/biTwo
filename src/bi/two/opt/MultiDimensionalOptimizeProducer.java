@@ -1,6 +1,5 @@
 package bi.two.opt;
 
-import bi.two.algo.BaseAlgo;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.MultivariateFunction;
@@ -241,10 +240,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
     @Override public void logResultsEx() {
         double gain = m_maxWatcher.totalPriceRatio(true);
-        BaseAlgo ralgo = m_maxWatcher.m_algo;
-        String key = ralgo.key(true);
-        System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
-                + "   trades=" + m_maxWatcher.m_tradesNum + " .....................................");
+        System.out.println(m_maxWatcher.getGainLogStr("MAX ", gain));
 
         long processedPeriod = m_maxWatcher.getProcessedPeriod();
         System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
