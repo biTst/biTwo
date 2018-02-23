@@ -29,8 +29,9 @@ public class Watcher extends TimesSeriesData<TradeData> {
     public final BaseAlgo m_algo;
     private final boolean m_collectValues;
     private final ITimesSeriesData<TickData> m_priceTs;
-    private final double m_minOrderToCreate;
+    private final CurrencyValue m_exchMinOrderToCreate;
     private final boolean m_priceAtSameTick; // apply price from same tick or from the next
+    private final double m_minOrderMul;
     private AccountData m_initAcctData;
     private AccountData m_accountData;
     public TopData m_topData = new TopData(0,0,0);
@@ -40,8 +41,10 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private long m_startMillis;
     private long m_lastMillis;
     public int m_tradesNum;
+    public double m_tradesSum;
     private ITickData m_lastAdjusted; // saved direction from last tick processing
     private Date m_nextTradeCloseTime;
+    private float m_lastDirection = 0;
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
@@ -55,8 +58,9 @@ public class Watcher extends TimesSeriesData<TradeData> {
         } else { // override from local config
             m_commission = commission;
         }
-        m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE);
-        m_minOrderToCreate = m_exchPairData.m_minOrderToCreate.m_value;
+        m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
+        m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
+        m_minOrderMul = algoConfig.getDoubleOrDefault("minOrderMul", 1.0);
         m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
         m_algo = createAlgo(ts, algoConfig);
         setParent(m_algo);
@@ -99,7 +103,13 @@ public class Watcher extends TimesSeriesData<TradeData> {
     }
 
     private void process(ITickData tickAdjusted) {
+        boolean toLog = LOG_ALL;
+
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
+        if (m_lastDirection == direction) {
+            return; // do nto process same value twice in simulation
+        }
+        m_lastDirection = direction;
 
         if (m_exch.hasSchedule()) {
             long tickTime = tickAdjusted.getTimestamp();
@@ -125,11 +135,11 @@ if (timeToTradeClose < 0) {
         Currency currencyTo = m_pair.m_to;
         String pairToName = currencyTo.m_name;
 
-        if (LOG_ALL) {
+        if (toLog) {
             System.out.println("Watcher.process() direction=" + direction);
         }
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
-        if (LOG_ALL) {
+        if (toLog) {
             System.out.println(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
         }
 
@@ -137,19 +147,23 @@ if (timeToTradeClose < 0) {
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
-        if (LOG_ALL) {
+        if (toLog) {
             System.out.println("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
         }
 
-        CurrencyValue minOrderToCreate = m_exch.getMinOrderToCreate(m_pair);
-        double exchMinOrderToCreate = minOrderToCreate.m_value;
+        double exchMinOrderToCreateValue = m_exchMinOrderToCreate.m_value;
+        if(m_exchMinOrderToCreate.m_currency != currencyTo) {
+            exchMinOrderToCreateValue = m_accountData.convert(currencyFrom, currencyTo, exchMinOrderToCreateValue);
+        }
+
+        exchMinOrderToCreateValue = exchMinOrderToCreateValue * m_minOrderMul;
         TickData latestPriceTick = m_priceTs.getLatestTick();
         long timestamp = latestPriceTick.getTimestamp();
-        if ((absOrderSize >= exchMinOrderToCreate) && (absOrderSize >= m_minOrderToCreate)) {
-
+        if (absOrderSize >= exchMinOrderToCreateValue) {
             double amountFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
-            if (LOG_MOVE || LOG_ALL) {
+            boolean toLogMove = LOG_MOVE || toLog;
+            if (toLogMove) {
                 System.out.println("Watcher.process() direction=" + direction
                         + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
                         + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
@@ -158,8 +172,9 @@ if (timeToTradeClose < 0) {
 
             m_accountData.move(m_pair, needBuyTo, m_commission);
             m_tradesNum++;
+            m_tradesSum += Math.abs(needBuyTo);
 
-            if (LOG_MOVE || LOG_ALL) {
+            if (toLogMove) {
                 double gain = totalPriceRatio(true);
                 System.out.println("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
             }
@@ -249,6 +264,18 @@ if (timeToTradeClose < 0) {
 
     public TimesSeriesData<TickData> getGainTs() {
         return new GainTimesSeriesData(this);
+    }
+
+    public double getAvgTradeSize() {
+        return (m_tradesNum == 0) ? 0 : m_tradesSum / m_tradesNum;
+    }
+
+    public String getGainLogStr(String prefix, double gain) {
+        String key = m_algo.key(false);
+        return prefix + "GAIN[" + key + "]: " + Utils.format8(gain)
+                + "   trades=" + m_tradesNum
+                + "; avgTrade=" + Utils.format5(this.getAvgTradeSize()) + " .....................................";
+
     }
 
 

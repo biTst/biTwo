@@ -167,11 +167,7 @@ public class Main {
                     maxGain = gain;
                     maxWatcher = watcher;
                 }
-
-                BaseAlgo algo = watcher.m_algo;
-                String key = algo.key(false);
-                System.out.println("GAIN[" + key + "]: " + Utils.format8(gain)
-                        + "   trades=" + watcher.m_tradesNum + " .....................................");
+                System.out.println(watcher.getGainLogStr("", gain));
             }
 
             Watcher lastWatcher = watchers.get(watchersNum - 1);
@@ -181,10 +177,7 @@ public class Main {
                     + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
 
             double gain = maxWatcher.totalPriceRatio(true);
-            BaseAlgo algo = maxWatcher.m_algo;
-            String key = algo.key(true);
-            System.out.println("MAX GAIN[" + key + "]: " + Utils.format8(gain)
-                    + "   trades=" + maxWatcher.m_tradesNum + " .....................................");
+            System.out.println(maxWatcher.getGainLogStr("MAX ", gain));
 
             double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
             System.out.println(" processedDays=" + processedDays
