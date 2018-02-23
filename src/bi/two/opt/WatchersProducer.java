@@ -27,8 +27,7 @@ public class WatchersProducer {
         if (optimizeCfgStr != null) {
             List<List<OptimizeConfig>> optimizeConfigs = parseOptimizeConfigs(optimizeCfgStr, config);
             for (List<OptimizeConfig> optimizeConfig : optimizeConfigs) {
-                BaseProducer optimizeProducer;
-                optimizeProducer = (optimizeConfig.size() > 1)
+                BaseProducer optimizeProducer = (optimizeConfig.size() > 1)
                         ? new MultiDimensionalOptimizeProducer(optimizeConfig, algoConfig)
                         : new SingleDimensionalOptimizeProducer(optimizeConfig, algoConfig);
                 m_producers.add(optimizeProducer);

@@ -29,6 +29,10 @@ public class TimeStamp {
         }
     }
 
+    public void restart() {
+        m_millis = System.currentTimeMillis();
+    }
+
     public boolean isStarted() {
         return (m_millis != 0);
     }

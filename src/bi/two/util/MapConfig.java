@@ -39,6 +39,11 @@ public class MapConfig extends Properties {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Integer");
             }
         }
+        Object obj = get(key);
+        if (obj instanceof Number) {
+            Number num = (Number) obj;
+            return num.intValue();
+        }
         if (def != null) {
             return def;
         }
@@ -57,6 +62,11 @@ public class MapConfig extends Properties {
             } catch (NumberFormatException e) {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Long");
             }
+        }
+        Object obj = get(key);
+        if (obj instanceof Number) {
+            Number num = (Number) obj;
+            return num.longValue();
         }
         if (def != null) {
             return def;
@@ -83,6 +93,11 @@ public class MapConfig extends Properties {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Float");
             }
         }
+        Object obj = get(key);
+        if (obj instanceof Number) {
+            Number num = (Number) obj;
+            return num.floatValue();
+        }
         if (def != null) {
             return def;
         }
@@ -101,6 +116,11 @@ public class MapConfig extends Properties {
             } catch (NumberFormatException e) {
                 throw new NumberFormatException("Error parsing property '" + key + "' value '" + property + "' as Double");
             }
+        }
+        Object obj = get(key);
+        if (obj instanceof Number) {
+            Number num = (Number) obj;
+            return num.doubleValue();
         }
         if (def != null) {
             return def;

@@ -23,6 +23,8 @@ public enum Vary {
     start("start", VaryType.FLOAT),
     step("step", VaryType.FLOAT),
     count("count", VaryType.FLOAT),
+
+    minOrderMul("minOrderMul", VaryType.FLOAT),
     ;
     
     public final String m_key;
