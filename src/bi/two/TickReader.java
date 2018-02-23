@@ -7,6 +7,7 @@ import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
+import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.io.*;
@@ -112,7 +113,7 @@ public enum TickReader {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
             long period = TimeUnit.HOURS.toMillis(10);
 //            long period = TimeUnit.DAYS.toMillis(365);
-            List<TradeTickData> ticks = Bitfinex.readTicks(period);
+            List<TradeTickData> ticks = Bitfinex.readTicks(config, period);
             feedTicks(ticksTs, callback, ticks);
         }
     },
@@ -145,12 +146,21 @@ public enum TickReader {
     }
 
     private static void feedTicks(TimesSeriesData<TickData> ticksTs, Runnable callback, List<TradeTickData> ticks) {
-        for (int i = ticks.size() - 1; i >= 0; i--) {
+        TimeStamp doneTs = new TimeStamp();
+        TimeStamp ts = new TimeStamp();
+        int size = ticks.size();
+        for (int i = size - 1, count = 0; i >= 0; i--, count++) {
             TradeTickData tick = ticks.get(i);
             ticksTs.addNewestTick(tick);
             if (callback != null) {
                 callback.run();
             }
+            if (ts.getPassedMillis() > 30000) {
+                ts.restart();
+                System.out.println("feedTicks() " + count + " from " + size + " (" + (((float) count) / size) + ") total " + doneTs.getPassed());
+            }
         }
+        System.out.println("feedTicks() done in " + doneTs.getPassed());
+        ticksTs.notifyNoMoreTicks();
     }
 }
