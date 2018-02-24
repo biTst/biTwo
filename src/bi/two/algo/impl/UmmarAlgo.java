@@ -18,11 +18,14 @@ import java.util.List;
 
 public class UmmarAlgo extends BaseAlgo {
 
+    private final double m_minOrderMul;
+
     private final long m_barSize;
     private final float m_start;
     private final float m_step;
     private final float m_count;
     private final float m_multiplier;
+    private final float m_threshold;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
     private ITickData m_tickData;
@@ -30,23 +33,22 @@ public class UmmarAlgo extends BaseAlgo {
     public UmmarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+        m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
+
+        boolean collectValues = false; //config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_barSize = config.getNumber(Vary.period).longValue();
         m_start = config.getNumber(Vary.start).floatValue();
         m_step = config.getNumber(Vary.step).floatValue();
         m_count = config.getNumber(Vary.count).floatValue();
-//        m_drop = config.getNumber(Vary.drop).floatValue();
-//        m_smooth = config.getNumber(Vary.smooth).floatValue();
-//        m_power = config.getNumber(Vary.power).floatValue();
         m_multiplier = config.getNumber(Vary.multiplier).floatValue();
-//        m_threshold = config.getNumber(Vary.threshold).floatValue();
+        m_threshold = config.getNumber(Vary.threshold).floatValue();
 
         // create ribbon
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
         float length = m_start;
         int countFloor = (int) m_count;
         for (int i = 0; i < countFloor; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues);
             m_emas.add(ema);
             iEmas.add(ema);
             length += m_step;
@@ -54,7 +56,7 @@ public class UmmarAlgo extends BaseAlgo {
         if (m_count != countFloor) {
             float fraction = m_count - countFloor;
             float fractionLength = length - m_step + m_step * fraction;
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
             m_emas.add(ema);
             iEmas.add(ema);
         }
@@ -64,8 +66,9 @@ public class UmmarAlgo extends BaseAlgo {
         setParent(m_emas.get(0));
     }
 
-    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
+    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
+        long period = (long) (length * barSize * m_multiplier);
+        return new SlidingTicksRegressor(tsd, period, collectValues);
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
@@ -99,11 +102,9 @@ public class UmmarAlgo extends BaseAlgo {
                 + (detailed ? ",start=" : ",") + m_start
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
-//                + (detailed ? ",drop=" : ",") + m_drop
-//                + (detailed ? ",smooth=" : ",") + m_smooth
-//                + (detailed ? ",power=" : ",") + m_power
                 + (detailed ? ",multiplier=" : ",") + m_multiplier
-//                + (detailed ? ",threshold=" : ",") + m_threshold
+                + (detailed ? ",threshold=" : ",") + m_threshold
++ (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
@@ -182,21 +183,20 @@ public class UmmarAlgo extends BaseAlgo {
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
 //
-//        if (collectValues) {
-//            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-//            gain.setHorizontalLineValue(1);
-//
-//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-//
-//            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-//            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-//        }
+        if (collectValues) {
+            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+        }
     }
 
 
     //----------------------------------------------------------
     private class MinMaxSpread extends BaseTimesSeriesData<ITickData> {
-        public static final float TREND_ZONE = 0.5f;
         private final List<ITimesSeriesData> m_emas;
         private final int m_emasLen;
         private boolean m_dirty;
@@ -303,8 +303,8 @@ public class UmmarAlgo extends BaseAlgo {
 
                     if (m_xxx != null) {
                         float trend = goUp
-                                ? (m_ribbonSpreadTop - m_xxx) * TREND_ZONE
-                                : (m_xxx - m_ribbonSpreadBottom) * TREND_ZONE;
+                                ? (m_ribbonSpreadTop - m_xxx) * m_threshold
+                                : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
                         m_trend = goUp
                                 ? m_ribbonSpreadTop - trend
                                 : m_ribbonSpreadBottom + trend;
