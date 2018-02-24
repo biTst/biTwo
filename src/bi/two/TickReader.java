@@ -81,25 +81,24 @@ public enum TickReader {
                 }
 
                 DataFileType type = DataFileType.get(dataFileType);
-
                 float lastClosePrice = 0;
                 String line;
                 while ((line = br.readLine()) != null) {
                     // System.out.println("line = " + line);
                     TickData tickData = type.parseLine(line);
-
-                    float closePrice = tickData.getClosePrice();
-                    if (lastClosePrice != 0) {
-                        float rate = closePrice / lastClosePrice;
-                        if (rate < 0.5 || rate > 1.5) {
-                            continue; // skip too big price drops
+                    if(tickData != null) {
+                        float closePrice = tickData.getClosePrice();
+                        if (lastClosePrice != 0) {
+                            float rate = closePrice / lastClosePrice;
+                            if (rate < 0.5 || rate > 1.5) {
+                                continue; // skip too big price drops
+                            }
                         }
-                    }
-                    lastClosePrice = closePrice;
-
-                    ticksTs.addNewestTick(tickData);
-                    if (callback != null) {
-                        callback.run();
+                        lastClosePrice = closePrice;
+                        ticksTs.addNewestTick(tickData);
+                        if (callback != null) {
+                            callback.run();
+                        }
                     }
                 }
 //                System.out.println("ticksTs: all ticks was read");

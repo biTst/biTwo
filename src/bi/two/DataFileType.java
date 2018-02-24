@@ -45,6 +45,22 @@ public enum DataFileType {
             return tickData;
         }
     },
+    BITFINEX("bitfinex") {
+//        198787874,1519054093604,0.00926031,11160
+        @Override public TickData parseLine(String line) {
+            int length = line.length();
+            if (length > 9) {
+                String[] tokens = line.split(",");
+                String millisStr = tokens[1];
+                String priceStr = tokens[3];
+                long millis = Long.parseLong(millisStr);
+                float price = Float.parseFloat(priceStr);
+                TickData tickData = new TickData(millis, price);
+                return tickData;
+            }
+            return null;
+        }
+    },
     FOREX("forex") {
 //        #<TICKER>,<DTYYYYMMDD>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>
 //        EURUSD,20010102,230100,0.9507,0.9507,0.9507,0.9507,4
