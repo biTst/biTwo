@@ -3,10 +3,7 @@ package bi.two.exch.impl;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
-import bi.two.util.Log;
-import bi.two.util.MapConfig;
-import bi.two.util.Post;
-import bi.two.util.Utils;
+import bi.two.util.*;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
@@ -20,7 +17,17 @@ public class Bitfinex extends BaseExchImpl {
     private static final int DEF_TICKS_TO_LOAD = 1000;
     private static final int HTTP_TOO_MANY_REQUESTS = 429;
     private static final String CACHE_FILE_NAME = "bitfinex.trades";
+    private static final String DATA_FILE_NAME = "bitfinex.data";
     private static final int MAX_ATTEMPTS = 50;
+
+    private static final NumberFormat VOLUME_FORMAT = NumberFormat.getNumberInstance();
+    private static final NumberFormat PRICE_FORMAT = NumberFormat.getNumberInstance();
+    static {
+        VOLUME_FORMAT.setMaximumFractionDigits(8);
+        VOLUME_FORMAT.setGroupingUsed(false);
+        PRICE_FORMAT.setMaximumFractionDigits(8);
+        PRICE_FORMAT.setGroupingUsed(false);
+    }
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -45,7 +52,7 @@ public class Bitfinex extends BaseExchImpl {
     }
 
     public static List<TradeTickData> readTicks(MapConfig config, long period) throws Exception {
-        log("readTicks() period=" + Utils.millisToYDHMSStr(period));
+        log("readTicks() need period=" + Utils.millisToYDHMSStr(period));
 
         boolean emptyCache = true;
         long newestCacheTickTime = 0;
@@ -63,27 +70,40 @@ public class Bitfinex extends BaseExchImpl {
         log(" downloadTicks=" + downloadTicks + "; downloadNewestTicks=" + downloadNewestTicks);
 
         List<TradeTickData> allTicks = new ArrayList<>();
-        if(!downloadNewestTicks) {
+        if (!downloadNewestTicks) {
             allTicks.addAll(cacheTicks);
         }
 
-        if(downloadTicks) {
+        if (downloadTicks) {
             boolean merged = !downloadNewestTicks;
             int reads = 0;
             long timestamp = downloadNewestTicks ? 0 : allTicks.get(allTicks.size() - 1).getTimestamp();
             while(true) {
-                log("read: " + reads + "; allTicks.size=" + allTicks.size());
-                if (reads > 0) {
-                    Thread.sleep(6000); // do not DDoS
-                }
-                timestamp = readAndLog(allTicks, timestamp);
-                reads++;
-
                 int size = allTicks.size();
                 TickVolumeData newestTick = allTicks.get(0);
                 TickVolumeData oldestTick = allTicks.get(size - 1);
                 long oldestTickTimestamp = oldestTick.getTimestamp();
                 long newestTickTimestamp = newestTick.getTimestamp();
+
+                long allPeriod = newestTickTimestamp - oldestTickTimestamp;
+                if (allPeriod > period) {
+                    log("have required ticks. need " + Utils.millisToYDHMSStr(period) + "; have=" + Utils.millisToYDHMSStr(allPeriod));
+                    break;
+                }
+
+                log("read: " + reads + "; allTicks.size=" + allTicks.size());
+                if (reads > 0) {
+                    Thread.sleep(4000); // do not DDoS
+                }
+                timestamp = readAndLog(allTicks, timestamp);
+                reads++;
+
+                // refresh
+                size = allTicks.size();
+                newestTick = allTicks.get(0);
+                oldestTick = allTicks.get(size - 1);
+                oldestTickTimestamp = oldestTick.getTimestamp();
+                newestTickTimestamp = newestTick.getTimestamp();
 
                 if (downloadNewestTicks && (oldestTickTimestamp < newestCacheTickTime)) { //
                     log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
@@ -100,16 +120,14 @@ public class Bitfinex extends BaseExchImpl {
                     merged = true;
                 }
 
-                long allPeriod = newestTickTimestamp - oldestTickTimestamp;
-                if (allPeriod > period) {
-                    break;
-                }
                 if (emptyCache || merged) {
                     writeCache(allTicks);
+                    writeData(allTicks);
                 }
             }
 
             writeCache(allTicks);
+            writeData(allTicks);
         }
 
         logTicks(allTicks, "ALL ticks: ", false);
@@ -159,44 +177,19 @@ public class Bitfinex extends BaseExchImpl {
         return null;
     }
 
+    // cache ticks are stored in reverse order - as getting from bitfinex server
     private static void writeCache(List<TradeTickData> allTicks) throws Exception {
         File file = new File(CACHE_FILE_NAME);
-//        if (file.exists()) {
-//            file.delete();
-//        }
         FileWriter fw = new FileWriter(file);
         try {
             BufferedWriter bw = new BufferedWriter(fw);
             try {
-                NumberFormat volumeFormat = NumberFormat.getInstance();
-                volumeFormat.setMaximumFractionDigits(8);
-                volumeFormat.setGroupingUsed(false);
-                NumberFormat priceFormat = NumberFormat.getInstance();
-                priceFormat.setMaximumFractionDigits(8);
-                priceFormat.setGroupingUsed(false);
                 // [[49448138,1501893566000,-0.74891095,2863.8],[49448101,1501893563000,-0.65,2863.8],   ,[49447948,1501893542000,0.03284317,2864.9]]
                 bw.write("[\n");
                 for (int i = 0, allTicksSize = allTicks.size(); i < allTicksSize; i++) {
                     TradeTickData tick = allTicks.get(i);
                     bw.write('[');
-
-                    long tradeId = tick.getTradeId();
-                    bw.write(Long.toString(tradeId));
-                    bw.write(',');
-
-                    long timestamp = tick.getTimestamp();
-                    bw.write(Long.toString(timestamp));
-                    bw.write(',');
-
-                    float volume = tick.getVolume();
-                    String volumeStr = volumeFormat.format(volume);
-                    bw.write(volumeStr);
-                    bw.write(',');
-
-                    float price = tick.getClosePrice();
-                    String priceStr = priceFormat.format(price);
-                    bw.write(priceStr);
-
+                    writeTick(bw, tick);
                     bw.write("]");
                     if (i < allTicksSize - 1) {
                         bw.write(",");
@@ -209,9 +202,49 @@ public class Bitfinex extends BaseExchImpl {
                 bw.close();
             }
         } finally {
-            fw.flush();
             fw.close();
         }
+    }
+
+    private static void writeData(List<TradeTickData> allTicks) throws Exception {
+        File file = new File(DATA_FILE_NAME);
+        FileWriter fw = new FileWriter(file);
+        try {
+            BufferedWriter bw = new BufferedWriter(fw);
+            try {
+                // [[49448138,1501893566000,-0.74891095,2863.8],[49448101,1501893563000,-0.65,2863.8],   ,[49447948,1501893542000,0.03284317,2864.9]]
+                for (int i = allTicks.size() - 1; i >= 0; i--) {
+                    TradeTickData tick = allTicks.get(i);
+                    writeTick(bw, tick);
+                    bw.write("\n");
+                }
+                bw.write("]");
+            } finally {
+                bw.flush();
+                bw.close();
+            }
+        } finally {
+            fw.close();
+        }
+    }
+
+    private static void writeTick(BufferedWriter bw, TradeTickData tick) throws IOException {
+        long tradeId = tick.getTradeId();
+        bw.write(Long.toString(tradeId));
+        bw.write(',');
+
+        long timestamp = tick.getTimestamp();
+        bw.write(Long.toString(timestamp));
+        bw.write(',');
+
+        float volume = tick.getVolume();
+        String volumeStr = VOLUME_FORMAT.format(volume);
+        bw.write(volumeStr);
+        bw.write(',');
+
+        float price = tick.getClosePrice();
+        String priceStr = PRICE_FORMAT.format(price);
+        bw.write(priceStr);
     }
 
 
@@ -330,18 +363,18 @@ public class Bitfinex extends BaseExchImpl {
     }
 
     private static List<TradeTickData> readAllTicks(InputStream inputStream) throws IOException {
-        PushbackInputStream pbis = new PushbackInputStream(new BufferedInputStream(inputStream));
+        StreamParser sp = new StreamParser(new BufferedInputStream(inputStream));
         // [[49448138,1501893566000,-0.74891095,2863.8],[49448101,1501893563000,-0.65,2863.8],   ,[49447948,1501893542000,0.03284317,2864.9]]
         try {
-            if (readChar(pbis, '[')) {
+            if (sp.readChar('[')) {
                 List<TradeTickData> ticks = new ArrayList<>();
                 while (true) {
-                    TradeTickData tvd = readTick(pbis);
+                    TradeTickData tvd = readTick(sp);
                     ticks.add(tvd);
 
-                    int ch = pbis.read();
+                    int ch = sp.read();
                     if (ch == '\n') { // skip NL if happens
-                        ch = pbis.read();
+                        ch = sp.read();
                     }
                     if (ch == ']') { // EndOfArray
                         break;
@@ -355,22 +388,22 @@ public class Bitfinex extends BaseExchImpl {
                 throw new RuntimeException("expected [");
             }
         } finally {
-            pbis.close();
+            sp.close();
         }
     }
 
-    private static TradeTickData readTick(PushbackInputStream pbis) throws IOException {
+    private static TradeTickData readTick(StreamParser sp) throws IOException {
         // [49448138,1501893566000,-0.74891095,2863.8]
-        readChar(pbis, '\n'); // skip NL if happens
-        if(readChar(pbis, '[')) {
-            long tradeId = readLong(pbis);
-            if(readChar(pbis, ',')) {
-                long millis = readLong(pbis);
-                if(readChar(pbis, ',')) {
-                    float size = readFloat(pbis);
-                    if(readChar(pbis, ',')) {
-                        float price = readFloat(pbis);
-                        if(readChar(pbis, ']')) {
+        sp.readChar('\n'); // skip NL if happens
+        if (sp.readChar('[')) {
+            long tradeId = sp.readLong();
+            if (sp.readChar(',')) {
+                long millis = sp.readLong();
+                if (sp.readChar(',')) {
+                    float size = sp.readFloat();
+                    if (sp.readChar(',')) {
+                        float price = sp.readFloat();
+                        if (sp.readChar(']')) {
                             TradeTickData tvd = new TradeTickData(tradeId, millis, price, size);
                             return tvd;
                         } else {
@@ -386,78 +419,9 @@ public class Bitfinex extends BaseExchImpl {
                 throw new RuntimeException("expected ,");
             }
         } else {
-            String line = readLine(pbis);
+            String line = sp.readLine();
             log("line=" + line);
             throw new RuntimeException("expected [");
-        }
-    }
-
-    private static double readDouble(PushbackInputStream pbis) throws IOException {
-        StringBuilder sb = readNumber(pbis);
-        return Double.parseDouble(sb.toString());
-    }
-
-    private static float readFloat(PushbackInputStream pbis) throws IOException {
-        StringBuilder sb = readNumber(pbis);
-        return Float.parseFloat(sb.toString());
-    }
-
-    private static StringBuilder readNumber(PushbackInputStream pbis) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        int read;
-        while ((read = pbis.read()) != -1) {
-            if (Character.isDigit(read) || (read=='.') || (read=='-')) {
-                sb.append((char)read);
-            } else {
-                pbis.unread(read);
-                break;
-            }
-        }
-        return sb;
-    }
-
-    private static long readLong(PushbackInputStream pbis) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        int read;
-        while ((read = pbis.read()) != -1) {
-            if (!Character.isDigit(read)) {
-                pbis.unread(read);
-                break;
-            }
-            sb.append((char)read);
-        }
-        return Long.parseLong(sb.toString());
-    }
-
-    private static String readLine(PushbackInputStream pbis) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        int read;
-        while ((read = pbis.read()) != -1) {
-            if (read == '\n' || read == '\r' ) {
-                pbis.unread(read);
-                break;
-            }
-            sb.append((char)read);
-        }
-        return sb.toString();
-    }
-
-    private static boolean readChar(PushbackInputStream pbis, char c) throws IOException {
-        int ch = pbis.read();
-        boolean got = (ch == c);
-        if (!got) {
-            pbis.unread(ch);
-        }
-        return got;
-    }
-
-    private static void skipDigits(PushbackInputStream pbis) throws IOException {
-        int read;
-        while ((read = pbis.read()) != -1) {
-            if (!Character.isDigit(read)) {
-                pbis.unread(read);
-                return;
-            }
         }
     }
 }
