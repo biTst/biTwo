@@ -1,11 +1,11 @@
-package bi.two;
+package bi.two.ts;
 
+import bi.two.DataFileType;
 import bi.two.chart.TickData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
@@ -47,12 +47,12 @@ public enum TickReader {
                 @Override public int read(char[] cbuf, int off, int len) throws IOException {
                     int read = super.read(cbuf, off, len);
                     m_wasRead += read;
-                    if(m_wasRead > lastBytesToProcess) {
+                    if (m_wasRead > lastBytesToProcess) {
                         System.out.println("too many reads");
                     }
                     if (m_wasRead > m_nextReport) {
                         long currentTimeMillis = System.currentTimeMillis();
-                        if(currentTimeMillis - m_lastReportTime > 20000) {
+                        if (currentTimeMillis - m_lastReportTime > 20000) {
                             long took = currentTimeMillis - m_startTime;
                             double fraction = ((double) m_wasRead) / lastBytesToProcess;
                             long projectedTotal = (long) (took / fraction);
@@ -74,19 +74,21 @@ public enum TickReader {
 
         private void readFileTicks(Reader reader, TimesSeriesData<TickData> ticksTs, Runnable callback,
                                    String dataFileType, boolean skipBytes) throws IOException {
+            TimeStamp ts = new TimeStamp();
             BufferedReader br = new BufferedReader(reader, 256 * 1024);
             try {
                 if (skipBytes) { // after bytes skipping we may point to the middle of line
                     br.readLine(); // skip to the end of line
                 }
 
+                TickJoiner joiner = new TickJoiner(ticksTs, 1000);
                 DataFileType type = DataFileType.get(dataFileType);
                 float lastClosePrice = 0;
                 String line;
                 while ((line = br.readLine()) != null) {
                     // System.out.println("line = " + line);
                     TickData tickData = type.parseLine(line);
-                    if(tickData != null) {
+                    if (tickData != null) {
                         float closePrice = tickData.getClosePrice();
                         if (lastClosePrice != 0) {
                             float rate = closePrice / lastClosePrice;
@@ -95,13 +97,14 @@ public enum TickReader {
                             }
                         }
                         lastClosePrice = closePrice;
-                        ticksTs.addNewestTick(tickData);
+                        joiner.addNewestTick(tickData);
                         if (callback != null) {
                             callback.run();
                         }
                     }
                 }
-//                System.out.println("ticksTs: all ticks was read");
+                joiner.finish();
+                System.out.println("ticksTs: all ticks was read in " + ts.getPassed());
                 ticksTs.notifyNoMoreTicks();
             } finally {
                 br.close();
