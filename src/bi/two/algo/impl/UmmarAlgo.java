@@ -35,7 +35,7 @@ public class UmmarAlgo extends BaseAlgo {
 
         m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
 
-        boolean collectValues = false; //config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_barSize = config.getNumber(Vary.period).longValue();
         m_start = config.getNumber(Vary.start).floatValue();
         m_step = config.getNumber(Vary.step).floatValue();
@@ -139,13 +139,8 @@ public class UmmarAlgo extends BaseAlgo {
             addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getMirrorTs(), topLayers, "mirror", Color.GRAY, TickPainter.LINE);
-
-            //            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTopTs(), topLayers, "fadeTop", Color.PINK, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingBottomTs(), topLayers, "fadeBottom", Color.PINK, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidTs.getJoinNonChangedTs(), topLayers, "fadeMid", Color.green, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidTs.getJoinNonChangedTs(), topLayers, "fadeMidMid", Color.yellow, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs.getJoinNonChangedTs(), topLayers, "fadeMidMidAdj", Color.RED, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getReverseTs(), topLayers, "reverse", Colors.DARK_RED, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getMirrorTs(), topLayers, "mirror", Colors.DARK_GREEN, TickPainter.LINE);
 
             BaseTimesSeriesData leadEma = m_emas.get(0);
             Color color = Color.GREEN;
@@ -209,7 +204,8 @@ public class UmmarAlgo extends BaseAlgo {
         private float m_ribbonSpreadBottom;
         private Float m_xxx;
         private Float m_trend;
-//        private Float m_mirror;
+        private Float m_reverse;
+        private Float m_mirror;
         private Float m_adj;
 
         MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd, boolean collectValues) {
@@ -305,9 +301,12 @@ public class UmmarAlgo extends BaseAlgo {
                         float trend = goUp
                                 ? (m_ribbonSpreadTop - m_xxx) * m_threshold
                                 : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
+//                        m_trend = goUp
+//                                ? m_ribbonSpreadTop - trend
+//                                : m_ribbonSpreadBottom + trend;
                         m_trend = goUp
-                                ? m_ribbonSpreadTop - trend
-                                : m_ribbonSpreadBottom + trend;
+                                ? m_xxx + trend
+                                : m_xxx - trend;
 
                         if (goUp) {
                             if (m_trend < m_ribbonSpreadBottom) {
@@ -321,6 +320,10 @@ public class UmmarAlgo extends BaseAlgo {
                             }
                         }
 
+                        m_mirror = goUp
+                                    ? m_ribbonSpreadBottom + trend
+                                    : m_ribbonSpreadTop - trend;
+
 //                        m_mirror = goUp
 //                                ? (m_ribbonSpreadBottom < m_xxx)
 //                                    ? m_ribbonSpreadBottom + trend
@@ -328,6 +331,10 @@ public class UmmarAlgo extends BaseAlgo {
 //                                : (m_ribbonSpreadTop > m_xxx)
 //                                    ? m_ribbonSpreadTop - trend
 //                                    : m_xxx;
+
+                        m_reverse = goUp
+                                ? m_xxx - trend
+                                : m_xxx + trend;
 
                         float adj = goUp
                                 ? (leadEmaValue - m_ribbonSpreadBottom) / (m_trend - m_ribbonSpreadBottom)
@@ -354,6 +361,7 @@ public class UmmarAlgo extends BaseAlgo {
         TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
         TimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
         TimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
-//        TimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
+        TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
+        TimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
     }
 }
