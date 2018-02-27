@@ -407,15 +407,23 @@ public class Bitfinex extends BaseExchImpl {
                             TradeTickData tvd = new TradeTickData(tradeId, millis, price, size);
                             return tvd;
                         } else {
+                            String line = sp.readLine();
+                            log("line=" + line);
                             throw new RuntimeException("expected ]");
                         }
                     } else {
+                        String line = sp.readLine();
+                        log("line=" + line);
                         throw new RuntimeException("expected 3rd ,");
                     }
                 } else {
+                    String line = sp.readLine();
+                    log("line=" + line);
                     throw new RuntimeException("expected 2nd ,");
                 }
             } else {
+                String line = sp.readLine();
+                log("line=" + line);
                 throw new RuntimeException("expected ,");
             }
         } else {
