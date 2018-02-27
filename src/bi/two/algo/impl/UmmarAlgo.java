@@ -139,8 +139,8 @@ public class UmmarAlgo extends BaseAlgo {
             addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getReverseTs(), topLayers, "reverse", Colors.DARK_RED, TickPainter.LINE);
-            addChart(chartData, m_minMaxSpread.getMirrorTs(), topLayers, "mirror", Colors.DARK_GREEN, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
 
             BaseTimesSeriesData leadEma = m_emas.get(0);
             Color color = Color.GREEN;
@@ -174,6 +174,7 @@ public class UmmarAlgo extends BaseAlgo {
 // ???
 //            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
             addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getAdj2Ts(), valueLayers, "adj2", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
@@ -204,9 +205,11 @@ public class UmmarAlgo extends BaseAlgo {
         private float m_ribbonSpreadBottom;
         private Float m_xxx;
         private Float m_trend;
-        private Float m_reverse;
         private Float m_mirror;
+        private Float m_reverse;
+        private DoubleAdjuster m_da;
         private Float m_adj;
+        private Float m_adj2;
 
         MinMaxSpread(List<ITimesSeriesData> emas, ITimesSeriesData baseTsd, boolean collectValues) {
             super(null);
@@ -254,8 +257,8 @@ public class UmmarAlgo extends BaseAlgo {
 
         @Override public ITickData getLatestTick() {
             if (m_dirty) {
-                float min = Float.POSITIVE_INFINITY;
-                float max = Float.NEGATIVE_INFINITY;
+                float emasMin = Float.POSITIVE_INFINITY;
+                float emasMax = Float.NEGATIVE_INFINITY;
                 boolean allDone = true;
                 float leadEmaValue = 0;
                 for (int i = 0; i < m_emasLen; i++) {
@@ -263,8 +266,8 @@ public class UmmarAlgo extends BaseAlgo {
                     ITickData lastTick = ema.getLatestTick();
                     if (lastTick != null) {
                         float value = lastTick.getClosePrice();
-                        min = Math.min(min, value);
-                        max = Math.max(max, value);
+                        emasMin = Math.min(emasMin, value);
+                        emasMax = Math.max(emasMax, value);
                         if (i == 0) {
                             leadEmaValue = value;
                         }
@@ -274,67 +277,59 @@ public class UmmarAlgo extends BaseAlgo {
                     }
                 }
                 if (allDone) {
-                    boolean goUp = (leadEmaValue == max)
+                    boolean goUp = (leadEmaValue == emasMax)
                                     ? true // go up
-                                    : ((leadEmaValue == min)
+                                    : ((leadEmaValue == emasMin)
                                         ? false // go down
                                         : m_goUp); // do not change
                     boolean directionChanged = (goUp != m_goUp);
                     m_goUp = goUp;
 
-                    m_min = min;
-                    m_max = max;
+                    m_min = emasMin;
+                    m_max = emasMax;
 
-                    float ribbonSpread = max - min;
+                    float ribbonSpread = emasMax - emasMin;
 
                     m_ribbonSpread = directionChanged // direction changed
                             ? ribbonSpread //reset
                             : Math.max(ribbonSpread, m_ribbonSpread);
-                    m_ribbonSpreadTop = goUp ? min + m_ribbonSpread : max;
-                    m_ribbonSpreadBottom = goUp ? min : max - m_ribbonSpread;
+                    m_ribbonSpreadTop = goUp ? emasMin + m_ribbonSpread : emasMax;
+                    m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
 
                     if (directionChanged) {
-                        m_xxx = goUp ? max : min;
+                        m_xxx = goUp ? emasMax : emasMin;
+System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasMin+"; leadEmaValue="+leadEmaValue);
+                        m_da = new DoubleAdjuster(goUp ? 1 : -1);
                     }
 
                     if (m_xxx != null) {
                         float trend = goUp
                                 ? (m_ribbonSpreadTop - m_xxx) * m_threshold
                                 : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
-//                        m_trend = goUp
-//                                ? m_ribbonSpreadTop - trend
-//                                : m_ribbonSpreadBottom + trend;
                         m_trend = goUp
                                 ? m_xxx + trend
                                 : m_xxx - trend;
-
-                        if (goUp) {
-                            if (m_trend < m_ribbonSpreadBottom) {
-                                float diff = m_ribbonSpreadBottom - m_trend;
-                                m_trend = m_ribbonSpreadBottom + diff;
-                            }
-                        } else {
-                            if (m_trend > m_ribbonSpreadTop) {
-                                float diff = m_trend - m_ribbonSpreadTop;
-                                m_trend = m_ribbonSpreadTop - diff;
-                            }
-                        }
-
                         m_mirror = goUp
-                                    ? m_ribbonSpreadBottom + trend
-                                    : m_ribbonSpreadTop - trend;
-
-//                        m_mirror = goUp
-//                                ? (m_ribbonSpreadBottom < m_xxx)
-//                                    ? m_ribbonSpreadBottom + trend
-//                                    : m_xxx
-//                                : (m_ribbonSpreadTop > m_xxx)
-//                                    ? m_ribbonSpreadTop - trend
-//                                    : m_xxx;
-
-                        m_reverse = goUp
                                 ? m_xxx - trend
                                 : m_xxx + trend;
+                        m_reverse = goUp
+                                ? m_ribbonSpreadBottom + trend
+                                : m_ribbonSpreadTop - trend;
+
+                        if (goUp) {
+//                            if (m_trend < m_ribbonSpreadBottom) {
+//                                float diff = m_ribbonSpreadBottom - m_trend;
+//                                m_trend = m_ribbonSpreadBottom + diff;
+//                            }
+                            m_adj2 = m_da.update(m_ribbonSpreadTop, m_trend, Math.max(m_ribbonSpreadBottom, m_mirror), leadEmaValue);
+                        } else {
+//                            if (m_trend > m_ribbonSpreadTop) {
+//                                float diff = m_trend - m_ribbonSpreadTop;
+//                                m_trend = m_ribbonSpreadTop - diff;
+//                            }
+                            m_adj2 = m_da.update(Math.min(m_ribbonSpreadTop, m_mirror), m_trend, m_ribbonSpreadBottom, leadEmaValue);
+                        }
+
 
                         float adj = goUp
                                 ? (leadEmaValue - m_ribbonSpreadBottom) / (m_trend - m_ribbonSpreadBottom)
@@ -361,7 +356,59 @@ public class UmmarAlgo extends BaseAlgo {
         TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
         TimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
         TimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
-        TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
         TimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
+        TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
+        TimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_adj2; } }; }
+    }
+
+    //----------------------------------------------------------
+    public static class DoubleAdjuster {
+        public float m_init;
+        public float m_value;
+        private boolean m_up;
+
+        public DoubleAdjuster(float value) {
+            m_init = value;
+            m_value = value;
+            m_up = (value > 0);
+        }
+
+        public float update(float max, float mid, float min, float lead) {
+            if (m_up && (lead < mid)) {
+                m_up = false;
+                m_init = m_value;
+            }
+            if (!m_up && (lead > mid)) {
+                m_up = true;
+                m_init = m_value;
+            }
+
+            if (m_up) {
+                float diff = max - mid;
+                if (diff > 0) {
+                    float adj = (lead - mid) / diff; // [0...1]
+                    float val = m_init + (1 - m_init) * adj;
+                    if (val > m_value) {
+                        if (val > 1) {
+                            val = 1;
+                        }
+                        m_value = val;
+                    }
+                }
+            } else {
+                float dif = mid - min;
+                if (dif > 0) {
+                    float adj = (lead - min) / dif; // [0...1]
+                    float val = (m_init + 1) * adj - 1;
+                    if (val < m_value) {
+                        if (val < -1) {
+                            val = -1;
+                        }
+                        m_value = val;
+                    }
+                }
+            }
+            return m_value;
+        }
     }
 }
