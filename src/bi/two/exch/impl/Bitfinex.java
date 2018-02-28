@@ -55,7 +55,11 @@ public class Bitfinex extends BaseExchImpl {
 
     public static List<TradeTickData> readTicks(MapConfig config, long period) throws Exception {
         log("readTicks() need period=" + Utils.millisToYDHMSStr(period));
+        boolean downloadTicks = (config == null) || config.getBoolean("download.ticks");
+        boolean downloadNewestTicks = downloadTicks && ((config == null) || config.getBoolean("download.newest.ticks"));
+        log(" downloadTicks=" + downloadTicks + "; downloadNewestTicks=" + downloadNewestTicks);
 
+        List<TradeTickData> allTicks = new ArrayList<>();
         boolean emptyCache = true;
         long newestCacheTickTime = 0;
         List<TradeTickData> cacheTicks = readCache();
@@ -64,16 +68,15 @@ public class Bitfinex extends BaseExchImpl {
                 emptyCache = false;
                 TickVolumeData newestTick = cacheTicks.get(0);
                 newestCacheTickTime = newestTick.getTimestamp();
+                if (downloadNewestTicks) {
+                    long now = System.currentTimeMillis();
+                    long newestDownloadPeriod = now - newestCacheTickTime;
+                    log("need download newest ticks for period=" + Utils.millisToYDHMSStr(newestDownloadPeriod));
+                }
             }
-        }
-
-        boolean downloadTicks = (config == null) || config.getBoolean("download.ticks");
-        boolean downloadNewestTicks = downloadTicks && ((config == null) || config.getBoolean("download.newest.ticks"));
-        log(" downloadTicks=" + downloadTicks + "; downloadNewestTicks=" + downloadNewestTicks);
-
-        List<TradeTickData> allTicks = new ArrayList<>();
-        if (!downloadNewestTicks) {
-            allTicks.addAll(cacheTicks);
+            if (!downloadNewestTicks) {
+                allTicks.addAll(cacheTicks);
+            }
         }
 
         if (downloadTicks) {
@@ -82,15 +85,17 @@ public class Bitfinex extends BaseExchImpl {
             long timestamp = downloadNewestTicks ? 0 : allTicks.get(allTicks.size() - 1).getTimestamp();
             while(true) {
                 int size = allTicks.size();
-                TickVolumeData newestTick = allTicks.get(0);
-                TickVolumeData oldestTick = allTicks.get(size - 1);
-                long oldestTickTimestamp = oldestTick.getTimestamp();
-                long newestTickTimestamp = newestTick.getTimestamp();
+                if (size > 0) {
+                    TickVolumeData newestTick = allTicks.get(0);
+                    TickVolumeData oldestTick = allTicks.get(size - 1);
+                    long oldestTickTimestamp = oldestTick.getTimestamp();
+                    long newestTickTimestamp = newestTick.getTimestamp();
 
-                long allPeriod = newestTickTimestamp - oldestTickTimestamp;
-                if (allPeriod > period) {
-                    log("have required ticks. need " + Utils.millisToYDHMSStr(period) + "; have=" + Utils.millisToYDHMSStr(allPeriod));
-                    break;
+                    long allPeriod = newestTickTimestamp - oldestTickTimestamp;
+                    if (allPeriod > period) {
+                        log("have required ticks. need " + Utils.millisToYDHMSStr(period) + "; have=" + Utils.millisToYDHMSStr(allPeriod));
+                        break;
+                    }
                 }
 
                 log("read: " + reads + "; allTicks.size=" + allTicks.size());
@@ -102,10 +107,10 @@ public class Bitfinex extends BaseExchImpl {
 
                 // refresh
                 size = allTicks.size();
-                newestTick = allTicks.get(0);
-                oldestTick = allTicks.get(size - 1);
-                oldestTickTimestamp = oldestTick.getTimestamp();
-                newestTickTimestamp = newestTick.getTimestamp();
+                TickVolumeData newestTick = allTicks.get(0);
+                TickVolumeData oldestTick = allTicks.get(size - 1);
+                long oldestTickTimestamp = oldestTick.getTimestamp();
+                long newestTickTimestamp = newestTick.getTimestamp();
 
                 if (downloadNewestTicks && (oldestTickTimestamp < newestCacheTickTime)) { //
                     log("merge with cache: oldestTickTimestamp=" + oldestTickTimestamp
