@@ -19,9 +19,11 @@ public class Bitfinex extends BaseExchImpl {
     private static final String CACHE_FILE_NAME = "bitfinex.trades";
     private static final String DATA_FILE_NAME = "bitfinex.data";
     private static final int MAX_ATTEMPTS = 50;
+    private static final int WRITE_AFTER_EVERY_N_REQUEST = 10;
 
     private static final NumberFormat VOLUME_FORMAT = NumberFormat.getNumberInstance();
     private static final NumberFormat PRICE_FORMAT = NumberFormat.getNumberInstance();
+
     static {
         VOLUME_FORMAT.setMaximumFractionDigits(8);
         VOLUME_FORMAT.setGroupingUsed(false);
@@ -121,8 +123,12 @@ public class Bitfinex extends BaseExchImpl {
                 }
 
                 if (emptyCache || merged) {
-                    writeCache(allTicks);
-                    writeData(allTicks);
+                    if ((reads % WRITE_AFTER_EVERY_N_REQUEST) == 0) {
+                        log("writing ticks...");
+                        writeCache(allTicks);
+                        writeData(allTicks);
+                        log("writing ticks done");
+                    }
                 }
             }
 
@@ -218,7 +224,6 @@ public class Bitfinex extends BaseExchImpl {
                     writeTick(bw, tick);
                     bw.write("\n");
                 }
-                bw.write("]");
             } finally {
                 bw.flush();
                 bw.close();
