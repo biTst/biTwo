@@ -26,6 +26,7 @@ public class UmmarAlgo extends BaseAlgo {
     private final float m_count;
     private final float m_multiplier;
     private final float m_threshold;
+    private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
     private ITickData m_tickData;
@@ -42,6 +43,7 @@ public class UmmarAlgo extends BaseAlgo {
         m_count = config.getNumber(Vary.count).floatValue();
         m_multiplier = config.getNumber(Vary.multiplier).floatValue();
         m_threshold = config.getNumber(Vary.threshold).floatValue();
+        m_signal = config.getNumber(Vary.signal).floatValue();
 
         // create ribbon
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
@@ -79,8 +81,9 @@ public class UmmarAlgo extends BaseAlgo {
         if (parentLatestTick != null) {
             ITickData latestTick = m_minMaxSpread.getLatestTick();// make sure calculation is up-to-date
             if (latestTick != null) {
-                Float adj = m_minMaxSpread.m_adj;
-                if(adj != null) {
+//                Float adj = m_minMaxSpread.m_adj;
+                Float adj = m_minMaxSpread.m_adj2;
+                if (adj != null) {
                     long timestamp = parentLatestTick.getTimestamp();
                     m_tickData = new TickData(timestamp, adj);
                     return m_tickData;
@@ -104,6 +107,7 @@ public class UmmarAlgo extends BaseAlgo {
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",multiplier=" : ",") + m_multiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
+                + (detailed ? ",signal=" : ",") + m_signal
 + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
@@ -141,33 +145,13 @@ public class UmmarAlgo extends BaseAlgo {
             addChart(chartData, m_minMaxSpread.getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
             addChart(chartData, m_minMaxSpread.getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
+            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.PINK, TickPainter.LINE);
 
             BaseTimesSeriesData leadEma = m_emas.get(0);
             Color color = Color.GREEN;
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma" , color, TickPainter.LINE);
         }
 
-//        ChartAreaSettings bottom = chartSetting.addChartAreaSettings("velocity", 0, 0.4f, 1, 0.2f, Color.GREEN);
-//        List<ChartAreaLayerSettings> bottomLayers = bottom.getLayers();
-//        {
-////            addChart(chartData, m_minMaxSpread.getJoinNonChangedTs(), bottomLayers, "spread", Color.MAGENTA, TickPainter.LINE);
-////            addChart(chartData, m_minMaxSpread.getRibbonSpreadMaxTs(), bottomLayers, "spreadMax", Color.green, TickPainter.LINE);
-////            addChart(chartData, m_minMaxSpread.getRibbonSpreadFadingTs(), bottomLayers, "spreadFade", Color.blue, TickPainter.LINE);
-////            addChart(chartData, m_spreadSmoothed.getJoinNonChangedTs(), bottomLayers, "spreadSmoothed", Color.yellow, TickPainter.LINE);
-//
-////            Color velColor = Colors.alpha(Color.yellow, 10);
-////            List<BaseTimesSeriesData> m_tss = m_velocityAvg.m_tss;
-////            for (int i = 0; i < m_tss.size(); i++) {
-////                BaseTimesSeriesData tss = m_tss.get(i);
-////                addChart(chartData, tss.getJoinNonChangedTs(), bottomLayers, "minVel_" + i, velColor, TickPainter.LINE);
-////            }
-//            addChart(chartData, m_velocityAvg.getJoinNonChangedTs(), bottomLayers, "minVelAvg", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_velocityAdjRegr.getJoinNonChangedTs(), bottomLayers, "minVelAvgRegr", Color.orange, TickPainter.LINE);
-//
-//            addChart(chartData, m_velocityAdj.getMinTs(), bottomLayers, "vel_min", Color.PINK, TickPainter.LINE);
-//            addChart(chartData, m_velocityAdj.getMaxTs(), bottomLayers, "vel_max", Color.PINK, TickPainter.LINE);
-//        }
-//
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
@@ -207,6 +191,7 @@ public class UmmarAlgo extends BaseAlgo {
         private Float m_trend;
         private Float m_mirror;
         private Float m_reverse;
+        private Float m_mid;
         private DoubleAdjuster m_da;
         private Float m_adj;
         private Float m_adj2;
@@ -219,28 +204,6 @@ public class UmmarAlgo extends BaseAlgo {
             for (ITimesSeriesData<ITickData> next : emas) {
                 next.getActive().addListener(this);
             }
-
-//            if (collectValues) {
-//                m_midTs = new BaseTimesSeriesData(this) {
-//                    @Override public ITickData getLatestTick() {
-//                        ITickData latestTick = getParent().getLatestTick();
-//                        if (latestTick != null) {
-//                            return new TickData(latestTick.getTimestamp(), m_mid);
-//                        }
-//                        return null;
-//                    }
-//                };
-//            }
-
-//            m_ribbonSpreadFadingMidTs = new BaseTimesSeriesData(this) {
-//                @Override public ITickData getLatestTick() {
-//                    ITickData latestTick = getParent().getLatestTick();
-//                    if (latestTick != null) {
-//                        return new TickData(latestTick.getTimestamp(), m_ribbonSpreadFadingMid);
-//                    }
-//                    return null;
-//                }
-//            };
 
             setParent(baseTsd); // subscribe to list first - will be called onChanged() and set as dirty ONLY
         }
@@ -298,7 +261,6 @@ public class UmmarAlgo extends BaseAlgo {
 
                     if (directionChanged) {
                         m_xxx = goUp ? emasMax : emasMin;
-System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasMin+"; leadEmaValue="+leadEmaValue);
                         m_da = new DoubleAdjuster(goUp ? 1 : -1);
                     }
 
@@ -316,21 +278,6 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
                                 ? m_ribbonSpreadBottom + trend
                                 : m_ribbonSpreadTop - trend;
 
-                        if (goUp) {
-//                            if (m_trend < m_ribbonSpreadBottom) {
-//                                float diff = m_ribbonSpreadBottom - m_trend;
-//                                m_trend = m_ribbonSpreadBottom + diff;
-//                            }
-                            m_adj2 = m_da.update(m_ribbonSpreadTop, m_trend, Math.max(m_ribbonSpreadBottom, m_mirror), leadEmaValue);
-                        } else {
-//                            if (m_trend > m_ribbonSpreadTop) {
-//                                float diff = m_trend - m_ribbonSpreadTop;
-//                                m_trend = m_ribbonSpreadTop - diff;
-//                            }
-                            m_adj2 = m_da.update(Math.min(m_ribbonSpreadTop, m_mirror), m_trend, m_ribbonSpreadBottom, leadEmaValue);
-                        }
-
-
                         float adj = goUp
                                 ? (leadEmaValue - m_ribbonSpreadBottom) / (m_trend - m_ribbonSpreadBottom)
                                 : (leadEmaValue - m_trend) / (m_ribbonSpreadTop - m_trend);
@@ -340,6 +287,24 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
                             adj = 0;
                         }
                         m_adj = adj * 2 - 1;
+
+                        float mid = m_trend;
+                        if (goUp) {
+                            if (m_trend < m_ribbonSpreadBottom) {
+                                float diff = m_ribbonSpreadBottom - m_trend;
+                                mid = m_ribbonSpreadBottom + diff * m_signal;
+                            }
+                            float bottom = Math.max(m_ribbonSpreadBottom, m_mirror);
+                            m_adj2 = m_da.update(m_ribbonSpreadTop, mid, bottom, leadEmaValue);
+                        } else {
+                            if (m_trend > m_ribbonSpreadTop) {
+                                float diff = m_trend - m_ribbonSpreadTop;
+                                mid = m_ribbonSpreadTop - diff * m_signal;
+                            }
+                            float top = Math.min(m_ribbonSpreadTop, m_mirror);
+                            m_adj2 = m_da.update(top, mid, m_ribbonSpreadBottom, leadEmaValue);
+                        }
+                        m_mid = mid;
                     }
 
                     m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
@@ -358,6 +323,7 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
         TimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
         TimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
         TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
+        TimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
         TimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_adj2; } }; }
     }
 
@@ -366,6 +332,7 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
         public float m_init;
         public float m_value;
         private boolean m_up;
+        private boolean m_justTurned;
 
         public DoubleAdjuster(float value) {
             m_init = value;
@@ -373,20 +340,37 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
             m_up = (value > 0);
         }
 
-        public float update(float max, float mid, float min, float lead) {
+        public float update(float top, float mid, float bottom, float lead) {
             if (m_up && (lead < mid)) {
+                if (m_justTurned) {
+                    float dif = mid - bottom;
+                    float adj = (lead - bottom) / dif; // [0...1]
+                    if (adj == 0.5) {
+                        m_justTurned = false;
+                        return m_value; // ignore first broken tick
+                    }
+                }
                 m_up = false;
                 m_init = m_value;
             }
             if (!m_up && (lead > mid)) {
+                if (m_justTurned) {
+                    float dif = top - mid;
+                    float adj = (lead - mid) / dif; // [0...1]
+                    if (adj == 0.5) {
+                        m_justTurned = false;
+                        return m_value; // ignore first broken tick
+                    }
+                }
                 m_up = true;
                 m_init = m_value;
             }
+            m_justTurned = false;
 
             if (m_up) {
-                float diff = max - mid;
-                if (diff > 0) {
-                    float adj = (lead - mid) / diff; // [0...1]
+                float dif = top - mid;
+                if (dif > 0) {
+                    float adj = (lead - mid) / dif; // [0...1]
                     float val = m_init + (1 - m_init) * adj;
                     if (val > m_value) {
                         if (val > 1) {
@@ -394,17 +378,25 @@ System.out.println("ummar:directionChanged: emasMax="+emasMax+"; emasMin="+emasM
                         }
                         m_value = val;
                     }
+                } else if(dif == 0) {
+                    if( m_init == m_value) {
+                        m_justTurned = true;
+                    }
                 }
             } else {
-                float dif = mid - min;
+                float dif = mid - bottom;
                 if (dif > 0) {
-                    float adj = (lead - min) / dif; // [0...1]
+                    float adj = (lead - bottom) / dif; // [0...1]
                     float val = (m_init + 1) * adj - 1;
                     if (val < m_value) {
                         if (val < -1) {
                             val = -1;
                         }
                         m_value = val;
+                    }
+                } else if(dif == 0) {
+                    if( m_init == m_value) {
+                        m_justTurned = true;
                     }
                 }
             }
