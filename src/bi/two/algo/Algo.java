@@ -33,6 +33,11 @@ public enum Algo {
             return new UmmarAlgo(algoConfig, parent);
         }
     },
+    ummar2 {
+        @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {
+            return new Ummar2Algo(algoConfig, parent);
+        }
+    },
     ;
 
     public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {
