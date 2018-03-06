@@ -40,11 +40,14 @@ public class Ummar2Algo extends BaseAlgo {
     private float m_ribbonSpreadTop;
     private float m_ribbonSpreadBottom;
     private Float m_xxx;
+    private float m_height;
     private Float m_trend;
-//    private Float m_mirror;
-//    private Float m_reverse;
+    //    private Float m_mirror;
+    //    private Float m_reverse;
     private Float m_top;
     private Float m_bottom;
+    private float m_level;
+    private DoubleAdjuster m_da;
     private Float m_adj;
 
     public Ummar2Algo(MapConfig config, ITimesSeriesData tsd) {
@@ -63,7 +66,6 @@ public class Ummar2Algo extends BaseAlgo {
 
         // create ribbon
         createRibbon(tsd, collectValues);
-
 
         setParent(m_emas.get(0));
     }
@@ -160,8 +162,8 @@ public class Ummar2Algo extends BaseAlgo {
             boolean directionChanged = (goUp != m_goUp);
             m_goUp = goUp;
 
-            m_min = emasMin;
-            m_max = emasMax;
+//            m_min = emasMin;
+//            m_max = emasMax;
 
             float ribbonSpread = emasMax - emasMin;
 
@@ -172,20 +174,39 @@ public class Ummar2Algo extends BaseAlgo {
             m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
 
             if (directionChanged) {
-                m_xxx = goUp ? emasMax : emasMin;
-//                m_da = new UmmarAlgo.DoubleAdjuster(goUp ? 1 : -1);
+//                m_xxx = goUp ? emasMax : emasMin;
+//                m_height = emasMax - emasMin;
+                m_da = new DoubleAdjuster(goUp ? 1 : -1);
             }
 
-            if (m_xxx != null) {
-                float trend = goUp
-                        ? (m_ribbonSpreadTop - m_xxx) * m_threshold
-                        : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
-                m_trend = goUp
-                        ? m_xxx + trend
-                        : m_xxx - trend;
 
-                m_top = m_ribbonSpreadTop - trend;
-                m_bottom = m_ribbonSpreadBottom + trend;
+            float rate = m_threshold;
+            m_level = goUp
+                    ? m_ribbonSpreadTop * rate + m_ribbonSpreadBottom * (1-rate)
+                    : m_ribbonSpreadTop * (1-rate) + m_ribbonSpreadBottom * rate;
+
+            if (m_da != null) {
+                m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
+            }
+
+//            m_adj = goUp ? 1f : -1f;
+
+
+//            if (m_xxx != null) {
+//                float trend = goUp
+//                        ? (m_ribbonSpreadTop - m_xxx) * m_threshold
+//                        : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
+//                m_trend = goUp
+//                        ? m_xxx + trend
+//                        : m_xxx - trend;
+//
+//                m_top = m_ribbonSpreadTop - trend;
+//                m_bottom = m_ribbonSpreadBottom + trend;
+//
+//                float height = goUp
+//                        ? m_xxx - m_ribbonSpreadBottom
+//                        : m_ribbonSpreadTop - m_xxx;
+
 
 //                m_mirror = goUp
 //                        ? m_xxx - trend
@@ -194,15 +215,15 @@ public class Ummar2Algo extends BaseAlgo {
 //                        ? m_ribbonSpreadBottom + trend
 //                        : m_ribbonSpreadTop - trend;
 
-                float adj = goUp
-                        ? (leadEmaValue - m_ribbonSpreadBottom) / (m_trend - m_ribbonSpreadBottom)
-                        : (leadEmaValue - m_trend) / (m_ribbonSpreadTop - m_trend);
-                if (adj > 1) {
-                    adj = 1;
-                } else if (adj < 0) {
-                    adj = 0;
-                }
-                m_adj = adj * 2 - 1;
+//                float adj = goUp
+//                        ? (leadEmaValue - m_ribbonSpreadBottom) / (m_trend - m_ribbonSpreadBottom)
+//                        : (leadEmaValue - m_trend) / (m_ribbonSpreadTop - m_trend);
+//                if (adj > 1) {
+//                    adj = 1;
+//                } else if (adj < 0) {
+//                    adj = 0;
+//                }
+//                m_adj = adj * 2 - 1;
 
 //                float mid = m_trend;
 //                if (goUp) {
@@ -221,7 +242,7 @@ public class Ummar2Algo extends BaseAlgo {
 //                    m_adj2 = m_da.update(top, mid, m_ribbonSpreadBottom, leadEmaValue);
 //                }
 //                m_mid = mid;
-            }
+//            }
 
 //            m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
 
@@ -241,6 +262,7 @@ public class Ummar2Algo extends BaseAlgo {
 //    TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
     TimesSeriesData<TickData> getTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_top; } }; }
     TimesSeriesData<TickData> getBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_bottom; } }; }
+    TimesSeriesData<TickData> getLevelTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_level; } }; }
 
 
     @Override public String key(boolean detailed) {
@@ -279,44 +301,97 @@ public class Ummar2Algo extends BaseAlgo {
 //                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
 //            }
 
-            addChart(chartData, getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
-//
+//            addChart(chartData, getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
+////
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
-            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
-//            addChart(chartData, getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
-//            addChart(chartData, getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
-//            addChart(chartData, getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
-            addChart(chartData, getTopTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
-            addChart(chartData, getBottomTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.PINK, TickPainter.LINE);
+//            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
+////            addChart(chartData, getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
+////            addChart(chartData, getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
+////            addChart(chartData, getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
+//            addChart(chartData, getTopTs(), topLayers, "top", Colors.DARK_RED, TickPainter.LINE);
+//            addChart(chartData, getBottomTs(), topLayers, "bottom", Colors.DARK_GREEN, TickPainter.LINE);
+            addChart(chartData, getLevelTs(), topLayers, "level", Color.PINK, TickPainter.LINE);
+////            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.PINK, TickPainter.LINE);
 
             BaseTimesSeriesData leadEma = m_emas.get(0);
             Color color = Color.GREEN;
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma" , color, TickPainter.LINE);
         }
 
-//        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
-//        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-//        {
-//// ???
-////            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
-//            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        {
+// ???
+//            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
+            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
 //            addChart(chartData, m_minMaxSpread.getAdj2Ts(), valueLayers, "adj2", Color.MAGENTA, TickPainter.LINE);
-////            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
-////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
-//        }
+//            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
+        }
 
-//        if (collectValues) {
-//            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-//            gain.setHorizontalLineValue(1);
-//
-//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-//
-//            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-//            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-//        }
+        if (collectValues) {
+            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+        }
     }
 
+
+
+    //----------------------------------------------------------
+    public static class DoubleAdjuster {
+        public float m_init;
+        public float m_value;
+        private boolean m_up;
+
+        public DoubleAdjuster(float value) {
+            m_init = value;
+            m_value = value;
+            m_up = (value > 0);
+        }
+
+        public float update(float top, float mid, float bottom, float lead) {
+            if (m_up && (lead < mid)) {
+                m_up = false;
+                m_init = m_value;
+            }
+            if (!m_up && (lead > mid)) {
+                m_up = true;
+                m_init = m_value;
+            }
+
+            if (m_up) {
+                float dif = top - mid;
+                if (dif > 0) {
+                    float adj = (lead - mid) / dif; // [0...1]
+                    float val = m_init + (1 - m_init) * adj;
+                    if (val > m_value) {
+                        if (val > 1) {
+                            val = 1;
+                        }
+                        m_value = val;
+                    }
+                }
+            } else {
+                float dif = mid - bottom;
+                if (dif > 0) {
+                    float adj = (lead - bottom) / dif; // [0...1]
+                    float val = (m_init + 1) * adj - 1;
+                    if (val < m_value) {
+                        if (val < -1) {
+                            val = -1;
+                        }
+                        m_value = val;
+                    }
+                }
+            }
+            return m_value;
+        }
+    }
 }
