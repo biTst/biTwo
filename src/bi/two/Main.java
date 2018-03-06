@@ -18,10 +18,16 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.text.NumberFormat;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
+    private static NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
+
+    static {
+        INTEGER_FORMAT.setGroupingUsed(true);
+    }
 
     public static void main(final String[] args) {
         Log.s_impl = new Log.StdLog();
@@ -131,11 +137,16 @@ public class Main {
         long maxMemory2 = Runtime.getRuntime().maxMemory();
         long usedMemory2 = totalMemory2 - freeMemory2;
 
+
         System.out.println("memory(free/used/total/max): "
-                + freeMemory1 + "/" + usedMemory1 + "/" + totalMemory1 + "/" + maxMemory1
+                + format(freeMemory1) + "/" + format(usedMemory1) + "/" + format(totalMemory1) + "/" + format(maxMemory1)
                 + "  =>  "
-                + freeMemory2 + "/" + usedMemory2 + "/" + totalMemory2 + "/" + maxMemory2
+                + format(freeMemory2) + "/" + format(usedMemory2) + "/" + format(totalMemory2) + "/" + format(maxMemory2)
         );
+    }
+
+    private static String format(long memory) {
+        return INTEGER_FORMAT.format(memory);
     }
 
     private static MapConfig getDefaultConfig(MapConfig config) {
