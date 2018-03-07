@@ -55,6 +55,6 @@ public class TickJoiner {
 
     public void finish() {
         reportTick();
-        System.out.println("TickJoiner: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
+        System.out.println("TickJoiner[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
     }
 }

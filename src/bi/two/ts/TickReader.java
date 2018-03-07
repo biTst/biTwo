@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 public enum TickReader {
     FILE("file") {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+            long joinTicks = config.getLongOrDefault("join.ticks", 1000L);
+
             String path = config.getPropertyNoComment("dataFile");
             File file = new File(path);
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
@@ -69,11 +71,11 @@ public enum TickReader {
 
             String dataFileType = config.getProperty("dataFile.type");
 
-            readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes);
+            readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes, joinTicks);
         }
 
         private void readFileTicks(Reader reader, TimesSeriesData<TickData> ticksTs, Runnable callback,
-                                   String dataFileType, boolean skipBytes) throws IOException {
+                                   String dataFileType, boolean skipBytes, long joinTicks) throws IOException {
             TimeStamp ts = new TimeStamp();
             BufferedReader br = new BufferedReader(reader, 256 * 1024);
             try {
@@ -81,7 +83,7 @@ public enum TickReader {
                     br.readLine(); // skip to the end of line
                 }
 
-                TickJoiner joiner = new TickJoiner(ticksTs, 1000);
+                TickJoiner joiner = new TickJoiner(ticksTs, joinTicks);
                 DataFileType type = DataFileType.get(dataFileType);
                 float lastClosePrice = 0;
                 String line;
