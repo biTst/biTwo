@@ -26,6 +26,7 @@ public class Ummar2Algo extends BaseAlgo {
     private final float m_count;
     private final float m_multiplier;
     private final float m_threshold;
+    private final float m_reverse;
 //    private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
 //    private final MinMaxSpread m_minMaxSpread;
@@ -62,6 +63,7 @@ public class Ummar2Algo extends BaseAlgo {
         m_count = config.getNumber(Vary.count).floatValue();
         m_multiplier = config.getNumber(Vary.multiplier).floatValue();
         m_threshold = config.getNumber(Vary.threshold).floatValue();
+        m_reverse = config.getNumber(Vary.reverse).floatValue();
 //        m_signal = config.getNumber(Vary.signal).floatValue();
 
         // create ribbon
@@ -174,25 +176,29 @@ public class Ummar2Algo extends BaseAlgo {
             m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
 
             if (directionChanged) {
-//                m_xxx = goUp ? emasMax : emasMin;
+                m_xxx = goUp ? emasMax : emasMin;
 //                m_height = emasMax - emasMin;
                 m_da = new DoubleAdjuster(goUp ? 1 : -1);
             }
 
+            if (m_xxx != null) {
 
-            float rate = m_threshold;
-            m_level = goUp
-                    ? m_ribbonSpreadTop * rate + m_ribbonSpreadBottom * (1-rate)
-                    : m_ribbonSpreadTop * (1-rate) + m_ribbonSpreadBottom * rate;
+                float rate = m_threshold;
+                m_level = goUp
+                        ? m_ribbonSpreadBottom < m_xxx
+                            ? m_xxx * m_reverse + m_ribbonSpreadBottom * (1-m_reverse)
+                            : m_ribbonSpreadTop * rate + m_ribbonSpreadBottom * (1-rate)
+                        : m_ribbonSpreadTop > m_xxx
+                            ? m_xxx * m_reverse + m_ribbonSpreadTop * (1-m_reverse)
+                            : m_ribbonSpreadTop * (1-rate) + m_ribbonSpreadBottom * rate;
 
-            if (m_da != null) {
-                m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
-            }
+                if (m_da != null) {
+                    m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
+                }
 
 //            m_adj = goUp ? 1f : -1f;
 
 
-//            if (m_xxx != null) {
 //                float trend = goUp
 //                        ? (m_ribbonSpreadTop - m_xxx) * m_threshold
 //                        : (m_xxx - m_ribbonSpreadBottom) * m_threshold;
@@ -242,7 +248,7 @@ public class Ummar2Algo extends BaseAlgo {
 //                    m_adj2 = m_da.update(top, mid, m_ribbonSpreadBottom, leadEmaValue);
 //                }
 //                m_mid = mid;
-//            }
+            }
 
 //            m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
 
@@ -272,6 +278,7 @@ public class Ummar2Algo extends BaseAlgo {
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",multiplier=" : ",") + m_multiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
+                + (detailed ? ",reverse=" : ",") + m_reverse
 //                + (detailed ? ",signal=" : ",") + m_signal
                 + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
@@ -306,7 +313,7 @@ public class Ummar2Algo extends BaseAlgo {
 ////
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
-//            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
+            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
 ////            addChart(chartData, getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
 ////            addChart(chartData, getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
 ////            addChart(chartData, getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
