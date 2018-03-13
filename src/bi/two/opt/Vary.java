@@ -24,6 +24,11 @@ public enum Vary {
     step("step", VaryType.FLOAT),
     count("count", VaryType.FLOAT),
 
+    a1("a1", VaryType.FLOAT), // spread proportional start
+    a2("a2", VaryType.FLOAT), // gain proportional start
+    b1("b1", VaryType.FLOAT), // spread proportional end
+    b2("b2", VaryType.FLOAT), // gain proportional end
+
     minOrderMul("minOrderMul", VaryType.FLOAT),
     ;
     
