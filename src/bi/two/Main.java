@@ -34,7 +34,6 @@ public class Main {
         MarketConfig.initMarkets(false);
 
         final ChartFrame frame = new ChartFrame();
-        frame.setVisible(true);
 
         new Thread("MAIN") {
             @Override public void run() {
@@ -61,6 +60,9 @@ public class Main {
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
+            if (collectTicks) {
+                frame.setVisible(true);
+            }
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
             int prefillTicks = config.getInt("prefill.ticks");
 
