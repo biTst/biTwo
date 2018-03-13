@@ -86,7 +86,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 if (extraTicks > INIT_DATA_LEN) {
                     try {
                         m_manyTicks = true;
-                        wait();
+                        wait(1000);
                         m_manyTicks = false;
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -206,7 +206,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     tick = m_ticksArray[currentTickIndex];
                     m_currentTickIndex++;
                     updateFirstTickIndexIfNeeded(currentTickIndex);
-                }
+                } // synchronized (outer)
                 if (tick != null) {
                     m_currentTickData = tick;
                     notifyListeners(true);
