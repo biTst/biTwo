@@ -40,7 +40,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
     @Override public double value(double value) {
 //        System.out.println("BrentOptimizer value() value="+value);
         Vary vary = m_fieldConfig.m_vary;
-        String fieldName = vary.m_key;
+        String fieldName = vary.name();
         double multiplier = m_fieldConfig.m_multiplier;
         double val = value * multiplier;
         if (value < m_min) {
@@ -89,7 +89,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
                 new UnivariateObjectiveFunction(this),
                 GoalType.MAXIMIZE,
                 new SearchInterval(m_min, m_max, m_start));
-        System.out.println("BrentOptimizer result for " + m_fieldConfig.m_vary.m_key
+        System.out.println("BrentOptimizer result for " + m_fieldConfig.m_vary.name()
                 + ": point=" + (m_optimizePoint.getPoint() * multiplier)
                 + "; value=" + m_optimizePoint.getValue()
                 + "; iterations=" + m_optimizer.getIterations()
@@ -104,7 +104,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
     }
 
     @Override public double logResults() {
-        System.out.println("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.m_key
+        System.out.println("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.name()
                 + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
                 + "; iterations=" + m_optimizer.getIterations()
                 + "; totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio));

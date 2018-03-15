@@ -5,38 +5,37 @@ import bi.two.util.StringParser;
 import bi.two.util.Utils;
 
 public enum Vary {
-    period("period", VaryType.MILLIS),  // barSize
-    bars("bars", VaryType.INT),         // barsNum
-    divider("divider", VaryType.FLOAT),
-    multiplier("multiplier", VaryType.FLOAT),
-    slope("slope", VaryType.FLOAT),     // slopeLength
-    signal("signal", VaryType.FLOAT),   // signalLength
-    power("power", VaryType.FLOAT),
-    smooth("smooth", VaryType.FLOAT),   // smooth
-    threshold("threshold", VaryType.FLOAT), // strong trend threshold
-    drop("drop", VaryType.FLOAT),           // trend drop level
-    reverse("reverse", VaryType.FLOAT),     // direction threshold
+    period(VaryType.MILLIS),  // barSize
+    bars(VaryType.INT),         // barsNum
+    divider(VaryType.FLOAT),
+    multiplier(VaryType.FLOAT),
+    slope(VaryType.FLOAT),     // slopeLength
+    signal(VaryType.FLOAT),   // signalLength
+    power(VaryType.FLOAT),
+    smooth(VaryType.FLOAT),   // smooth
+    threshold(VaryType.FLOAT), // strong trend threshold
+    drop(VaryType.FLOAT),           // trend drop level
+    reverse(VaryType.FLOAT),     // direction threshold
 
-    longEmaLen("longEmaLen", VaryType.FLOAT),   // long ema trend len
-    shortEmaLen("shortEmaLen", VaryType.FLOAT), // short ema trend len
+    longEmaLen(VaryType.FLOAT),   // long ema trend len
+    shortEmaLen(VaryType.FLOAT), // short ema trend len
 
-    start("start", VaryType.FLOAT),
-    step("step", VaryType.FLOAT),
-    count("count", VaryType.FLOAT),
+    start(VaryType.FLOAT),
+    step(VaryType.FLOAT),
+    count(VaryType.FLOAT),
 
-    a1("a1", VaryType.FLOAT), // spread proportional start
-    a2("a2", VaryType.FLOAT), // gain proportional start
-    b1("b1", VaryType.FLOAT), // spread proportional end
-    b2("b2", VaryType.FLOAT), // gain proportional end
+    a1(VaryType.FLOAT), // spread proportional start
+    a2(VaryType.FLOAT), // gain proportional start
+    b1(VaryType.FLOAT), // spread proportional end
+    b2(VaryType.FLOAT), // gain proportional end
 
-    minOrderMul("minOrderMul", VaryType.FLOAT),
+    minOrderMul(VaryType.FLOAT),
+    joinTicks(VaryType.LONG),
     ;
     
-    public final String m_key;
     public final VaryType m_varyType;
 
-    Vary(String key, VaryType varyType) {
-        m_key = key;
+    Vary(VaryType varyType) {
         m_varyType = varyType;
     }
 

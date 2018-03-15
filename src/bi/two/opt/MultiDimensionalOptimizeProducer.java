@@ -43,7 +43,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     double value = point[i];
                     OptimizeConfig fieldConfig = m_optimizeConfigs.get(i);
                     Vary vary = fieldConfig.m_vary;
-                    String fieldName = vary.m_key;
+                    String fieldName = vary.name();
                     double multiplier = fieldConfig.m_multiplier;
                     double val = value * multiplier;
                     double min = fieldConfig.m_min.doubleValue();
@@ -211,7 +211,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             double maxim = max / multiplier;
             mins[i] = minim;
             maxs[i] = maxim;
-            System.out.println("buildBounds field[" + field.m_key + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
+            System.out.println("buildBounds field[" + field.name() + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
         return new SimpleBounds(mins, maxs);
     }
@@ -227,7 +227,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             double start = fieldConfig.m_start.doubleValue();
             double strt = start / fieldConfig.m_multiplier;
             startPoint[i] = strt;
-            sb.append(field.m_key).append("=").append(Utils.format5(start)).append("(").append(Utils.format5(strt)).append("); ");
+            sb.append(field.name()).append("=").append(Utils.format5(start)).append("(").append(Utils.format5(strt)).append("); ");
         }
         System.out.println(sb.toString());
         return startPoint;

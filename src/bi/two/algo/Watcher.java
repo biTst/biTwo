@@ -5,6 +5,7 @@ import bi.two.chart.JoinNonChangedTimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.opt.Vary;
 import bi.two.tre.CurrencyValue;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
@@ -60,7 +61,9 @@ public class Watcher extends TimesSeriesData<TradeData> {
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
-        m_minOrderMul = algoConfig.getDoubleOrDefault("minOrderMul", 1.0);
+
+        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
+//        m_minOrderMul = algoConfig.getDoubleOrDefault("minOrderMul", 1.0);
         m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
         m_algo = createAlgo(ts, algoConfig);
         setParent(m_algo);

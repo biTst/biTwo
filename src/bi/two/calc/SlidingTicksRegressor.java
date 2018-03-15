@@ -59,7 +59,7 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
                 return; // not initialized
             }
         }
-        super.onChanged(ts, changed);
+        notifyListeners(changed);
     }
 
     private void addTick(ITickData tickData) {

@@ -184,7 +184,7 @@ public class WatchersProducer {
             final Vary vary = iterateConfig.m_vary;
             vary.m_varyType.iterate(iterateConfig, new Main.IParamIterator<Number>() {
                 @Override public void doIteration(Number value) {
-                    algoConfig.put(vary.m_key, value);
+                    algoConfig.put(vary.name(), value);
                     if (nextIndex < iterateConfigs.size()) {
                         doIterate(config, iterateConfigs, nextIndex, algoConfig, ticksTs, exchange, pair, watchers);
                     } else {

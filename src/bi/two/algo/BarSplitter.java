@@ -68,7 +68,7 @@ public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
     }
 
     private void onTick(boolean changed, ITickData tick) {
-        if(changed) {
+        if (changed) {
             long timestamp = tick.getTimestamp();
             if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
