@@ -7,9 +7,7 @@ import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
@@ -19,6 +17,7 @@ import java.util.List;
 public class Ummar2Algo extends BaseAlgo {
 
     private final double m_minOrderMul;
+    private final long m_joinTicks;
 
     private final long m_barSize;
     private final float m_start;
@@ -27,9 +26,7 @@ public class Ummar2Algo extends BaseAlgo {
     private final float m_multiplier;
     private final float m_threshold;
     private final float m_reverse;
-//    private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
-//    private final MinMaxSpread m_minMaxSpread;
     private ITickData m_tickData;
 
     private boolean m_dirty;
@@ -55,6 +52,7 @@ public class Ummar2Algo extends BaseAlgo {
         super(null);
 
         m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
+        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
 
         boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_barSize = config.getNumber(Vary.period).longValue();
@@ -64,10 +62,13 @@ public class Ummar2Algo extends BaseAlgo {
         m_multiplier = config.getNumber(Vary.multiplier).floatValue();
         m_threshold = config.getNumber(Vary.threshold).floatValue();
         m_reverse = config.getNumber(Vary.reverse).floatValue();
-//        m_signal = config.getNumber(Vary.signal).floatValue();
 
-        // create ribbon
-        createRibbon(tsd, collectValues);
+        if (TickReader.JOIN_TICKS_IN_READER) {
+            createRibbon(tsd, collectValues);
+        } else {
+            BaseTimesSeriesData ticksJoiner = new TickJoinerTimesSeriesData(tsd, m_joinTicks);
+            createRibbon(ticksJoiner, collectValues);
+        }
 
         setParent(m_emas.get(0));
     }
@@ -80,7 +81,6 @@ public class Ummar2Algo extends BaseAlgo {
                     m_dirty = true;
                 }
             }
-
             @Override public void waitWhenFinished() { }
             @Override public void notifyNoMoreTicks() {}
         };
@@ -118,7 +118,7 @@ public class Ummar2Algo extends BaseAlgo {
     }
 
     @Override public ITickData getAdjusted() {
-        if(m_dirty) {
+        if (m_dirty) {
             ITickData parentLatestTick = getParent().getLatestTick();
             if (parentLatestTick != null) {
                 Float adj = recalc();
@@ -280,7 +280,8 @@ public class Ummar2Algo extends BaseAlgo {
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",reverse=" : ",") + m_reverse
 //                + (detailed ? ",signal=" : ",") + m_signal
-                + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
+                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
+                + (detailed ? ",joinTicks=" : ",") + m_joinTicks
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
@@ -401,4 +402,5 @@ public class Ummar2Algo extends BaseAlgo {
             return m_value;
         }
     }
+
 }

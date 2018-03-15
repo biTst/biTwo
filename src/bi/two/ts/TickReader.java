@@ -6,6 +6,7 @@ import bi.two.chart.TradeTickData;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
+import bi.two.opt.Vary;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 public enum TickReader {
     FILE("file") {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-            long joinTicks = config.getLongOrDefault("join.ticks", 1000L);
+            long joinTicks = config.getNumber(Vary.joinTicks).longValue();
 
             String path = config.getPropertyNoComment("dataFile");
             File file = new File(path);
@@ -83,7 +84,7 @@ public enum TickReader {
                     br.readLine(); // skip to the end of line
                 }
 
-                TickJoiner joiner = new TickJoiner(ticksTs, joinTicks);
+                TickJoiner joiner = JOIN_TICKS_IN_READER ? new TickJoiner(ticksTs, joinTicks) : null;
                 DataFileType type = DataFileType.get(dataFileType);
                 float lastClosePrice = 0;
                 String line;
@@ -94,18 +95,24 @@ public enum TickReader {
                         float closePrice = tickData.getClosePrice();
                         if (lastClosePrice != 0) {
                             float rate = closePrice / lastClosePrice;
-                            if (rate < 0.5 || rate > 1.5) {
+                            if ((rate < 0.5) || (rate > 1.5)) {
                                 continue; // skip too big price drops
                             }
                         }
                         lastClosePrice = closePrice;
-                        joiner.addNewestTick(tickData);
+                        if (JOIN_TICKS_IN_READER) {
+                            joiner.addNewestTick(tickData);
+                        } else {
+                            ticksTs.addNewestTick(tickData);
+                        }
                         if (callback != null) {
                             callback.run();
                         }
                     }
                 }
-                joiner.finish();
+                if (JOIN_TICKS_IN_READER) {
+                    joiner.finish();
+                }
                 System.out.println("ticksTs: all ticks was read in " + ts.getPassed());
                 ticksTs.notifyNoMoreTicks();
             } finally {
@@ -129,6 +136,8 @@ public enum TickReader {
             feedTicks(ticksTs, callback, ticks);
         }
     };
+
+    public static final boolean JOIN_TICKS_IN_READER = false;
 
     private final String m_name;
 
