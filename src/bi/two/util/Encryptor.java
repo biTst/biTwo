@@ -1,5 +1,7 @@
 package bi.two.util;
 
+import org.jetbrains.annotations.Nullable;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
@@ -144,12 +146,17 @@ public class Encryptor {
         propertiesOut.store(writer, "encr");
     }
 
-    private static Cipher getCipher(String encryptionKey, int cipherMode) throws Exception {
+    @Nullable private static Cipher getCipher(String encryptionKey, int cipherMode) throws Exception {
         String encryptionAlgorithm = "AES";
-        SecretKeySpec keySpecification = new SecretKeySpec(encryptionKey.getBytes("UTF-8"), encryptionAlgorithm);
+        SecretKeySpec keySpecification;
+        try {
+            keySpecification = new SecretKeySpec(encryptionKey.getBytes("UTF-8"), encryptionAlgorithm);
+        } catch (IllegalArgumentException iaee) {
+            System.out.println("decryption error: " + iaee);
+            return null;
+        }
         Cipher cipher = Cipher.getInstance(encryptionAlgorithm);
         cipher.init(cipherMode, keySpecification);
-
         return cipher;
     }
 
@@ -169,10 +176,14 @@ public class Encryptor {
         return output;
     }
 
-    public static String decrypt(String encrypted, String pwd) throws Exception {
+    @Nullable public static String decrypt(String encrypted, String pwd) throws Exception {
         Cipher cipher = getCipher(pwd, Cipher.DECRYPT_MODE);
-        byte[] bytes = DatatypeConverter.parseBase64Binary(encrypted);
-        byte[] plainBytes = cipher.doFinal(bytes);
-        return new String(plainBytes);
+        if (cipher != null) {
+            byte[] bytes = DatatypeConverter.parseBase64Binary(encrypted);
+            byte[] plainBytes = cipher.doFinal(bytes);
+            return new String(plainBytes);
+        } else {
+            return null;
+        }
     }
 }

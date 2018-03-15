@@ -201,6 +201,9 @@ System.out.println("loading encrypt = " + encryptedFileName);
         for (String name : stringPropertyNames()) {
             String encrypted = getProperty(name);
             String decrypted = Encryptor.decrypt(encrypted, pwd);
+            if (decrypted == null) {
+                break;
+            }
             setProperty(name, decrypted);
         }
     }
@@ -230,9 +233,10 @@ System.out.println("loading encrypt = " + encryptedFileName);
     }
 
     public Number getNumber(Vary vary) {
-        String str = getPropertyNoComment(vary.m_key);
+        String name = vary.name();
+        String str = getPropertyNoComment(name);
         if (str == null) {
-            Object obj = get(vary.m_key);
+            Object obj = get(name);
             if (obj instanceof Number) {
                 return (Number) obj;
             }
