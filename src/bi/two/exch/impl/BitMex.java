@@ -72,7 +72,7 @@ public class BitMex {
                                     err("send error: " + e, e);
                                 }
                             } else {
-                                onMessageX(message);
+                                onMessageX(session, message);
                             }
                         }
                     });
@@ -103,7 +103,7 @@ public class BitMex {
         //        test();
     }
 
-    private static void onMessageX(String message) {
+    private static void onMessageX(Session session, String message) {
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObject = (JSONObject) parser.parse(message);
@@ -113,7 +113,7 @@ public class BitMex {
             if (request != null) {
                 Boolean success = (Boolean) jsonObject.get("success");
                 log(" success=" + success);
-                onSubscribed(success, request);
+                onSubscribed(session, success, request);
             } else {
 
             }
@@ -173,21 +173,47 @@ public class BitMex {
         }
     }
 
-    private static void onSubscribed(Boolean success, JSONObject request) {
+    private static void onSubscribed(Session session, Boolean success, JSONObject request) throws IOException {
         String op = (String) request.get("op");
         log("  op=" + op);
         if (op.equals("authKey")) {
-            onAuthenticated(success);
+            onAuthenticated(session, success);
         }
     }
 
-    private static void onAuthenticated(Boolean success) {
+    private static void onAuthenticated(Session session, Boolean success) throws IOException {
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
         log("onAuthenticated success=" + success);
         if (success) {
-
+            subscribeAccount(session);
         }
+    }
+
+    private static void subscribeAccount(Session session) throws IOException {
+        // -------------------------------------------------------------------------------------------------------------------------------------
+        // Updates on your current account balance and margin requirements
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
+
+        // {"table":"margin",
+        //  "keys":["account","currency"],
+        //  "types":{"account":"long","currency":"symbol","riskLimit":"long","prevState":"symbol","state":"symbol","action":"symbol","amount":"long","pendingCredit":"long","pendingDebit":"long",
+        //           "confirmedDebit":"long","prevRealisedPnl":"long","prevUnrealisedPnl":"long","grossComm":"long","grossOpenCost":"long","grossOpenPremium":"long","grossExecCost":"long","grossMarkValue":"long",
+        //           "riskValue":"long","taxableMargin":"long","initMargin":"long","maintMargin":"long","sessionMargin":"long","targetExcessMargin":"long","varMargin":"long","realisedPnl":"long",
+        //           "unrealisedPnl":"long","indicativeTax":"long","unrealisedProfit":"long","syntheticMargin":"long","walletBalance":"long","marginBalance":"long","marginBalancePcnt":"float",
+        //           "marginLeverage":"float","marginUsedPcnt":"float","excessMargin":"long","excessMarginPcnt":"float","availableMargin":"long","withdrawableMargin":"long","timestamp":"timestamp",
+        //           "grossLastValue":"long","commission":"float"},
+        //  "foreignKeys":{},
+        //  "attributes":{"account":"sorted","currency":"grouped"},"action":"partial",
+        //  "data":[{"account":47464,"currency":"XBt","riskLimit":1000000000000,"prevState":"","state":"","action":"","amount":0,"pendingCredit":0,"pendingDebit":0,"confirmedDebit":0,"prevRealisedPnl":0,
+        //           "prevUnrealisedPnl":0,"grossComm":0,"grossOpenCost":0,"grossOpenPremium":0,"grossExecCost":0,"grossMarkValue":0,"riskValue":0,"taxableMargin":0,"initMargin":0,"maintMargin":0,"sessionMargin":0,
+        //           "targetExcessMargin":0,"varMargin":0,"realisedPnl":0,"unrealisedPnl":0,"indicativeTax":0,"unrealisedProfit":0,"syntheticMargin":0,"walletBalance":0,"marginBalance":0,"marginBalancePcnt":1,
+        //           "marginLeverage":0,"marginUsedPcnt":0,"excessMargin":0,"excessMarginPcnt":1,"availableMargin":0,"withdrawableMargin":0,"timestamp":"2018-03-15T01:08:57.193Z","grossLastValue":0,"commission":null}],
+        //  "filter":{"account":47464}}
+
+        // {"success":true,
+        //  "subscribe":"margin",
+        //  "request":{"op":"subscribe","args":["margin"]}}
     }
 
     private static void authenticate(Session session) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
