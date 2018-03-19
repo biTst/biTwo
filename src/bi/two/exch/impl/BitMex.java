@@ -20,8 +20,10 @@ import java.util.concurrent.TimeUnit;
 
 // based on info from
 //  https://testnet.bitmex.com/app/wsAPI
+// todo: look at https://github.com/ccxt/ccxt
 public class BitMex {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
+    public static final String SYMBOL = "XBTUSD";
 
     private static String s_apiKey;
     private static String s_apiSecret;
@@ -261,7 +263,7 @@ public class BitMex {
     private static void requestQuote(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Top level of the book
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"quote:XBTUSD\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"quote:" + SYMBOL + "\"]}");
 
         // {"table":"quote",
         //  "keys":[],
@@ -301,7 +303,7 @@ public class BitMex {
     private static void requestOrderBook(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Top 10 levels using traditional full book push
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBook10:XBTUSD\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBook10:" + SYMBOL + "\"]}");
 
         // {"table":"orderBook10",
         //  "keys":["symbol"],
@@ -337,7 +339,7 @@ public class BitMex {
     private static void requestInstrument(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Instrument updates including turnover and bid/ask
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"instrument:XBTUSD\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"instrument:" + SYMBOL + "\"]}");
 
         // {"success":true,
         //  "subscribe":
@@ -386,7 +388,7 @@ public class BitMex {
     private static void requestLiveTrades(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Live trades
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:XBTUSD\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + SYMBOL + "\"]}");
 
         // {"table":"trade",
         //  "keys":[],
@@ -435,7 +437,7 @@ public class BitMex {
     private static void requestFullOrderBook(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Full level 2 orderBook
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:XBTUSD\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:" + SYMBOL + "\"]}");
 
         // {"success":true,
         //  "subscribe":"orderBookL2:XBTUSD",
