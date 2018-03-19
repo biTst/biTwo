@@ -7,9 +7,7 @@ import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
@@ -19,6 +17,7 @@ import java.util.List;
 public class Ummar3Algo extends BaseAlgo {
 
     private final double m_minOrderMul;
+    private final long m_joinTicks;
 
     private final long m_barSize;
     private final float m_start;
@@ -26,10 +25,10 @@ public class Ummar3Algo extends BaseAlgo {
     private final float m_count;
     private final float m_multiplier;
 
-    private final float m_a1;// spread proportional start
-    private final float m_a2;// gain proportional start
-    private final float m_b1;// spread proportional end
-    private final float m_b2;// gain proportional end
+    private final float m_s1;// spread proportional start
+    private final float m_s2;// gain proportional start
+    private final float m_e1;// spread proportional end
+    private final float m_e2;// gain proportional end
 
     //    private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
@@ -59,6 +58,7 @@ public class Ummar3Algo extends BaseAlgo {
         super(null);
 
         m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
+        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
 
         boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_barSize = config.getNumber(Vary.period).longValue();
@@ -67,13 +67,17 @@ public class Ummar3Algo extends BaseAlgo {
         m_count = config.getNumber(Vary.count).floatValue();
         m_multiplier = config.getNumber(Vary.multiplier).floatValue();
 
-        m_a1 = config.getNumber(Vary.a1).floatValue();
-        m_a2 = config.getNumber(Vary.a2).floatValue();
-        m_b1 = config.getNumber(Vary.b1).floatValue();
-        m_b2 = config.getNumber(Vary.b2).floatValue();
+        m_s1 = config.getNumber(Vary.s1).floatValue();
+        m_s2 = config.getNumber(Vary.s2).floatValue();
+        m_e1 = config.getNumber(Vary.e1).floatValue();
+        m_e2 = config.getNumber(Vary.e2).floatValue();
 
-        // create ribbon
-        createRibbon(tsd, collectValues);
+        if (TickReader.JOIN_TICKS_IN_READER ) {
+            createRibbon(tsd, collectValues);
+        } else {
+            BaseTimesSeriesData ticksJoiner = new TickJoinerTimesSeriesData(tsd, m_joinTicks);
+            createRibbon(ticksJoiner, collectValues);
+        }
 
         setParent(m_emas.get(0));
     }
@@ -195,17 +199,16 @@ public class Ummar3Algo extends BaseAlgo {
                 float spread = m_ribbonSpreadTop - m_ribbonSpreadBottom;
                 if (goUp) {
                     float trend = m_ribbonSpreadTop - m_xxx;
-                    gainLevel = m_ribbonSpreadBottom + m_b1 * spread + m_b2 * trend;
+                    gainLevel = m_ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
                     height = m_xxx - m_ribbonSpreadBottom;
-                    approachRate = height / m_height;
-                    approachLevel = m_ribbonSpreadBottom + m_a1 * spread + m_a2 * trend;
+                    approachLevel = m_ribbonSpreadBottom + m_s1 * spread + m_s2 * trend;
                 } else {
                     float trend = m_xxx - m_ribbonSpreadBottom;
-                    gainLevel = m_ribbonSpreadTop - m_b1 * spread + m_b2 * trend;
+                    gainLevel = m_ribbonSpreadTop - m_e1 * spread + m_e2 * trend;
                     height = m_ribbonSpreadTop - m_xxx;
-                    approachRate = height / m_height;
-                    approachLevel = m_ribbonSpreadTop - m_a1 * spread + m_a2 * trend;
+                    approachLevel = m_ribbonSpreadTop - m_s1 * spread + m_s2 * trend;
                 }
+                approachRate = height / m_height;
                 if (approachRate > 0) {
                     m_level = approachLevel * approachRate + gainLevel * (1 - approachRate);
                 } else {
@@ -292,10 +295,12 @@ public class Ummar3Algo extends BaseAlgo {
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",multiplier=" : ",") + m_multiplier
-//                + (detailed ? ",threshold=" : ",") + m_threshold
-//                + (detailed ? ",reverse=" : ",") + m_reverse
-//                + (detailed ? ",signal=" : ",") + m_signal
-                + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
+                + (detailed ? "|s1=" : "|") + m_s1
+                + (detailed ? ",s2=" : ",") + m_s2
+                + (detailed ? ",e1=" : ",") + m_e1
+                + (detailed ? ",e2=" : ",") + m_e2
+                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
+                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
@@ -363,5 +368,4 @@ public class Ummar3Algo extends BaseAlgo {
             addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
         }
     }
-
 }
