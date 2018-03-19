@@ -50,7 +50,8 @@ public class Main {
                 file = args[0];
             }
             MapConfig config = new MapConfig();
-            config.loadAndEncrypted(file);
+//            config.loadAndEncrypted(file);
+            config.load(file);
 
             String exchangeName = config.getString("exchange");
             Exchange exchange = Exchange.get(exchangeName);
