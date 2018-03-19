@@ -26,39 +26,36 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
         if (changed) {
             ITimesSeriesData parent = getParent();
             ITickData latestTick = parent.getLatestTick();
-            if (latestTick != null) {
-                float price = latestTick.getClosePrice();
-                long timestamp = latestTick.getTimestamp();
 
-                if (timestamp < m_end) {
-                    m_last = timestamp;
-                    m_summ += price;
-                    m_count++;
-                } else {
-                    if (m_count > 1) { // reportTick
-                        long avdTimestamp = (m_first + m_last) / 2; // mid time
-                        float avgPrice = m_summ / m_count;
-                        TickData avgTickData = new TickData(avdTimestamp, avgPrice);
-                        m_lastTick = avgTickData;
-                        myChanged = true;
-                        m_joinedCount += m_count;
-                        m_reportedCount++;
-                    } else if (m_count == 1) {
-                        m_lastTick = m_firstTick;
-                        myChanged = true;
-                        m_joinedCount += 1;
-                        m_reportedCount++;
-                    }
+            float price = latestTick.getClosePrice();
+            long timestamp = latestTick.getTimestamp();
 
-                    m_firstTick = latestTick;
-                    m_first = timestamp;
-                    m_last = timestamp;
-                    m_summ = price;
-                    m_count = 1;
-                    m_end = timestamp + m_size;
-                }
+            if (timestamp < m_end) {
+                m_last = timestamp;
+                m_summ += price;
+                m_count++;
             } else {
-throw new RuntimeException("err");
+                if (m_count > 1) { // reportTick
+                    long avdTimestamp = (m_first + m_last) / 2; // mid time
+                    float avgPrice = m_summ / m_count;
+                    TickData avgTickData = new TickData(avdTimestamp, avgPrice);
+                    m_lastTick = avgTickData;
+                    myChanged = true;
+                    m_joinedCount += m_count;
+                    m_reportedCount++;
+                } else if (m_count == 1) {
+                    m_lastTick = m_firstTick;
+                    myChanged = true;
+                    m_joinedCount += 1;
+                    m_reportedCount++;
+                }
+
+                m_firstTick = latestTick;
+                m_first = timestamp;
+                m_last = timestamp;
+                m_summ = price;
+                m_count = 1;
+                m_end = timestamp + m_size;
             }
         }
         // todo: need notify if not changed ?
