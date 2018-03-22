@@ -30,11 +30,10 @@ public class Ummar3Algo extends BaseAlgo {
     private final float m_e1;// spread proportional end
     private final float m_e2;// gain proportional end
 
-    //    private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
-    //    private final MinMaxSpread m_minMaxSpread;
-    private ITickData m_tickData;
+    private BarsTimesSeriesData m_priceBars;
 
+    private ITickData m_tickData;
     private boolean m_dirty;
 
     private boolean m_goUp;
@@ -71,6 +70,10 @@ public class Ummar3Algo extends BaseAlgo {
         m_s2 = config.getNumber(Vary.s2).floatValue();
         m_e1 = config.getNumber(Vary.e1).floatValue();
         m_e2 = config.getNumber(Vary.e2).floatValue();
+
+        if (collectValues) {
+            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize*2);
+        }
 
         if (TickReader.JOIN_TICKS_IN_READER ) {
             createRibbon(tsd, collectValues);
@@ -314,7 +317,8 @@ public class Ummar3Algo extends BaseAlgo {
         ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
-            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
+//            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 70), TickPainter.TICK);
+            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Color.RED, 70), TickPainter.BAR);
 
 //            chartData.setTicksData("spline", new NoTicksData());
 ////            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.SplineChartAreaPainter(ticksTs, 4)));
