@@ -4,12 +4,11 @@ import bi.two.chart.ChartData;
 import bi.two.chart.ChartPaintSetting;
 import bi.two.chart.ChartPainter;
 import bi.two.chart.ChartSetting;
+import bi.two.util.Log;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseWheelEvent;
+import java.awt.event.*;
 
 public class ChartCanvas extends JComponent {
     private final ChartPainter m_chartPainter;
@@ -20,6 +19,10 @@ public class ChartCanvas extends JComponent {
     private boolean m_recalcBounds = true;
     private Point m_point; // point to highlight
     private Point m_selectPoint; // start of line to draw
+
+    private static void console(String s) { Log.console(s); }
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public ChartCanvas() {
         setMinimumSize(new Dimension(800, 500));
@@ -34,6 +37,22 @@ public class ChartCanvas extends JComponent {
         addMouseWheelListener(mouseAdapter);
 
         initChart();
+
+        setFocusable(true);
+        addKeyListener(new KeyAdapter() {
+            @Override public void keyTyped(KeyEvent e) {
+                char keyChar = e.getKeyChar();
+                int keyCode = e.getKeyCode();
+                console("keyTyped: keyCode=" + keyCode + "; keyChar='" + keyChar + "'");
+                super.keyTyped(e);
+                if(keyChar == '+') {
+                    m_cps.zoom(false);
+                } else if(keyChar == '-') {
+                    m_cps.zoom(true);
+                }
+                repaint(150);
+            }
+        });
     }
 
     public ChartData getChartData() { return m_chartData; }
