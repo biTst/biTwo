@@ -6,9 +6,10 @@ import bi.two.ind.BaseIndicator;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
@@ -40,7 +41,11 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
     }
 
-    
+    public long getPreloadPeriod() {
+        return TimeUnit.MINUTES.toMillis(5);
+    }
+
+
     //----------------------------------------------------------
     public class AlgoTimesSeriesData extends TimesSeriesData<TickData> {
 
