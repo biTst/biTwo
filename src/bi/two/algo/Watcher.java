@@ -46,6 +46,8 @@ public class Watcher extends TimesSeriesData<TradeData> {
     private ITickData m_lastAdjusted; // saved direction from last tick processing
     private Date m_nextTradeCloseTime;
     private float m_lastDirection = 0;
+    private Boolean m_isUp;
+    private int m_changedDirection; // counter
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
@@ -63,7 +65,6 @@ public class Watcher extends TimesSeriesData<TradeData> {
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
-//        m_minOrderMul = algoConfig.getDoubleOrDefault("minOrderMul", 1.0);
         m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
         m_algo = createAlgo(ts, algoConfig);
         setParent(m_algo);
@@ -110,9 +111,14 @@ public class Watcher extends TimesSeriesData<TradeData> {
 
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
         if (m_lastDirection == direction) {
-            return; // do nto process same value twice in simulation
+            return; // todo: do not process same value twice in simulation
         }
         m_lastDirection = direction;
+
+        if((m_isUp == null) || (m_isUp && (direction==-1)) || (!m_isUp && (direction==1)) ) {
+            m_isUp = (direction>0);
+            m_changedDirection++;
+        }
 
         if (m_exch.hasSchedule()) {
             long tickTime = tickAdjusted.getTimestamp();
@@ -277,7 +283,9 @@ if (timeToTradeClose < 0) {
         String key = m_algo.key(false);
         return prefix + "GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + m_tradesNum
-                + "; avgTrade=" + Utils.format5(this.getAvgTradeSize()) + " .....................................";
+                + "; avgTrade=" + Utils.format5(this.getAvgTradeSize())
+                + "; turns=" + m_changedDirection
+                + " .....................................";
 
     }
 
