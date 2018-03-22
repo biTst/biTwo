@@ -17,6 +17,7 @@ public class ExchPairData {
     public double m_initBalance;
     private OrderBook m_orderBook; // lazy
     public LiveOrdersData m_liveOrders;
+    private TradesData m_trades;
     public int m_priceStepDecimals;
     public DecimalFormat m_priceFormat;
     public int m_orderStepDecimals;
@@ -61,6 +62,13 @@ public class ExchPairData {
         return m_liveOrders;
     }
 
+    public TradesData getTrades() {
+        if (m_trades == null) { // lazy
+            m_trades = new TradesData(m_exchange, m_pair);
+        }
+        return m_trades;
+    }
+
     public void submitOrder(OrderData orderData) throws IOException {
         LiveOrdersData liveOrders = getLiveOrders();
         orderData.setFormats(m_priceFormat, m_sizeFormat);
@@ -96,5 +104,32 @@ public class ExchPairData {
         ret.setMaximumFractionDigits(decimals);
         ret.setGroupingUsed(false);
         return ret;
+    }
+
+
+    //----------------------------------------------------------------------------
+    public static  class TradesData {
+        public final Exchange m_exchange;
+        public final Pair m_pair;
+        private ITradeListener m_tradeListener;
+
+        public void setTradeListener(ITradeListener tradeListener) { m_tradeListener = tradeListener; }
+
+        public TradesData(Exchange exchange, Pair pair) {
+            m_exchange = exchange;
+            m_pair = pair;
+        }
+
+        public void notifyListener() {
+            if (m_tradeListener != null) {
+                m_tradeListener.onTrade();
+            }
+        }
+
+
+        //----------------------------------------------------------------------------
+        public interface ITradeListener {
+            void onTrade();
+        }
     }
 }

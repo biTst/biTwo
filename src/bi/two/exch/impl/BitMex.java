@@ -1,5 +1,9 @@
 package bi.two.exch.impl;
 
+import bi.two.exch.BaseExchImpl;
+import bi.two.exch.ExchPairData;
+import bi.two.exch.Exchange;
+import bi.two.exch.Pair;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -21,12 +25,14 @@ import java.util.concurrent.TimeUnit;
 // based on info from
 //  https://testnet.bitmex.com/app/wsAPI
 // todo: look at https://github.com/ccxt/ccxt
-public class BitMex {
+public class BitMex extends BaseExchImpl {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
     public static final String SYMBOL = "XBTUSD";
 
     private static String s_apiKey;
     private static String s_apiSecret;
+    private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
+    private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -385,10 +391,11 @@ public class BitMex {
         //  "data":[{"symbol":"XBTUSD","indicativeSettlePrice":8114.41,"timestamp":"2018-03-15T00:53:10.000Z"}]}
     }
 
-    private static void requestLiveTrades(Session session) throws IOException {
+    private static void requestLiveTrades(Session session, Pair pair) throws IOException {
+        String symbol = toSymbol(pair);
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Live trades
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + SYMBOL + "\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + symbol + "\"]}");
 
         // {"table":"trade",
         //  "keys":[],
@@ -432,6 +439,10 @@ public class BitMex {
         //   }
         //  ]
         // }
+    }
+
+    private static String toSymbol(Pair pair) {
+        return SYMBOL; // todo
     }
 
     private static void requestFullOrderBook(Session session) throws IOException {
@@ -509,4 +520,53 @@ public class BitMex {
         RemoteEndpoint.Basic basicRemote = session.getBasicRemote();
         basicRemote.sendText(str);
     }
+
+    @Override public void subscribeTrades(ExchPairData.TradesData tradesData) {
+//        requestLiveTrades(Session session, Pair pair)
+    }
+
+    @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
+        m_exchangeConnectListener = iExchangeConnectListener;
+
+        Endpoint endpoint = new Endpoint() {
+            @Override public void onOpen(final Session session, EndpointConfig config) {
+                log("onOpen");
+                try {
+                    m_session = session;
+                    session.addMessageHandler(new MessageHandler.Whole<String>() {
+                        @Override public void onMessage(String message) {
+                            onMessageX(session, message);
+                        }
+                    });
+                } catch (Exception e) {
+                    log("onOpen ERROR: " + e);
+                    e.printStackTrace();
+                }
+            }
+
+            @Override public void onClose(Session session, CloseReason closeReason) {
+                log("onClose: " + closeReason);
+
+//                m_exchange.m_live = false; // mark as disconnected
+//
+//                m_exchange.m_threadPool.submit(new Runnable() {
+//                    @Override public void run() {
+//                        m_exchange.onDisconnected();
+//                        if (m_exchangeConnectListener != null) {
+//                            m_exchangeConnectListener.onDisconnected();
+//                        }
+//                    }
+//                });
+            }
+
+            @Override public void onError(Session session, Throwable thr) {
+                log("onError: " + thr);
+                thr.printStackTrace();
+            }
+        };
+        log("connectToServer...");
+        connectToServer(endpoint);
+        log("session isOpen=" + m_session.isOpen());
+    }
+
 }

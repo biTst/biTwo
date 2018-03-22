@@ -36,4 +36,8 @@ public class BaseExchImpl {
     }
 
     public void rateLimiterActive(boolean active) { /*noop by def*/ }
+
+    public void subscribeTrades(ExchPairData.TradesData tradesData) {
+        throw new RuntimeException("not implemented: " + this);
+    }
 }

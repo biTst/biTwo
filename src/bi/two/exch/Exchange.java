@@ -103,6 +103,12 @@ public class Exchange {
         m_impl.queryOrderBookSnapshot(orderBook, depth);
     }
 
+    public void subscribeTrades(Pair pair) {
+        ExchPairData pairData = getPairData(pair);
+        ExchPairData.TradesData trades = pairData.getTrades();
+        m_impl.subscribeTrades(trades);
+    }
+
     public void queryAccount(IAccountListener iAccountListener) throws Exception {
         m_accountListener = iAccountListener;
         m_impl.queryAccount();
