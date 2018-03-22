@@ -29,6 +29,10 @@ public class Main {
         INTEGER_FORMAT.setGroupingUsed(true);
     }
 
+    private static void console(String s) { Log.console(s); }
+    private static void log(String s) { Log.log(s); }
+    private static void err(String s, Throwable t) { Log.err(s, t); }
+
     public static void main(final String[] args) {
         Log.s_impl = new Log.StdLog();
         MarketConfig.initMarkets(false);
@@ -78,7 +82,7 @@ public class Main {
             for (int i = 1; producer.isActive(); i++) {
                 cleanMemory();
 
-                System.out.println("## iteration " + i);
+                console("## iteration " + i);
 
                 TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
                 if (!collectTicks) { // add initial tick to update
@@ -86,7 +90,7 @@ public class Main {
                 }
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, ticksTs, config, exchange, pair);
-                System.out.println(" watchers.num=" + watchers.size());
+                console(" watchers.num=" + watchers.size());
 
                 if (watchers.isEmpty()) {
                     continue;
@@ -115,17 +119,15 @@ public class Main {
             bestProducer.logResultsEx();
 
             long allEndMillis = System.currentTimeMillis();
-            System.out.println("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
+            console("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
         } catch (Exception e) {
-            e.printStackTrace();
+            err("load data error: " + e, e);
         }
 
         try {
             Runtime.getRuntime().gc();
             TimeUnit.DAYS.sleep(3);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        } catch (InterruptedException e) { /*noop*/ }
     }
 
     private static void cleanMemory() {
@@ -141,7 +143,7 @@ public class Main {
         long usedMemory2 = totalMemory2 - freeMemory2;
 
 
-        System.out.println("memory(free/used/total/max): "
+        console("memory(free/used/total/max): "
                 + format(freeMemory1) + "/" + format(usedMemory1) + "/" + format(totalMemory1) + "/" + format(maxMemory1)
                 + "  =>  "
                 + format(freeMemory2) + "/" + format(usedMemory2) + "/" + format(totalMemory2) + "/" + format(maxMemory2)
@@ -182,27 +184,27 @@ public class Main {
                     maxGain = gain;
                     maxWatcher = watcher;
                 }
-                System.out.println(watcher.getGainLogStr("", gain));
+                console(watcher.getGainLogStr("", gain));
             }
 
             Watcher lastWatcher = watchers.get(watchersNum - 1);
             long processedPeriod = lastWatcher.getProcessedPeriod();
             long endMillis = System.currentTimeMillis();
-            System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
+            console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
                     + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
 
             double gain = maxWatcher.totalPriceRatio(true);
-            System.out.println(maxWatcher.getGainLogStr("MAX ", gain));
+            console(maxWatcher.getGainLogStr("MAX ", gain));
 
             double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
-            System.out.println(" processedDays=" + processedDays
+            console(" processedDays=" + processedDays
                     + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
                     + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
             );
         }
 
-//        System.out.println(maxWatcher.log());
-//        System.out.println(ralgo.log());
+//        console(maxWatcher.log());
+//        console(ralgo.log());
     }
 
     //=============================================================================================
@@ -240,21 +242,19 @@ public class Main {
         @Override public void run() {
             m_counter++;
             if (m_counter == m_prefillTicks) {
-                System.out.println("PREFILLED: ticksCount=" + m_counter);
+                console("PREFILLED: ticksCount=" + m_counter);
             } else if (m_counter > m_prefillTicks) {
                 if (m_counter % 40 == 0) {
                     m_frame.repaint();
                     try {
                         Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    } catch (InterruptedException e) { /*noop*/ }
                 }
             } else {
                 if (m_counter % 10000 == 0) {
                     long time = System.currentTimeMillis();
                     if (time - lastTime > 10000) {
-                        System.out.println("lines was read: " + m_counter);
+                        console("lines was read: " + m_counter);
                         lastTime = time;
                     }
                 }
