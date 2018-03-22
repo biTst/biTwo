@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
-    public static final int MAX_EVALS_COUNT = 200;
+    public static final int MAX_EVALS_COUNT = 150;
     public static final double RELATIVE_TOLERANCE = 1e-7;
-    public static final double ABSOLUTE_TOLERANCE = 1e-10;
+    public static final double ABSOLUTE_TOLERANCE = 1e-9;
 
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
@@ -141,7 +141,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         // -----------------------------------------------------------------------------------
         try {
             System.out.println("start SimplexOptimizer=======================");
-            MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-6);
+            MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-5);
 
             PointValuePair pair1 = optimize.optimize(
                     new ObjectiveFunction(m_function),
