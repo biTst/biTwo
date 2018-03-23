@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class MarketConfig {
-    private static final String CONFIG_FILE = "cfg.cfg";
+    private static final String CONFIG_FILE = "mkt_cfg.properties";
 
     public static void initMarkets(boolean verbose) {
         Properties properties = new Properties();
@@ -51,16 +51,17 @@ public class MarketConfig {
 
     private static void initExchange(Properties prop, String name, boolean verbose) {
         String prefix = "exchange." + name;
+        String impl = prop.getProperty(prefix + ".impl");
         String baseCurrencyName = prop.getProperty(prefix + ".baseCurrency");
         if (verbose) {
-            System.out.println("  baseCurrencyName=" + baseCurrencyName);
+            System.out.println("  impl=" + impl + "; baseCurrencyName=" + baseCurrencyName);
         }
         if (baseCurrencyName != null) {
             Currency baseCurrency = Currency.getByName(baseCurrencyName);
             if (verbose) {
                 System.out.println("   baseCurrency=" + baseCurrency);
             }
-            Exchange ex = new Exchange(name, baseCurrency);
+            Exchange ex = new Exchange(name, impl, baseCurrency);
             String scheduleStr = prop.getProperty(prefix + ".schedule");
             if (scheduleStr != null) {
                 Schedule schedule = Schedule.valueOf(scheduleStr);

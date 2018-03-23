@@ -1,8 +1,14 @@
 package bi.two.exch;
 
+import bi.two.util.Log;
+
 import java.io.IOException;
 
 public class BaseExchImpl {
+    protected static void console(String s) { Log.console(s); }
+    protected static void log(String s) { Log.log(s); }
+    protected static void err(String s, Throwable t) { Log.err(s, t); }
+
     public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }

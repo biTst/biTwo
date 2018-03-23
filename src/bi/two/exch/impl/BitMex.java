@@ -28,23 +28,20 @@ import java.util.concurrent.TimeUnit;
 public class BitMex extends BaseExchImpl {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
     public static final String SYMBOL = "XBTUSD";
+    public static final String CONFIG_FILE = "cfg\\bitmex.properties";
 
     private static String s_apiKey;
     private static String s_apiSecret;
     private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
 
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
-
     public static void main(String[] args) {
-        log("main()");
+        Log.s_impl = new Log.StdLog();
+        console("main()");
 
         try {
-            String file = "cfg\\bitmex.properties";
             MapConfig config = new MapConfig();
-            config.load(file);
+            config.load(CONFIG_FILE);
             //config.loadAndEncrypted(file);
 
             s_apiKey = config.getString("bitmex_apiKey");
@@ -52,13 +49,13 @@ public class BitMex extends BaseExchImpl {
 
             Endpoint endpoint = new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
-                    log("onOpen() session=" + session + "; config=" + config);
+                    console("onOpen() session=" + session + "; config=" + config);
 
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
                         private boolean waitForFirstMessage = true;
 
                         @Override public void onMessage(String message) {
-                            log("onMessage() message=" + message);
+                            console("onMessage() message=" + message);
                             if (waitForFirstMessage) {
                                 // getting this as first message
                                 // {"info":"Welcome to the BitMEX Realtime API.","version":"1.2.0","timestamp":"2018-03-15T00:29:31.487Z","docs":"https://testnet.bitmex.com/app/wsAPI","limit":{"remaining":39}}
@@ -87,24 +84,24 @@ public class BitMex extends BaseExchImpl {
                 }
 
                 @Override public void onClose(Session session, CloseReason closeReason) {
-                    log("onClose");
+                    console("onClose");
                     super.onClose(session, closeReason);
                 }
 
                 @Override public void onError(Session session, Throwable thr) {
-                    log("onError");
+                    console("onError");
                     super.onError(session, thr);
                 }
             };
 
-            log("connectToServer...");
+            console("connectToServer...");
             connectToServer(endpoint);
 
             Thread.sleep(TimeUnit.DAYS.toMillis(365));
-            log("done");
+            console("done");
 
         } catch (Exception e) {
-            log("error: " + e);
+            console("error: " + e);
             e.printStackTrace();
         }
 
@@ -115,12 +112,12 @@ public class BitMex extends BaseExchImpl {
         try {
             JSONParser parser = new JSONParser();
             JSONObject jsonObject = (JSONObject) parser.parse(message);
-            log(" jsonObject=" + jsonObject);
+            console(" jsonObject=" + jsonObject);
             JSONObject request = (JSONObject) jsonObject.get("request");
-            log(" request=" + request);
+            console(" request=" + request);
             if (request != null) {
                 Boolean success = (Boolean) jsonObject.get("success");
-                log(" success=" + success);
+                console(" success=" + success);
                 onSubscribed(session, success, request);
             } else {
 
@@ -183,7 +180,7 @@ public class BitMex extends BaseExchImpl {
 
     private static void onSubscribed(Session session, Boolean success, JSONObject request) throws IOException {
         String op = (String) request.get("op");
-        log("  op=" + op);
+        console("  op=" + op);
         if (op.equals("authKey")) {
             onAuthenticated(session, success);
         }
@@ -192,7 +189,7 @@ public class BitMex extends BaseExchImpl {
     private static void onAuthenticated(Session session, Boolean success) throws IOException {
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
-        log("onAuthenticated success=" + success);
+        console("onAuthenticated success=" + success);
         if (success) {
             subscribeAccount(session);
         }
@@ -515,7 +512,7 @@ public class BitMex extends BaseExchImpl {
     }
 
     private static void send(Session session, String str) throws IOException {
-        log(">> send: " + str);
+        console(">> send: " + str);
 //        m_rateLimiter.enter();
         RemoteEndpoint.Basic basicRemote = session.getBasicRemote();
         basicRemote.sendText(str);
@@ -530,7 +527,7 @@ public class BitMex extends BaseExchImpl {
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
-                log("onOpen");
+                console("onOpen");
                 try {
                     m_session = session;
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
@@ -539,13 +536,12 @@ public class BitMex extends BaseExchImpl {
                         }
                     });
                 } catch (Exception e) {
-                    log("onOpen ERROR: " + e);
-                    e.printStackTrace();
+                    err("onOpen ERROR: " + e, e);
                 }
             }
 
             @Override public void onClose(Session session, CloseReason closeReason) {
-                log("onClose: " + closeReason);
+                console("onClose: " + closeReason);
 
 //                m_exchange.m_live = false; // mark as disconnected
 //
@@ -560,13 +556,11 @@ public class BitMex extends BaseExchImpl {
             }
 
             @Override public void onError(Session session, Throwable thr) {
-                log("onError: " + thr);
-                thr.printStackTrace();
+                err("onError: " + thr, thr);
             }
         };
-        log("connectToServer...");
+        console("connectToServer...");
         connectToServer(endpoint);
-        log("session isOpen=" + m_session.isOpen());
+        console("session isOpen=" + m_session.isOpen());
     }
-
 }

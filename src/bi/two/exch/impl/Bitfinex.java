@@ -3,7 +3,10 @@ package bi.two.exch.impl;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
-import bi.two.util.*;
+import bi.two.util.MapConfig;
+import bi.two.util.Post;
+import bi.two.util.StreamParser;
+import bi.two.util.Utils;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
@@ -30,10 +33,6 @@ public class Bitfinex extends BaseExchImpl {
         PRICE_FORMAT.setMaximumFractionDigits(8);
         PRICE_FORMAT.setGroupingUsed(false);
     }
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(String[] args) {
 //        MarketConfig.initMarkets();

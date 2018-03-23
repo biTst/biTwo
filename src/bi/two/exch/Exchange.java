@@ -26,17 +26,37 @@ public class Exchange {
 
     private static void console(String s) { Log.console(s); }
 
-    public Exchange(String name, Currency baseCurrency) {
+    public Exchange(String name, String impl, Currency baseCurrency) {
         m_name = name;
         m_baseCurrency = baseCurrency;
         s_exchanges.add(this);
         s_exchangesMap.put(name, this);
         m_accountData = new AccountData(this);
+
+        if (impl != null) {
+            Class<?> aClass;
+            try {
+                aClass = Class.forName(impl);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("impl class '" + impl + "' not found: " + e, e);
+            }
+            Object o;
+            try {
+                o = aClass.newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException("exch impl class '" + impl + "' newInstance error: " + e, e);
+            }
+            if (o instanceof BaseExchImpl) {
+                m_impl = (BaseExchImpl) o;
+            } else {
+                throw new RuntimeException("exch impl class '" + impl + "' not extends BaseExchImpl");
+            }
+        }
     }
 
     @NotNull public static Exchange get(String name) {
         Exchange exchange = s_exchangesMap.get(name);
-        if (exchange == null) {
+        if (exchange == null) { // todo: make lazy
             throw new RuntimeException("Exchange '" + name + "' not found");
         }
         return exchange;

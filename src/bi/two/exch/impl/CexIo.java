@@ -3,7 +3,6 @@ package bi.two.exch.impl;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.*;
 import bi.two.util.Hex;
-import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
@@ -73,10 +72,6 @@ public class CexIo extends BaseExchImpl {
         // "XRP": "0.000000",
         // "ZEC": "0.00000000",
     }
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public CexIo(MapConfig config, Exchange exchange) {
         m_exchange = exchange;
