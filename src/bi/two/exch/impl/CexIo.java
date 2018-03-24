@@ -31,24 +31,24 @@ import java.util.concurrent.TimeUnit;
 //  to check: https://github.com/zackurben/cex.io-api-java  https://github.com/joshho/cex.io-api-java
 public class CexIo extends BaseExchImpl {
     private static final String URL = "wss://ws.cex.io/ws/";
+    private static final String[] s_supportedCurrencies = new String[]{ "BTC", "USD", "EUR", "GBP", "ETH", "XRP", "BCH", "BTG", "DASH", "ZEC", "RUB", };
+    private static final Map<String,Long> m_currencyUnitsMap = new HashMap<>();
 
     public static long s_reconnectTimeout = 2;
     private static RateLimiter m_rateLimiter = new RateLimiter();
 
-    private final Exchange m_exchange;
+    private final Exchange m_exchange; // todo: move to parent
     private final String m_apiKey;
     private final String m_apiSecret;
     private Session m_session;
     private Exchange.IExchangeConnectListener m_exchangeConnectListener;
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
-    private String[] m_supportedCurrencies = new String[]{ "BTC", "USD", "EUR", "GBP", "ETH", "XRP", "BCH", "BTG", "DASH", "ZEC", "RUB", };
     private Map<String,LiveOrdersData> m_liveOrdersRequestsMap = new HashMap<>();
     private Map<String,OrderData> m_submitOrderRequestsMap = new HashMap<>();
     private Map<String,OrderData> m_cancelOrderRequestsMap = new HashMap<>();
-    private Map<String,Long> m_currencyUnitsMap = new HashMap<>();
 
-    {
+    static {
         // Current balance per currency:
         // 1 USD = 100 units, 1 EUR = 100 units, 1 GBP = 100 units, 1 RUB = 100 units, 1 BTC = 100000000 units, 1 LTC = 100000000 units, 1 GHS = 100000000 units, 1 ETH = 1000000 units
 
@@ -66,11 +66,6 @@ public class CexIo extends BaseExchImpl {
         m_currencyUnitsMap.put("XRP", 1000000L);
 
 //        m_currencyUnitsMap.put("ZEC", 1000000L);
-
-        // "BCH": "0.11000000",
-        // "DASH":"0.00000000",
-        // "XRP": "0.000000",
-        // "ZEC": "0.00000000",
     }
 
     public CexIo(MapConfig config, Exchange exchange) {
@@ -78,7 +73,7 @@ public class CexIo extends BaseExchImpl {
         m_apiKey = config.getString("cex_apiKey");
         m_apiSecret = config.getString("cex_apiSecret");
 
-        for (String name : m_supportedCurrencies) {
+        for (String name : s_supportedCurrencies) {
             Currency byName = Currency.get(name.toLowerCase());
             if (byName != null) {
                 m_currencies.add(byName);
@@ -636,7 +631,7 @@ public class CexIo extends BaseExchImpl {
 
         StringBuilder sb = new StringBuilder();
 
-        for (String supportedCurrency : m_supportedCurrencies) {
+        for (String supportedCurrency : s_supportedCurrencies) {
             appendBalance(sb, balance, supportedCurrency);
         }
         sb.replace(0,2, "[");

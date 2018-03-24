@@ -1,6 +1,7 @@
 package bi.two.exch;
 
 import bi.two.util.Log;
+import bi.two.util.MapConfig;
 
 import java.io.IOException;
 
@@ -8,6 +9,10 @@ public class BaseExchImpl {
     protected static void console(String s) { Log.console(s); }
     protected static void log(String s) { Log.log(s); }
     protected static void err(String s, Throwable t) { Log.err(s, t); }
+
+    public void init(MapConfig config) {
+        throw new RuntimeException("not implemented: " + this);
+    }
 
     public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
         throw new RuntimeException("not implemented: " + this);
@@ -43,7 +48,7 @@ public class BaseExchImpl {
 
     public void rateLimiterActive(boolean active) { /*noop by def*/ }
 
-    public void subscribeTrades(ExchPairData.TradesData tradesData) {
+    public void subscribeTrades(ExchPairData.TradesData tradesData) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 }

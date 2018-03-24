@@ -27,13 +27,32 @@ import java.util.concurrent.TimeUnit;
 // todo: look at https://github.com/ccxt/ccxt
 public class BitMex extends BaseExchImpl {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
-    public static final String SYMBOL = "XBTUSD";
-    public static final String CONFIG_FILE = "cfg\\bitmex.properties";
+    private static final String SYMBOL = "XBTUSD";
+    private static final String CONFIG_FILE = "cfg\\bitmex.properties";
+    private static final String API_KEY_KEY = "bitmex_apiKey";
+    private static final String API_SECRET_KEY = "bitmex_apiSecret";
 
-    private static String s_apiKey;
-    private static String s_apiSecret;
+    private Exchange m_exchange; // todo: move to parent
+    private String m_apiKey;
+    private String m_apiSecret;
+
     private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
+    private boolean m_waitingFirstAccountUpdate;
+
+    public BitMex(Exchange exchange) {
+        m_exchange = exchange;
+    }
+
+    public void init(MapConfig config) {
+        m_apiKey = config.getString(API_KEY_KEY);
+        m_apiSecret = config.getString(API_SECRET_KEY);
+    }
+
+    private static String toSymbol(Pair pair) {
+console("toSymbol pair=" + pair + "  => " + SYMBOL);
+        return SYMBOL; // todo
+    }
 
     public static void main(String[] args) {
         Log.s_impl = new Log.StdLog();
@@ -43,9 +62,6 @@ public class BitMex extends BaseExchImpl {
             MapConfig config = new MapConfig();
             config.load(CONFIG_FILE);
             //config.loadAndEncrypted(file);
-
-            s_apiKey = config.getString("bitmex_apiKey");
-            s_apiSecret = config.getString("bitmex_apiSecret");
 
             Endpoint endpoint = new Endpoint() {
                 @Override public void onOpen(final Session session, EndpointConfig config) {
@@ -71,13 +87,13 @@ public class BitMex extends BaseExchImpl {
 //                                    requestInstrument(session);
 //                                    requestOrderBook(session);
 //                                    requestQuote(session);
-                                    authenticate(session);
+//                                    authenticate(session);
 
                                 } catch (Exception e) {
                                     err("send error: " + e, e);
                                 }
                             } else {
-                                onMessageX(session, message);
+//                                onMessageX(session, message);
                             }
                         }
                     });
@@ -104,86 +120,72 @@ public class BitMex extends BaseExchImpl {
             console("error: " + e);
             e.printStackTrace();
         }
-
-        //        test();
     }
 
-    private static void onMessageX(Session session, String message) {
+    private void onMessageX(Session session, String message) {
         try {
+            console("<< " + message);
             JSONParser parser = new JSONParser();
-            JSONObject jsonObject = (JSONObject) parser.parse(message);
-            console(" jsonObject=" + jsonObject);
-            JSONObject request = (JSONObject) jsonObject.get("request");
+            JSONObject json = (JSONObject) parser.parse(message);
+            console(" json=" + json);
+            JSONObject request = (JSONObject) json.get("request");
             console(" request=" + request);
             if (request != null) {
-                Boolean success = (Boolean) jsonObject.get("success");
-                console(" success=" + success);
-                onSubscribed(session, success, request);
+                // {"success":true,                     "request":{"op":"authKey","args":["QGCD0OqdauJZ9LHbvBuq0tHE",1521898505226,"caa8ec1a5cecd030019c22f73a42a0774775653a9a21dd90395ffbafb9e87b98"]}}
+                // {"success":true,"subscribe":"margin","request":{"op":"subscribe","args":["margin"]}}
+                Boolean success = (Boolean) json.get("success");
+                if (success != null) {
+                    String subscribe = (String) json.get("subscribe");
+                    console(" success=" + success + "; subscribe=" + subscribe);
+                    if (subscribe != null) {
+                        onSubscribed(session, subscribe, success, request);
+                    } else {
+                        String op = (String) request.get("op");
+                        console("  op=" + op);
+                        if (op.equals("authKey")) {
+                            onAuthenticated(session, success);
+                        } else {
+                            console("ERROR: not supported message (op='" + op + "'): " + json);
+                        }
+                    }
+                } else {
+                    console("ERROR: not supported message (no success): " + json);
+                }
             } else {
-
+                String table = (String) json.get("table");
+                if (table != null) {
+                    if (table.equals("margin")) {
+                        onMargin(json);
+                    } else if (table.equals("trade")) {
+                        onTrade(json);
+                    } else {
+                        console("ERROR: not supported table='" + table + "' message: " + json);
+                    }
+                } else {
+                    String info = (String) json.get("info");
+                    String version = (String) json.get("version");
+                    console(" info=" + info + "; version=" + version);
+                    if ((info != null) && (version != null)) {
+                        // getting this as first message
+                        // {"info":"Welcome to the BitMEX Realtime API.","version":"1.2.0","timestamp":"2018-03-15T00:29:31.487Z","docs":"https://testnet.bitmex.com/app/wsAPI","limit":{"remaining":39}}
+                        authenticate(session);
+                    } else {
+                        console("ERROR: not supported message: " + json);
+                    }
+                }
             }
-
-//            String e = (String) jsonObject.get("e");
-//            if (Utils.equals(e, "connected")) {
-//                onConnected(session);
-//            } else if (Utils.equals(e, "auth")) {
-//                onAuth(session, jsonObject);
-//            } else if (Utils.equals(e, "ping")) {
-//                onPing(session, jsonObject);
-//            } else if (Utils.equals(e, "tick")) {
-//                onTick(session, jsonObject);
-//            } else if (Utils.equals(e, "ticker")) {
-//                onTicker(session, jsonObject);
-//            } else if (Utils.equals(e, "get-balance")) {
-//                onGetBalance(session, jsonObject);
-//            } else if (Utils.equals(e, "order-book-subscribe")) {
-//                onOrderBookSubscribe(session, jsonObject);
-//            } else if (Utils.equals(e, "order-book-unsubscribe")) {
-//                onOrderBookUnsubscribe(session, jsonObject);
-//            } else if (Utils.equals(e, "open-orders")) {
-//                processOpenOrders(jsonObject);
-//            } else if (Utils.equals(e, "place-order")) {
-//                onPlaceOrder(jsonObject);
-//            } else if (Utils.equals(e, "cancel-replace-order")) {
-//                onCancelReplaceOrder(jsonObject);
-//            } else if (Utils.equals(e, "cancel-order")) {
-//                onCancelOrder(jsonObject);
-//            } else if (Utils.equals(e, "order")) {
-//                onOrder(jsonObject);
-//            } else if (Utils.equals(e, "balance")) {
-//                onBalance(session, jsonObject);
-//            } else if (Utils.equals(e, "obalance")) {
-//                onObalance(session, jsonObject);
-//            } else if (Utils.equals(e, "tx")) {
-//                onTx(session, jsonObject);
-//            } else if (Utils.equals(e, "md")) {
-//                onMd(session, jsonObject);
-//            } else if (Utils.equals(e, "md_groupped")) {
-//                onMdGroupped(session, jsonObject);
-//            } else if (Utils.equals(e, "md_update")) {
-//                onMdUpdate(session, jsonObject);
-//            } else if (Utils.equals(e, "history")) {
-//                onHistory(session, jsonObject);
-//            } else if (Utils.equals(e, "history-update")) {
-//                onHistoryUpdate(session, jsonObject);
-//            } else if (Utils.equals(e, "ohlcv24")) {
-//                onOhlcv24(session, jsonObject);
-//            } else if (Utils.equals(e, "disconnecting")) {
-//                onDisconnecting(session, jsonObject);
-//            } else {
-//                throw new RuntimeException("unexpected json: " + jsonObject);
-//            }
         } catch (Exception e) {
             err("onMessageX ERROR: " + e, e);
         }
     }
 
-    private static void onSubscribed(Session session, Boolean success, JSONObject request) throws IOException {
-        String op = (String) request.get("op");
-        console("  op=" + op);
-        if (op.equals("authKey")) {
-            onAuthenticated(session, success);
-        }
+    private static void onSubscribed(Session session, String topic, Boolean success, JSONObject request) throws IOException {
+        console("  onSubscribed topic=" + topic + "; success=" + success);
+//        if (op.equals("authKey")) {
+//            onAuthenticated(session, success);
+//        } else {
+//            console("ERROR: not supported subscribe message (op='" + op + "'): request=" + request);
+//        }
     }
 
     private static void onAuthenticated(Session session, Boolean success) throws IOException {
@@ -200,6 +202,12 @@ public class BitMex extends BaseExchImpl {
         // Updates on your current account balance and margin requirements
         send(session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
 
+        // {"success":true,
+        //  "subscribe":"margin",
+        //  "request":{"op":"subscribe","args":["margin"]}}
+    }
+
+    private void onMargin(JSONObject json) {
         // {"table":"margin",
         //  "keys":["account","currency"],
         //  "types":{"account":"long","currency":"symbol","riskLimit":"long","prevState":"symbol","state":"symbol","action":"symbol","amount":"long","pendingCredit":"long","pendingDebit":"long",
@@ -225,12 +233,16 @@ public class BitMex extends BaseExchImpl {
         // "filter":{"account":47464},
         // "sendingTime":"2018-03-15T15:11:50.979Z"}
 
-        // {"success":true,
-        //  "subscribe":"margin",
-        //  "request":{"op":"subscribe","args":["margin"]}}
+        if (m_waitingFirstAccountUpdate) {
+            m_waitingFirstAccountUpdate = false;
+            // connected + authenticated + gotAccountData
+            if (m_exchangeConnectListener != null) {
+                m_exchangeConnectListener.onConnected();
+            }
+        }
     }
 
-    private static void authenticate(Session session) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
+    private void authenticate(Session session) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // signature is hex(HMAC_SHA256(secret, 'GET/realtime' + nonce))
         // nonce must be a number, not a string.
@@ -250,14 +262,14 @@ public class BitMex extends BaseExchImpl {
 
         long nounce = System.currentTimeMillis();
 
-        SecretKeySpec keySpec = new SecretKeySpec(s_apiSecret.getBytes(), "HmacSHA256");
+        SecretKeySpec keySpec = new SecretKeySpec(m_apiSecret.getBytes(), "HmacSHA256");
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(keySpec);
         String line = "GET/realtime" + nounce;
         byte[] hmacBytes = mac.doFinal(line.getBytes());
         String signature = Hex.bytesToHexLowerCase(hmacBytes);
 
-        send(session, "{\"op\": \"authKey\", \"args\": [\"" + s_apiKey + "\", " + nounce + ", \"" + signature + "\"]}");
+        send(session, "{\"op\": \"authKey\", \"args\": [\"" + m_apiKey + "\", " + nounce + ", \"" + signature + "\"]}");
 
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
@@ -394,52 +406,42 @@ public class BitMex extends BaseExchImpl {
         // Live trades
         send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + symbol + "\"]}");
 
+        // {"success":true,
+        //  "subscribe":"trade:XBTUSD",
+        //  "request":{"op":"subscribe","args":["trade:XBTUSD"]}
+        // }
+    }
+
+    private void onTrade(JSONObject json) {
         // {"table":"trade",
+        //  "action":"partial",
         //  "keys":[],
         //  "types":{"timestamp":"timestamp","symbol":"symbol","side":"symbol","size":"long","price":"float","tickDirection":"symbol","trdMatchID":"guid","grossValue":"long","homeNotional":"float","foreignNotional":"float"},
         //  "foreignKeys":{"symbol":"instrument","side":"side"},
         //  "attributes":{"timestamp":"sorted","symbol":"grouped"},
-        //  "action":"partial",
         //  "data":[
-        //   {"timestamp":"2018-03-15T00:47:51.389Z",
-        //    "symbol":"XBTUSD",
+        //   {"symbol":"XBTUSD",
         //    "side":"Buy",
-        //    "size":3000,
+        //    "size":3000, "foreignNotional":3000
         //    "price":8121,
-        //    "tickDirection":"MinusTick",
-        //    "trdMatchID":"92658e51-e4b5-3378-254b-ec2a85cb9a9e",
         //    "grossValue":36942000,
         //    "homeNotional":0.36942,
-        //    "foreignNotional":3000}
-        //   ],
+        //    "timestamp":"2018-03-15T00:47:51.389Z", "tickDirection":"MinusTick", "trdMatchID":"92658e51-e4b5-3378-254b-ec2a85cb9a9e",
+        //    }],
         //  "filter":{"symbol":"XBTUSD"}
-        // }
-
-        // {"success":true,
-        //  "subscribe":"trade:XBTUSD",
-        //  "request":{"op":"subscribe","args":["trade:XBTUSD"]}
         // }
 
         // {"table":"trade",
         //  "action":"insert",
         //  "data":[
-        //   {"timestamp":"2018-03-15T00:47:57.027Z",
-        //    "symbol":"XBTUSD",
+        //   {"symbol":"XBTUSD",
         //    "side":"Buy",
-        //    "size":229,
+        //    "size":229,  "foreignNotional":229
         //    "price":8120,
-        //    "tickDirection":"MinusTick",
-        //    "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
         //    "grossValue":2820135,
         //    "homeNotional":0.02820135,
-        //    "foreignNotional":229
-        //   }
-        //  ]
-        // }
-    }
-
-    private static String toSymbol(Pair pair) {
-        return SYMBOL; // todo
+        //    "timestamp":"2018-03-15T00:47:57.027Z", "tickDirection":"MinusTick", "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
+        //   }]}
     }
 
     private static void requestFullOrderBook(Session session) throws IOException {
@@ -518,8 +520,8 @@ public class BitMex extends BaseExchImpl {
         basicRemote.sendText(str);
     }
 
-    @Override public void subscribeTrades(ExchPairData.TradesData tradesData) {
-//        requestLiveTrades(Session session, Pair pair)
+    @Override public void subscribeTrades(ExchPairData.TradesData tradesData) throws IOException {
+        requestLiveTrades(m_session, tradesData.m_pair);
     }
 
     @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
@@ -528,6 +530,7 @@ public class BitMex extends BaseExchImpl {
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
                 console("onOpen");
+                m_waitingFirstAccountUpdate = true;
                 try {
                     m_session = session;
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
@@ -543,14 +546,14 @@ public class BitMex extends BaseExchImpl {
             @Override public void onClose(Session session, CloseReason closeReason) {
                 console("onClose: " + closeReason);
 
-//                m_exchange.m_live = false; // mark as disconnected
-//
+                m_exchange.m_live = false; // mark as disconnected
+
 //                m_exchange.m_threadPool.submit(new Runnable() {
 //                    @Override public void run() {
-//                        m_exchange.onDisconnected();
-//                        if (m_exchangeConnectListener != null) {
-//                            m_exchangeConnectListener.onDisconnected();
-//                        }
+                        m_exchange.onDisconnected();
+                        if (m_exchangeConnectListener != null) {
+                            m_exchangeConnectListener.onDisconnected();
+                        }
 //                    }
 //                });
             }

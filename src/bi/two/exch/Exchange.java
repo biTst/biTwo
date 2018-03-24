@@ -42,7 +42,7 @@ public class Exchange {
             }
             Object o;
             try {
-                o = aClass.newInstance();
+                o = aClass.getDeclaredConstructor(Exchange.class).newInstance(this);
             } catch (Exception e) {
                 throw new RuntimeException("exch impl class '" + impl + "' newInstance error: " + e, e);
             }
@@ -123,7 +123,7 @@ public class Exchange {
         m_impl.queryOrderBookSnapshot(orderBook, depth);
     }
 
-    public void subscribeTrades(Pair pair) {
+    public void subscribeTrades(Pair pair) throws Exception {
         ExchPairData pairData = getPairData(pair);
         ExchPairData.TradesData trades = pairData.getTrades();
         m_impl.subscribeTrades(trades);

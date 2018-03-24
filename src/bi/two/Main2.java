@@ -43,6 +43,8 @@ public class Main2 extends Thread {
 
             String exchangeName = config.getString("exchange");
             m_exchange = Exchange.get(exchangeName);
+            m_exchange.m_impl.init(config);
+
             String pairName = config.getString("pair");
             m_pair = Pair.getByName(pairName);
 //            ExchPairData pairData = exchange.getPairData(pair);
@@ -84,7 +86,11 @@ public class Main2 extends Thread {
     }
 
     private void onGotAccount() {
-        m_exchange.subscribeTrades(m_pair);
+        try {
+            m_exchange.subscribeTrades(m_pair);
+        } catch (Exception e) {
+            err("subscribeTrades error: " + e, e);
+        }
     }
 
     private void onExchangeDisconnected() {
