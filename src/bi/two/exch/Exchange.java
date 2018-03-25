@@ -123,9 +123,10 @@ public class Exchange {
         m_impl.queryOrderBookSnapshot(orderBook, depth);
     }
 
-    public void subscribeTrades(Pair pair) throws Exception {
+    public void subscribeTrades(Pair pair, ExchPairData.TradesData.ITradeListener tl) throws Exception {
         ExchPairData pairData = getPairData(pair);
         ExchPairData.TradesData trades = pairData.getTrades();
+        trades.setTradeListener(tl);
         m_impl.subscribeTrades(trades);
     }
 

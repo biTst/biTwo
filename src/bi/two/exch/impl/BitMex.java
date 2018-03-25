@@ -1,14 +1,14 @@
 package bi.two.exch.impl;
 
-import bi.two.exch.BaseExchImpl;
-import bi.two.exch.ExchPairData;
-import bi.two.exch.Exchange;
-import bi.two.exch.Pair;
+import bi.two.chart.TradeData;
+import bi.two.exch.*;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
@@ -20,6 +20,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 // based on info from
@@ -31,6 +35,11 @@ public class BitMex extends BaseExchImpl {
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
+    private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+    static {
+        TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
+    }
 
     private Exchange m_exchange; // todo: move to parent
     private String m_apiKey;
@@ -49,9 +58,15 @@ public class BitMex extends BaseExchImpl {
         m_apiSecret = config.getString(API_SECRET_KEY);
     }
 
-    private static String toSymbol(Pair pair) {
-console("toSymbol pair=" + pair + "  => " + SYMBOL);
+    private static String pairToSymbol(Pair pair) {
+console("pairToSymbol pair=" + pair + "  => " + SYMBOL);
         return SYMBOL; // todo
+    }
+
+    private static Pair symbolToPair(String symbol) {
+        Pair ret = Pair.getByName("btc_usd");
+console("symbolToPair symbol=" + symbol + "  => " + ret);
+        return ret; // todo
     }
 
     public static void main(String[] args) {
@@ -401,7 +416,7 @@ console("toSymbol pair=" + pair + "  => " + SYMBOL);
     }
 
     private static void requestLiveTrades(Session session, Pair pair) throws IOException {
-        String symbol = toSymbol(pair);
+        String symbol = pairToSymbol(pair);
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Live trades
         send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + symbol + "\"]}");
@@ -412,7 +427,7 @@ console("toSymbol pair=" + pair + "  => " + SYMBOL);
         // }
     }
 
-    private void onTrade(JSONObject json) {
+    private void onTrade(JSONObject json) throws ParseException {
         // {"table":"trade",
         //  "action":"partial",
         //  "keys":[],
@@ -442,6 +457,50 @@ console("toSymbol pair=" + pair + "  => " + SYMBOL);
         //    "homeNotional":0.02820135,
         //    "timestamp":"2018-03-15T00:47:57.027Z", "tickDirection":"MinusTick", "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
         //   }]}
+
+        String symbol = null;
+        ExchPairData.TradesData trades = null;
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console("  got " + size + " trades");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+            console("   [" + i + "]:" + obj);
+            TradeData td = parseTrade(obj);
+            String s = (String) obj.get("symbol");
+            if (!Utils.equals(s, symbol)) {
+                symbol = (String) obj.get("symbol");
+                Pair pair = symbolToPair(symbol);
+                ExchPairData pairData = m_exchange.getPairData(pair);
+                trades = pairData.getTrades();
+            }
+            trades.onTrade(td);
+        }
+    }
+
+    private TradeData parseTrade(JSONObject obj) throws ParseException {
+        //   {"symbol":"XBTUSD",
+        //    "side":"Buy",
+        //    "size":229,  "foreignNotional":229
+        //    "price":8120,
+        //    "grossValue":2820135,
+        //    "homeNotional":0.02820135,
+        //    "timestamp":"2018-03-15T00:47:57.027Z", "tickDirection":"MinusTick", "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
+        //   }
+
+        String side = (String) obj.get("side");
+        Number size = (Number) obj.get("size");
+        Number price = (Number) obj.get("price");
+        String timestampStr = (String) obj.get("timestamp");
+        console("    side=" + side + "; size=" + size + "; price=" + price + "; timestamp=" + timestampStr);
+
+        boolean isBuy = side.equals("Buy");
+        OrderSide orderSide = OrderSide.get(isBuy);
+        Date date = TIMESTAMP_FORMAT.parse(timestampStr);
+        long timestamp = date.getTime();
+        console("     isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
+
+        return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
     }
 
     private static void requestFullOrderBook(Session session) throws IOException {

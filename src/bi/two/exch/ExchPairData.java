@@ -1,5 +1,6 @@
 package bi.two.exch;
 
+import bi.two.chart.TradeData;
 import bi.two.tre.CurrencyValue;
 
 import java.io.IOException;
@@ -120,16 +121,16 @@ public class ExchPairData {
             m_pair = pair;
         }
 
-        public void notifyListener() {
+        public void onTrade(TradeData td) {
             if (m_tradeListener != null) {
-                m_tradeListener.onTrade();
+                m_tradeListener.onTrade(td);
             }
         }
 
 
         //----------------------------------------------------------------------------
         public interface ITradeListener {
-            void onTrade();
+            void onTrade(TradeData td);
         }
     }
 }

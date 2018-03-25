@@ -3,6 +3,8 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.ITickData;
+import bi.two.chart.TradeData;
+import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
@@ -82,12 +84,15 @@ public class Main2 extends Thread {
 //            }
 //        });
         onGotAccount();
-
     }
 
     private void onGotAccount() {
         try {
-            m_exchange.subscribeTrades(m_pair);
+            m_exchange.subscribeTrades(m_pair, new ExchPairData.TradesData.ITradeListener() {
+                @Override public void onTrade(TradeData td) {
+                    console("onTrade td="+td);
+                }
+            });
         } catch (Exception e) {
             err("subscribeTrades error: " + e, e);
         }
