@@ -13,6 +13,8 @@ import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class Main2 extends Thread {
@@ -39,9 +41,11 @@ public class Main2 extends Thread {
 
     @Override public void run() {
         try {
+            console("Main2 started");
             MapConfig config = new MapConfig();
 //            config.loadAndEncrypted(CONFIG);
             config.load(CONFIG);
+            console("config loaded");
 
             String exchangeName = config.getString("exchange");
             m_exchange = Exchange.get(exchangeName);
@@ -52,16 +56,19 @@ public class Main2 extends Thread {
 //            ExchPairData pairData = exchange.getPairData(pair);
 
             String algoName = config.getPropertyNoComment(BaseAlgo.ALGO_NAME_KEY);
+            console("exchange " + exchangeName + "; pair=" + pairName + "; algo=" + algoName);
             if (algoName == null) {
                 throw new RuntimeException("no '" + BaseAlgo.ALGO_NAME_KEY + "' param");
             }
             Algo algo = Algo.valueOf(algoName);
             BaseTimesSeriesData tsd = new ExchangeTradesTimesSeriesData(m_exchange, m_pair);
             BaseAlgo algoImpl = algo.createAlgo(config, tsd);
-            long preload = algoImpl.getPreloadPeriod();
+            final long preload = algoImpl.getPreloadPeriod();
+
+            final TradesPreloader preloader = new TradesPreloader(preload);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
-                @Override public void onConnected() { onExchangeConnected(); }
+                @Override public void onConnected() { onExchangeConnected(preloader); }
                 @Override public void onDisconnected() { onExchangeDisconnected(); }
             });
 
@@ -75,7 +82,7 @@ public class Main2 extends Thread {
         }
     }
 
-    private void onExchangeConnected() {
+    private void onExchangeConnected(TradesPreloader preloader) {
         console("onExchangeConnected");
 
 //        m_exchange.queryAccount(new Exchange.IAccountListener() {
@@ -83,14 +90,15 @@ public class Main2 extends Thread {
 //                onGotAccount();
 //            }
 //        });
-        onGotAccount();
+        onGotAccount(preloader);
     }
 
-    private void onGotAccount() {
+    private void onGotAccount(final TradesPreloader preloader) {
         try {
             m_exchange.subscribeTrades(m_pair, new ExchPairData.TradesData.ITradeListener() {
                 @Override public void onTrade(TradeData td) {
-                    console("onTrade td="+td);
+                    console("onTrade td=" + td);
+                    preloader.addNewestTick(td);
                 }
             });
         } catch (Exception e) {
@@ -125,8 +133,27 @@ public class Main2 extends Thread {
 
 
     // -----------------------------------------------------------------------------------------------------------
+    private class TradesPreloader {
+        private boolean m_waitingFirstTrade = true;
+        private List<TradeData> m_liveTicks = new ArrayList<>();
+
+        public TradesPreloader(long preload) {
+
+        }
+
+        public void addNewestTick(TradeData td) {
+            m_liveTicks.add(td);
+            if (m_waitingFirstTrade) {
+                m_waitingFirstTrade = false;
+                long timestamp = td.getTimestamp();
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
     private class IntConsoleReader extends ConsoleReader {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
+
 }
