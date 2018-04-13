@@ -1,5 +1,6 @@
 package bi.two.exch.impl;
 
+import bi.two.Main2;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
 import bi.two.util.Hex;
@@ -481,15 +482,14 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
     private TradeData parseTrade(JSONObject obj) throws ParseException {
         //   {"symbol":"XBTUSD",
         //    "side":"Buy",
-        //    "size":229,  "foreignNotional":229
         //    "price":8120,
-        //    "grossValue":2820135,
-        //    "homeNotional":0.02820135,
+        //    "size":229,  "foreignNotional":229  <in XBT>
+        //    "grossValue":2820135, <in satoshi>  "homeNotional":0.02820135, <in BTC>
         //    "timestamp":"2018-03-15T00:47:57.027Z", "tickDirection":"MinusTick", "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
         //   }
 
         String side = (String) obj.get("side");
-        Number size = (Number) obj.get("size");
+        Number size = (Number) obj.get("homeNotional");
         Number price = (Number) obj.get("price");
         String timestampStr = (String) obj.get("timestamp");
         console("    side=" + side + "; size=" + size + "; price=" + price + "; timestamp=" + timestampStr);
@@ -624,5 +624,9 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         console("connectToServer...");
         connectToServer(endpoint);
         console("session isOpen=" + m_session.isOpen());
+    }
+
+    @Override public Main2.TicksCacheReader getTicksCacheReader() {
+        return new Main2.TicksCacheReader(Main2.TicksCacheReader.TicksCacheType.one);
     }
 }

@@ -133,8 +133,9 @@ public class Main2 extends Thread {
 
 
     // -----------------------------------------------------------------------------------------------------------
-    private class TradesPreloader {
+    private class TradesPreloader implements Runnable {
         private boolean m_waitingFirstTrade = true;
+        private long m_firstTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
 
         public TradesPreloader(long preload) {
@@ -145,8 +146,38 @@ public class Main2 extends Thread {
             m_liveTicks.add(td);
             if (m_waitingFirstTrade) {
                 m_waitingFirstTrade = false;
-                long timestamp = td.getTimestamp();
+                m_firstTradeTimestamp = td.getTimestamp();
+                console("first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
+
+                Thread thread = new Thread(this, "TradesPreloader");
+                thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
             }
+        }
+
+        @Override public void run() {
+            console("TradesPreloader started");
+
+            loadCacheInfo();
+
+        }
+
+        private void loadCacheInfo() {
+            console("loadCacheInfo");
+            TicksCacheReader ticksCacheReader = m_exchange.getTicksCacheReader();
+        }
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    public static class TicksCacheReader {
+        private TicksCacheType m_type;
+
+        public TicksCacheReader(TicksCacheType type) {
+            m_type = type;
+        }
+
+        public enum TicksCacheType {
+            one
         }
     }
 
@@ -155,5 +186,4 @@ public class Main2 extends Thread {
         @Override protected void beforeLine() { System.out.print(">"); }
         @Override protected boolean processLine(String line) throws Exception { return onConsoleLine(line); }
     }
-
 }

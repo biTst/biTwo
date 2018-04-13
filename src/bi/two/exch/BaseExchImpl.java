@@ -1,5 +1,6 @@
 package bi.two.exch;
 
+import bi.two.Main2;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
@@ -49,6 +50,10 @@ public class BaseExchImpl {
     public void rateLimiterActive(boolean active) { /*noop by def*/ }
 
     public void subscribeTrades(ExchPairData.TradesData tradesData) throws Exception {
+        throw new RuntimeException("not implemented: " + this);
+    }
+
+    public Main2.TicksCacheReader getTicksCacheReader() {
         throw new RuntimeException("not implemented: " + this);
     }
 }

@@ -1,5 +1,6 @@
 package bi.two.exch;
 
+import bi.two.Main2;
 import bi.two.tre.CurrencyValue;
 import bi.two.util.Log;
 import org.jetbrains.annotations.NotNull;
@@ -182,6 +183,10 @@ public class Exchange {
 
     public void rateLimiterActive(boolean active) {
         m_impl.rateLimiterActive(active);
+    }
+
+    public Main2.TicksCacheReader getTicksCacheReader() {
+        return m_impl.getTicksCacheReader();
     }
 
 
