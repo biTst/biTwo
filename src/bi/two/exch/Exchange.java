@@ -189,6 +189,10 @@ public class Exchange {
         return m_impl.getTicksCacheReader();
     }
 
+    public void loadTrades(long timestamp) throws Exception {
+        m_impl.loadTrades(timestamp);
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {

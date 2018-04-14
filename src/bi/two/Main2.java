@@ -151,19 +151,31 @@ public class Main2 extends Thread {
 
                 Thread thread = new Thread(this, "TradesPreloader");
                 thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+                thread.start();
             }
         }
 
         @Override public void run() {
             console("TradesPreloader started");
 
-            loadCacheInfo();
+            try {
+                loadCacheInfo();
+                loadNewestTrades();
+            } catch (Exception e) {
+                err("TradesPreloader error: " + e, e);
+            }
 
+        }
+
+        private void loadNewestTrades() throws Exception {
+            console("loadNewestTrades");
+            m_exchange.loadTrades(m_firstTradeTimestamp);
         }
 
         private void loadCacheInfo() {
             console("loadCacheInfo");
             TicksCacheReader ticksCacheReader = m_exchange.getTicksCacheReader();
+
         }
     }
 

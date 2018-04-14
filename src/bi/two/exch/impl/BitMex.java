@@ -7,6 +7,24 @@ import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import org.apache.http.HeaderIterator;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
+import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultConnectionKeepAliveStrategy;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.util.EntityUtils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.json.simple.JSONArray;
@@ -17,8 +35,12 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.websocket.*;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
@@ -629,4 +651,150 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
     @Override public Main2.TicksCacheReader getTicksCacheReader() {
         return new Main2.TicksCacheReader(Main2.TicksCacheReader.TicksCacheType.one);
     }
+
+    @Override public void loadTrades(long timestamp) throws Exception {
+        Date date = new Date(timestamp);
+        String start = TIMESTAMP_FORMAT.format(date);
+        console("loadTrades timestamp=" + timestamp + "; start=" + start);
+
+        // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
+        URI uri = new URIBuilder()
+                .setScheme("https")
+                .setHost("testnet.bitmex.com")
+                .setPath("/api/v1/trade")
+                .setParameter("symbol", "XBTUSD")
+                .setParameter("count", "10")
+                .setParameter("reverse", "true")
+//                .setParameter("startTime", start)
+                .setParameter("endTime", start)
+                .build();
+        HttpGet httpget = new HttpGet(uri);
+        httpget.addHeader("Accept", "application/json");
+
+        console("execute " + httpget);
+
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setSocketTimeout(1000)
+                .setConnectTimeout(1000)
+                .build();
+        httpget.setConfig(requestConfig);
+
+        ConnectionKeepAliveStrategy keepAliveStrat = new DefaultConnectionKeepAliveStrategy() {
+            @Override public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+                long keepAlive = super.getKeepAliveDuration(response, context);
+                if (keepAlive == -1) {
+                    // Keep connections alive 5 seconds if a keep-alive value has not be explicitly set by the server
+                    keepAlive = 5000;
+                }
+                return keepAlive;
+            }
+        };
+
+        // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
+        //     https://hc.apache.org/httpcomponents-client-ga/examples.html
+        CloseableHttpClient httpclient = HttpClients.custom()
+                .setKeepAliveStrategy(keepAliveStrat)
+                .build();
+
+        //CloseableHttpClient httpclient = HttpClients.createDefault();
+
+        try {
+            CloseableHttpResponse response = httpclient.execute(httpget);
+            try {
+                console("ProtocolVersion=" + response.getProtocolVersion());
+                console("StatusCode=" + response.getStatusLine().getStatusCode());
+                console("ReasonPhrase=" + response.getStatusLine().getReasonPhrase());
+                console("StatusLine=" + response.getStatusLine());
+
+                HeaderIterator it = response.headerIterator();
+                while (it.hasNext()) {
+                    System.out.println("Header: " + it.next());
+                }
+
+                HttpEntity entity = response.getEntity();
+                console("entity=" + entity);
+                if (entity != null) {
+                    long contentLength = entity.getContentLength();
+                    console("contentLength=" + contentLength);
+                    if ((contentLength != -1) && (contentLength < 2048)) {
+                        String str = EntityUtils.toString(entity);
+                        console(str);
+                    } else {
+                        ContentType contentType = ContentType.getOrDefault(entity);
+                        console("contentType=" + contentType);
+                        Charset charset = contentType.getCharset();
+                        console("charset=" + charset);
+                        InputStream instream = entity.getContent();
+                        Reader reader = new InputStreamReader(instream, charset);
+
+                        try {
+                            Gson gson = new GsonBuilder().create();
+
+                            JsonElement json = gson.fromJson(reader, JsonElement.class);
+                            if (json instanceof JsonArray) {
+                                JsonArray array = (JsonArray) json;
+                                for (JsonElement next : array) {
+                                    console(next.toString());
+                                }
+                            } else {
+                                console(json.toString());
+                            }
+
+//                        List<Tr> list = gson.fromJson(reader, new TypeToken<List<Tr>>(){}.getType());
+//                        List<Tr> subList = list.subList(0, 5);
+//                        for (Tr tr : subList) {
+//                            console(tr.toString());
+//                            // size / price = homeNotional
+//                        }
+
+//                        char[] buf = new char[256];
+//                        int read;
+//                        while ((read = reader.read(buf)) > 0) {
+//                            String str = new String(buf, 0, read);
+//                            console(str);
+//                        }
+                        } finally {
+                            reader.close();
+                        }
+                    }
+                }
+            } finally {
+                response.close();
+            }
+        } finally {
+            httpclient.close();
+        }
+    }
+
+    public class Tr {
+        public String timestamp;
+        public double price;
+        public long size;
+        public long grossValue;
+        public double homeNotional;
+        public double foreignNotional;
+
+        @Override public String toString() {
+            return "Tr{" +
+                    "timestamp='" + timestamp + '\'' +
+                    ", price=" + price +
+                    ", size=" + size +
+                    ", grossValue=" + grossValue +
+                    ", homeNotional=" + homeNotional +
+                    ", foreignNotional=" + foreignNotional +
+                    '}';
+        }
+    }
+
+//                        "timestamp": "2016-05-05T04:50:46.067Z",
+//                            "symbol": "XBTUSD",
+//                            "side": "Buy",
+//                            "size": 1377,
+//                            "price": 447.43,
+//                            "tickDirection": "ZeroPlusTick",
+//                            "trdMatchID": "07b3bf2e-b40f-7c24-6c51-3bd110fec715",
+//                            "grossValue": 307758123,
+//                            "homeNotional": 3.07758123,
+//                            "foreignNotional": 1377
+
 }

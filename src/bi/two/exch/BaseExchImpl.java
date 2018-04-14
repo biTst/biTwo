@@ -56,4 +56,8 @@ public class BaseExchImpl {
     public Main2.TicksCacheReader getTicksCacheReader() {
         throw new RuntimeException("not implemented: " + this);
     }
+
+    public void loadTrades(long timestamp) throws Exception {
+        throw new RuntimeException("not implemented: " + this);
+    }
 }
