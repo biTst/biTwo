@@ -59,7 +59,7 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public <T extends ITickData> List<T> loadTrades(long timestamp) throws Exception {
+    public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 }

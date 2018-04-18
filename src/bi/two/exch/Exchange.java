@@ -1,6 +1,7 @@
 package bi.two.exch;
 
 import bi.two.Main2;
+import bi.two.chart.ITickData;
 import bi.two.tre.CurrencyValue;
 import bi.two.util.Log;
 import org.jetbrains.annotations.NotNull;
@@ -189,8 +190,9 @@ public class Exchange {
         return m_impl.getTicksCacheReader();
     }
 
-    public void loadTrades(long timestamp) throws Exception {
-        m_impl.loadTrades(timestamp);
+    public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {
+        List<? extends ITickData> trades = m_impl.loadTrades(pair, timestamp, direction, tradesNum);
+        return trades;
     }
 
 

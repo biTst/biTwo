@@ -64,8 +64,10 @@ public class BitMex extends BaseExchImpl {
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     public static final String ENDPOINT = "testnet.bitmex.com";
+    // debug
     private static final boolean LOG_HEADERS = false;
     private static final boolean LOG_HTTP = false;
+    private static final boolean LOG_JSON_TABLE = false;
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -676,31 +678,29 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         return new Main2.TicksCacheReader(Main2.TicksCacheReader.TicksCacheType.one);
     }
 
-    @Override public List<? extends ITickData> loadTrades(long timestamp) throws Exception {
-
-        String symbol = "XBTUSD";
-        int tradesNum = 10;
+    @Override public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {
+        String symbol = pairToSymbol(pair);
 
         Date date = new Date(timestamp);
-        String endTime = TIMESTAMP_FORMAT.format(date);
+        String time = TIMESTAMP_FORMAT.format(date);
         String count = Integer.toString(tradesNum);
-        console("loadTrades timestamp=" + timestamp + "; start=" + endTime + "; symbol=" + symbol + "; count=" + count);
+        console("loadTrades timestamp=" + timestamp + "; start=" + time + "; symbol=" + symbol + "; count=" + count);
 
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair("symbol", symbol));
         nvps.add(new BasicNameValuePair("count", count));
-        nvps.add(new BasicNameValuePair("reverse", "true"));
-        nvps.add(new BasicNameValuePair("endTime", endTime));
-//        nvps.add(new BasicNameValuePair("startTime", start));
+
+        if (direction == Direction.forward) {
+            nvps.add(new BasicNameValuePair("startTime", time));
+            nvps.add(new BasicNameValuePair("reverse", "false"));
+        } else {
+            nvps.add(new BasicNameValuePair("endTime", time));
+            nvps.add(new BasicNameValuePair("reverse", "true"));
+        }
 
         JsonArray table = loadTable(nvps);
 
-//        List<? extends ITickData> subList = ts.subList(0, 5);
-//        for (ITickData tr : subList) {
-//            console(tr.toString());
-//        }
-//
-        List<Tr> trs = create(table, new Creator<Tr>() {
+        List<Tr> trs = create(table, new FromJsonCreator<Tr>() {
             @Override public Tr create(JsonObject json) {
                 return Tr.createFrom(json);
             }
@@ -708,7 +708,7 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         return trs;
     }
 
-    private <X extends Object> List<X> create(JsonArray table, Creator<X> creator) {
+    private <X extends Object> List<X> create(JsonArray table, FromJsonCreator<X> creator) {
         List<X> ret = new ArrayList<>();
         for (JsonElement next : table) {
             JsonObject jsonObject = next.getAsJsonObject();
@@ -718,13 +718,7 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         return ret;
     }
 
-
-    //---------
-    private interface Creator<X> {
-        X create(JsonObject next);
-    }
-
-    private JsonArray /*ITickData*/ loadTable(List<NameValuePair> nvps) throws URISyntaxException, IOException {
+    private JsonArray loadTable(List<NameValuePair> nvps) throws URISyntaxException, IOException {
 
         // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
         URI uri = new URIBuilder()
@@ -732,11 +726,6 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
                 .setHost(ENDPOINT)
                 .setPath("/api/v1/trade")
                 .addParameters(nvps)
-//                .setParameter("symbol", symbol)
-//                .setParameter("count", count)
-//                .setParameter("reverse", "true")
-////                .setParameter("startTime", start)
-//                .setParameter("endTime", endTime)
                 .build();
         HttpGet httpget = new HttpGet(uri);
         httpget.addHeader("Accept", "application/json");
@@ -773,6 +762,7 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
                 if (LOG_HTTP) {
                     console("entity=" + entity);
                 }
+
                 if (entity != null) {
                     long contentLength = entity.getContentLength();
                     ContentType contentType = ContentType.getOrDefault(entity);
@@ -790,8 +780,10 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
                         JsonElement json = gson.fromJson(reader, JsonElement.class);
                         if (json instanceof JsonArray) {
                             JsonArray array = (JsonArray) json;
-                            for (JsonElement next : array) {
-                                console(next.toString());
+                            if (LOG_JSON_TABLE) {
+                                for (JsonElement next : array) {
+                                    console(next.toString());
+                                }
                             }
                             return array;
                         } else {
@@ -889,4 +881,10 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
 //                            "homeNotional": 3.07758123,
 //                            "foreignNotional": 1377
 
+
+
+    //---------------------------------------------------------------------------------------------------
+    private interface FromJsonCreator<X> {
+        X create(JsonObject next);
+    }
 }

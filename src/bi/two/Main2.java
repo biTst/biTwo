@@ -4,10 +4,7 @@ import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.ITickData;
 import bi.two.chart.TradeData;
-import bi.two.exch.ExchPairData;
-import bi.two.exch.Exchange;
-import bi.two.exch.MarketConfig;
-import bi.two.exch.Pair;
+import bi.two.exch.*;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
@@ -136,6 +133,7 @@ public class Main2 extends Thread {
     private class TradesPreloader implements Runnable {
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
+        private long m_lastTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
 
         public TradesPreloader(long preload) {
@@ -144,9 +142,11 @@ public class Main2 extends Thread {
 
         public void addNewestTick(TradeData td) {
             m_liveTicks.add(td);
+            long timestamp = td.getTimestamp();
+            m_lastTradeTimestamp = timestamp;
             if (m_waitingFirstTrade) {
                 m_waitingFirstTrade = false;
-                m_firstTradeTimestamp = td.getTimestamp();
+                m_firstTradeTimestamp = timestamp;
                 console("first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
 
                 Thread thread = new Thread(this, "TradesPreloader");
@@ -168,8 +168,20 @@ public class Main2 extends Thread {
         }
 
         private void loadNewestTrades() throws Exception {
+            console("sleep 10 sec...");
+            TimeUnit.SECONDS.sleep(10);
+
             console("loadNewestTrades");
-            m_exchange.loadTrades(m_firstTradeTimestamp);
+            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, m_lastTradeTimestamp, Direction.backward, 10);
+            for (ITickData trade : trades) {
+                console(trade.toString());
+            }
+            if (!trades.isEmpty()) {
+                ITickData first = trades.get(0);
+                long timestamp = first.getTimestamp();
+                long diff = m_lastTradeTimestamp - timestamp;
+                console("first trade time diff=" + diff);
+            }
         }
 
         private void loadCacheInfo() {
