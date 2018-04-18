@@ -1,10 +1,12 @@
 package bi.two.exch;
 
 import bi.two.Main2;
+import bi.two.chart.ITickData;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
 import java.io.IOException;
+import java.util.List;
 
 public class BaseExchImpl {
     protected static void console(String s) { Log.console(s); }
@@ -57,7 +59,7 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public void loadTrades(long timestamp) throws Exception {
+    public <T extends ITickData> List<T> loadTrades(long timestamp) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 }

@@ -1,19 +1,19 @@
 package bi.two.exch.impl;
 
 import bi.two.Main2;
+import bi.two.chart.ITickData;
+import bi.two.chart.TickPainter;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import com.google.gson.*;
 import org.apache.http.HeaderIterator;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -23,8 +23,8 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultConnectionKeepAliveStrategy;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HttpContext;
-import org.apache.http.util.EntityUtils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.json.simple.JSONArray;
@@ -45,12 +45,16 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 // based on info from
 //  https://testnet.bitmex.com/app/wsAPI
+//  https://testnet.bitmex.com/app/restAPI
+//  https://testnet.bitmex.com/api/explorer/
 // todo: look at https://github.com/ccxt/ccxt
 public class BitMex extends BaseExchImpl {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
@@ -59,6 +63,9 @@ public class BitMex extends BaseExchImpl {
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    public static final String ENDPOINT = "testnet.bitmex.com";
+    private static final boolean LOG_HEADERS = false;
+    private static final boolean LOG_HTTP = false;
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -71,6 +78,23 @@ public class BitMex extends BaseExchImpl {
     private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
     private boolean m_waitingFirstAccountUpdate;
+
+    private final RequestConfig m_requestConfig = RequestConfig.custom()
+            .setSocketTimeout(1000)
+            .setConnectTimeout(1000)
+            .build();
+
+    private final ConnectionKeepAliveStrategy m_keepAliveStrat = new DefaultConnectionKeepAliveStrategy() {
+        @Override public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+            long keepAlive = super.getKeepAliveDuration(response, context);
+            if (keepAlive == -1) {
+                // Keep connections alive 5 seconds if a keep-alive value has not be explicitly set by the server
+                keepAlive = 5000;
+            }
+            return keepAlive;
+        }
+    };
+
 
     public BitMex(Exchange exchange) {
         m_exchange = exchange;
@@ -652,112 +676,144 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         return new Main2.TicksCacheReader(Main2.TicksCacheReader.TicksCacheType.one);
     }
 
-    @Override public void loadTrades(long timestamp) throws Exception {
+    @Override public List<? extends ITickData> loadTrades(long timestamp) throws Exception {
+
+        String symbol = "XBTUSD";
+        int tradesNum = 10;
+
         Date date = new Date(timestamp);
-        String start = TIMESTAMP_FORMAT.format(date);
-        console("loadTrades timestamp=" + timestamp + "; start=" + start);
+        String endTime = TIMESTAMP_FORMAT.format(date);
+        String count = Integer.toString(tradesNum);
+        console("loadTrades timestamp=" + timestamp + "; start=" + endTime + "; symbol=" + symbol + "; count=" + count);
+
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair("symbol", symbol));
+        nvps.add(new BasicNameValuePair("count", count));
+        nvps.add(new BasicNameValuePair("reverse", "true"));
+        nvps.add(new BasicNameValuePair("endTime", endTime));
+//        nvps.add(new BasicNameValuePair("startTime", start));
+
+        JsonArray table = loadTable(nvps);
+
+//        List<? extends ITickData> subList = ts.subList(0, 5);
+//        for (ITickData tr : subList) {
+//            console(tr.toString());
+//        }
+//
+        List<Tr> trs = create(table, new Creator<Tr>() {
+            @Override public Tr create(JsonObject json) {
+                return Tr.createFrom(json);
+            }
+        });
+        return trs;
+    }
+
+    private <X extends Object> List<X> create(JsonArray table, Creator<X> creator) {
+        List<X> ret = new ArrayList<>();
+        for (JsonElement next : table) {
+            JsonObject jsonObject = next.getAsJsonObject();
+            X x = creator.create(jsonObject);
+            ret.add(x);
+        }
+        return ret;
+    }
+
+
+    //---------
+    private interface Creator<X> {
+        X create(JsonObject next);
+    }
+
+    private JsonArray /*ITickData*/ loadTable(List<NameValuePair> nvps) throws URISyntaxException, IOException {
 
         // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
         URI uri = new URIBuilder()
                 .setScheme("https")
-                .setHost("testnet.bitmex.com")
+                .setHost(ENDPOINT)
                 .setPath("/api/v1/trade")
-                .setParameter("symbol", "XBTUSD")
-                .setParameter("count", "10")
-                .setParameter("reverse", "true")
-//                .setParameter("startTime", start)
-                .setParameter("endTime", start)
+                .addParameters(nvps)
+//                .setParameter("symbol", symbol)
+//                .setParameter("count", count)
+//                .setParameter("reverse", "true")
+////                .setParameter("startTime", start)
+//                .setParameter("endTime", endTime)
                 .build();
         HttpGet httpget = new HttpGet(uri);
         httpget.addHeader("Accept", "application/json");
 
         console("execute " + httpget);
 
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setSocketTimeout(1000)
-                .setConnectTimeout(1000)
-                .build();
-        httpget.setConfig(requestConfig);
-
-        ConnectionKeepAliveStrategy keepAliveStrat = new DefaultConnectionKeepAliveStrategy() {
-            @Override public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
-                long keepAlive = super.getKeepAliveDuration(response, context);
-                if (keepAlive == -1) {
-                    // Keep connections alive 5 seconds if a keep-alive value has not be explicitly set by the server
-                    keepAlive = 5000;
-                }
-                return keepAlive;
-            }
-        };
+        httpget.setConfig(m_requestConfig);
 
         // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
         //     https://hc.apache.org/httpcomponents-client-ga/examples.html
         CloseableHttpClient httpclient = HttpClients.custom()
-                .setKeepAliveStrategy(keepAliveStrat)
+                .setKeepAliveStrategy(m_keepAliveStrat)
                 .build();
-
         //CloseableHttpClient httpclient = HttpClients.createDefault();
 
         try {
             CloseableHttpResponse response = httpclient.execute(httpget);
             try {
-                console("ProtocolVersion=" + response.getProtocolVersion());
-                console("StatusCode=" + response.getStatusLine().getStatusCode());
-                console("ReasonPhrase=" + response.getStatusLine().getReasonPhrase());
-                console("StatusLine=" + response.getStatusLine());
+                if (LOG_HTTP) {
+                    console("ProtocolVersion=" + response.getProtocolVersion());
+                    console("StatusCode=" + response.getStatusLine().getStatusCode());
+                    console("ReasonPhrase=" + response.getStatusLine().getReasonPhrase());
+                    console("StatusLine=" + response.getStatusLine());
+                }
 
-                HeaderIterator it = response.headerIterator();
-                while (it.hasNext()) {
-                    System.out.println("Header: " + it.next());
+                if (LOG_HEADERS) {
+                    HeaderIterator it = response.headerIterator();
+                    while (it.hasNext()) {
+                        console("Header: " + it.next());
+                    }
                 }
 
                 HttpEntity entity = response.getEntity();
-                console("entity=" + entity);
+                if (LOG_HTTP) {
+                    console("entity=" + entity);
+                }
                 if (entity != null) {
                     long contentLength = entity.getContentLength();
-                    console("contentLength=" + contentLength);
-                    if ((contentLength != -1) && (contentLength < 2048)) {
-                        String str = EntityUtils.toString(entity);
-                        console(str);
-                    } else {
-                        ContentType contentType = ContentType.getOrDefault(entity);
+                    ContentType contentType = ContentType.getOrDefault(entity);
+                    Charset charset = contentType.getCharset();
+                    if (LOG_HTTP) {
+                        console("contentLength=" + contentLength);
                         console("contentType=" + contentType);
-                        Charset charset = contentType.getCharset();
                         console("charset=" + charset);
-                        InputStream instream = entity.getContent();
-                        Reader reader = new InputStreamReader(instream, charset);
+                    }
+                    InputStream is = entity.getContent();
+                    Reader reader = new InputStreamReader(is, charset);
 
-                        try {
-                            Gson gson = new GsonBuilder().create();
-
-                            JsonElement json = gson.fromJson(reader, JsonElement.class);
-                            if (json instanceof JsonArray) {
-                                JsonArray array = (JsonArray) json;
-                                for (JsonElement next : array) {
-                                    console(next.toString());
-                                }
-                            } else {
-                                console(json.toString());
+                    try {
+                        Gson gson = new GsonBuilder().create();
+                        JsonElement json = gson.fromJson(reader, JsonElement.class);
+                        if (json instanceof JsonArray) {
+                            JsonArray array = (JsonArray) json;
+                            for (JsonElement next : array) {
+                                console(next.toString());
                             }
-
-//                        List<Tr> list = gson.fromJson(reader, new TypeToken<List<Tr>>(){}.getType());
-//                        List<Tr> subList = list.subList(0, 5);
-//                        for (Tr tr : subList) {
-//                            console(tr.toString());
-//                            // size / price = homeNotional
-//                        }
-
-//                        char[] buf = new char[256];
-//                        int read;
-//                        while ((read = reader.read(buf)) > 0) {
-//                            String str = new String(buf, 0, read);
-//                            console(str);
-//                        }
-                        } finally {
-                            reader.close();
+                            return array;
+                        } else {
+                            JsonArray asJsonArray = json.getAsJsonArray();
+                            console(json.toString());
+                            return asJsonArray;
                         }
+
+//                        List<? extends ITickData> list = parseTable(reader);
+//                        return list;
+
+//                            char[] buf = new char[256];
+//                            int read;
+//                            while ((read = reader.read(buf)) > 0) {
+//                                String str = new String(buf, 0, read);
+//                                console(str);
+//                            }
+                    } finally {
+                        reader.close();
                     }
                 }
+                throw new RuntimeException("empty response from server");
             } finally {
                 response.close();
             }
@@ -766,23 +822,59 @@ console("symbolToPair symbol=" + symbol + "  => " + ret);
         }
     }
 
-    public class Tr {
-        public String timestamp;
-        public double price;
-        public long size;
-        public long grossValue;
-        public double homeNotional;
-        public double foreignNotional;
+//    private <T> List<T> parseTable(Reader reader) {
+//        Gson gson = new GsonBuilder().create();
+//        List<T> list = gson.fromJson(reader, new TypeToken<List<T>>(){}.getType());
+//        return list;
+//    }
+
+    //---------------------------------------------------------------------------------------------
+    public static class Tr implements ITickData {
+        public long m_timestamp;
+        public double m_price;
+//        public long size;
+//        public long grossValue;
+//        public double homeNotional;
+//        public double foreignNotional;
+
+        // size / price = homeNotional
 
         @Override public String toString() {
             return "Tr{" +
-                    "timestamp='" + timestamp + '\'' +
-                    ", price=" + price +
-                    ", size=" + size +
-                    ", grossValue=" + grossValue +
-                    ", homeNotional=" + homeNotional +
-                    ", foreignNotional=" + foreignNotional +
+                    "timestamp='" + m_timestamp + '\'' +
+                    ", price=" + m_price +
+//                    ", size=" + size +
+//                    ", grossValue=" + grossValue +
+//                    ", homeNotional=" + homeNotional +
+//                    ", foreignNotional=" + foreignNotional +
                     '}';
+        }
+
+        @Override public long getTimestamp() { return m_timestamp; }
+        @Override public float getClosePrice() { return (float) m_price; }
+        @Override public float getMinPrice() { return (float) m_price; }
+        @Override public float getMaxPrice() { return (float) m_price; }
+        @Override public long getBarSize() { return 0; }
+        @Override public TickPainter getTickPainter() { return TickPainter.TICK; }
+        @Override public ITickData getOlderTick() { return null; }
+        @Override public void setOlderTick(ITickData last) { /*noop*/ }
+        @Override public boolean isValid() { return Utils.isInvalidPriceDouble(m_price); }
+
+        public static Tr createFrom(JsonObject json) {
+            Tr ret = new Tr();
+
+            String timestamp = json.get("timestamp").getAsString();
+            Date date;
+            try {
+                date = TIMESTAMP_FORMAT.parse(timestamp);
+            } catch (ParseException e) {
+                throw new RuntimeException("timestamp parse error '" + timestamp + "': " + e, e);
+            }
+            ret.m_timestamp = date.getTime();
+
+            ret.m_price = json.get("price").getAsDouble();
+
+            return ret;
         }
     }
 
