@@ -133,7 +133,7 @@ public class Main2 extends Thread {
     private class TradesPreloader implements Runnable {
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
-        private long m_lastTradeTimestamp;
+        private long m_lastLiveTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
 
         public TradesPreloader(long preload) {
@@ -143,11 +143,11 @@ public class Main2 extends Thread {
         public void addNewestTick(TradeData td) {
             m_liveTicks.add(td);
             long timestamp = td.getTimestamp();
-            m_lastTradeTimestamp = timestamp;
+            m_lastLiveTradeTimestamp = timestamp;
             if (m_waitingFirstTrade) {
                 m_waitingFirstTrade = false;
                 m_firstTradeTimestamp = timestamp;
-                console("first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
+                console("got first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
 
                 Thread thread = new Thread(this, "TradesPreloader");
                 thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
@@ -168,19 +168,45 @@ public class Main2 extends Thread {
         }
 
         private void loadNewestTrades() throws Exception {
-            console("sleep 10 sec...");
-            TimeUnit.SECONDS.sleep(10);
-
-            console("loadNewestTrades");
-            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, m_lastTradeTimestamp, Direction.backward, 10);
+            console("loadNewestTrades...");
+            // load small amount of trades to determine delay of live and newest historical trades
+            long lastLiveTradeTimestamp = m_lastLiveTradeTimestamp + 1;
+            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, 5);
             for (ITickData trade : trades) {
                 console(trade.toString());
             }
             if (!trades.isEmpty()) {
                 ITickData first = trades.get(0);
-                long timestamp = first.getTimestamp();
-                long diff = m_lastTradeTimestamp - timestamp;
-                console("first trade time diff=" + diff);
+                ITickData last = trades.get(trades.size() - 1);
+                long firstTimestamp = first.getTimestamp();
+                long lastTimestamp = last.getTimestamp();
+                long diff = lastLiveTradeTimestamp - firstTimestamp;
+                long period = firstTimestamp - lastTimestamp;
+                console(trades.size() + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp=" + lastTimestamp + "; period=" + period + "ms");
+                console("first live_trade - history_trade time diff=" + diff);
+
+                int sleepSeconds = (int) (diff / 2 / 1000 + 1);
+                console("sleep " + sleepSeconds + " sec...");
+                TimeUnit.SECONDS.sleep(sleepSeconds);
+
+                trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, 15);
+                for (ITickData trade : trades) {
+                    console(trade.toString());
+                }
+
+                for (ITickData trade : trades) {
+                    console(trade.toString());
+                }
+                if (!trades.isEmpty()) {
+                    first = trades.get(0);
+                    last = trades.get(trades.size() - 1);
+                    firstTimestamp = first.getTimestamp();
+                    lastTimestamp = last.getTimestamp();
+                    diff = lastLiveTradeTimestamp - firstTimestamp;
+                    period = firstTimestamp - lastTimestamp;
+                    console(trades.size() + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp=" + lastTimestamp + "; period=" + period + "ms");
+                    console("first live_trade - history_trade time diff=" + diff);
+                }
             }
         }
 
