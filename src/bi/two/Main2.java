@@ -9,6 +9,7 @@ import bi.two.ts.BaseTimesSeriesData;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -135,6 +136,7 @@ public class Main2 extends Thread {
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
+        private List<List<? extends ITickData>> m_historyTicks = new ArrayList<>();
 
         public TradesPreloader(long preload) {
 
@@ -160,20 +162,19 @@ public class Main2 extends Thread {
 
             try {
                 loadCacheInfo();
-                loadNewestTrades();
+                int ticksNumInBlockToLoad = 50;
+                loadHistoryTrades(m_lastLiveTradeTimestamp, ticksNumInBlockToLoad);
             } catch (Exception e) {
                 err("TradesPreloader error: " + e, e);
             }
 
         }
 
-        private void loadNewestTrades() throws Exception {
-            console("loadNewestTrades...");
+        private void loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
+            console("loadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
 
             // bitmex loads trades with timestamp LESS than passes, so add 1ms to load from incoming
-            long lastLiveTradeTimestamp = m_lastLiveTradeTimestamp + 1;
-            int ticksNumToLoad = 50;
-            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, ticksNumToLoad);
+            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, timestamp + 1, Direction.backward, ticksNumInBlockToLoad);
             int tradesNum = trades.size();
             int numToLogAtEachSide = 7;
             for (int i = 0; i < tradesNum; i++) {
@@ -190,30 +191,43 @@ public class Main2 extends Thread {
                 int lastIndex = tradesNum - 1;
                 ITickData last = trades.get(lastIndex);
                 long lastTimestamp = last.getTimestamp();
-                long diff = lastLiveTradeTimestamp - firstTimestamp;
+                long diff = timestamp - firstTimestamp;
                 long period = firstTimestamp - lastTimestamp;
-                console(tradesNum + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp[" + lastIndex + "]=" + lastTimestamp + "; period=" + period + "ms");
-                console("first live_trade - history_trade time diff=" + diff);
+                console(tradesNum + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp[" + lastIndex + "]=" + lastTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
+                if (period > 0) {
+                    console("first live_trade - history_trade time diff=" + diff);
 
-                int cutIndex = lastIndex;
-                while (cutIndex >= 0) {
-                    int checkIndex = cutIndex - 1;
-                    ITickData cut = trades.get(checkIndex);
-                    long cutTimestamp = cut.getTimestamp();
-                    console("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
-                    if (lastTimestamp != cutTimestamp) {
-                        break;
+                    int cutIndex = lastIndex;
+                    while (cutIndex >= 0) {
+                        int checkIndex = cutIndex - 1;
+                        ITickData cut = trades.get(checkIndex);
+                        long cutTimestamp = cut.getTimestamp();
+                        console("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
+                        if (lastTimestamp != cutTimestamp) {
+                            break;
+                        }
+                        cutIndex--;
                     }
-                    cutIndex--;
-                }
 
-                trades = trades.subList(0, cutIndex);
-                int cutTradesNum = trades.size();
-                console("cutIndex=" + cutIndex + " -> removing " + (tradesNum - cutTradesNum) + " tail ticks");
-                int cutLastIndex = cutTradesNum - 1;
-                ITickData cutLast = trades.get(cutLastIndex);
-                long cutLastTimestamp = cutLast.getTimestamp();
-                console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
+                    trades = trades.subList(0, cutIndex);
+                    int cutTradesNum = trades.size();
+                    console("cutIndex=" + cutIndex + " -> removing " + (tradesNum - cutTradesNum) + " tail ticks");
+                    int cutLastIndex = cutTradesNum - 1;
+                    ITickData cutLast = trades.get(cutLastIndex);
+                    long cutLastTimestamp = cutLast.getTimestamp();
+                    console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
+
+                    m_historyTicks.add(trades);
+                    long allPeriod = m_lastLiveTradeTimestamp - lastTimestamp;
+                    console("-------- history ticks blocks num = " + m_historyTicks.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
+
+                    TimeUnit.SECONDS.sleep(1); // do not DDOS
+
+                    loadHistoryTrades(lastTimestamp, ticksNumInBlockToLoad);
+                } else {
+                    console("!!! ALL block ticks with the same timestamp - re-requesting with the bigger block");
+                    loadHistoryTrades(timestamp, ticksNumInBlockToLoad * 2);
+                }
             }
         }
 
