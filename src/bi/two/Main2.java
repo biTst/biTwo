@@ -169,44 +169,51 @@ public class Main2 extends Thread {
 
         private void loadNewestTrades() throws Exception {
             console("loadNewestTrades...");
-            // load small amount of trades to determine delay of live and newest historical trades
+
+            // bitmex loads trades with timestamp LESS than passes, so add 1ms to load from incoming
             long lastLiveTradeTimestamp = m_lastLiveTradeTimestamp + 1;
-            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, 5);
-            for (ITickData trade : trades) {
-                console(trade.toString());
+            int ticksNumToLoad = 50;
+            List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, ticksNumToLoad);
+            int tradesNum = trades.size();
+            int numToLogAtEachSide = 7;
+            for (int i = 0; i < tradesNum; i++) {
+                ITickData trade = trades.get(i);
+                console("[" + i + "] " + trade.toString());
+                if (i == numToLogAtEachSide - 1) {
+                    i = tradesNum - (numToLogAtEachSide + 1);
+                    console("...");
+                }
             }
             if (!trades.isEmpty()) {
                 ITickData first = trades.get(0);
-                ITickData last = trades.get(trades.size() - 1);
                 long firstTimestamp = first.getTimestamp();
+                int lastIndex = tradesNum - 1;
+                ITickData last = trades.get(lastIndex);
                 long lastTimestamp = last.getTimestamp();
                 long diff = lastLiveTradeTimestamp - firstTimestamp;
                 long period = firstTimestamp - lastTimestamp;
-                console(trades.size() + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp=" + lastTimestamp + "; period=" + period + "ms");
+                console(tradesNum + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp[" + lastIndex + "]=" + lastTimestamp + "; period=" + period + "ms");
                 console("first live_trade - history_trade time diff=" + diff);
 
-                int sleepSeconds = (int) (diff / 2 / 1000 + 1);
-                console("sleep " + sleepSeconds + " sec...");
-                TimeUnit.SECONDS.sleep(sleepSeconds);
-
-                trades = m_exchange.loadTrades(m_pair, lastLiveTradeTimestamp, Direction.backward, 15);
-                for (ITickData trade : trades) {
-                    console(trade.toString());
+                int cutIndex = lastIndex;
+                while (cutIndex >= 0) {
+                    int checkIndex = cutIndex - 1;
+                    ITickData cut = trades.get(checkIndex);
+                    long cutTimestamp = cut.getTimestamp();
+                    console("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
+                    if (lastTimestamp != cutTimestamp) {
+                        break;
+                    }
+                    cutIndex--;
                 }
 
-                for (ITickData trade : trades) {
-                    console(trade.toString());
-                }
-                if (!trades.isEmpty()) {
-                    first = trades.get(0);
-                    last = trades.get(trades.size() - 1);
-                    firstTimestamp = first.getTimestamp();
-                    lastTimestamp = last.getTimestamp();
-                    diff = lastLiveTradeTimestamp - firstTimestamp;
-                    period = firstTimestamp - lastTimestamp;
-                    console(trades.size() + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp=" + lastTimestamp + "; period=" + period + "ms");
-                    console("first live_trade - history_trade time diff=" + diff);
-                }
+                trades = trades.subList(0, cutIndex);
+                int cutTradesNum = trades.size();
+                console("cutIndex=" + cutIndex + " -> removing " + (tradesNum - cutTradesNum) + " tail ticks");
+                int cutLastIndex = cutTradesNum - 1;
+                ITickData cutLast = trades.get(cutLastIndex);
+                long cutLastTimestamp = cutLast.getTimestamp();
+                console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
             }
         }
 
