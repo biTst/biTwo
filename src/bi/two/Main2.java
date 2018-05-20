@@ -11,6 +11,9 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -63,7 +66,7 @@ public class Main2 extends Thread {
             BaseAlgo algoImpl = algo.createAlgo(config, tsd);
             final long preload = algoImpl.getPreloadPeriod();
 
-            final TradesPreloader preloader = new TradesPreloader(preload);
+            final TradesPreloader preloader = new TradesPreloader(preload, config);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() { onExchangeConnected(preloader); }
@@ -132,14 +135,28 @@ public class Main2 extends Thread {
 
     // -----------------------------------------------------------------------------------------------------------
     private class TradesPreloader implements Runnable {
+        private final File m_cacheDir;
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
         private List<List<? extends ITickData>> m_historyTicks = new ArrayList<>();
 
-        public TradesPreloader(long preload) {
-
+        public TradesPreloader(long preload, MapConfig config) {
+            String cacheDir = config.getPropertyNoComment("cache.dir");
+            console("TradesPreloader<> cacheDir=" + cacheDir);
+            if (cacheDir != null) {
+                File dir = new File(cacheDir);
+                if (dir.isDirectory()) {
+                    m_cacheDir = dir;
+                } else {
+                    throw new RuntimeException("cache.dir "
+                            + (dir.exists() ? "is not exist" : "is not a dir")
+                            + ": " + cacheDir);
+                }
+            } else {
+                throw new RuntimeException("cache.dir is not defined");
+            }
         }
 
         public void addNewestTick(TradeData td) {
@@ -162,19 +179,27 @@ public class Main2 extends Thread {
 
             try {
                 loadCacheInfo();
-                int ticksNumInBlockToLoad = 50;
-                loadHistoryTrades(m_lastLiveTradeTimestamp, ticksNumInBlockToLoad);
+                loadHistoryTrades();
             } catch (Exception e) {
                 err("TradesPreloader error: " + e, e);
             }
-
         }
 
-        private void loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
+        private void loadHistoryTrades() throws Exception {
+            int ticksNumInBlockToLoad = 50;
+            long timestamp = m_lastLiveTradeTimestamp;
+            while(true) {
+                timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
+                TimeUnit.SECONDS.sleep(1); // do not DDOS
+            }
+        }
+
+        private long loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
             console("loadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
 
             // bitmex loads trades with timestamp LESS than passes, so add 1ms to load from incoming
             List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, timestamp + 1, Direction.backward, ticksNumInBlockToLoad);
+
             int tradesNum = trades.size();
             int numToLogAtEachSide = 7;
             for (int i = 0; i < tradesNum; i++) {
@@ -187,27 +212,31 @@ public class Main2 extends Thread {
             }
             if (!trades.isEmpty()) {
                 ITickData first = trades.get(0);
-                long firstTimestamp = first.getTimestamp();
+                long newestTimestamp = first.getTimestamp();
                 int lastIndex = tradesNum - 1;
                 ITickData last = trades.get(lastIndex);
-                long lastTimestamp = last.getTimestamp();
-                long diff = timestamp - firstTimestamp;
-                long period = firstTimestamp - lastTimestamp;
-                console(tradesNum + " trades loaded: firstTimestamp=" + firstTimestamp + "; lastTimestamp[" + lastIndex + "]=" + lastTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
+                long oldestPartialTimestamp = last.getTimestamp();
+                long diff = timestamp - newestTimestamp;
+                long period = newestTimestamp - oldestPartialTimestamp;
+                console(tradesNum + " trades loaded: newestTimestamp=" + newestTimestamp + "; oldestPartialTimestamp[" + lastIndex + "]=" + oldestPartialTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
                 if (period > 0) {
                     console("first live_trade - history_trade time diff=" + diff);
 
+                    long oldestTimestamp = oldestPartialTimestamp;
                     int cutIndex = lastIndex;
                     while (cutIndex >= 0) {
                         int checkIndex = cutIndex - 1;
                         ITickData cut = trades.get(checkIndex);
                         long cutTimestamp = cut.getTimestamp();
                         console("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
-                        if (lastTimestamp != cutTimestamp) {
+                        if (oldestPartialTimestamp != cutTimestamp) {
+                            oldestTimestamp = cutTimestamp;
                             break;
                         }
                         cutIndex--;
                     }
+
+                    writeToCache(trades, oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
 
                     trades = trades.subList(0, cutIndex);
                     int cutTradesNum = trades.size();
@@ -218,16 +247,50 @@ public class Main2 extends Thread {
                     console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
 
                     m_historyTicks.add(trades);
-                    long allPeriod = m_lastLiveTradeTimestamp - lastTimestamp;
+                    long allPeriod = m_lastLiveTradeTimestamp - oldestPartialTimestamp;
                     console("-------- history ticks blocks num = " + m_historyTicks.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
 
-                    TimeUnit.SECONDS.sleep(1); // do not DDOS
-
-                    loadHistoryTrades(lastTimestamp, ticksNumInBlockToLoad);
+                    return oldestPartialTimestamp;
                 } else {
                     console("!!! ALL block ticks with the same timestamp - re-requesting with the bigger block");
-                    loadHistoryTrades(timestamp, ticksNumInBlockToLoad * 2);
+                    TimeUnit.SECONDS.sleep(1); // do not DDOS
+                    return loadHistoryTrades(timestamp, ticksNumInBlockToLoad * 2);
                 }
+            }
+            return -1; // error
+        }
+
+        private void writeToCache(List<? extends ITickData> trades, long oldestPartialTimestamp, long oldestTimestamp, long newestTimestamp) {
+            String fileName = oldestPartialTimestamp + "-" + oldestTimestamp + "-" + newestTimestamp + ".trades";
+            console("writeToCache() fileName=" + fileName);
+
+            File file = new File(m_cacheDir, fileName);
+            try {
+                FileOutputStream fos = new FileOutputStream(file);
+                try {
+                    BufferedOutputStream bos = new BufferedOutputStream(fos);
+                    try {
+                        for (int i = trades.size() - 1; i >= 0; i--) {
+                            ITickData trade = trades.get(i);
+                            long timestamp = trade.getTimestamp();
+                            float price = trade.getClosePrice();
+                            bos.write(Long.toString(timestamp).getBytes());
+                            bos.write(';');
+                            bos.write(Float.toString(price).getBytes());
+                            bos.write('\n');
+                        }
+                    } finally {
+                        bos.flush();
+                        bos.close();
+                    }
+                } finally {
+                    fos.close();
+                }
+
+                console("writeToCache ok; fileLen=" + file.length());
+            } catch (Exception e) {
+                err("writeToCache error: " + e, e);
+                throw new RuntimeException("writeToCache error: " + e, e);
             }
         }
 
