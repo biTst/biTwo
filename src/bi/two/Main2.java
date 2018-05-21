@@ -66,7 +66,7 @@ public class Main2 extends Thread {
             BaseAlgo algoImpl = algo.createAlgo(config, tsd);
             final long preload = algoImpl.getPreloadPeriod();
 
-            final TradesPreloader preloader = new TradesPreloader(preload, config);
+            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preload, config);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() { onExchangeConnected(preloader); }
@@ -134,15 +134,21 @@ public class Main2 extends Thread {
 
 
     // -----------------------------------------------------------------------------------------------------------
-    private class TradesPreloader implements Runnable {
+    private static class TradesPreloader implements Runnable {
+        private final Exchange m_exchange;
+        private final Pair m_pair;
         private final File m_cacheDir;
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
         private List<List<? extends ITickData>> m_historyTicks = new ArrayList<>();
+        private List<TradesCacheEntry> m_cache = new ArrayList<>();
 
-        public TradesPreloader(long preload, MapConfig config) {
+        public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config) {
+            m_exchange = exchange;
+            m_pair = pair;
+
             String cacheDir = config.getPropertyNoComment("cache.dir");
             console("TradesPreloader<> cacheDir=" + cacheDir);
             if (cacheDir != null) {
@@ -296,8 +302,42 @@ public class Main2 extends Thread {
 
         private void loadCacheInfo() {
             console("loadCacheInfo");
-            TicksCacheReader ticksCacheReader = m_exchange.getTicksCacheReader();
+            TicksCacheReader ticksCacheReader = m_exchange.getTicksCacheReader(); // todo: remove ?
 
+            String[] list = m_cacheDir.list();
+            if (list != null) {
+                for (String name : list) {
+                    console("name: " + name);
+                    int indx1 = name.indexOf('-');
+                    int indx2 = name.indexOf('-', indx1 + 1);
+                    int indx3 = name.indexOf('.', indx2 + 1);
+                    String s1 = name.substring(0, indx1);
+                    String s2 = name.substring(indx1 + 1, indx2);
+                    String s3 = name.substring(indx2 + 1, indx3);
+                    console(" : " + s1 + " : " + s2 + " : " + s3);
+                    long t1 = Long.parseLong(s1);
+                    long t2 = Long.parseLong(s2);
+                    long t3 = Long.parseLong(s3);
+                    TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(t1, t2, t3);
+                    m_cache.add(tradesCacheEntry);
+                }
+                console("loaded " + m_cache.size() + " cache entries");
+            } else {
+                throw new RuntimeException("loadCacheInfo error: list=null");
+            }
+        }
+
+        // -----------------------------------------------------------------------------------------------------------
+        public static class TradesCacheEntry {
+            public final long m_oldestPartialTimestamp;
+            public final long m_oldestTimestamp;
+            public final long m_newestTimestamp;
+
+            public TradesCacheEntry(long oldestPartialTimestamp, long oldestTimestamp, long newestTimestamp) {
+                m_oldestPartialTimestamp = oldestPartialTimestamp;
+                m_oldestTimestamp = oldestTimestamp;
+                m_newestTimestamp = newestTimestamp;
+            }
         }
     }
 
