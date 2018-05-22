@@ -194,10 +194,32 @@ public class Main2 extends Thread {
         private void loadHistoryTrades() throws Exception {
             int ticksNumInBlockToLoad = 50;
             long timestamp = m_lastLiveTradeTimestamp;
-            while(true) {
-                timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
-                TimeUnit.SECONDS.sleep(1); // do not DDOS
+            while (true) {
+                console("---- next iteration: timestamp=" + timestamp);
+
+                long cacheTimestamp = probeCache(timestamp);
+                if (cacheTimestamp == 0) {
+                    timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
+                    TimeUnit.SECONDS.sleep(1); // do not DDOS
+                } else {
+                    timestamp = cacheTimestamp;
+                }
+
+                long allPeriod = m_lastLiveTradeTimestamp - timestamp;
+                console("-------- history ticks blocks num = " + m_historyTicks.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
             }
+        }
+
+        private long probeCache(long timestamp) {
+            for (TradesCacheEntry cacheEntry : m_cache) {
+                boolean matched = cacheEntry.probe(timestamp);
+                if (matched) {
+                    console(" got matched cacheEntry: " + cacheEntry);
+                    long ret = cacheEntry.m_oldestPartialTimestamp;
+                    return ret;
+                }
+            }
+            return 0;
         }
 
         private long loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
@@ -243,6 +265,7 @@ public class Main2 extends Thread {
                     }
 
                     writeToCache(trades, oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
+                    addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
 
                     trades = trades.subList(0, cutIndex);
                     int cutTradesNum = trades.size();
@@ -253,8 +276,6 @@ public class Main2 extends Thread {
                     console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
 
                     m_historyTicks.add(trades);
-                    long allPeriod = m_lastLiveTradeTimestamp - oldestPartialTimestamp;
-                    console("-------- history ticks blocks num = " + m_historyTicks.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
 
                     return oldestPartialTimestamp;
                 } else {
@@ -318,13 +339,17 @@ public class Main2 extends Thread {
                     long t1 = Long.parseLong(s1);
                     long t2 = Long.parseLong(s2);
                     long t3 = Long.parseLong(s3);
-                    TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(t1, t2, t3);
-                    m_cache.add(tradesCacheEntry);
+                    addTradesCacheEntry(t1, t2, t3);
                 }
                 console("loaded " + m_cache.size() + " cache entries");
             } else {
                 throw new RuntimeException("loadCacheInfo error: list=null");
             }
+        }
+
+        private void addTradesCacheEntry(long t1, long t2, long t3) {
+            TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(t1, t2, t3);
+            m_cache.add(tradesCacheEntry);
         }
 
         // -----------------------------------------------------------------------------------------------------------
@@ -337,6 +362,18 @@ public class Main2 extends Thread {
                 m_oldestPartialTimestamp = oldestPartialTimestamp;
                 m_oldestTimestamp = oldestTimestamp;
                 m_newestTimestamp = newestTimestamp;
+            }
+
+            public boolean probe(long timestamp) {
+                return (m_oldestTimestamp <= timestamp) && (timestamp <= m_newestTimestamp);
+            }
+
+            @Override public String toString() {
+                return "TradesCacheEntry{" +
+                        "partial=" + m_oldestPartialTimestamp +
+                        ", oldest=" + m_oldestTimestamp +
+                        ", newest=" + m_newestTimestamp +
+                        '}';
             }
         }
     }
