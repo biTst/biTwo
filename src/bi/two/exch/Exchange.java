@@ -4,6 +4,7 @@ import bi.two.Main2;
 import bi.two.chart.ITickData;
 import bi.two.tre.CurrencyValue;
 import bi.two.util.Log;
+import bi.two.util.MapConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -186,8 +187,8 @@ public class Exchange {
         m_impl.rateLimiterActive(active);
     }
 
-    public Main2.TicksCacheReader getTicksCacheReader() {
-        return m_impl.getTicksCacheReader();
+    public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
+        return m_impl.getTicksCacheReader(config);
     }
 
     public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {

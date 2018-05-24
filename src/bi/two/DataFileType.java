@@ -128,6 +128,19 @@ public enum DataFileType {
             return tickData;
         }
     },
+    SIMPLE("forex2") {
+        @Override public TickData parseLine(String line) {
+            // 1526858169812;8444.0
+            int indx1 = line.indexOf(';');
+            String timeStr = line.substring(0, indx1); // "1526858169812"
+            String priceStr = line.substring(indx1 + 1); // "8444.0"
+
+            long time = Long.parseLong(timeStr);
+            float price = Float.parseFloat(priceStr);
+            TickData tickData = new TickData(time, price);
+            return tickData;
+        }
+    },
     ;
 
     private final String m_type;

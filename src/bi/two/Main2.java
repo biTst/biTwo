@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.ITickData;
+import bi.two.chart.TickData;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
 import bi.two.ts.BaseTimesSeriesData;
@@ -11,9 +12,7 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -137,7 +136,7 @@ public class Main2 extends Thread {
     private static class TradesPreloader implements Runnable {
         private final Exchange m_exchange;
         private final Pair m_pair;
-        private final File m_cacheDir;
+        private final TicksCacheReader m_ticksCacheReader;
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
@@ -148,20 +147,7 @@ public class Main2 extends Thread {
             m_exchange = exchange;
             m_pair = pair;
 
-            String cacheDir = config.getPropertyNoComment("cache.dir");
-            console("TradesPreloader<> cacheDir=" + cacheDir);
-            if (cacheDir != null) {
-                File dir = new File(cacheDir);
-                if (dir.isDirectory()) {
-                    m_cacheDir = dir;
-                } else {
-                    throw new RuntimeException("cache.dir "
-                            + (dir.exists() ? "is not exist" : "is not a dir")
-                            + ": " + cacheDir);
-                }
-            } else {
-                throw new RuntimeException("cache.dir is not defined");
-            }
+            m_ticksCacheReader = m_exchange.getTicksCacheReader(config); // todo: remove ?
         }
 
         public void addNewestTick(TradeData td) {
@@ -184,13 +170,49 @@ public class Main2 extends Thread {
 
             try {
                 loadCacheInfo();
-                loadHistoryTrades();
+                long oldestTradeTime = loadHistoryTrades();
+                playCacheTrades(oldestTradeTime);
             } catch (Exception e) {
                 err("TradesPreloader error: " + e, e);
             }
         }
 
-        private void loadHistoryTrades() throws Exception {
+        private void playCacheTrades(long oldestTradeTime) throws IOException {
+            console("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
+            long timestamp = oldestTradeTime;
+
+            while (true) {
+                console(" next iteration: timestamp=" + timestamp);
+                boolean matched = false;
+                for (TradesCacheEntry cacheEntry : m_cache) {
+                    matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= cacheEntry.m_newestTimestamp);
+                    if (matched) {
+                        console(" got matched cacheEntry: " + cacheEntry);
+                        List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
+                        for (TickData tick : historyTicks) {
+                            long tickTime = tick.getTimestamp();
+                            if (timestamp <= tickTime) {
+                                if (timestamp < tickTime) {
+                                    timestamp = tickTime;
+                                }
+                                console("  tick: " + tick);
+                            } else {
+                                console("  skip tick: " + tick);
+                            }
+                        }
+                        timestamp++;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    console(" no more matched cacheEntries");
+                    break;
+                }
+            }
+        }
+
+        private long loadHistoryTrades() throws Exception {
+            long periodToLoad = TimeUnit.MINUTES.toMillis(25);
             int ticksNumInBlockToLoad = 100;
             int maxIterations = 1000;
             long timestamp = m_lastLiveTradeTimestamp;
@@ -205,9 +227,15 @@ public class Main2 extends Thread {
                     timestamp = cacheTimestamp;
                 }
 
-                long allPeriod = m_lastLiveTradeTimestamp - timestamp;
+                long allPeriod = m_lastLiveTradeTimestamp - timestamp; // note: m_lastLiveTradeTimestamp updates on live trades
                 console(" history ticks blocks num = " + m_cache.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
+
+                if (allPeriod > periodToLoad) {
+                    console("requested period loaded: " + Utils.millisToYDHMSStr(periodToLoad));
+                    break;
+                }
             }
+            return m_lastLiveTradeTimestamp - periodToLoad;
         }
 
         private long probeCache(long timestamp) {
@@ -264,8 +292,8 @@ public class Main2 extends Thread {
                         cutIndex--;
                     }
 
-                    writeToCache(trades, oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
-                    addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
+                    TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
+                    writeToCache(trades, tradesCacheEntry);
 
                     return oldestPartialTimestamp;
                 } else {
@@ -277,11 +305,12 @@ public class Main2 extends Thread {
             return -1; // error
         }
 
-        private void writeToCache(List<? extends ITickData> trades, long oldestPartialTimestamp, long oldestTimestamp, long newestTimestamp) {
-            String fileName = oldestPartialTimestamp + "-" + oldestTimestamp + "-" + newestTimestamp + ".trades";
+        private void writeToCache(List<? extends ITickData> trades, TradesCacheEntry tradesCacheEntry) {
+            String fileName = tradesCacheEntry.getFileName();
             console("writeToCache() fileName=" + fileName);
 
-            File file = new File(m_cacheDir, fileName);
+            File cacheDir = m_ticksCacheReader.m_cacheDir;
+            File file = new File(cacheDir, fileName);
             try {
                 FileOutputStream fos = new FileOutputStream(file);
                 try {
@@ -313,9 +342,9 @@ public class Main2 extends Thread {
 
         private void loadCacheInfo() {
             console("loadCacheInfo");
-            TicksCacheReader ticksCacheReader = m_exchange.getTicksCacheReader(); // todo: remove ?
 
-            String[] list = m_cacheDir.list();
+            File cacheDir = m_ticksCacheReader.m_cacheDir;
+            String[] list = cacheDir.list();
             if (list != null) {
                 for (String name : list) {
                     console("name: " + name);
@@ -337,9 +366,10 @@ public class Main2 extends Thread {
             }
         }
 
-        private void addTradesCacheEntry(long t1, long t2, long t3) {
+        private TradesCacheEntry addTradesCacheEntry(long t1, long t2, long t3) {
             TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(t1, t2, t3);
             m_cache.add(tradesCacheEntry);
+            return tradesCacheEntry;
         }
 
         // -----------------------------------------------------------------------------------------------------------
@@ -365,20 +395,47 @@ public class Main2 extends Thread {
                         ", newest=" + m_newestTimestamp +
                         '}';
             }
+
+            public List<TickData> loadTrades(TicksCacheReader ticksCacheReader) throws IOException {
+                String fileName = getFileName();
+                return ticksCacheReader.loadTrades(fileName);
+            }
+
+            public String getFileName() {
+                return m_oldestPartialTimestamp + "-" + m_oldestTimestamp + "-" + m_newestTimestamp + ".trades";
+            }
         }
     }
 
 
     // -----------------------------------------------------------------------------------------------------------
     public static class TicksCacheReader {
-        private TicksCacheType m_type;
+        public final DataFileType m_dataFileType;
+        public final File m_cacheDir;
 
-        public TicksCacheReader(TicksCacheType type) {
-            m_type = type;
+        public TicksCacheReader(DataFileType dataFileType, String cacheDir) {
+            this(dataFileType, new File(cacheDir));
         }
 
-        public enum TicksCacheType {
-            one
+        public TicksCacheReader(DataFileType dataFileType, File cacheDir) {
+            m_dataFileType = dataFileType;
+            m_cacheDir = cacheDir;
+        }
+
+        public List<TickData> loadTrades(String fileName) throws IOException {
+            File cacheFile = new File(m_cacheDir, fileName);
+            BufferedReader br = new BufferedReader(new FileReader(cacheFile));
+            try {
+                List<TickData> ret = new ArrayList<>();
+                String line;
+                while((line = br.readLine())!=null) {
+                    TickData tickData = m_dataFileType.parseLine(line);
+                    ret.add(tickData);
+                }
+                return ret;
+            } finally {
+                br.close();
+            }
         }
     }
 

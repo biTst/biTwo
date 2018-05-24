@@ -55,7 +55,7 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public Main2.TicksCacheReader getTicksCacheReader() {
+    public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
         throw new RuntimeException("not implemented: " + this);
     }
 

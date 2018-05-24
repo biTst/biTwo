@@ -1,5 +1,6 @@
 package bi.two.exch.impl;
 
+import bi.two.DataFileType;
 import bi.two.Main2;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickPainter;
@@ -34,10 +35,7 @@ import org.json.simple.parser.JSONParser;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.websocket.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -674,8 +672,21 @@ log("symbolToPair symbol=" + symbol + "  => " + ret);
         console("session isOpen=" + m_session.isOpen());
     }
 
-    @Override public Main2.TicksCacheReader getTicksCacheReader() {
-        return new Main2.TicksCacheReader(Main2.TicksCacheReader.TicksCacheType.one);
+    @Override public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
+        String cacheDir = config.getPropertyNoComment("cache.dir");
+console("BitMex<> cacheDir=" + cacheDir);
+        if (cacheDir != null) {
+            File dir = new File(cacheDir);
+            if (dir.isDirectory()) {
+                return new Main2.TicksCacheReader(DataFileType.SIMPLE, dir);
+            } else {
+                throw new RuntimeException("cache.dir "
+                        + (dir.exists() ? "is not exist" : "is not a dir")
+                        + ": " + cacheDir);
+            }
+        } else {
+            throw new RuntimeException("cache.dir is not defined");
+        }
     }
 
     @Override public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {
