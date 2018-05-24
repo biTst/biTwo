@@ -108,13 +108,13 @@ public class BitMex extends BaseExchImpl {
     }
 
     private static String pairToSymbol(Pair pair) {
-console("pairToSymbol pair=" + pair + "  => " + SYMBOL);
+log("pairToSymbol pair=" + pair + "  => " + SYMBOL);
         return SYMBOL; // todo
     }
 
     private static Pair symbolToPair(String symbol) {
         Pair ret = Pair.getByName("btc_usd");
-console("symbolToPair symbol=" + symbol + "  => " + ret);
+log("symbolToPair symbol=" + symbol + "  => " + ret);
         return ret; // todo
     }
 

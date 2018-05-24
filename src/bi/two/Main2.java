@@ -29,7 +29,7 @@ public class Main2 extends Thread {
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.StdLog();
+        Log.s_impl = new Log.FileLog(); //StdLog();
         MarketConfig.initMarkets(false);
 
         new Main2().start();
@@ -142,7 +142,6 @@ public class Main2 extends Thread {
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
         private List<TradeData> m_liveTicks = new ArrayList<>();
-        private List<List<? extends ITickData>> m_historyTicks = new ArrayList<>();
         private List<TradesCacheEntry> m_cache = new ArrayList<>();
 
         public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config) {
@@ -192,10 +191,11 @@ public class Main2 extends Thread {
         }
 
         private void loadHistoryTrades() throws Exception {
-            int ticksNumInBlockToLoad = 50;
+            int ticksNumInBlockToLoad = 100;
+            int maxIterations = 1000;
             long timestamp = m_lastLiveTradeTimestamp;
-            while (true) {
-                console("---- next iteration: timestamp=" + timestamp);
+            for (int i = 0; i < maxIterations; i++) {
+                console("---- next iteration[" + i + "]: timestamp=" + timestamp);
 
                 long cacheTimestamp = probeCache(timestamp);
                 if (cacheTimestamp == 0) {
@@ -206,7 +206,7 @@ public class Main2 extends Thread {
                 }
 
                 long allPeriod = m_lastLiveTradeTimestamp - timestamp;
-                console("-------- history ticks blocks num = " + m_historyTicks.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
+                console(" history ticks blocks num = " + m_cache.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
             }
         }
 
@@ -232,10 +232,10 @@ public class Main2 extends Thread {
             int numToLogAtEachSide = 7;
             for (int i = 0; i < tradesNum; i++) {
                 ITickData trade = trades.get(i);
-                console("[" + i + "] " + trade.toString());
+                log("[" + i + "] " + trade.toString());
                 if (i == numToLogAtEachSide - 1) {
                     i = tradesNum - (numToLogAtEachSide + 1);
-                    console("...");
+                    log("...");
                 }
             }
             if (!trades.isEmpty()) {
@@ -248,7 +248,7 @@ public class Main2 extends Thread {
                 long period = newestTimestamp - oldestPartialTimestamp;
                 console(tradesNum + " trades loaded: newestTimestamp=" + newestTimestamp + "; oldestPartialTimestamp[" + lastIndex + "]=" + oldestPartialTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
                 if (period > 0) {
-                    console("first live_trade - history_trade time diff=" + diff);
+                    log("first live_trade - history_trade time diff=" + diff);
 
                     long oldestTimestamp = oldestPartialTimestamp;
                     int cutIndex = lastIndex;
@@ -256,7 +256,7 @@ public class Main2 extends Thread {
                         int checkIndex = cutIndex - 1;
                         ITickData cut = trades.get(checkIndex);
                         long cutTimestamp = cut.getTimestamp();
-                        console("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
+                        log("cutTimestamp[" + checkIndex + "]=" + cutTimestamp);
                         if (oldestPartialTimestamp != cutTimestamp) {
                             oldestTimestamp = cutTimestamp;
                             break;
@@ -266,16 +266,6 @@ public class Main2 extends Thread {
 
                     writeToCache(trades, oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
                     addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
-
-                    trades = trades.subList(0, cutIndex);
-                    int cutTradesNum = trades.size();
-                    console("cutIndex=" + cutIndex + " -> removing " + (tradesNum - cutTradesNum) + " tail ticks");
-                    int cutLastIndex = cutTradesNum - 1;
-                    ITickData cutLast = trades.get(cutLastIndex);
-                    long cutLastTimestamp = cutLast.getTimestamp();
-                    console(cutTradesNum + " cut trades: cutLastTimestamp[" + cutLastIndex + "]=" + cutLastTimestamp);
-
-                    m_historyTicks.add(trades);
 
                     return oldestPartialTimestamp;
                 } else {
@@ -314,7 +304,7 @@ public class Main2 extends Thread {
                     fos.close();
                 }
 
-                console("writeToCache ok; fileLen=" + file.length());
+                log(" writeToCache ok; fileLen=" + file.length());
             } catch (Exception e) {
                 err("writeToCache error: " + e, e);
                 throw new RuntimeException("writeToCache error: " + e, e);
