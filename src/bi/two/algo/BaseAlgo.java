@@ -5,11 +5,11 @@ import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TimesSeriesData;
+import bi.two.util.Log;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
@@ -21,6 +21,10 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     public BaseAlgo(ITimesSeriesData parent) {
         super(parent);
     }
+
+    protected static void console(String s) { Log.console(s); }
+    protected  static void log(String s) { Log.log(s); }
+    protected  static void err(String s, Throwable t) { Log.err(s, t); }
 
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
@@ -42,7 +46,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     }
 
     public long getPreloadPeriod() {
-        return TimeUnit.MINUTES.toMillis(5);
+        throw new RuntimeException("need to override");
     }
 
 
