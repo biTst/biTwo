@@ -13,6 +13,7 @@ import bi.two.util.MapConfig;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Ummar3Algo extends BaseAlgo {
 
@@ -306,6 +307,11 @@ public class Ummar3Algo extends BaseAlgo {
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
+    }
+
+    @Override public long getPreloadPeriod() {
+        console("ummar3.getPreloadPeriod() m_start=" + m_start + "; m_step=" + m_step + "; m_count=" + m_count);
+        return TimeUnit.MINUTES.toMillis(25); // todo: calc from algo params
     }
 
 
