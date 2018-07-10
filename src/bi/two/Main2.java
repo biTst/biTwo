@@ -63,9 +63,9 @@ public class Main2 extends Thread {
             Algo algo = Algo.valueOf(algoName);
             BaseTimesSeriesData tsd = new ExchangeTradesTimesSeriesData(m_exchange, m_pair);
             BaseAlgo algoImpl = algo.createAlgo(config, tsd);
-            final long preload = algoImpl.getPreloadPeriod();
+            final long preloadPeriod = algoImpl.getPreloadPeriod();
 
-            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preload, config);
+            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, config);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() { onExchangeConnected(preloader); }
@@ -137,6 +137,7 @@ public class Main2 extends Thread {
         private final Exchange m_exchange;
         private final Pair m_pair;
         private final TicksCacheReader m_ticksCacheReader;
+        private final long m_periodToPreload;
         private boolean m_waitingFirstTrade = true;
         private long m_firstTradeTimestamp;
         private long m_lastLiveTradeTimestamp;
@@ -146,6 +147,7 @@ public class Main2 extends Thread {
         public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config) {
             m_exchange = exchange;
             m_pair = pair;
+            m_periodToPreload = preload;
 
             m_ticksCacheReader = m_exchange.getTicksCacheReader(config); // todo: remove ?
         }
@@ -166,7 +168,7 @@ public class Main2 extends Thread {
         }
 
         @Override public void run() {
-            console("TradesPreloader started");
+            console("TradesPreloader thread started");
 
             try {
                 loadCacheInfo();
@@ -184,6 +186,7 @@ public class Main2 extends Thread {
             while (true) {
                 console(" next iteration: timestamp=" + timestamp);
                 boolean matched = false;
+                int skippedTicksNum = 0;
                 for (TradesCacheEntry cacheEntry : m_cache) {
                     matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= cacheEntry.m_newestTimestamp);
                     if (matched) {
@@ -195,9 +198,14 @@ public class Main2 extends Thread {
                                 if (timestamp < tickTime) {
                                     timestamp = tickTime;
                                 }
+                                if (skippedTicksNum > 0) {
+                                    console("  skipped " + skippedTicksNum + " ticks");
+                                    skippedTicksNum = 0;
+                                }
                                 console("  tick: " + tick);
                             } else {
-                                console("  skip tick: " + tick);
+                                log("  skip tick: " + tick);
+                                skippedTicksNum++;
                             }
                         }
                         timestamp++;
@@ -212,8 +220,8 @@ public class Main2 extends Thread {
         }
 
         private long loadHistoryTrades() throws Exception {
-            long periodToLoad = TimeUnit.MINUTES.toMillis(25);
-            int ticksNumInBlockToLoad = 100;
+            console("loadHistoryTrades for period: " + Utils.millisToYDHMSStr(m_periodToPreload));
+            int ticksNumInBlockToLoad = 500; // todo: make this exch dependent. bitmex: Maximum result count is 500
             int maxIterations = 1000;
             long timestamp = m_lastLiveTradeTimestamp;
             for (int i = 0; i < maxIterations; i++) {
@@ -224,18 +232,18 @@ public class Main2 extends Thread {
                     timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
                     TimeUnit.SECONDS.sleep(1); // do not DDOS
                 } else {
-                    timestamp = cacheTimestamp;
+                    timestamp = cacheTimestamp; // got cached trades block containing requested timestamp; update timestamp to oldest block trade time
                 }
 
                 long allPeriod = m_lastLiveTradeTimestamp - timestamp; // note: m_lastLiveTradeTimestamp updates on live trades
                 console(" history ticks blocks num = " + m_cache.size() + "; period=" + Utils.millisToYDHMSStr(allPeriod));
 
-                if (allPeriod > periodToLoad) {
-                    console("requested period loaded: " + Utils.millisToYDHMSStr(periodToLoad));
+                if (allPeriod > m_periodToPreload) {
+                    console("requested period loaded: " + Utils.millisToYDHMSStr(m_periodToPreload));
                     break;
                 }
             }
-            return m_lastLiveTradeTimestamp - periodToLoad;
+            return m_lastLiveTradeTimestamp - m_periodToPreload;
         }
 
         private long probeCache(long timestamp) {
@@ -253,7 +261,7 @@ public class Main2 extends Thread {
         private long loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
             console("loadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
 
-            // bitmex loads trades with timestamp LESS than passes, so add 1ms to load from incoming
+            // todo: make this exch dependent: bitmex loads trades with timestamp LESS than passed, so add 1ms to load from incoming
             List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, timestamp + 1, Direction.backward, ticksNumInBlockToLoad);
 
             int tradesNum = trades.size();
