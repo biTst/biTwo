@@ -1,7 +1,7 @@
 package bi.two.exch;
 
-import bi.two.Main2;
 import bi.two.chart.ITickData;
+import bi.two.main2.TicksCacheReader;
 import bi.two.tre.CurrencyValue;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -187,7 +187,7 @@ public class Exchange {
         m_impl.rateLimiterActive(active);
     }
 
-    public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
+    public TicksCacheReader getTicksCacheReader(MapConfig config) {
         return m_impl.getTicksCacheReader(config);
     }
 

@@ -1,11 +1,11 @@
 package bi.two.exch.impl;
 
 import bi.two.DataFileType;
-import bi.two.Main2;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickPainter;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.main2.TicksCacheReader;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -672,13 +672,13 @@ log("symbolToPair symbol=" + symbol + "  => " + ret);
         console("session isOpen=" + m_session.isOpen());
     }
 
-    @Override public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
+    @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
         String cacheDir = config.getPropertyNoComment("cache.dir");
 console("BitMex<> cacheDir=" + cacheDir);
         if (cacheDir != null) {
             File dir = new File(cacheDir);
             if (dir.isDirectory()) {
-                return new Main2.TicksCacheReader(DataFileType.SIMPLE, dir);
+                return new TicksCacheReader(DataFileType.SIMPLE, dir);
             } else {
                 throw new RuntimeException("cache.dir "
                         + (dir.exists() ? "is not exist" : "is not a dir")

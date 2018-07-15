@@ -1,7 +1,7 @@
 package bi.two.exch;
 
-import bi.two.Main2;
 import bi.two.chart.ITickData;
+import bi.two.main2.TicksCacheReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
@@ -55,7 +55,7 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public Main2.TicksCacheReader getTicksCacheReader(MapConfig config) {
+    public TicksCacheReader getTicksCacheReader(MapConfig config) {
         throw new RuntimeException("not implemented: " + this);
     }
 
