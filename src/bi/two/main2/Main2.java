@@ -1,18 +1,24 @@
 package bi.two.main2;
 
+import bi.two.ChartCanvas;
+import bi.two.ChartFrame;
+import bi.two.Colors;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
-import bi.two.chart.ITickData;
-import bi.two.chart.TradeData;
+import bi.two.chart.*;
 import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
 import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
+import java.awt.*;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class Main2 extends Thread {
@@ -20,6 +26,7 @@ public class Main2 extends Thread {
 
     private Exchange m_exchange;
     private Pair m_pair;
+    private final ChartFrame m_frame;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -35,6 +42,7 @@ public class Main2 extends Thread {
     private Main2() {
         super("MAIN");
         setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+        m_frame = new ChartFrame();
     }
 
     @Override public void run() {
@@ -44,6 +52,16 @@ public class Main2 extends Thread {
 //            config.loadAndEncrypted(CONFIG);
             config.load(CONFIG);
             console("config loaded");
+
+            boolean collectTicks = true;
+            TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
+            if (!collectTicks) { // add initial tick to update
+                ticksTs.addOlderTick(new TickData());
+            }
+
+            m_frame.setVisible(true);
+            ChartCanvas chartCanvas = m_frame.getChartCanvas();
+            setupChart(chartCanvas, ticksTs);
 
             String exchangeName = config.getString("exchange");
             m_exchange = Exchange.get(exchangeName);
@@ -63,7 +81,14 @@ public class Main2 extends Thread {
             BaseAlgo algoImpl = algo.createAlgo(config, tsd);
             final long preloadPeriod = algoImpl.getPreloadPeriod();
 
-            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, config);
+            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, config, ticksTs) {
+                @Override protected void onTicksPreloaded() {
+                    m_frame.repaint();
+                }
+                @Override protected void onLiveTick() {
+                    m_frame.repaint(100);
+                }
+            };
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() { onExchangeConnected(preloader); }
@@ -77,6 +102,19 @@ public class Main2 extends Thread {
 
         } catch (Exception e) {
             err("main error: " + e, e);
+        }
+    }
+
+    private void setupChart(ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs) {
+        ChartData chartData = chartCanvas.getChartData();
+        ChartSetting chartSetting = chartCanvas.getChartSetting();
+
+        // layout
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
+        List<ChartAreaLayerSettings> topLayers = top.getLayers();
+        {
+            BaseAlgo.addChart(chartData, ticksTs,     topLayers, "price",     Colors.alpha(Color.RED, 70), TickPainter.TICK);
+//            BaseAlgo.addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Color.RED, 70), TickPainter.BAR);
         }
     }
 

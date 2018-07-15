@@ -4,7 +4,7 @@ import javax.swing.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
-class ChartFrame extends JFrame {
+public class ChartFrame extends JFrame {
     private final ChartCanvas m_chartCanvas;
 
     public ChartFrame() throws java.awt.HeadlessException {

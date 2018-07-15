@@ -40,7 +40,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
         m_indicators.add(indicator);
     }
 
-    protected static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
+    public static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
         chartData.setTicksData(name, ticksData);
         layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
     }

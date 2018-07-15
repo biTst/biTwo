@@ -6,6 +6,7 @@ import bi.two.chart.TradeData;
 import bi.two.exch.Direction;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -24,36 +25,50 @@ public class TradesPreloader implements Runnable {
     private final Pair m_pair;
     private final TicksCacheReader m_ticksCacheReader;
     private final long m_periodToPreload;
+    private final TimesSeriesData<TickData> m_ticksTs;
     private boolean m_waitingFirstTrade = true;
     private long m_firstTradeTimestamp;
     private long m_lastLiveTradeTimestamp;
     private List<TradeData> m_liveTicks = new ArrayList<>();
     private List<TradesCacheEntry> m_cache = new ArrayList<>();
+    private boolean m_preloaded;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config) {
+    public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config, TimesSeriesData<TickData> ticksTs) {
         m_exchange = exchange;
         m_pair = pair;
         m_periodToPreload = preload;
+        m_ticksTs = ticksTs;
 
         m_ticksCacheReader = m_exchange.getTicksCacheReader(config); // todo: remove ?
     }
 
-    public void addNewestTick(TradeData td) {
-        m_liveTicks.add(td);
-        long timestamp = td.getTimestamp();
-        m_lastLiveTradeTimestamp = timestamp;
-        if (m_waitingFirstTrade) {
-            m_waitingFirstTrade = false;
-            m_firstTradeTimestamp = timestamp;
-            console("got first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
+    protected void onTicksPreloaded() {}
+    protected void onLiveTick() {}
 
-            Thread thread = new Thread(this, "TradesPreloader");
-            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
-            thread.start();
+    public void addNewestTick(TradeData td) {
+        synchronized (m_liveTicks) {
+            if (m_preloaded) {
+                playTick(td);
+                onLiveTick();
+            } else {
+                m_liveTicks.add(td);
+                long timestamp = td.getTimestamp();
+                m_lastLiveTradeTimestamp = timestamp;
+                if (m_waitingFirstTrade) {
+                    m_waitingFirstTrade = false;
+                    m_firstTradeTimestamp = timestamp;
+                    console("got first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
+
+//console("TradesPreloader SKIPPED");
+                    Thread thread = new Thread(this, "TradesPreloader");
+                    thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+                    thread.start();
+                }
+            }
         }
     }
 
@@ -64,6 +79,7 @@ public class TradesPreloader implements Runnable {
             loadCacheInfo();
             long oldestTradeTime = loadHistoryTrades();
             playCacheTrades(oldestTradeTime);
+            playLiveTicks();
         } catch (Exception e) {
             err("TradesPreloader error: " + e, e);
         }
@@ -93,6 +109,7 @@ public class TradesPreloader implements Runnable {
                                 skippedTicksNum = 0;
                             }
                             console("  tick: " + tick);
+                            playTick(tick);
                         } else {
                             log("  skip tick: " + tick);
                             skippedTicksNum++;
@@ -107,6 +124,23 @@ public class TradesPreloader implements Runnable {
                 break;
             }
         }
+    }
+
+    private void playLiveTicks() {
+        synchronized (m_liveTicks) {
+            console("playLiveTicks: size=" + m_liveTicks.size());
+            for (TradeData liveTick : m_liveTicks) {
+                console("  tick: " + liveTick);
+                playTick(liveTick);
+            }
+            m_liveTicks.clear();
+            m_preloaded = true;
+            onTicksPreloaded();
+        }
+    }
+
+    private void playTick(TickData tick) {
+        m_ticksTs.addNewestTick(tick);
     }
 
     private long loadHistoryTrades() throws Exception {
