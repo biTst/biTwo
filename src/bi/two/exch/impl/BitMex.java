@@ -27,6 +27,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HttpContext;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.client.ClientProperties;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -106,13 +107,13 @@ public class BitMex extends BaseExchImpl {
     }
 
     private static String pairToSymbol(Pair pair) {
-log("pairToSymbol pair=" + pair + "  => " + SYMBOL);
+//log("pairToSymbol pair=" + pair + "  => " + SYMBOL);
         return SYMBOL; // todo
     }
 
     private static Pair symbolToPair(String symbol) {
         Pair ret = Pair.getByName("btc_usd");
-log("symbolToPair symbol=" + symbol + "  => " + ret);
+//log("symbolToPair symbol=" + symbol + "  => " + ret);
         return ret; // todo
     }
 
@@ -613,7 +614,7 @@ log("symbolToPair symbol=" + symbol + "  => " + ret);
         // works with compile 'org.glassfish.tyrus:tyrus-container-jdk-client:1.13.1'
         ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
 
-//        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new CexIo.ReconnectHandler());
+        client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new ReconnectHandler());
 
         client.connectToServer(endpoint, cec, new URI(URL));
     }
@@ -830,6 +831,48 @@ console("BitMex<> cacheDir=" + cacheDir);
 //        List<T> list = gson.fromJson(reader, new TypeToken<List<T>>(){}.getType());
 //        return list;
 //    }
+
+
+    //---------------------------------------------------------------------------------
+    private static class ReconnectHandler extends ClientManager.ReconnectHandler {
+        public static long s_reconnectTimeout = 2;
+
+        private int m_counter;
+        private int m_connectFailure;
+
+        /** @return When true is returned, client container will reconnect. */
+        @Override public boolean onDisconnect(CloseReason closeReason) {
+            m_counter++;
+            m_connectFailure = 0;
+            console("onDisconnect() closeReason=" + closeReason + "; Reconnecting... (reconnect count: " + m_counter + ")");
+            return true;
+        }
+
+        /** Called when there is a connection failure
+         * @return When true is returned, client container will reconnect. */
+        @Override public boolean onConnectFailure(Exception exception) {
+            m_counter++;
+            m_connectFailure++;
+
+            err("onConnectFailure() exception=" + exception, exception);
+            log("### Reconnecting... (connectFailure:" + m_connectFailure + "; reconnect count: " + m_counter + ")");
+
+            try {
+                TimeUnit.SECONDS.sleep(m_connectFailure);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            return true;
+        }
+
+        /** Get reconnect delay.
+         * @return When positive value is returned, next connection attempt will be made after that number of seconds. */
+        @Override public long getDelay() {
+            return s_reconnectTimeout;
+        }
+    }
+
 
     //---------------------------------------------------------------------------------------------
     public static class Tr implements ITickData {
