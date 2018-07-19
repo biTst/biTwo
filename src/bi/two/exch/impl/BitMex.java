@@ -79,6 +79,7 @@ public class BitMex extends BaseExchImpl {
     private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
     private boolean m_waitingFirstAccountUpdate;
+    private Thread m_pingThread;
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -188,6 +189,11 @@ public class BitMex extends BaseExchImpl {
     private void onMessageX(Session session, String message) {
         try {
             console("<< " + message);
+
+            if (message.equals("pong")) {
+                return;
+            }
+
             JSONParser parser = new JSONParser();
             JSONObject json = (JSONObject) parser.parse(message);
             console(" json=" + json);
@@ -203,7 +209,7 @@ public class BitMex extends BaseExchImpl {
                     if (subscribe != null) {
                         onSubscribed(session, subscribe, success, request);
                     } else {
-                        String op = (String) request.get("op");
+                        String op = (String) request.get("op"); // operation
                         console("  op=" + op);
                         if (op.equals("authKey")) {
                             onAuthenticated(session, success);
@@ -218,7 +224,7 @@ public class BitMex extends BaseExchImpl {
                 String table = (String) json.get("table");
                 if (table != null) {
                     if (table.equals("margin")) {
-                        onMargin(json);
+                        onMargin(session, json);
                     } else if (table.equals("trade")) {
                         onTrade(json);
                     } else {
@@ -270,7 +276,7 @@ public class BitMex extends BaseExchImpl {
         //  "request":{"op":"subscribe","args":["margin"]}}
     }
 
-    private void onMargin(JSONObject json) {
+    private void onMargin(final Session session, JSONObject json) {
         // {"table":"margin",
         //  "keys":["account","currency"],
         //  "types":{"account":"long","currency":"symbol","riskLimit":"long","prevState":"symbol","state":"symbol","action":"symbol","amount":"long","pendingCredit":"long","pendingDebit":"long",
@@ -296,6 +302,18 @@ public class BitMex extends BaseExchImpl {
         // "filter":{"account":47464},
         // "sendingTime":"2018-03-15T15:11:50.979Z"}
 
+
+        JSONArray data = (JSONArray) json.get("data");
+        console("onMargin() waitingFirstAccountUpdate=" + m_waitingFirstAccountUpdate + "; data=" + data);
+
+        for (Object obj : data) {
+            JSONObject datum = (JSONObject) obj;
+            console(" datum=" + datum);
+            Object currency = datum.get("currency");
+            Object walletBalance = datum.get("walletBalance");
+            console("  currency=" + currency + "; walletBalance=" + walletBalance);
+        }
+
         if (m_waitingFirstAccountUpdate) {
             m_waitingFirstAccountUpdate = false;
             // connected + authenticated + gotAccountData
@@ -303,6 +321,42 @@ public class BitMex extends BaseExchImpl {
                 m_exchangeConnectListener.onConnected();
             }
         }
+
+        startPingThread(session);
+    }
+
+    private void startPingThread(final Session session) {
+        killPingThreadIfNeeded();
+        m_pingThread = new Thread() {
+            @Override public void run() {
+                try {
+                    while (!isInterrupted()) {
+                        TimeUnit.SECONDS.sleep(20);
+                        send(session, "ping");
+                    }
+                } catch (Exception e) {
+                    err("ping error: " + e, e);
+                }
+                if (m_pingThread == this) {
+                    m_pingThread = null;
+                }
+                log("ping thread finished: " + this);
+            }
+        };
+        m_pingThread.setName("ping");
+        m_pingThread.start();
+        log("started ping thread: " + m_pingThread);
+    }
+
+    private void killPingThreadIfNeeded() {
+        if (m_pingThread != null) {
+            killPingThread();
+        }
+    }
+
+    private void killPingThread() {
+        console("killPingThread: " + m_pingThread);
+        m_pingThread.interrupt();
     }
 
     private void authenticate(Session session) throws NoSuchAlgorithmException, InvalidKeyException, IOException {
@@ -513,7 +567,7 @@ public class BitMex extends BaseExchImpl {
         console("  got " + size + " trades");
         for (int i = 0; i < size; i++) {
             JSONObject obj = (JSONObject) data.get(i);
-            console("   [" + i + "]:" + obj);
+            log("   [" + i + "]:" + obj);
             TradeData td = parseTrade(obj);
             String s = (String) obj.get("symbol");
             if (!Utils.equals(s, symbol)) {
@@ -539,13 +593,12 @@ public class BitMex extends BaseExchImpl {
         Number size = (Number) obj.get("homeNotional");
         Number price = (Number) obj.get("price");
         String timestampStr = (String) obj.get("timestamp");
-        console("    side=" + side + "; size=" + size + "; price=" + price + "; timestamp=" + timestampStr);
 
         boolean isBuy = side.equals("Buy");
         OrderSide orderSide = OrderSide.get(isBuy);
         Date date = TIMESTAMP_FORMAT.parse(timestampStr);
         long timestamp = date.getTime();
-        console("     isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
+        console("    side=" + side + "; size=" + size + "; price=" + price + "; timestampStr=" + timestampStr + "; isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
 
         return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
     }
@@ -635,7 +688,7 @@ public class BitMex extends BaseExchImpl {
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
-                console("onOpen");
+                console("Endpoint.onOpen");
                 m_waitingFirstAccountUpdate = true;
                 try {
                     m_session = session;
@@ -645,14 +698,16 @@ public class BitMex extends BaseExchImpl {
                         }
                     });
                 } catch (Exception e) {
-                    err("onOpen ERROR: " + e, e);
+                    err("Endpoint.onOpen ERROR: " + e, e);
                 }
             }
 
             @Override public void onClose(Session session, CloseReason closeReason) {
-                console("onClose: " + closeReason);
+                console("Endpoint.onClose: " + closeReason);
 
                 m_exchange.m_live = false; // mark as disconnected
+
+                killPingThreadIfNeeded();
 
 //                m_exchange.m_threadPool.submit(new Runnable() {
 //                    @Override public void run() {
@@ -665,7 +720,7 @@ public class BitMex extends BaseExchImpl {
             }
 
             @Override public void onError(Session session, Throwable thr) {
-                err("onError: " + thr, thr);
+                err("Endpoint.onError: " + thr, thr);
             }
         };
         console("connectToServer...");
