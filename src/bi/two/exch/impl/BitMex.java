@@ -5,6 +5,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickPainter;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.exch.Currency;
 import bi.two.main2.TicksCacheReader;
 import bi.two.util.Hex;
 import bi.two.util.Log;
@@ -44,10 +45,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 // based on info from
@@ -63,6 +61,8 @@ public class BitMex extends BaseExchImpl {
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     public static final String ENDPOINT = "testnet.bitmex.com";
+    private static final String[] s_supportedCurrencies = new String[]{ "XBt"};
+
     // debug
     private static final boolean LOG_HEADERS = false;
     private static final boolean LOG_HTTP = false;
@@ -80,6 +80,7 @@ public class BitMex extends BaseExchImpl {
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
     private boolean m_waitingFirstAccountUpdate;
     private Thread m_pingThread;
+    private Map<String,Currency> m_currencies = new HashMap<>();
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -100,6 +101,12 @@ public class BitMex extends BaseExchImpl {
 
     public BitMex(Exchange exchange) {
         m_exchange = exchange;
+
+        for (String name : s_supportedCurrencies) {
+            String nameLower = name.toLowerCase();
+            Currency byName = Currency.getByName(nameLower);
+            m_currencies.put(nameLower, byName);
+        }
     }
 
     public void init(MapConfig config) {
@@ -196,7 +203,7 @@ public class BitMex extends BaseExchImpl {
 
             JSONParser parser = new JSONParser();
             JSONObject json = (JSONObject) parser.parse(message);
-            console(" json=" + json);
+            log(" json=" + json);
             JSONObject request = (JSONObject) json.get("request");
             console(" request=" + request);
             if (request != null) {
@@ -227,6 +234,12 @@ public class BitMex extends BaseExchImpl {
                         onMargin(session, json);
                     } else if (table.equals("trade")) {
                         onTrade(json);
+                    } else if (table.equals("position")) {
+                        onPosition(json);
+                    } else if (table.equals("execution")) {
+                        onExecution(json);
+                    } else if (table.equals("order")) {
+                        onOrder(json);
                     } else {
                         console("ERROR: not supported table='" + table + "' message: " + json);
                     }
@@ -257,7 +270,7 @@ public class BitMex extends BaseExchImpl {
 //        }
     }
 
-    private static void onAuthenticated(Session session, Boolean success) throws IOException {
+    private void onAuthenticated(Session session, Boolean success) throws IOException {
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
         console("onAuthenticated success=" + success);
@@ -266,7 +279,7 @@ public class BitMex extends BaseExchImpl {
         }
     }
 
-    private static void subscribeAccount(Session session) throws IOException {
+    private void subscribeAccount(Session session) throws IOException {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Updates on your current account balance and margin requirements
         send(session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
@@ -274,9 +287,22 @@ public class BitMex extends BaseExchImpl {
         // {"success":true,
         //  "subscribe":"margin",
         //  "request":{"op":"subscribe","args":["margin"]}}
+
+        // Updates on your positions
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"position\"]}");
+        // {"success":true,"subscribe":"position","request":{"op":"subscribe","args":["position"]}}
+
+        // Individual executions; can be multiple per order
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"execution\"]}");
+        // {"success":true,"subscribe":"execution","request":{"op":"subscribe","args":["execution"]}}
+
+        // Live updates on your orders
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"order\"]}");
+
+        startPingThread(session);
     }
 
-    private void onMargin(final Session session, JSONObject json) {
+    private void onMargin(final Session session, JSONObject json) throws Exception {
         // {"table":"margin",
         //  "keys":["account","currency"],
         //  "types":{"account":"long","currency":"symbol","riskLimit":"long","prevState":"symbol","state":"symbol","action":"symbol","amount":"long","pendingCredit":"long","pendingDebit":"long",
@@ -301,6 +327,14 @@ public class BitMex extends BaseExchImpl {
         //           "grossLastValue":0,"commission":null}],
         // "filter":{"account":47464},
         // "sendingTime":"2018-03-15T15:11:50.979Z"}
+        //
+        //
+        // {"unrealisedPnl":76440,"maintMargin":184076,
+        //  "grossMarkValue":9929115,"riskValue":9929115,"grossLastValue":9929115,
+        //  "marginUsedPcnt":0.0092,
+        //  "marginLeverage":0.4947504441690382,
+        //  "currency":"XBt","account":47464,
+        //  "marginBalance":20068936,"timestamp":"2018-07-20T00:16:40.184Z"}
 
 
         JSONArray data = (JSONArray) json.get("data");
@@ -309,20 +343,25 @@ public class BitMex extends BaseExchImpl {
         for (Object obj : data) {
             JSONObject datum = (JSONObject) obj;
             console(" datum=" + datum);
-            Object currency = datum.get("currency");
-            Object walletBalance = datum.get("walletBalance");
-            console("  currency=" + currency + "; walletBalance=" + walletBalance);
-        }
+            String curr = (String) datum.get("currency");
+            Long marginBalance = (Long) datum.get("marginBalance");
 
-        if (m_waitingFirstAccountUpdate) {
-            m_waitingFirstAccountUpdate = false;
-            // connected + authenticated + gotAccountData
-            if (m_exchangeConnectListener != null) {
-                m_exchangeConnectListener.onConnected();
-            }
-        }
+            Currency currency = m_currencies.get(curr.toLowerCase());
+            console("  curr=" + curr + "; marginBalance=" + marginBalance + "; currency=" + currency);
 
-        startPingThread(session);
+            double doubleValue = marginBalance / 100000000d; // marginBalance in satoshi
+            m_exchange.m_accountData.setAvailable(currency, doubleValue);
+            console("   accountData=" + m_exchange.m_accountData);
+        }
+        m_exchange.notifyAccountListener();
+
+//        if (m_waitingFirstAccountUpdate) {
+//            m_waitingFirstAccountUpdate = false;
+//            // connected + authenticated + gotAccountData
+//            if (m_exchangeConnectListener != null) {
+//                m_exchangeConnectListener.onConnected();
+//            }
+//        }
     }
 
     private void startPingThread(final Session session) {
@@ -502,7 +541,8 @@ public class BitMex extends BaseExchImpl {
         //    "inverseLeg":"","sellLeg":"","buyLeg":"","optionStrikePcnt":null,"optionStrikeRound":null,"optionStrikePrice":null,"optionMultiplier":null,"positionCurrency":"USD","underlying":"XBT",
         //    "quoteCurrency":"USD","underlyingSymbol":"XBT=","reference":"BMEX","referenceSymbol":".BXBT","calcInterval":null,"publishInterval":null,"publishTime":null,"maxOrderQty":10000000,"maxPrice":1000000,
         //    "lotSize":1,"tickSize":0.5,"multiplier":-100000000,"settlCurrency":"XBt","underlyingToPositionMultiplier":null,"underlyingToSettleMultiplier":-100000000,"quoteToSettleMultiplier":null,"isQuanto":false,
-        //    "isInverse":true,"initMargin":0.01,"maintMargin":0.005,"riskLimit":20000000000,"riskStep":10000000000,"limit":null,"capped":false,"taxed":true,"deleverage":true,"makerFee":-0.00025,"takerFee":0.00075,
+        //    "isInverse":true,"initMargin":0.01,"maintMargin":0.005,"riskLimit":20000000000,"riskStep":10000000000,"limit":null,"capped":false,"taxed":true,"deleverage":true,
+        //    "makerFee":-0.00025,"takerFee":0.00075,
         //    "settlementFee":0,"insuranceFee":0,"fundingBaseSymbol":".XBTBON8H","fundingQuoteSymbol":".USDBON8H","fundingPremiumSymbol":".XBTUSDPI8H","fundingTimestamp":"2018-03-15T04:00:00.000Z",
         //    "fundingInterval":"2000-01-01T08:00:00.000Z","fundingRate":0.000936,"indicativeFundingRate":-0.001663,"rebalanceTimestamp":null,"rebalanceInterval":null,"openingTimestamp":"2018-03-15T00:00:00.000Z",
         //    "closingTimestamp":"2018-03-15T02:00:00.000Z","sessionInterval":"2000-01-01T02:00:00.000Z","prevClosePrice":8703.56,"limitDownPrice":null,"limitUpPrice":null,"bankruptLimitDownPrice":null,
@@ -527,6 +567,94 @@ public class BitMex extends BaseExchImpl {
         //  "subscribe":"trade:XBTUSD",
         //  "request":{"op":"subscribe","args":["trade:XBTUSD"]}
         // }
+    }
+
+    private void onOrder(JSONObject json) {
+        // {"table":"order",
+        //  "action":"partial",
+        //  "keys":["orderID"],
+        //  "types":{"orderID":"guid","clOrdID":"symbol","clOrdLinkID":"symbol","account":"long","symbol":"symbol","side":"symbol","simpleOrderQty":"float","orderQty":"long",
+        //           "price":"float","displayQty":"long","stopPx":"float","pegOffsetValue":"float","pegPriceType":"symbol","currency":"symbol","settlCurrency":"symbol",
+        //           "ordType":"symbol","timeInForce":"symbol","execInst":"symbol","contingencyType":"symbol","exDestination":"symbol","ordStatus":"symbol","triggered":"symbol",
+        //           "workingIndicator":"boolean","ordRejReason":"symbol","simpleLeavesQty":"float","leavesQty":"long","simpleCumQty":"float","cumQty":"long","avgPx":"float",
+        //           "multiLegReportingType":"symbol","text":"symbol","transactTime":"timestamp","timestamp":"timestamp"},
+        //  "foreignKeys":{"symbol":"instrument","side":"side","ordStatus":"ordStatus"},
+        //  "attributes":{"orderID":"grouped","account":"grouped","ordStatus":"grouped","workingIndicator":"grouped"},
+        //  "filter":{"account":47464},
+        //  "data":[]
+        // }
+    }
+
+    private void onExecution(JSONObject json) {
+        // {"table":"execution",
+        //  "action":"partial",
+        //  "keys":["execID"],
+        //  "types":{"execID":"guid","orderID":"guid","clOrdID":"symbol","clOrdLinkID":"symbol","account":"long","symbol":"symbol","side":"symbol","lastQty":"long",
+        //           "lastPx":"float","underlyingLastPx":"float","lastMkt":"symbol","lastLiquidityInd":"symbol","simpleOrderQty":"float","orderQty":"long","price":"float",
+        //           "displayQty":"long","stopPx":"float","pegOffsetValue":"float","pegPriceType":"symbol","currency":"symbol","settlCurrency":"symbol","execType":"symbol",
+        //           "ordType":"symbol","timeInForce":"symbol","execInst":"symbol","contingencyType":"symbol","exDestination":"symbol","ordStatus":"symbol","triggered":"symbol",
+        //           "workingIndicator":"boolean","ordRejReason":"symbol","simpleLeavesQty":"float","leavesQty":"long","simpleCumQty":"float","cumQty":"long","avgPx":"float",
+        //           "commission":"float","tradePublishIndicator":"symbol","multiLegReportingType":"symbol","text":"symbol","trdMatchID":"guid","execCost":"long","execComm":"long",
+        //           "homeNotional":"float","foreignNotional":"float","transactTime":"timestamp","timestamp":"timestamp"},
+        //  "foreignKeys":{"symbol":"instrument","side":"side","ordStatus":"ordStatus"},
+        //  "attributes":{"execID":"grouped","account":"grouped","execType":"grouped","transactTime":"sorted"},
+        //  "filter":{"account":47464},
+        //  "data":[]
+        // }
+    }
+
+    private void onPosition(JSONObject json) {
+        // {"table":"position",
+        //  "action":"partial",
+        //  "keys":["account","symbol","currency"],
+        //  "types":{"account":"long","symbol":"symbol","currency":"symbol","underlying":"symbol","quoteCurrency":"symbol","commission":"float","initMarginReq":"float","maintMarginReq":"float","riskLimit":"long","leverage":"float","crossMargin":"boolean","deleveragePercentile":"float","rebalancedPnl":"long","prevRealisedPnl":"long","prevUnrealisedPnl":"long","prevClosePrice":"float","openingTimestamp":"timestamp","openingQty":"long","openingCost":"long","openingComm":"long","openOrderBuyQty":"long","openOrderBuyCost":"long","openOrderBuyPremium":"long","openOrderSellQty":"long","openOrderSellCost":"long","openOrderSellPremium":"long","execBuyQty":"long","execBuyCost":"long","execSellQty":"long","execSellCost":"long","execQty":"long","execCost":"long","execComm":"long","currentTimestamp":"timestamp","currentQty":"long","currentCost":"long","currentComm":"long","realisedCost":"long","unrealisedCost":"long","grossOpenCost":"long","grossOpenPremium":"long","grossExecCost":"long","isOpen":"boolean","markPrice":"float","markValue":"long","riskValue":"long","homeNotional":"float","foreignNotional":"float","posState":"symbol","posCost":"long","posCost2":"long","posCross":"long","posInit":"long","posComm":"long","posLoss":"long","posMargin":"long","posMaint":"long","posAllowance":"long","taxableMargin":"long","initMargin":"long","maintMargin":"long","sessionMargin":"long","targetExcessMargin":"long","varMargin":"long","realisedGrossPnl":"long","realisedTax":"long","realisedPnl":"long","unrealisedGrossPnl":"long","longBankrupt":"long","shortBankrupt":"long","taxBase":"long","indicativeTaxRate":"float","indicativeTax":"long","unrealisedTax":"long","unrealisedPnl":"long","unrealisedPnlPcnt":"float","unrealisedRoePcnt":"float","simpleQty":"float","simpleCost":"float","simpleValue":"float","simplePnl":"float","simplePnlPcnt":"float","avgCostPrice":"float","avgEntryPrice":"float","breakEvenPrice":"float","marginCallPrice":"float","liquidationPrice":"float","bankruptPrice":"float","timestamp":"timestamp","lastPrice":"float","lastValue":"long"},
+        //  "foreignKeys":{"symbol":"instrument"},
+        //  "attributes":{"account":"sorted","symbol":"grouped","currency":"grouped","underlying":"grouped","quoteCurrency":"grouped"},
+        //  "filter":{"account":47464},
+        //  "data":[{"account":47464,
+        //           "symbol":"XBTUSD", "currency":"XBt", "underlying":"XBT",
+        //           "quoteCurrency":"USD",
+        //           "commission":0.00075,
+        //           "initMarginReq":0.01,
+        //           "maintMarginReq":0.005,
+        //           "riskLimit":20000000000,
+        //           "leverage":100,
+        //           "crossMargin":true,
+        //           "deleveragePercentile":1,
+        //           "rebalancedPnl":0, "prevRealisedPnl":0, "prevUnrealisedPnl":0,
+        //           "prevClosePrice":7433.83, "markPrice":7454.76, "lastPrice":7454.76,
+        //           "openingQty":735, "currentQty":735, "simpleCost":735,
+        //           "openingCost":-10005555, "posCost":-10005555, "posCost2":-10005555,
+        //           "openingComm":2115, "currentComm":2115,
+        //           "openOrderBuyQty":0, "openOrderBuyCost":0, "openOrderBuyPremium":0, "openOrderSellQty":0, "openOrderSellCost":0, "openOrderSellPremium":0,
+        //           "execBuyQty":0, "execBuyCost":0, "execSellQty":0, "execSellCost":0 ,"execQty":0, "execCost":0, "execComm":0, "realisedCost":0, "grossOpenCost":0,
+        //           "grossOpenPremium":0,"grossExecCost":0, "posCross":0, "posLoss":0, "posAllowance":0, "taxableMargin":0,"initMargin":0, "sessionMargin":0,
+        //           "targetExcessMargin":0,"varMargin":0,"realisedGrossPnl":0,"realisedTax":0, "longBankrupt":0,"shortBankrupt":0, "indicativeTaxRate":0,"indicativeTax":0,"unrealisedTax":0,
+        //           "currentCost":-10005555, "unrealisedCost":-10005555,
+        //           "isOpen":true,
+        //           "markValue":-9859290, "lastValue":-9859290,
+        //           "riskValue":9859290,
+        //           "homeNotional":0.0985929,
+        //           "foreignNotional":-735,
+        //           "posState":"",
+        //           "posInit":100056,
+        //           "posComm":7580,
+        //           "posMargin":107636,
+        //           "posMaint":57608,
+        //           "maintMargin":253901,
+        //           "realisedPnl":-2115,
+        //           "unrealisedGrossPnl":146265, "unrealisedPnl":146265, "taxBase":146265,
+        //           "unrealisedPnlPcnt":0.0146,
+        //           "unrealisedRoePcnt":1.4618,
+        //           "simpleQty":0.1,
+        //           "simpleValue":746,
+        //           "simplePnl":11,
+        //           "simplePnlPcnt":0.015,
+        //           "avgCostPrice":7346, "avgEntryPrice":7346, "breakEvenPrice":7348,
+        //           "marginCallPrice":2456, "liquidationPrice":2456, "bankruptPrice":2452,
+        //           "openingTimestamp":"2018-07-20T10:00:00.000Z", "currentTimestamp":"2018-07-20T10:16:35.063Z", "timestamp":"2018-07-20T10:16:35.063Z",
+        // }]}
+
     }
 
     private void onTrade(JSONObject json) throws ParseException {
