@@ -205,7 +205,7 @@ public class BitMex extends BaseExchImpl {
             JSONObject json = (JSONObject) parser.parse(message);
             log(" json=" + json);
             JSONObject request = (JSONObject) json.get("request");
-            console(" request=" + request);
+            log(" request=" + request);
             if (request != null) {
                 // {"success":true,                     "request":{"op":"authKey","args":["QGCD0OqdauJZ9LHbvBuq0tHE",1521898505226,"caa8ec1a5cecd030019c22f73a42a0774775653a9a21dd90395ffbafb9e87b98"]}}
                 // {"success":true,"subscribe":"margin","request":{"op":"subscribe","args":["margin"]}}
@@ -213,16 +213,20 @@ public class BitMex extends BaseExchImpl {
                 if (success != null) {
                     String subscribe = (String) json.get("subscribe");
                     console(" success=" + success + "; subscribe=" + subscribe);
-                    if (subscribe != null) {
-                        onSubscribed(session, subscribe, success, request);
-                    } else {
-                        String op = (String) request.get("op"); // operation
-                        console("  op=" + op);
-                        if (op.equals("authKey")) {
-                            onAuthenticated(session, success);
+                    if(success) {
+                        if (subscribe != null) {
+                            onSubscribed(session, subscribe, success, request);
                         } else {
-                            console("ERROR: not supported message (op='" + op + "'): " + json);
+                            String op = (String) request.get("op"); // operation
+                            console("  op=" + op);
+                            if (op.equals("authKey")) {
+                                onAuthenticated(session, success);
+                            } else {
+                                console("ERROR: not supported message (op='" + op + "'): " + json);
+                            }
                         }
+                    } else {
+                        console("ERROR: not subscribed: " + json);
                     }
                 } else {
                     console("ERROR: not supported message (no success): " + json);
@@ -283,6 +287,7 @@ public class BitMex extends BaseExchImpl {
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Updates on your current account balance and margin requirements
         send(session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
+        console("subscribed for margin");
 
         // {"success":true,
         //  "subscribe":"margin",
@@ -291,13 +296,17 @@ public class BitMex extends BaseExchImpl {
         // Updates on your positions
         send(session, "{\"op\": \"subscribe\", \"args\": [\"position\"]}");
         // {"success":true,"subscribe":"position","request":{"op":"subscribe","args":["position"]}}
+        console("subscribed for position");
 
         // Individual executions; can be multiple per order
         send(session, "{\"op\": \"subscribe\", \"args\": [\"execution\"]}");
         // {"success":true,"subscribe":"execution","request":{"op":"subscribe","args":["execution"]}}
+        console("subscribed for execution");
 
         // Live updates on your orders
         send(session, "{\"op\": \"subscribe\", \"args\": [\"order\"]}");
+        // {"success":true,"subscribe":"order","request":{"op":"subscribe","args":["order"]}}
+        console("subscribed for order");
 
         startPingThread(session);
     }
@@ -344,14 +353,16 @@ public class BitMex extends BaseExchImpl {
             JSONObject datum = (JSONObject) obj;
             console(" datum=" + datum);
             String curr = (String) datum.get("currency");
-            Long marginBalance = (Long) datum.get("marginBalance");
+            Long availableMargin = (Long) datum.get("availableMargin");
 
             Currency currency = m_currencies.get(curr.toLowerCase());
-            console("  curr=" + curr + "; marginBalance=" + marginBalance + "; currency=" + currency);
+            console("  curr=" + curr + "; availableMargin=" + availableMargin + "; currency=" + currency);
 
-            double doubleValue = marginBalance / 100000000d; // marginBalance in satoshi
-            m_exchange.m_accountData.setAvailable(currency, doubleValue);
-            console("   accountData=" + m_exchange.m_accountData);
+            if (availableMargin != null) { // if changed
+                double doubleValue = availableMargin / 100000000d; // marginBalance in satoshi
+                m_exchange.m_accountData.setAvailable(currency, doubleValue);
+                console("   accountData=" + m_exchange.m_accountData);
+            }
         }
         m_exchange.notifyAccountListener();
 
@@ -583,6 +594,25 @@ public class BitMex extends BaseExchImpl {
         //  "filter":{"account":47464},
         //  "data":[]
         // }
+
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console("  got " + size + " orders");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+            console("   [" + i + "]:" + obj);
+
+            String side = (String) obj.get("side");
+            String ordType = (String) obj.get("ordType");
+            String symbol = (String) obj.get("symbol");
+            Long price = (Long) obj.get("price");
+            Long orderQty = (Long) obj.get("orderQty");
+            Long leavesQty = (Long) obj.get("leavesQty");
+            Long cumQty = (Long) obj.get("cumQty");
+            String ordStatus = (String) obj.get("ordStatus");
+            console("    side=" + side + "; symbol=" + symbol + "; ordType=" + ordType + "; price=" + price
+                    + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus);
+        }
     }
 
     private void onExecution(JSONObject json) {
@@ -601,6 +631,14 @@ public class BitMex extends BaseExchImpl {
         //  "filter":{"account":47464},
         //  "data":[]
         // }
+
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console("  got " + size + " executions");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+            console("   [" + i + "]:" + obj);
+        }
     }
 
     private void onPosition(JSONObject json) {
@@ -655,6 +693,59 @@ public class BitMex extends BaseExchImpl {
         //           "openingTimestamp":"2018-07-20T10:00:00.000Z", "currentTimestamp":"2018-07-20T10:16:35.063Z", "timestamp":"2018-07-20T10:16:35.063Z",
         // }]}
 
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console("  got " + size + " positions");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+            console("   [" + i + "]:" + obj);
+
+            String symbol = (String) obj.get("symbol");
+            String quoteCurrency = (String) obj.get("quoteCurrency");
+            Long currentQty = (Long) obj.get("currentQty");
+            console("    symbol=" + symbol + "; currentQty="+currentQty + "; quoteCurrency="+quoteCurrency);
+
+            // Positions
+            // Symbol	Size	Value	    Entry Price	Mark Price	Liq. Price	    Margin	            Unrealised PNL (ROE %)	Realised PNL
+            // XBTUSD   -733    0.1000 XBT  7344.00	    7328.87	    100000000.0     +0.1000 XBT (1.00x) 0.0002 XBT (0.21%)      0.0062 XBT
+
+
+            // {"symbol":"XBTUSD","lastValue":10002518,"breakEvenPrice":7337.5,"avgCostPrice":7344,"posLoss":0,"openOrderSellQty":760,"avgEntryPrice":7344,"taxBase":681276,
+            // "foreignNotional":733,  "simpleCost":-733,  "currentQty":-733,
+            // "execComm":54078,"riskLimit":20000000000,"prevUnrealisedPnl":0,"longBankrupt":0,"marginCallPrice":100000000,
+            // "unrealisedCost":9981261,"posComm":0,"posMaint":0,"simplePnlPcnt":0.002,"execSellCost":19960323,"realisedCost":-660019,"posInit":9981261,"grossExecCost":0,
+            // "posAllowance":0,"targetExcessMargin":0,"shortBankrupt":0,"indicativeTax":0,"maintMargin":10002518,"riskValue":20002598,"execBuyCost":20470860,
+            // "grossOpenPremium":0,"currentCost":9321242,"indicativeTaxRate":0,"underlying":"XBT","quoteCurrency":"USD","initMarginReq":1,"isOpen":true,"posCross":0,
+            // "currentTimestamp":"2018-07-20T21:17:10.053Z","simpleValue":-731.5,"prevClosePrice":7341.78,"unrealisedPnlPcnt":0.0021,
+            // "execQty":37,"taxableMargin":0,"openingCost":9831779,"realisedGrossPnl":660019,"leverage":1,"posState":"","openOrderSellPremium":0,"simpleQty":-0.0998,"openingQty":-770,
+            // "homeNotional":-0.10002518,"liquidationPrice":100000000,"openOrderBuyQty":0,"unrealisedPnl":21257,"execCost":-510537,"unrealisedGrossPnl":21257,"markPrice":7328.4,
+            // "posMargin":9981261,"unrealisedTax":0,"crossMargin":false,"deleveragePercentile":1,"openOrderBuyCost":0,"posCost":9981261,"currency":"XBt","commission":7.5E-4,
+            // "sessionMargin":0,"maintMarginReq":0.005,"bankruptPrice":100000000,"openOrderSellCost":-10000080,"markValue":10002518,"timestamp":"2018-07-20T21:17:10.053Z",
+            // "realisedPnl":622889,"varMargin":0,"realisedTax":0,"rebalancedPnl":-630374,"openOrderBuyPremium":0,"posCost2":9981261,"openingTimestamp":"2018-07-20T20:00:00.000Z",
+            // "currentComm":37130,"execSellQty":1466,"grossOpenCost":10000080,"prevRealisedPnl":447714,"execBuyQty":1503,"initMargin":10022581,
+            // "unrealisedRoePcnt":0.0021,"simplePnl":1.5,"account":47464,"openingComm":-16948,"lastPrice":7328.4}
+
+
+            // Symbol	Size	Value	    Entry Price	Mark Price	Liq. Price	    Margin	            Unrealised PNL (ROE %)	Realised PNL
+            // XBTUSD   -844    0.1152 XBT  7337.30	    7322.25	    100000000.0     +0.1152 XBT (1.00x) 0.0002 XBT (0.21%)      0.0000 XBT
+
+
+            // {"symbol":"XBTUSD","lastValue":11510472,"breakEvenPrice":7331,"avgCostPrice":7337.2955,"posLoss":0,"openOrderSellQty":0,"avgEntryPrice":7337.2955,"taxBase":667642,
+            // "foreignNotional":844,  "simpleCost":-844,  "currentQty":-844,
+            // "execComm":1141,"riskLimit":20000000000,"prevUnrealisedPnl":0,"longBankrupt":0,"marginCallPrice":100000000,"unrealisedCost":11502849,"posComm":0,
+            // "posMaint":0,"simplePnlPcnt":6.0E-4,"execSellCost":1521588,"realisedCost":-660019,"posInit":11502849,"grossExecCost":1521588,"posAllowance":0,"targetExcessMargin":0,
+            // "shortBankrupt":0,"indicativeTax":0,"maintMargin":11510472,"riskValue":11510472,"execBuyCost":0,"grossOpenPremium":0,"currentCost":10842830,"indicativeTaxRate":0,
+            // "underlying":"XBT","quoteCurrency":"USD","initMarginReq":1,"isOpen":true,"posCross":0,"currentTimestamp":"2018-07-20T23:08:20.055Z","simpleValue":-843.5,"prevClosePrice":7285.57,
+            // "unrealisedPnlPcnt":7.0E-4,"execQty":-111,"taxableMargin":0,"openingCost":9321242,"realisedGrossPnl":660019,"leverage":1,"posState":"","openOrderSellPremium":0,
+            // "simpleQty":-0.115,"openingQty":-733,"homeNotional":-0.11510472,"liquidationPrice":100000000,"openOrderBuyQty":0,"unrealisedPnl":7623,"execCost":1521588,"unrealisedGrossPnl":7623,
+            // "markPrice":7332.19,"posMargin":11502849,"unrealisedTax":0,"crossMargin":false,"deleveragePercentile":1,"openOrderBuyCost":0,"posCost":11502849,"currency":"XBt","commission":7.5E-4,
+            // "sessionMargin":0,"maintMarginReq":0.005,"bankruptPrice":100000000,"openOrderSellCost":0,"markValue":11510472,"timestamp":"2018-07-20T23:08:20.055Z","realisedPnl":621748,
+            // "varMargin":0,"realisedTax":0,"rebalancedPnl":-630374,"openOrderBuyPremium":0,"posCost2":11502849,"openingTimestamp":"2018-07-20T22:00:00.000Z",
+            // "currentComm":38271,"execSellQty":111,"grossOpenCost":0,"prevRealisedPnl":447714,"execBuyQty":0,"initMargin":0,"unrealisedRoePcnt":7.0E-4,"simplePnl":0.5,"account":47464,
+            // "openingComm":37130,"lastPrice":7332.19}
+
+
+        }
     }
 
     private void onTrade(JSONObject json) throws ParseException {
