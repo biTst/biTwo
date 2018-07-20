@@ -621,8 +621,7 @@ public class CexIo extends BaseExchImpl {
                 }
             }
         }
-
-        m_exchange.m_accountListener.onUpdated();
+        m_exchange.notifyAccountListener();
     }
 
     private String parseBalance(JSONObject balance) {

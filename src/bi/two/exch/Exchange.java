@@ -196,6 +196,12 @@ public class Exchange {
         return trades;
     }
 
+    public void notifyAccountListener() throws Exception {
+        if (m_accountListener != null) {
+            m_accountListener.onUpdated();
+        }
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
