@@ -16,6 +16,7 @@ public enum Currency {
     BTG("btg", "g"),
     DASH("dash", "d"),
     XRP("xrp", "x"),
+    XBT("xbt", "b"), // bitmex btc interpretation
     ;
     
     public final String m_name;
