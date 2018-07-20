@@ -605,7 +605,7 @@ public class BitMex extends BaseExchImpl {
             String side = (String) obj.get("side");
             String ordType = (String) obj.get("ordType");
             String symbol = (String) obj.get("symbol");
-            Long price = (Long) obj.get("price");
+            Long price = (Long) obj.get("price"); // if ordType=Market => price=null
             Long orderQty = (Long) obj.get("orderQty");
             Long leavesQty = (Long) obj.get("leavesQty");
             Long cumQty = (Long) obj.get("cumQty");
@@ -632,12 +632,33 @@ public class BitMex extends BaseExchImpl {
         //  "data":[]
         // }
 
+        // Symbol	Qty     Exec Qty	Remaining	Exec Price	Price	Value	    Type	OrderID	    Time
+        // XBTUSD	100	    -100	    0	        7300.0	    Market	0.0136 XBT	Market	52a088c	    Jul 21, 2018, 2:24:13 AM
+
+        // {"symbol":"XBTUSD","triggered":"","clOrdLinkID":"","execInst":"","homeNotional":null,"pegOffsetValue":null,"pegPriceType":"","execID":"7af484fd-6be7-8c60-95d6-6ee81f0c946b",
+        // "orderQty":100, "leavesQty":100, "cumQty":0, "price":7300, "ordType":"Market","currency":"USD", "side":"Sell"
+        // "contingencyType":"","foreignNotional":null,"lastMkt":"","simpleCumQty":0,"execCost":null,"execComm":null,"settlCurrency":"XBt","ordRejReason":"",
+        // "trdMatchID":"00000000-0000-0000-0000-000000000000", "commission":null,"text":"Submission from testnet.bitmex.com","execType":"New",
+        // "timeInForce":"ImmediateOrCancel","timestamp":"2018-07-20T23:24:13.935Z","ordStatus":"New","simpleOrderQty":null,"orderID":"52a088c2-e9c2-276d-d8ca-bb2208a946ac",
+        // "lastPx":null, "tradePublishIndicator":"","displayQty":null,"simpleLeavesQty":0.0137,"clOrdID":"","lastQty":null,"avgPx":null,
+        // "multiLegReportingType":"SingleSecurity","workingIndicator":true,"lastLiquidityInd":"","transactTime":"2018-07-20T23:24:13.935Z","exDestination":"XBME","account":47464,
+        // "underlyingLastPx":null,"stopPx":null}
+
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
         console("  got " + size + " executions");
         for (int i = 0; i < size; i++) {
             JSONObject obj = (JSONObject) data.get(i);
             console("   [" + i + "]:" + obj);
+
+            Long orderQty = (Long) obj.get("orderQty");
+            Long cumQty = (Long) obj.get("cumQty");
+            Long leavesQty = (Long) obj.get("leavesQty");
+            Long price = (Long) obj.get("price");
+            String ordType = (String) obj.get("ordType");
+            String currency = (String) obj.get("currency");
+            String side = (String) obj.get("side");
+            console("    side" + side + "; orderQty=" + orderQty + "; currency=" + currency + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; price=" + price + "; ordType=" + ordType );
         }
     }
 
