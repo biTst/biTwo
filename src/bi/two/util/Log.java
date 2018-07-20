@@ -125,6 +125,8 @@ public class Log {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     System.out.println(s);
+                    t.printStackTrace();
+
                     ByteArrayOutputStream bos = new ByteArrayOutputStream();
                     PrintStream ps = new PrintStream(bos);
                     try {
