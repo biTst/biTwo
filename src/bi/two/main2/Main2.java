@@ -10,7 +10,6 @@ import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
-import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.ConsoleReader;
@@ -27,6 +26,9 @@ public class Main2 extends Thread {
     private Exchange m_exchange;
     private Pair m_pair;
     private final ChartFrame m_frame;
+    private BaseAlgo m_algoImpl;
+    private TicksTimesSeriesData m_ticksTs;
+    private MapConfig m_config;
 
     private static void console(String s) { Log.console(s); }
     private static void log(String s) { Log.log(s); }
@@ -48,50 +50,40 @@ public class Main2 extends Thread {
     @Override public void run() {
         try {
             console("Main2 started");
-            MapConfig config = new MapConfig();
+            m_config = new MapConfig();
 //            config.loadAndEncrypted(CONFIG);
-            config.load(CONFIG);
+            m_config.load(CONFIG);
             console("config loaded");
 
             boolean collectTicks = true;
-            TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
+            m_ticksTs = new TicksTimesSeriesData(collectTicks);
             if (!collectTicks) { // add initial tick to update
-                ticksTs.addOlderTick(new TickData());
+                m_ticksTs.addOlderTick(new TickData());
             }
 
             m_frame.setVisible(true);
             ChartCanvas chartCanvas = m_frame.getChartCanvas();
-            setupChart(chartCanvas, ticksTs);
+            setupChart(chartCanvas, m_ticksTs);
 
-            String exchangeName = config.getString("exchange");
+            String exchangeName = m_config.getString("exchange");
             m_exchange = Exchange.get(exchangeName);
-            m_exchange.m_impl.init(config);
+            m_exchange.m_impl.init(m_config);
 
-            String pairName = config.getString("pair");
+            String pairName = m_config.getString("pair");
             m_pair = Pair.getByName(pairName);
 //            ExchPairData pairData = exchange.getPairData(pair);
 
-            String algoName = config.getPropertyNoComment(BaseAlgo.ALGO_NAME_KEY);
+            String algoName = m_config.getPropertyNoComment(BaseAlgo.ALGO_NAME_KEY);
             console("exchange " + exchangeName + "; pair=" + pairName + "; algo=" + algoName);
             if (algoName == null) {
                 throw new RuntimeException("no '" + BaseAlgo.ALGO_NAME_KEY + "' param");
             }
             Algo algo = Algo.valueOf(algoName);
-            BaseTimesSeriesData tsd = new ExchangeTradesTimesSeriesData(m_exchange, m_pair);
-            BaseAlgo algoImpl = algo.createAlgo(config, tsd);
-            final long preloadPeriod = algoImpl.getPreloadPeriod();
-
-            final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, config, ticksTs) {
-                @Override protected void onTicksPreloaded() {
-                    m_frame.repaint();
-                }
-                @Override protected void onLiveTick() {
-                    m_frame.repaint(100);
-                }
-            };
+            m_algoImpl = algo.createAlgo(m_config, m_ticksTs);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
-                @Override public void onConnected() { onExchangeConnected(preloader); }
+                @Override public void onConnected() {}
+                @Override public void onAuthenticated() { onExchangeAuthenticated(); }
                 @Override public void onDisconnected() { onExchangeDisconnected(); }
             });
 
@@ -118,32 +110,49 @@ public class Main2 extends Thread {
         }
     }
 
-    private void onExchangeConnected(TradesPreloader preloader) {
-        console("onExchangeConnected");
+    private void onExchangeAuthenticated() {
+        console("onExchangeAuthenticated");
 
-//        m_exchange.queryAccount(new Exchange.IAccountListener() {
-//            @Override public void onUpdated() throws Exception {
-//                onGotAccount();
-//            }
-//        });
-        onGotAccount(preloader);
-    }
-
-    private void onGotAccount(final TradesPreloader preloader) {
         try {
-            m_exchange.subscribeTrades(m_pair, new ExchPairData.TradesData.ITradeListener() {
-                @Override public void onTrade(TradeData td) {
-                    console("onTrade td=" + td);
-                    preloader.addNewestTick(td);
+            m_exchange.queryAccount(new Exchange.IAccountListener() {
+                @Override public void onUpdated() {
+                    onAccountUpdated();
                 }
             });
+
+console("TradesPreloader SKIPPED");
+//            startPreloader();
         } catch (Exception e) {
-            err("subscribeTrades error: " + e, e);
+            err("onExchangeConnected error: " + e, e);
         }
+    }
+
+    private void onAccountUpdated() {
+        console("onAccountUpdated");
+    }
+
+    private void startPreloader() throws Exception {
+        long preloadPeriod = m_algoImpl.getPreloadPeriod();
+        final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, m_config, m_ticksTs) {
+            @Override protected void onTicksPreloaded() {
+                m_frame.repaint();
+            }
+            @Override protected void onLiveTick() {
+                m_frame.repaint(100);
+            }
+        };
+
+        m_exchange.subscribeTrades(m_pair, new ExchPairData.TradesData.ITradeListener() {
+            @Override public void onTrade(TradeData td) {
+                console("onTrade td=" + td);
+                preloader.addNewestTick(td); // this will start preloader on first trade
+            }
+        });
     }
 
     private void onExchangeDisconnected() {
         console("onExchangeDisconnected");
+        // todo: cleanup, stop preloader
     }
 
     private boolean onConsoleLine(String line) {
@@ -157,15 +166,15 @@ public class Main2 extends Thread {
 
 
     //----------------------------------------------------------------------------
-    private static class ExchangeTradesTimesSeriesData extends BaseTimesSeriesData {
-        public ExchangeTradesTimesSeriesData(Exchange exchange, Pair pair) {
-
-        }
-
-        @Override public ITickData getLatestTick() {
-            return null;
-        }
-    }
+//    private static class ExchangeTradesTimesSeriesData extends BaseTimesSeriesData {
+//        public ExchangeTradesTimesSeriesData(Exchange exchange, Pair pair) {
+//
+//        }
+//
+//        @Override public ITickData getLatestTick() {
+//            return null;
+//        }
+//    }
 
 
     // -----------------------------------------------------------------------------------------------------------

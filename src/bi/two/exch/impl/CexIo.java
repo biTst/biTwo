@@ -41,7 +41,6 @@ public class CexIo extends BaseExchImpl {
     private final String m_apiKey;
     private final String m_apiSecret;
     private Session m_session;
-    private Exchange.IExchangeConnectListener m_exchangeConnectListener;
     private Map<String,OrderBook> m_orderBooks = new HashMap<>();
     private List<Currency> m_currencies = new ArrayList<>();
     private Map<String,LiveOrdersData> m_liveOrdersRequestsMap = new HashMap<>();
@@ -700,9 +699,7 @@ public class CexIo extends BaseExchImpl {
         log("  ok: " + ok);
         if (Utils.equals(ok, "ok")) {
             m_exchange.m_live = true; // mark as connected
-            if (m_exchangeConnectListener != null) {
-                m_exchangeConnectListener.onConnected();
-            }
+            m_exchange.notifyAuthenticated();
 //            onAuthenticated(session);
         } else {
             throw new RuntimeException("unexpected auth response: " + jsonObject);
@@ -974,6 +971,8 @@ public class CexIo extends BaseExchImpl {
 
         log("onConnected ");
 
+        m_exchange.notifyConnected();
+
         long timestamp = System.currentTimeMillis() / 1000;  // Note: java timestamp presented in milliseconds
         String signature = createSignature(timestamp, m_apiSecret, m_apiKey);
 
@@ -1013,8 +1012,8 @@ public class CexIo extends BaseExchImpl {
         }
     }
 
-    @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
-        m_exchangeConnectListener = iExchangeConnectListener;
+    @Override public void connect(Exchange.IExchangeConnectListener listener) throws Exception {
+        m_exchange.m_connectListener = listener;
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
@@ -1040,9 +1039,7 @@ public class CexIo extends BaseExchImpl {
                 m_exchange.m_threadPool.submit(new Runnable() {
                     @Override public void run() {
                         m_exchange.onDisconnected();
-                        if (m_exchangeConnectListener != null) {
-                            m_exchangeConnectListener.onDisconnected();
-                        }
+                        m_exchange.notifyDisconnected();
                     }
                 });
             }

@@ -29,7 +29,7 @@ public class TradesPreloader implements Runnable {
     private boolean m_waitingFirstTrade = true;
     private long m_firstTradeTimestamp;
     private long m_lastLiveTradeTimestamp;
-    private List<TradeData> m_liveTicks = new ArrayList<>();
+    private final List<TradeData> m_liveTicks = new ArrayList<>();
     private List<TradesCacheEntry> m_cache = new ArrayList<>();
     private boolean m_preloaded;
 
@@ -63,7 +63,6 @@ public class TradesPreloader implements Runnable {
                     m_firstTradeTimestamp = timestamp;
                     console("got first tick firstTradeTimestamp=" + m_firstTradeTimestamp);
 
-//console("TradesPreloader SKIPPED");
                     Thread thread = new Thread(this, "TradesPreloader");
                     thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
                     thread.start();

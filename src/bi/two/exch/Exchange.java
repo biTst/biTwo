@@ -21,6 +21,7 @@ public class Exchange {
     public BaseExchImpl m_impl;
     public Map<Pair,ExchPairData> m_pairsMap = new HashMap<Pair, ExchPairData>();
     public Schedule m_schedule;
+    public IExchangeConnectListener m_connectListener; // todo: move to BaseExchImpl
     public IAccountListener m_accountListener;
     public ExecutorService m_threadPool;
     public boolean m_live; // true if connected
@@ -196,6 +197,24 @@ public class Exchange {
         return trades;
     }
 
+    public void notifyConnected() {
+        if (m_connectListener != null) {
+            m_connectListener.onConnected();
+        }
+    }
+
+    public void notifyAuthenticated() {
+        if (m_connectListener != null) {
+            m_connectListener.onAuthenticated();
+        }
+    }
+
+    public void notifyDisconnected() {
+        if (m_connectListener != null) {
+            m_connectListener.onDisconnected();
+        }
+    }
+
     public void notifyAccountListener() throws Exception {
         if (m_accountListener != null) {
             m_accountListener.onUpdated();
@@ -206,6 +225,7 @@ public class Exchange {
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
         void onConnected();
+        void onAuthenticated();
         void onDisconnected();
     }
 

@@ -91,7 +91,8 @@ public class Tre implements OrderBook.IOrderBookListener {
             }
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
-                @Override public void onConnected() { onExchangeConnected(); }
+                @Override public void onConnected() { }
+                @Override public void onAuthenticated() { onExchangeConnected(); }
                 @Override public void onDisconnected() { onExchangeDisconnected(); }
             });
 

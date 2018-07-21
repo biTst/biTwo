@@ -55,7 +55,6 @@ import java.util.concurrent.TimeUnit;
 // todo: look at https://github.com/ccxt/ccxt
 public class BitMex extends BaseExchImpl {
     private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
-    private static final String SYMBOL = "XBTUSD";
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
@@ -76,12 +75,11 @@ public class BitMex extends BaseExchImpl {
     private String m_apiKey;
     private String m_apiSecret;
 
-    private Exchange.IExchangeConnectListener m_exchangeConnectListener; // todo: move to parent ?
     private Session m_session; // todo: create parent BaseWebServiceExch and move there ?
-    private boolean m_waitingFirstAccountUpdate;
     private Thread m_pingThread;
     private Map<String,Currency> m_currencies = new HashMap<>();
-    private Map<String,Pair> m_pairs = new HashMap<>();
+    private Map<String,Pair> m_symbolToPairMap = new HashMap<>();
+    private Map<Pair,String> m_pairToSymbolMap = new HashMap<>();
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -98,6 +96,9 @@ public class BitMex extends BaseExchImpl {
             return keepAlive;
         }
     };
+    private boolean m_gotFirstMargin;
+    private boolean m_gotFirstPosition;
+    private boolean m_gotFirstOrder;
 
 
     public BitMex(Exchange exchange) {
@@ -115,16 +116,22 @@ public class BitMex extends BaseExchImpl {
         m_apiSecret = config.getString(API_SECRET_KEY);
     }
 
-    private static String pairToSymbol(Pair pair) {
-//log("pairToSymbol pair=" + pair + "  => " + SYMBOL);
-        return SYMBOL; // todo
+
+    private String pairToSymbol(Pair pair) {
+        String symbol = m_pairToSymbolMap.get(pair);
+        if (symbol == null) {
+            symbol = pair.m_from.m_name.toUpperCase() + pair.m_to.m_name.toUpperCase(); // "XBTUSD"
+            m_pairToSymbolMap.put(pair, symbol);
+console("pairToSymbol pair=" + pair + "  => " + symbol);
+        }
+        return symbol;
     }
 
-    private static Pair symbolToPair(String symbol) {
-        Pair ret = Pair.getByName("btc_usd");
-//log("symbolToPair symbol=" + symbol + "  => " + ret);
-        return ret; // todo
-    }
+//    private static Pair symbolToPair(String symbol) {
+//        Pair ret = Pair.getByName("btc_usd");
+////log("symbolToPair symbol=" + symbol + "  => " + ret);
+//        return ret; // todo
+//    }
 
     public static void main(String[] args) {
         Log.s_impl = new Log.StdLog();
@@ -253,6 +260,7 @@ public class BitMex extends BaseExchImpl {
                     String version = (String) json.get("version");
                     console(" info=" + info + "; version=" + version);
                     if ((info != null) && (version != null)) {
+                        m_exchange.notifyConnected();
                         // getting this as first message
                         // {"info":"Welcome to the BitMEX Realtime API.","version":"1.2.0","timestamp":"2018-03-15T00:29:31.487Z","docs":"https://testnet.bitmex.com/app/wsAPI","limit":{"remaining":39}}
                         authenticate(session);
@@ -279,37 +287,36 @@ public class BitMex extends BaseExchImpl {
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
         console("onAuthenticated success=" + success);
+
         if (success) {
-            subscribeAccount(session);
+            m_exchange.notifyAuthenticated();
         }
     }
 
-    private void subscribeAccount(Session session) throws IOException {
-        // -------------------------------------------------------------------------------------------------------------------------------------
+    @Override public void queryAccount() throws Exception {
         // Updates on your current account balance and margin requirements
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
+        m_gotFirstMargin = false;
+        send(m_session, "{\"op\": \"subscribe\", \"args\": [\"margin\"]}");
         console("subscribed for margin");
 
-        // {"success":true,
-        //  "subscribe":"margin",
-        //  "request":{"op":"subscribe","args":["margin"]}}
-
         // Updates on your positions
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"position\"]}");
+        m_gotFirstPosition = false;
+        send(m_session, "{\"op\": \"subscribe\", \"args\": [\"position\"]}");
         // {"success":true,"subscribe":"position","request":{"op":"subscribe","args":["position"]}}
         console("subscribed for position");
 
-        // Individual executions; can be multiple per order
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"execution\"]}");
-        // {"success":true,"subscribe":"execution","request":{"op":"subscribe","args":["execution"]}}
-        console("subscribed for execution");
-
         // Live updates on your orders
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"order\"]}");
+        m_gotFirstOrder = false;
+        send(m_session, "{\"op\": \"subscribe\", \"args\": [\"order\"]}");
         // {"success":true,"subscribe":"order","request":{"op":"subscribe","args":["order"]}}
         console("subscribed for order");
 
-        startPingThread(session);
+//        // Individual executions; can be multiple per order
+//        send(m_session, "{\"op\": \"subscribe\", \"args\": [\"execution\"]}");
+//        // {"success":true,"subscribe":"execution","request":{"op":"subscribe","args":["execution"]}}
+//        console("subscribed for execution");
+
+        startPingThread(m_session);
     }
 
     private void onMargin(final Session session, JSONObject json) throws Exception {
@@ -324,9 +331,7 @@ public class BitMex extends BaseExchImpl {
         //  "foreignKeys":{},
         //  "attributes":{"account":"sorted","currency":"grouped"},
         //  "action":"partial",
-        //  "data":[{"account":47464,
-        //           "currency":"XBt",
-        //           "riskLimit":1000000000000,
+        //  "data":[{"account":47464, "currency":"XBt", "riskLimit":1000000000000,
         //           "amount":20000000, "walletBalance":20000000,"marginBalance":20000000,  "excessMargin":20000000, "availableMargin":20000000, "withdrawableMargin":20000000,
         //           "marginBalancePcnt":1, "excessMarginPcnt":1,
         //           "prevState":"", "state":"", "action":"",
@@ -346,9 +351,8 @@ public class BitMex extends BaseExchImpl {
         //  "currency":"XBt","account":47464,
         //  "marginBalance":20068936,"timestamp":"2018-07-20T00:16:40.184Z"}
 
-
         JSONArray data = (JSONArray) json.get("data");
-        console("onMargin() waitingFirstAccountUpdate=" + m_waitingFirstAccountUpdate + "; data=" + data);
+        console("onMargin() m_gotFirstMargin=" + m_gotFirstMargin + "; data=" + data);
 
         for (Object obj : data) {
             JSONObject datum = (JSONObject) obj;
@@ -362,18 +366,18 @@ public class BitMex extends BaseExchImpl {
             if (availableMargin != null) { // if changed
                 double doubleValue = availableMargin / 100000000d; // marginBalance in satoshi
                 m_exchange.m_accountData.setAvailable(currency, doubleValue);
-                console("   accountData=" + m_exchange.m_accountData);
             }
         }
-        m_exchange.notifyAccountListener();
 
-//        if (m_waitingFirstAccountUpdate) {
-//            m_waitingFirstAccountUpdate = false;
-//            // connected + authenticated + gotAccountData
-//            if (m_exchangeConnectListener != null) {
-//                m_exchangeConnectListener.onConnected();
-//            }
-//        }
+        logAccount();
+        m_gotFirstMargin = true;
+        notifyAccountListenerIfNeeded();
+    }
+
+    private void notifyAccountListenerIfNeeded() throws Exception {
+        if (m_gotFirstMargin && m_gotFirstPosition && m_gotFirstOrder) {
+            m_exchange.notifyAccountListener();
+        }
     }
 
     private void startPingThread(final Session session) {
@@ -443,10 +447,10 @@ public class BitMex extends BaseExchImpl {
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
     }
 
-    private static void requestQuote(Session session) throws IOException {
-        // -------------------------------------------------------------------------------------------------------------------------------------
+    private void requestQuote(Session session, Pair pair) throws IOException {
+        String symbol = pairToSymbol(pair);
         // Top level of the book
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"quote:" + SYMBOL + "\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"quote:" + symbol + "\"]}");
 
         // {"table":"quote",
         //  "keys":[],
@@ -483,10 +487,11 @@ public class BitMex extends BaseExchImpl {
         // }
     }
 
-    private static void requestOrderBook(Session session) throws IOException {
-        // -------------------------------------------------------------------------------------------------------------------------------------
+    private void requestOrderBook(Session session, Pair pair) throws IOException {
+        String symbol = pairToSymbol(pair);
+
         // Top 10 levels using traditional full book push
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBook10:" + SYMBOL + "\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBook10:" + symbol + "\"]}");
 
         // {"table":"orderBook10",
         //  "keys":["symbol"],
@@ -519,10 +524,11 @@ public class BitMex extends BaseExchImpl {
         // }
     }
 
-    private static void requestInstrument(Session session) throws IOException {
-        // -------------------------------------------------------------------------------------------------------------------------------------
+    private void requestInstrument(Session session, Pair pair) throws IOException {
+        String symbol = pairToSymbol(pair);
+
         // Instrument updates including turnover and bid/ask
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"instrument:" + SYMBOL + "\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"instrument:" + symbol + "\"]}");
 
         // {"success":true,
         //  "subscribe":
@@ -569,7 +575,7 @@ public class BitMex extends BaseExchImpl {
         //  "data":[{"symbol":"XBTUSD","indicativeSettlePrice":8114.41,"timestamp":"2018-03-15T00:53:10.000Z"}]}
     }
 
-    private static void requestLiveTrades(Session session, Pair pair) throws IOException {
+    private void requestLiveTrades(Session session, Pair pair) throws IOException {
         String symbol = pairToSymbol(pair);
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Live trades
@@ -581,7 +587,7 @@ public class BitMex extends BaseExchImpl {
         // }
     }
 
-    private void onOrder(JSONObject json) {
+    private void onOrder(JSONObject json) throws Exception {
         // {"table":"order",
         //  "action":"partial",
         //  "keys":["orderID"],
@@ -602,6 +608,8 @@ public class BitMex extends BaseExchImpl {
         //  "cumQty":0,"displayQty":null,"simpleLeavesQty":0.0148,"clOrdID":"","avgPx":null,"multiLegReportingType":"SingleSecurity","workingIndicator":true,
         //  "transactTime":"2018-07-21T11:48:31.595Z","exDestination":"XBME","account":47464,"stopPx":null,"ordType":"Limit"}
 
+        Map<Currency,Double> allocatedMap = new HashMap<>();
+
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
         console("  got " + size + " orders");
@@ -619,7 +627,7 @@ public class BitMex extends BaseExchImpl {
             Double simpleLeavesQty = (Double) obj.get("simpleLeavesQty");
             String ordStatus = (String) obj.get("ordStatus");
             OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
-            Pair pairByName = getPairByName(symbol);
+            Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
             Currency to = pairByName.m_to;
             console("    side=" + side + "; symbol=" + symbol + "; ordType=" + ordType + "; price=" + price
@@ -627,14 +635,33 @@ public class BitMex extends BaseExchImpl {
                     + "; simpleLeavesQty=" + simpleLeavesQty + "; theSide=" + theSide
                     + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
 
+            Currency allocateCurrency;
+            Double allocateValue;
             if (theSide == OrderSide.SELL) { // sell XBT
-                m_exchange.m_accountData.setAllocated(from, simpleLeavesQty);
+                allocateCurrency = from;
+                allocateValue = simpleLeavesQty;
             } else { // sell USD
-                m_exchange.m_accountData.setAllocated(to, leavesQty);
+                allocateCurrency = to;
+                allocateValue = Double.valueOf(leavesQty);
             }
-            logAccount();
-
+            Double all = allocatedMap.get(allocateCurrency);
+            if (all == null) {
+                all = 0d;
+            }
+            all += allocateValue;
+            allocatedMap.put(allocateCurrency, all);
         }
+        console("   allocated="+allocatedMap);
+
+        for (Currency currency : m_currencies.values()) {
+            Double allocated = allocatedMap.get(currency);
+            double all = (allocated == null) ? 0d : allocated;
+            m_exchange.m_accountData.setAllocated(currency, all);
+        }
+        logAccount();
+
+        m_gotFirstOrder = true;
+        notifyAccountListenerIfNeeded();
     }
 
     private void logAccount() {
@@ -688,7 +715,7 @@ public class BitMex extends BaseExchImpl {
         }
     }
 
-    private void onPosition(JSONObject json) {
+    private void onPosition(JSONObject json) throws Exception {
         // {"table":"position",
         //  "action":"partial",
         //  "keys":["account","symbol","currency"],
@@ -749,7 +776,7 @@ public class BitMex extends BaseExchImpl {
 
             String symbol = (String) obj.get("symbol");
             Long currentQty = (Long) obj.get("currentQty");
-            Pair pairByName = getPairByName(symbol);
+            Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
             Currency to = pairByName.m_to;
             console("    symbol=" + symbol + "; currentQty=" + currentQty + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
@@ -805,16 +832,18 @@ public class BitMex extends BaseExchImpl {
         }
 
         logAccount();
+        m_gotFirstPosition = true;
+        notifyAccountListenerIfNeeded();
     }
 
-    private Pair getPairByName(String symbol) {
-        Pair pair = m_pairs.get(symbol);
+    private Pair getPairFromSymbol(String symbol) {
+        Pair pair = m_symbolToPairMap.get(symbol);
         if (pair == null) {
             String from = symbol.substring(0, 3).toLowerCase();
             String to = symbol.substring(3, 6).toLowerCase();
             String key = from + '_' + to;
             Pair byName = Pair.getByName(key);
-            m_pairs.put(symbol, byName);
+            m_symbolToPairMap.put(symbol, byName);
             pair = byName;
         }
         return pair;
@@ -863,7 +892,7 @@ public class BitMex extends BaseExchImpl {
             String s = (String) obj.get("symbol");
             if (!Utils.equals(s, symbol)) {
                 symbol = (String) obj.get("symbol");
-                Pair pair = symbolToPair(symbol);
+                Pair pair = getPairFromSymbol(symbol);
                 ExchPairData pairData = m_exchange.getPairData(pair);
                 trades = pairData.getTrades();
             }
@@ -894,10 +923,11 @@ public class BitMex extends BaseExchImpl {
         return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
     }
 
-    private static void requestFullOrderBook(Session session) throws IOException {
+    private void requestFullOrderBook(Session session, Pair pair) throws IOException {
+        String symbol = pairToSymbol(pair);
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Full level 2 orderBook
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:" + SYMBOL + "\"]}");
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:" + symbol + "\"]}");
 
         // {"success":true,
         //  "subscribe":"orderBookL2:XBTUSD",
@@ -974,13 +1004,12 @@ public class BitMex extends BaseExchImpl {
         requestLiveTrades(m_session, tradesData.m_pair);
     }
 
-    @Override public void connect(Exchange.IExchangeConnectListener iExchangeConnectListener) throws Exception {
-        m_exchangeConnectListener = iExchangeConnectListener;
+    @Override public void connect(Exchange.IExchangeConnectListener listener) throws Exception {
+        m_exchange.m_connectListener = listener;
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
                 console("Endpoint.onOpen");
-                m_waitingFirstAccountUpdate = true;
                 try {
                     m_session = session;
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
@@ -1003,9 +1032,7 @@ public class BitMex extends BaseExchImpl {
 //                m_exchange.m_threadPool.submit(new Runnable() {
 //                    @Override public void run() {
                         m_exchange.onDisconnected();
-                        if (m_exchangeConnectListener != null) {
-                            m_exchangeConnectListener.onDisconnected();
-                        }
+                        m_exchange.notifyDisconnected();
 //                    }
 //                });
             }
