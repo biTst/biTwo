@@ -61,7 +61,7 @@ public class BitMex extends BaseExchImpl {
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     public static final String ENDPOINT = "testnet.bitmex.com";
-    private static final String[] s_supportedCurrencies = new String[]{ "XBt"};
+    private static final String[] s_supportedCurrencies = new String[]{"xbt", "usd"};
 
     // debug
     private static final boolean LOG_HEADERS = false;
@@ -81,6 +81,7 @@ public class BitMex extends BaseExchImpl {
     private boolean m_waitingFirstAccountUpdate;
     private Thread m_pingThread;
     private Map<String,Currency> m_currencies = new HashMap<>();
+    private Map<String,Pair> m_pairs = new HashMap<>();
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -595,6 +596,12 @@ public class BitMex extends BaseExchImpl {
         //  "data":[]
         // }
 
+        // {"symbol":"XBTUSD","triggered":"","clOrdLinkID":"","execInst":"","pegOffsetValue":null,"pegPriceType":"","contingencyType":"","simpleCumQty":0,
+        //  "settlCurrency":"XBt","ordRejReason":"","price":7511,"orderQty":111,"currency":"USD","text":"Submission from testnet.bitmex.com","timeInForce":"GoodTillCancel",
+        //  "timestamp":"2018-07-21T11:48:31.595Z","ordStatus":"New","side":"Sell","simpleOrderQty":null,"orderID":"470d8f33-e6b6-14e9-850f-49f6cc696b97","leavesQty":111,
+        //  "cumQty":0,"displayQty":null,"simpleLeavesQty":0.0148,"clOrdID":"","avgPx":null,"multiLegReportingType":"SingleSecurity","workingIndicator":true,
+        //  "transactTime":"2018-07-21T11:48:31.595Z","exDestination":"XBME","account":47464,"stopPx":null,"ordType":"Limit"}
+
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
         console("  got " + size + " orders");
@@ -609,10 +616,29 @@ public class BitMex extends BaseExchImpl {
             Long orderQty = (Long) obj.get("orderQty");
             Long leavesQty = (Long) obj.get("leavesQty");
             Long cumQty = (Long) obj.get("cumQty");
+            Double simpleLeavesQty = (Double) obj.get("simpleLeavesQty");
             String ordStatus = (String) obj.get("ordStatus");
+            OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
+            Pair pairByName = getPairByName(symbol);
+            Currency from = pairByName.m_from;
+            Currency to = pairByName.m_to;
             console("    side=" + side + "; symbol=" + symbol + "; ordType=" + ordType + "; price=" + price
-                    + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus);
+                    + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus
+                    + "; simpleLeavesQty=" + simpleLeavesQty + "; theSide=" + theSide
+                    + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
+
+            if (theSide == OrderSide.SELL) { // sell XBT
+                m_exchange.m_accountData.setAllocated(from, simpleLeavesQty);
+            } else { // sell USD
+                m_exchange.m_accountData.setAllocated(to, leavesQty);
+            }
+            logAccount();
+
         }
+    }
+
+    private void logAccount() {
+        console("     accountData=" + m_exchange.m_accountData);
     }
 
     private void onExecution(JSONObject json) {
@@ -722,15 +748,21 @@ public class BitMex extends BaseExchImpl {
             console("   [" + i + "]:" + obj);
 
             String symbol = (String) obj.get("symbol");
-            String quoteCurrency = (String) obj.get("quoteCurrency");
             Long currentQty = (Long) obj.get("currentQty");
-            console("    symbol=" + symbol + "; currentQty="+currentQty + "; quoteCurrency="+quoteCurrency);
+            Pair pairByName = getPairByName(symbol);
+            Currency from = pairByName.m_from;
+            Currency to = pairByName.m_to;
+            console("    symbol=" + symbol + "; currentQty=" + currentQty + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
+
+            if (currentQty > 0) {
+                throw new RuntimeException("not supported positive position: " + currentQty);
+            }
 
             // Positions
             // Symbol	Size	Value	    Entry Price	Mark Price	Liq. Price	    Margin	            Unrealised PNL (ROE %)	Realised PNL
             // XBTUSD   -733    0.1000 XBT  7344.00	    7328.87	    100000000.0     +0.1000 XBT (1.00x) 0.0002 XBT (0.21%)      0.0062 XBT
 
-
+            // "action":"partial"
             // {"symbol":"XBTUSD","lastValue":10002518,"breakEvenPrice":7337.5,"avgCostPrice":7344,"posLoss":0,"openOrderSellQty":760,"avgEntryPrice":7344,"taxBase":681276,
             // "foreignNotional":733,  "simpleCost":-733,  "currentQty":-733,
             // "execComm":54078,"riskLimit":20000000000,"prevUnrealisedPnl":0,"longBankrupt":0,"marginCallPrice":100000000,
@@ -750,7 +782,6 @@ public class BitMex extends BaseExchImpl {
             // Symbol	Size	Value	    Entry Price	Mark Price	Liq. Price	    Margin	            Unrealised PNL (ROE %)	Realised PNL
             // XBTUSD   -844    0.1152 XBT  7337.30	    7322.25	    100000000.0     +0.1152 XBT (1.00x) 0.0002 XBT (0.21%)      0.0000 XBT
 
-
             // {"symbol":"XBTUSD","lastValue":11510472,"breakEvenPrice":7331,"avgCostPrice":7337.2955,"posLoss":0,"openOrderSellQty":0,"avgEntryPrice":7337.2955,"taxBase":667642,
             // "foreignNotional":844,  "simpleCost":-844,  "currentQty":-844,
             // "execComm":1141,"riskLimit":20000000000,"prevUnrealisedPnl":0,"longBankrupt":0,"marginCallPrice":100000000,"unrealisedCost":11502849,"posComm":0,
@@ -765,8 +796,28 @@ public class BitMex extends BaseExchImpl {
             // "currentComm":38271,"execSellQty":111,"grossOpenCost":0,"prevRealisedPnl":447714,"execBuyQty":0,"initMargin":0,"unrealisedRoePcnt":7.0E-4,"simplePnl":0.5,"account":47464,
             // "openingComm":37130,"lastPrice":7332.19}
 
+            // "action":"update"
+            // {"account":47464,"symbol":"XBTUSD","currency":"XBt","currentTimestamp":"2018-07-21T11:38:25.054Z","markPrice":7297.83,"timestamp":"2018-07-21T11:38:25.054Z",
+            //  "lastPrice":7297.83,"currentQty":-1055,"simpleQty":-0.144,"liquidationPrice":4166666.5}]}
 
+            m_exchange.m_accountData.setAvailable(to, -currentQty);
+//            console("   accountData=" + m_exchange.m_accountData);
         }
+
+        logAccount();
+    }
+
+    private Pair getPairByName(String symbol) {
+        Pair pair = m_pairs.get(symbol);
+        if (pair == null) {
+            String from = symbol.substring(0, 3).toLowerCase();
+            String to = symbol.substring(3, 6).toLowerCase();
+            String key = from + '_' + to;
+            Pair byName = Pair.getByName(key);
+            m_pairs.put(symbol, byName);
+            pair = byName;
+        }
+        return pair;
     }
 
     private void onTrade(JSONObject json) throws ParseException {
