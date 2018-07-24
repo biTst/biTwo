@@ -178,7 +178,7 @@ public class Tre implements OrderBook.IOrderBookListener {
 
             log(" queryAccount()...");
             m_exchange.queryAccount(new Exchange.IAccountListener() {
-                @Override public void onUpdated() throws Exception {
+                @Override public void onAccountUpdated() throws Exception {
                     onGotAccount();
                 }
             });

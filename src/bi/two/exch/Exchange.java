@@ -217,7 +217,7 @@ public class Exchange {
 
     public void notifyAccountListener() throws Exception {
         if (m_accountListener != null) {
-            m_accountListener.onUpdated();
+            m_accountListener.onAccountUpdated();
         }
     }
 
@@ -232,7 +232,7 @@ public class Exchange {
 
     //----------------------------------------------------------------------------------------
     public interface IAccountListener {
-        void onUpdated() throws Exception;
+        void onAccountUpdated() throws Exception;
     }
 
 

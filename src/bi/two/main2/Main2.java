@@ -6,10 +6,7 @@ import bi.two.Colors;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.*;
-import bi.two.exch.ExchPairData;
-import bi.two.exch.Exchange;
-import bi.two.exch.MarketConfig;
-import bi.two.exch.Pair;
+import bi.two.exch.*;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.ts.TimesSeriesData;
 import bi.two.util.ConsoleReader;
@@ -115,8 +112,17 @@ public class Main2 extends Thread {
 
         try {
             m_exchange.queryAccount(new Exchange.IAccountListener() {
-                @Override public void onUpdated() {
-                    onAccountUpdated();
+                private int m_counter;
+
+                @Override public void onAccountUpdated() {
+                    try {
+                        if(m_counter++ == 0) {
+                            onFirstAccountUpdate();
+                        }
+                        Main2.this.onAccountUpdated();
+                    } catch (Exception e) {
+                        err("onAccountUpdated error: " + e, e);
+                    }
                 }
             });
 
@@ -127,7 +133,18 @@ console("TradesPreloader SKIPPED");
         }
     }
 
-    private void onAccountUpdated() {
+    private void onFirstAccountUpdate() throws Exception {
+        console("onFirstAccountUpdate");
+
+        OrderBook orderBook = m_exchange.getOrderBook(m_pair);
+        orderBook.subscribe(new OrderBook.IOrderBookListener() {
+            @Override public void onOrderBookUpdated(OrderBook orderBook) {
+                console("onOrderBookUpdated: orderBook=" + orderBook);
+            }
+        }, 10);
+    }
+
+    private void onAccountUpdated() throws Exception {
         console("onAccountUpdated");
     }
 

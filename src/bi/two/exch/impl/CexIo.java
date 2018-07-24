@@ -41,7 +41,7 @@ public class CexIo extends BaseExchImpl {
     private final String m_apiKey;
     private final String m_apiSecret;
     private Session m_session;
-    private Map<String,OrderBook> m_orderBooks = new HashMap<>();
+    private Map<String,OrderBook> m_orderBooks = new HashMap<>(); // todo: move to parent ?
     private List<Currency> m_currencies = new ArrayList<>();
     private Map<String,LiveOrdersData> m_liveOrdersRequestsMap = new HashMap<>();
     private Map<String,OrderData> m_submitOrderRequestsMap = new HashMap<>();

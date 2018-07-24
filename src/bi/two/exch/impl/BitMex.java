@@ -80,6 +80,7 @@ public class BitMex extends BaseExchImpl {
     private Map<String,Currency> m_currencies = new HashMap<>();
     private Map<String,Pair> m_symbolToPairMap = new HashMap<>();
     private Map<Pair,String> m_pairToSymbolMap = new HashMap<>();
+    private Map<String,OrderBook> m_orderBooks = new HashMap<>(); // todo: move to parent ?
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -164,7 +165,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
 //                                    requestFullOrderBook(session);
 //                                    requestLiveTrades(session);
 //                                    requestInstrument(session);
-//                                    requestOrderBook(session);
+//                                    requestOrderBook10(session);
 //                                    requestQuote(session);
 //                                    authenticate(session);
 
@@ -252,6 +253,8 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
                         onExecution(json);
                     } else if (table.equals("order")) {
                         onOrder(json);
+                    } else if (table.equals("orderBook10")) {
+                        onOrderBook10(json);
                     } else {
                         console("ERROR: not supported table='" + table + "' message: " + json);
                     }
@@ -487,7 +490,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         // }
     }
 
-    private void requestOrderBook(Session session, Pair pair) throws IOException {
+    private void requestOrderBook10(Session session, Pair pair) throws IOException {
         String symbol = pairToSymbol(pair);
 
         // Top 10 levels using traditional full book push
@@ -523,6 +526,52 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         //  ]
         // }
     }
+
+    private void requestFullOrderBook(Session session, Pair pair) throws IOException {
+        String symbol = pairToSymbol(pair);
+        // -------------------------------------------------------------------------------------------------------------------------------------
+        // Full level 2 orderBook
+        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:" + symbol + "\"]}");
+
+        // {"success":true,
+        //  "subscribe":"orderBookL2:XBTUSD",
+        //  "request":{"op":"subscribe","args":["orderBookL2:XBTUSD"]}}
+
+        // for orderBookL2:XBTUSD:
+        // {"table":"orderBookL2",
+        //  "keys":["symbol","id","side"],
+        //  "types":{"symbol":"symbol","id":"long","side":"symbol","size":"long","price":"float"},
+        //  "foreignKeys":{"symbol":"instrument","side":"side"},
+        //  "attributes":{"symbol":"grouped","id":"sorted"},
+        //  "action":"partial",
+        //  "data":[
+        //    {"symbol":"XBTUSD","id":15504648350,"side":"Sell","size":1191000,"price":953516.5},
+        //    {"symbol":"XBTUSD","id":15588500000,"side":"Sell","size":900,"price":115000},
+        //    ...
+        //    {"symbol":"XBTUSD","id":15599999800,"side":"Buy","size":4,"price":2},
+        //    {"symbol":"XBTUSD","id":15599999900,"side":"Buy","size":23,"price":1}
+        //         ],
+        //  "filter":{"symbol":"XBTUSD"}}
+        //
+        // {"table":"orderBookL2",
+        //  "action":"update",
+        //  "data":[
+        //    {"symbol":"XBTUSD","id":15599178650,"side":"Sell","size":30}
+        // ]}
+        //
+        // {"table":"orderBookL2",
+        //  "action":"insert",
+        //  "data":[
+        //    {"symbol":"XBTUSD","id":15599178450,"side":"Sell","size":100,"price":8215.5}
+        // ]}
+        //
+        // {"table":"orderBookL2",
+        //  "action":"delete",
+        //  "data":[
+        //    {"symbol":"XBTUSD","id":15599184350,"side":"Buy"}
+        // ]}
+    }
+
 
     private void requestInstrument(Session session, Pair pair) throws IOException {
         String symbol = pairToSymbol(pair);
@@ -585,6 +634,63 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         //  "subscribe":"trade:XBTUSD",
         //  "request":{"op":"subscribe","args":["trade:XBTUSD"]}
         // }
+    }
+
+    private void onOrderBook10(JSONObject json) throws Exception {
+        // {"table":"orderBook10",
+        //  "action":"partial",
+        //  "keys":["symbol"],
+        //  "types":{"symbol":"symbol","bids":"","asks":"","timestamp":"timestamp"},
+        //  "foreignKeys":{"symbol":"instrument"},
+        //  "attributes":{"symbol":"sorted"},
+        //  "filter":{"symbol":"XBTUSD"},
+        //  "data":[{"symbol":"XBTUSD",
+        //           "bids":[[7682.5,7215],[7682,379],[7681.5,200],[7681,2799],[7680.5,200],[7680,299],[7679.5,967],[7679,299],[7678.5,200],[7678,299]],
+        //           "asks":[[7683,220107],[7683.5,100],[7684,100],[7684.5,3468],[7685,2120],[7685.5,200],[7686,38594],[7686.5,200],[7687,114077],[7687.5,750]],
+        //           "timestamp":"2018-07-24T00:55:38.260Z"}]}
+
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console(" onOrderBook10: got " + size + " books");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+//            console("   [" + i + "]:" + obj);
+
+            String symbol = (String) obj.get("symbol");
+            JSONArray bids = (JSONArray) obj.get("bids");
+            JSONArray asks = (JSONArray) obj.get("asks");
+//            console("    symbol:" + symbol);
+//            console("     bids:" + bids);
+//            console("     asks:" + asks);
+
+            // "symbol":"XBTUSD"    [[7682,379],[7679.5,967]]
+            OrderBook orderBook = m_orderBooks.get(symbol);
+            if (orderBook != null) {
+                List<OrderBook.OrderBookEntry> aBids = parseBook(bids);
+                List<OrderBook.OrderBookEntry> aAsks = parseBook(asks);
+
+//                console(" input orderBook[" + orderBook.m_pair + "]: " + orderBook);
+                orderBook.update(aBids, aAsks);
+//                console(" updated orderBook[" + orderBook.m_pair + "]: " + orderBook.toString(2));
+            } else {
+                throw new RuntimeException("no orderBook for symbol=" + symbol + "; available keys: " + m_orderBooks.keySet());
+            }
+        }
+    }
+
+    private List<OrderBook.OrderBookEntry> parseBook(JSONArray jsonArray) { // [[7682,379],[7679.5,967]]
+//        console("     parseBook:" + jsonArray);
+        List<OrderBook.OrderBookEntry> ret = new ArrayList<>();
+        for (Object obj : jsonArray) {
+            JSONArray level = (JSONArray) obj;
+            Number price = (Number) level.get(0);
+            Number size = (Number) level.get(1);
+            OrderBook.OrderBookEntry entry = new OrderBook.OrderBookEntry(price.doubleValue(), size.doubleValue());
+            ret.add(entry);
+//            console("      price=" + price + "; .class=" + price.getClass());
+//            console("      size=" + size + "; .class=" + size.getClass());
+        }
+        return ret;
     }
 
     private void onOrder(JSONObject json) throws Exception {
@@ -923,51 +1029,6 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
     }
 
-    private void requestFullOrderBook(Session session, Pair pair) throws IOException {
-        String symbol = pairToSymbol(pair);
-        // -------------------------------------------------------------------------------------------------------------------------------------
-        // Full level 2 orderBook
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"orderBookL2:" + symbol + "\"]}");
-
-        // {"success":true,
-        //  "subscribe":"orderBookL2:XBTUSD",
-        //  "request":{"op":"subscribe","args":["orderBookL2:XBTUSD"]}}
-
-        // for orderBookL2:XBTUSD:
-        // {"table":"orderBookL2",
-        //  "keys":["symbol","id","side"],
-        //  "types":{"symbol":"symbol","id":"long","side":"symbol","size":"long","price":"float"},
-        //  "foreignKeys":{"symbol":"instrument","side":"side"},
-        //  "attributes":{"symbol":"grouped","id":"sorted"},
-        //  "action":"partial",
-        //  "data":[
-        //    {"symbol":"XBTUSD","id":15504648350,"side":"Sell","size":1191000,"price":953516.5},
-        //    {"symbol":"XBTUSD","id":15588500000,"side":"Sell","size":900,"price":115000},
-        //    ...
-        //    {"symbol":"XBTUSD","id":15599999800,"side":"Buy","size":4,"price":2},
-        //    {"symbol":"XBTUSD","id":15599999900,"side":"Buy","size":23,"price":1}
-        //         ],
-        //  "filter":{"symbol":"XBTUSD"}}
-        //
-        // {"table":"orderBookL2",
-        //  "action":"update",
-        //  "data":[
-        //    {"symbol":"XBTUSD","id":15599178650,"side":"Sell","size":30}
-        // ]}
-        //
-        // {"table":"orderBookL2",
-        //  "action":"insert",
-        //  "data":[
-        //    {"symbol":"XBTUSD","id":15599178450,"side":"Sell","size":100,"price":8215.5}
-        // ]}
-        //
-        // {"table":"orderBookL2",
-        //  "action":"delete",
-        //  "data":[
-        //    {"symbol":"XBTUSD","id":15599184350,"side":"Buy"}
-        // ]}
-    }
-
     private static void connectToServer(Endpoint endpoint) throws DeploymentException, IOException, URISyntaxException {
         ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 
@@ -1044,6 +1105,20 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         console("connectToServer...");
         connectToServer(endpoint);
         console("session isOpen=" + m_session.isOpen());
+    }
+
+    @Override public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
+        if (depth != 10) {
+            throw new RuntimeException("subscribeOrderBook error: unsupported depth=" + depth);
+        }
+
+        Pair pair = orderBook.m_pair;
+        String key = pairToSymbol(pair);
+        console("subscribeOrderBook() pair=" + pair + "; key=" + key);
+
+        m_orderBooks.put(key, orderBook);
+
+        requestOrderBook10(m_session, pair);
     }
 
     @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
