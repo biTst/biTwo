@@ -119,6 +119,15 @@ public class Exchange {
         return exchPairData.getOrderBook();
     }
 
+    public TopQuote getTopQuote(Pair pair) {
+        ExchPairData exchPairData = getPairData(pair);
+        return exchPairData.getTopQuote();
+    }
+
+    public void subscribeTopQuote(TopQuote topQuote) throws Exception {
+        m_impl.subscribeTopQuote(topQuote);
+    }
+
     public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
         m_impl.subscribeOrderBook(orderBook, depth);
     }

@@ -21,6 +21,10 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
+    public void subscribeTopQuote(TopQuote topQuote) throws Exception {
+        throw new RuntimeException("not implemented: " + this);
+    }
+
     public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }

@@ -136,12 +136,19 @@ console("TradesPreloader SKIPPED");
     private void onFirstAccountUpdate() throws Exception {
         console("onFirstAccountUpdate");
 
-        OrderBook orderBook = m_exchange.getOrderBook(m_pair);
-        orderBook.subscribe(new OrderBook.IOrderBookListener() {
-            @Override public void onOrderBookUpdated(OrderBook orderBook) {
-                console("onOrderBookUpdated: orderBook=" + orderBook);
+        TopQuote topQuote = m_exchange.getTopQuote(m_pair);
+        topQuote.subscribe(new TopQuote.ITopQuoteListener() {
+            @Override public void onTopQuoteUpdated(TopQuote topQuote) {
+                console("onTopQuoteUpdated: topQuote=" + topQuote);
             }
-        }, 10);
+        });
+
+//        OrderBook orderBook = m_exchange.getOrderBook(m_pair);
+//        orderBook.subscribe(new OrderBook.IOrderBookListener() {
+//            @Override public void onOrderBookUpdated(OrderBook orderBook) {
+//                console("onOrderBookUpdated: orderBook=" + orderBook);
+//            }
+//        }, 10);
     }
 
     private void onAccountUpdated() throws Exception {

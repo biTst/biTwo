@@ -81,6 +81,7 @@ public class BitMex extends BaseExchImpl {
     private Map<String,Pair> m_symbolToPairMap = new HashMap<>();
     private Map<Pair,String> m_pairToSymbolMap = new HashMap<>();
     private Map<String,OrderBook> m_orderBooks = new HashMap<>(); // todo: move to parent ?
+    private Map<String, TopQuote> m_topQuotes = new HashMap<>(); // todo: move to parent ?
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -255,6 +256,8 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
                         onOrder(json);
                     } else if (table.equals("orderBook10")) {
                         onOrderBook10(json);
+                    } else if (table.equals("quote")) {
+                        onQuote(json);
                     } else {
                         console("ERROR: not supported table='" + table + "' message: " + json);
                     }
@@ -450,7 +453,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
     }
 
-    private void requestQuote(Session session, Pair pair) throws IOException {
+    private void subscribeQuote(Session session, Pair pair) throws IOException {
         String symbol = pairToSymbol(pair);
         // Top level of the book
         send(session, "{\"op\": \"subscribe\", \"args\": [\"quote:" + symbol + "\"]}");
@@ -634,6 +637,43 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         //  "subscribe":"trade:XBTUSD",
         //  "request":{"op":"subscribe","args":["trade:XBTUSD"]}
         // }
+    }
+
+    private void onQuote(JSONObject json) throws Exception {
+        // {"table":"quote",
+        //  "action":"insert",
+        //  "data":[
+        //   {"timestamp":"2018-03-15T01:14:09.158Z",
+        //    "symbol":"XBTUSD",
+        //    "bidSize":500,
+        //    "bidPrice":8115,
+        //    "askPrice":8118.5,
+        //    "askSize":140000},
+        //   {"timestamp":"2018-03-15T01:14:09.376Z","symbol":"XBTUSD","bidSize":500,"bidPrice":8115,"askPrice":8118.5,"askSize":141002}
+        //  ]
+        // }
+
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console(" onQuote: got " + size + " quotes");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+//            console("   [" + i + "]:" + obj);
+
+            String symbol = (String) obj.get("symbol");
+            Number bidSize = (Number) obj.get("bidSize");
+            Number bidPrice = (Number) obj.get("bidPrice");
+            Number askSize = (Number) obj.get("askSize");
+            Number askPrice = (Number) obj.get("askPrice");
+//            console("    symbol=" + symbol + "; bidSize=" + bidSize + "; bidPrice=" + bidPrice + "; askPrice=" + askPrice + "; askSize=" + askSize);
+
+            TopQuote topQuote = m_topQuotes.get(symbol);
+            if (topQuote != null) {
+                topQuote.update(bidSize, bidPrice, askSize, askPrice);
+            } else {
+                throw new RuntimeException("no topQuote for symbol=" + symbol + "; available keys: " + m_topQuotes.keySet());
+            }
+        }
     }
 
     private void onOrderBook10(JSONObject json) throws Exception {
@@ -1105,6 +1145,16 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         console("connectToServer...");
         connectToServer(endpoint);
         console("session isOpen=" + m_session.isOpen());
+    }
+
+    @Override public void subscribeTopQuote(TopQuote topQuote) throws Exception {
+        Pair pair = topQuote.m_pair;
+        String key = pairToSymbol(pair);
+        console("subscribeTopQuote() pair=" + pair + "; key=" + key);
+
+        m_topQuotes.put(key, topQuote);
+
+        subscribeQuote(m_session, pair);
     }
 
     @Override public void subscribeOrderBook(OrderBook orderBook, int depth) throws Exception {

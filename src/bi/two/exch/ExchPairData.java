@@ -23,6 +23,7 @@ public class ExchPairData {
     public DecimalFormat m_priceFormat;
     public int m_orderStepDecimals;
     public DecimalFormat m_sizeFormat;
+    public TopQuote m_topQuote;
 
     public ExchPairData(Exchange exchange, Pair pair) {
         m_exchange = exchange;
@@ -45,6 +46,13 @@ public class ExchPairData {
             m_orderBook = new OrderBook(m_exchange, m_pair);
         }
         return m_orderBook;
+    }
+
+    public TopQuote getTopQuote() {
+        if (m_topQuote == null) { // lazy
+            m_topQuote = new TopQuote(m_exchange, m_pair);
+        }
+        return m_topQuote;
     }
 
     public void onDisconnected() {
