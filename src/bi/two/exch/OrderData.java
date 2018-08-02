@@ -119,7 +119,7 @@ public class OrderData {
     public void notifyListeners() {
         if (m_listeners != null) {
             for (IOrderListener listener : m_listeners) {
-                listener.onUpdated(this);
+                listener.onOrderUpdated(this);
             }
         }
     }
@@ -132,6 +132,6 @@ public class OrderData {
 
     //-----------------------------------------------------------
     public interface IOrderListener {
-        void onUpdated(OrderData orderData);
+        void onOrderUpdated(OrderData orderData);
     }
 }

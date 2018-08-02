@@ -136,10 +136,36 @@ console("TradesPreloader SKIPPED");
     private void onFirstAccountUpdate() throws Exception {
         console("onFirstAccountUpdate");
 
+        // todo: cancel all orders/positions first
+
         TopQuote topQuote = m_exchange.getTopQuote(m_pair);
         topQuote.subscribe(new TopQuote.ITopQuoteListener() {
-            @Override public void onTopQuoteUpdated(TopQuote topQuote) {
+            boolean m_gotFirstQuote = false;
+
+            @Override public void onTopQuoteUpdated(final TopQuote topQuote) {
                 console("onTopQuoteUpdated: topQuote=" + topQuote);
+
+                if (!m_gotFirstQuote) {
+                    new Thread() {
+                        @Override public void run() {
+                            try {
+                                Thread.sleep(500);
+                                String orderId = "oid" + System.currentTimeMillis();
+                                OrderData orderData = new OrderData(m_exchange, orderId, m_pair, OrderSide.SELL, OrderType.LIMIT, topQuote.m_askPrice, 0.05);
+                                orderData.addOrderListener(new OrderData.IOrderListener() {
+                                    @Override public void onOrderUpdated(OrderData orderData) {
+                                        console("onOrderUpdated: " + orderData);
+                                    }
+                                });
+                                console("submitOrder " + orderData);
+                                m_exchange.submitOrder(orderData);
+                            } catch (Exception e) {
+                                err("submitOrder error: " + e, e);
+                            }
+                        }
+                    }.start();
+                }
+                m_gotFirstQuote = true;
             }
         });
 

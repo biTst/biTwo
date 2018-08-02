@@ -3,7 +3,6 @@ package bi.two.exch;
 import bi.two.chart.TradeData;
 import bi.two.tre.CurrencyValue;
 
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
@@ -78,13 +77,13 @@ public class ExchPairData {
         return m_trades;
     }
 
-    public void submitOrder(OrderData orderData) throws IOException {
+    public void submitOrder(OrderData orderData) throws Exception {
         LiveOrdersData liveOrders = getLiveOrders();
         orderData.setFormats(m_priceFormat, m_sizeFormat);
         liveOrders.submitOrder(orderData);
     }
 
-    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+    public void submitOrderReplace(String orderId, OrderData orderData) throws Exception {
         LiveOrdersData liveOrders = getLiveOrders();
         orderData.setFormats(m_priceFormat, m_sizeFormat);
         liveOrders.submitOrderReplace(orderId, orderData);

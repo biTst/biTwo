@@ -16,7 +16,7 @@ class BaseOrderWatcher implements Tre.IWatcher {
     }
 
     OrderData.IOrderListener m_orderListener = new OrderData.IOrderListener() { // todo: seems need to remove listener when done
-        @Override public void onUpdated(OrderData orderData) {
+        @Override public void onOrderUpdated(OrderData orderData) {
             onOrderUpdated(orderData);
         }
     };
@@ -49,7 +49,7 @@ class BaseOrderWatcher implements Tre.IWatcher {
     protected boolean onTimerInt() { return false; }
 
     protected void onOrderUpdated(OrderData orderData) {
-        console("Order.onUpdated() orderData=" + orderData);
+        console("Order.onOrderUpdated() orderData=" + orderData);
         boolean isFilled = orderData.isFilled();
         if (isFilled) {
             console(" order is FILLED => DONE");

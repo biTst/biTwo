@@ -5,7 +5,6 @@ import bi.two.util.Log;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -118,13 +117,13 @@ public class RoundWatcher implements Tre.IWatcher {
         return completedCount;
     }
 
-    private void cancelOrdersWhichNotFinal() throws IOException {
+    private void cancelOrdersWhichNotFinal() throws Exception {
         for (RoundNodeWatcher nodeWatcher : m_nodeWatchers) {
             nodeWatcher.cancelOrderIfNotFinal();
         }
     }
 
-    private void onOrderError() throws IOException {
+    private void onOrderError() throws Exception {
         m_state = RoundWatcherState.error;
         console("some order error: cancelOrdersWhichNotFinal...");
         cancelOrdersWhichNotFinal();
@@ -385,7 +384,7 @@ public class RoundWatcher implements Tre.IWatcher {
             m_onTopSpreadWithOthersStamp.reset(); // reset
         }
 
-        public void cancelOrderIfNotFinal() throws IOException {
+        public void cancelOrderIfNotFinal() throws Exception {
             console("cancelOrderIfNotFinal() " + this);
             if (!isFinal()) {
                 if (m_orderData.m_status != OrderStatus.CANCELING) { // if already cancelRequested

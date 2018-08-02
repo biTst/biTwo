@@ -7,7 +7,6 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
@@ -165,7 +164,7 @@ public class Exchange {
         return exchPairData.getLiveOrders();
     }
 
-    public boolean submitOrder(OrderData orderData) throws IOException {
+    public boolean submitOrder(OrderData orderData) throws Exception {
         console("Exchange.submitOrder: orderData=" + orderData);
         if (m_live) {
             ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
@@ -177,7 +176,7 @@ public class Exchange {
         }
     }
 
-    public boolean submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+    public boolean submitOrderReplace(String orderId, OrderData orderData) throws Exception {
         console("Exchange.submitOrderReplace: orderId=" + orderId + "; orderData=" + orderData);
         if (m_live) {
             ExchPairData exchPairData = m_pairsMap.get(orderData.m_pair);
@@ -189,7 +188,7 @@ public class Exchange {
         }
     }
 
-    public void cancelOrder(OrderData orderData) throws IOException {
+    public void cancelOrder(OrderData orderData) throws Exception {
         m_impl.cancelOrder(orderData);
     }
 

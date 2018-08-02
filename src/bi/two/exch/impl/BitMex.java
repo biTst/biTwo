@@ -12,13 +12,12 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import com.google.gson.*;
-import org.apache.http.HeaderIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
+import org.apache.http.*;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.entity.ContentType;
@@ -30,6 +29,7 @@ import org.apache.http.protocol.HttpContext;
 import org.glassfish.tyrus.client.ClientManager;
 import org.glassfish.tyrus.client.ClientProperties;
 import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
+import org.jetbrains.annotations.NotNull;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -59,7 +59,7 @@ public class BitMex extends BaseExchImpl {
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    public static final String ENDPOINT = "testnet.bitmex.com";
+    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
     private static final String[] s_supportedCurrencies = new String[]{"xbt", "usd"};
 
     // debug
@@ -295,6 +295,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         console("onAuthenticated success=" + success);
 
         if (success) {
+            m_exchange.m_live = true; // mark as connected
             m_exchange.notifyAuthenticated();
         }
     }
@@ -439,18 +440,21 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         // signature = hmac.new(apiSecret.encode('utf-8'), message, digestmod=hashlib.sha256).hexdigest()
 
         long nounce = System.currentTimeMillis();
-
-        SecretKeySpec keySpec = new SecretKeySpec(m_apiSecret.getBytes(), "HmacSHA256");
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(keySpec);
         String line = "GET/realtime" + nounce;
-        byte[] hmacBytes = mac.doFinal(line.getBytes());
-        String signature = Hex.bytesToHexLowerCase(hmacBytes);
+        String signature = hmacSHA256(line);
 
         send(session, "{\"op\": \"authKey\", \"args\": [\"" + m_apiKey + "\", " + nounce + ", \"" + signature + "\"]}");
 
         // {"success":true,
         //  "request":{"op":"authKey","args":["XXXXXXXXXXXXXXXXX",1521077672912,"YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"]}}
+    }
+
+    @NotNull private String hmacSHA256(String line) throws NoSuchAlgorithmException, InvalidKeyException {
+        SecretKeySpec keySpec = new SecretKeySpec(m_apiSecret.getBytes(), "HmacSHA256");
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(keySpec);
+        byte[] hmacBytes = mac.doFinal(line.getBytes());
+        return Hex.bytesToHexLowerCase(hmacBytes);
     }
 
     private void subscribeQuote(Session session, Pair pair) throws IOException {
@@ -766,38 +770,41 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
             String side = (String) obj.get("side");
             String ordType = (String) obj.get("ordType");
             String symbol = (String) obj.get("symbol");
-            Long price = (Long) obj.get("price"); // if ordType=Market => price=null
+            Number price = (Number) obj.get("price"); // if ordType=Market => price=null
             Long orderQty = (Long) obj.get("orderQty");
             Long leavesQty = (Long) obj.get("leavesQty");
             Long cumQty = (Long) obj.get("cumQty");
             Double simpleLeavesQty = (Double) obj.get("simpleLeavesQty");
             String ordStatus = (String) obj.get("ordStatus");
-            OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
             Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
             Currency to = pairByName.m_to;
             console("    side=" + side + "; symbol=" + symbol + "; ordType=" + ordType + "; price=" + price
                     + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus
-                    + "; simpleLeavesQty=" + simpleLeavesQty + "; theSide=" + theSide
+                    + "; simpleLeavesQty=" + simpleLeavesQty
                     + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
 
-            Currency allocateCurrency;
-            Double allocateValue;
-            if (theSide == OrderSide.SELL) { // sell XBT
-                allocateCurrency = from;
-                allocateValue = simpleLeavesQty;
-            } else { // sell USD
-                allocateCurrency = to;
-                allocateValue = Double.valueOf(leavesQty);
+            if (side != null) { // new order has side; order update has no side
+                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
+
+                Currency allocateCurrency;
+                Double allocateValue;
+                if (theSide == OrderSide.SELL) { // sell XBT
+                    allocateCurrency = from;
+                    allocateValue = simpleLeavesQty;
+                } else { // sell USD
+                    allocateCurrency = to;
+                    allocateValue = Double.valueOf(leavesQty);
+                }
+                Double all = allocatedMap.get(allocateCurrency);
+                if (all == null) {
+                    all = 0d;
+                }
+                all += allocateValue;
+                allocatedMap.put(allocateCurrency, all);
             }
-            Double all = allocatedMap.get(allocateCurrency);
-            if (all == null) {
-                all = 0d;
-            }
-            all += allocateValue;
-            allocatedMap.put(allocateCurrency, all);
         }
-        console("   allocated="+allocatedMap);
+        console("   allocated=" + allocatedMap);
 
         for (Currency currency : m_currencies.values()) {
             Double allocated = allocatedMap.get(currency);
@@ -1171,6 +1178,211 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         requestOrderBook10(m_session, pair);
     }
 
+    @Override public void submitOrder(OrderData orderData) throws Exception {
+        log("BitMex.submitOrder() orderData=" + orderData);
+        String orderSize = orderData.formatSize(orderData.m_amount);
+        String orderPrice = orderData.formatPrice(orderData.m_price);
+        OrderType orderType = orderData.m_type;
+        OrderSide orderSide = orderData.m_side;
+        String clientOrderId = orderData.m_clientOrderId;
+        log(" clientOrderId=" + clientOrderId + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        if (clientOrderId == null) {
+            throw new RuntimeException("no clientOrderId. orderData=" + orderData);
+        }
+        String oid = clientOrderId + "_place-order";
+//        m_submitOrderRequestsMap.put(oid, orderData);
+        orderData.m_submitTime = System.currentTimeMillis();
+        placeOrder(oid, orderData.m_pair, orderType, orderSize, orderPrice, orderSide);
+        orderData.m_status = OrderStatus.SUBMITTED;
+        orderData.notifyListeners();
+    }
+
+    private void placeOrder(String oid, Pair pair, OrderType orderType, String orderSize, String orderPrice, OrderSide orderSide) throws Exception {
+        // curl -X POST
+        // --header 'Content-Type: application/x-www-form-urlencoded'
+        // --header 'Accept: application/json'
+        // --header 'X-Requested-With: XMLHttpRequest'
+        // -d 'symbol=XBTUSD&side=Sell&simpleOrderQty=0.05&clOrdID=my_clOrdID&ordType=Market' 'https://testnet.bitmex.com/api/v1/order'
+
+console("placeOrder oid=" + oid + "; pair=" + pair + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+
+        String symbol = pairToSymbol(pair);
+        String side = orderSide.isBuy() ? "Buy" : "Sell";
+        boolean isMarket = orderType == OrderType.MARKET;
+        String type = isMarket ? "Market" : "Limit";
+console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; type=" + type);
+
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair("symbol", symbol));
+        nvps.add(new BasicNameValuePair("side", side));
+        nvps.add(new BasicNameValuePair("simpleOrderQty", orderSize));
+        nvps.add(new BasicNameValuePair("clOrdID", oid));
+        nvps.add(new BasicNameValuePair("ordType", type));
+        if (!isMarket) { // LMT
+            nvps.add(new BasicNameValuePair("price", orderPrice));
+        }
+console("  nvps=" + nvps);
+
+        UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(nvps);
+console("  postEntity=" + postEntity + "; isRepeatable=" + postEntity.isRepeatable());
+
+        int postLength = (int) postEntity.getContentLength();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(postLength);
+        postEntity.writeTo(baos);
+        String postData = baos.toString();
+//        String postData = postEntity.toString();
+console("  postData=" + postData);
+
+
+        String endpointPath = "/api/v1/order";
+        URI uri = new URIBuilder()
+                .setScheme("https")
+                .setHost(ENDPOINT_HOST)
+                .setPath(endpointPath)
+//                .addParameters(nvps)
+                .build();
+console("  uri=" + uri);
+        String address = uri.toString();
+        //String address = "https://testnet.bitmex.com/api/v1/order";
+
+        long expires = System.currentTimeMillis() / 1000L + 3600L; // set expires one hour in the future
+        String expiresStr = Long.toString(expires);
+console("  expiresStr=" + expiresStr);
+        String message = "POST" + endpointPath + expiresStr + postData;
+console("  message=" + message);
+        String signatureString = hmacSHA256(message);
+console("  signatureString=" + signatureString);
+
+        HttpPost httpPost = new HttpPost(uri);
+        httpPost.addHeader("Accept", "application/json");
+        httpPost.addHeader("X-Requested-With", "XMLHttpRequest");
+
+        httpPost.addHeader("api-expires", expiresStr);
+        httpPost.addHeader("api-key", m_apiKey);
+        httpPost.addHeader("api-signature", signatureString);
+
+        httpPost.setEntity(postEntity);
+
+        httpPost.setConfig(m_requestConfig);
+
+        console("execute " + httpPost);
+
+        // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
+        //     https://hc.apache.org/httpcomponents-client-ga/examples.html
+        CloseableHttpClient httpclient = HttpClients.custom()
+                .setKeepAliveStrategy(m_keepAliveStrat)
+                .build();
+        //CloseableHttpClient httpclient = HttpClients.createDefault();
+
+        try {
+            CloseableHttpResponse response = httpclient.execute(httpPost);
+            try {
+//if (LOG_HTTP) {
+if (true) {
+                    console("ProtocolVersion=" + response.getProtocolVersion());
+                    StatusLine statusLine = response.getStatusLine();
+                    console("StatusLine=" + statusLine);
+                    console(" StatusCode=" + statusLine.getStatusCode());
+                    console(" ReasonPhrase=" + statusLine.getReasonPhrase());
+                }
+
+//if (LOG_HEADERS) {
+if (true) {
+                    HeaderIterator it = response.headerIterator();
+                    while (it.hasNext()) {
+                        console("Header: " + it.next());
+                    }
+                }
+
+                HttpEntity entity = response.getEntity();
+                if (LOG_HTTP) {
+                    console("entity=" + entity);
+                }
+
+                if (entity != null) {
+                    long contentLength = entity.getContentLength();
+                    ContentType contentType = ContentType.getOrDefault(entity);
+                    Charset charset = contentType.getCharset();
+//if (LOG_HTTP) {
+if (true) {
+                        console("contentLength=" + contentLength);
+                        console("contentType=" + contentType);
+                        console("charset=" + charset);
+                    }
+                    InputStream is = entity.getContent();
+                    Reader reader = new InputStreamReader(is, charset);
+
+                    try {
+
+console("content:");
+char[] buf = new char[256];
+int read;
+while ((read = reader.read(buf)) > 0) {
+    String str = new String(buf, 0, read);
+    console(str);
+}
+                    } finally {
+                        reader.close();
+                    }
+                }
+                throw new RuntimeException("empty response from server");
+            } finally {
+                response.close();
+            }
+        } finally {
+            httpclient.close();
+        }
+
+
+
+        // ---------------------------------------------------------------------
+//        Map<String, String> sArray = new HashMap<>();
+//        sArray.put("symbol", symbol);
+//        sArray.put("side", side);
+//        sArray.put("simpleOrderQty", orderSize);
+//        sArray.put("clOrdID", oid);
+//        sArray.put("ordType", type);
+//        if (!isMarket) { // LMT
+//            sArray.put("price", orderPrice);
+//        }
+//
+//        String postData = Post.createHttpPostString(sArray, false);
+//        log("   postData=" + postData);
+//
+//        URL url = new URL(address);
+//        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+//
+//        try {
+//            con.setRequestProperty("api-expires", expiresStr);
+//            con.setRequestProperty("api-key", m_apiKey);
+//            con.setRequestProperty("api-signature", signatureString);
+//
+//            con.typ
+//
+//            con.setRequestMethod("POST");
+//            con.setUseCaches(false);
+//
+//            int responseCode = con.getResponseCode();
+//            log("    responseCode=" + responseCode);
+//
+//            if (responseCode == HttpsURLConnection.HTTP_OK) {
+////            List<TradeTickData> ticks = readAllTicks(con.getInputStream());
+////            return ticks;
+//            } else if (responseCode == HttpsURLConnection.HTTP_GATEWAY_TIMEOUT) {
+//                String msg = "HTTP_GATEWAY_TIMEOUT error";
+//                log(msg);
+//                throw new Exception(msg);
+//            } else {
+//                String msg = "ERROR: unexpected ResponseCode: " + responseCode + "; responseMessage=" + con.getResponseMessage();
+//                log(msg);
+//                throw new Exception(msg);
+//            }
+//        } finally {
+//            con.disconnect();
+//        }
+    }
+
+
     @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
         String cacheDir = config.getPropertyNoComment("cache.dir");
 console("BitMex<> cacheDir=" + cacheDir);
@@ -1233,7 +1445,7 @@ console("BitMex<> cacheDir=" + cacheDir);
         // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
         URI uri = new URIBuilder()
                 .setScheme("https")
-                .setHost(ENDPOINT)
+                .setHost(ENDPOINT_HOST)
                 .setPath("/api/v1/trade")
                 .addParameters(nvps)
                 .build();

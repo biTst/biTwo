@@ -12,7 +12,8 @@ public class Post {
             Collections.sort(keys);
         }
         StringBuilder buff = new StringBuilder();
-        for (int i = 0; i < keys.size(); i++) {
+        int size = keys.size();
+        for (int i = 0; i < size; i++) {
             String key = keys.get(i);
             String value = params.get(key);
             if (i != 0) {
@@ -24,7 +25,7 @@ public class Post {
                 throw new RuntimeException("null value for key '" + key + "'");
             }
             //buff.append(Utils.replaceAll(value, " ", "+"));
-            buff.append(value.replace(' ', '+'));
+            buff.append(value.replace(' ', '+')); // todo: url encode
         }
         return buff.toString();
     }

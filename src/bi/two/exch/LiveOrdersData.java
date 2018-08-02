@@ -1,6 +1,5 @@
 package bi.two.exch;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,12 +43,12 @@ public class LiveOrdersData {
         }
     }
 
-    public void submitOrder(OrderData orderData) throws IOException {
+    public void submitOrder(OrderData orderData) throws Exception {
         m_clientOrders.put(orderData.m_clientOrderId, orderData);
         m_exchange.m_impl.submitOrder(orderData);
     }
 
-    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+    public void submitOrderReplace(String orderId, OrderData orderData) throws Exception {
         OrderData parentOrderData = m_orders.get(orderId);
         if (parentOrderData == null) {
             throw new RuntimeException("no order with id=" + orderId);

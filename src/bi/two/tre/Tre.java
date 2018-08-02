@@ -246,8 +246,8 @@ public class Tre implements OrderBook.IOrderBookListener {
             nextOrder.addOrderListener(new OrderData.IOrderListener() {
                 private boolean m_done;
 
-                @Override public void onUpdated(OrderData orderData) {
-                    console("IOrderListener.onUpdated() " + orderData);
+                @Override public void onOrderUpdated(OrderData orderData) {
+                    console("IOrderListener.onOrderUpdated() " + orderData);
                     try {
                         OrderStatus status = orderData.m_status;
                         if ((status == OrderStatus.CANCELLED) && !m_done) {
@@ -257,7 +257,7 @@ public class Tre implements OrderBook.IOrderBookListener {
                             cancelAllOrders(pairsIterator, ordersIterator);
                         }
                     } catch (Exception e) {
-                        String msg = "IOrderListener.onUpdated error: " + e;
+                        String msg = "IOrderListener.onOrderUpdated error: " + e;
                         console(msg);
                         err(msg, e);
                     }

@@ -5,7 +5,6 @@ import bi.two.main2.TicksCacheReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
-import java.io.IOException;
 import java.util.List;
 
 public class BaseExchImpl {
@@ -41,15 +40,15 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public void submitOrder(OrderData orderData) throws IOException {
+    public void submitOrder(OrderData orderData) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public void submitOrderReplace(String orderId, OrderData orderData) throws IOException {
+    public void submitOrderReplace(String orderId, OrderData orderData) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 
-    public void cancelOrder(OrderData orderData) throws IOException {
+    public void cancelOrder(OrderData orderData) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
 
