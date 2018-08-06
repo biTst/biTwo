@@ -18,6 +18,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.entity.ContentType;
@@ -82,6 +83,7 @@ public class BitMex extends BaseExchImpl {
     private Map<Pair,String> m_pairToSymbolMap = new HashMap<>();
     private Map<String,OrderBook> m_orderBooks = new HashMap<>(); // todo: move to parent ?
     private Map<String, TopQuote> m_topQuotes = new HashMap<>(); // todo: move to parent ?
+    private MarginToAccountModel m_marginAccount;
 
     private final RequestConfig m_requestConfig = RequestConfig.custom()
             .setSocketTimeout(1000)
@@ -760,6 +762,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
 
         Map<Currency,Double> allocatedMap = new HashMap<>();
 
+String action = (String) json.get("action");
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
         console("  got " + size + " orders");
@@ -772,9 +775,9 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
             String symbol = (String) obj.get("symbol");
             Number price = (Number) obj.get("price"); // if ordType=Market => price=null
             Long orderQty = (Long) obj.get("orderQty");
-            Long leavesQty = (Long) obj.get("leavesQty");
+            Number leavesQty = (Number) obj.get("leavesQty");
             Long cumQty = (Long) obj.get("cumQty");
-            Double simpleLeavesQty = (Double) obj.get("simpleLeavesQty");
+            Number simpleLeavesQty = (Number) obj.get("simpleLeavesQty");
             String ordStatus = (String) obj.get("ordStatus");
             Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
@@ -784,17 +787,17 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
                     + "; simpleLeavesQty=" + simpleLeavesQty
                     + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
 
-            if (side != null) { // new order has side; order update has no side
+            if (side != null) { // new order message has side; order update has no side
                 OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
 
                 Currency allocateCurrency;
                 Double allocateValue;
                 if (theSide == OrderSide.SELL) { // sell XBT
                     allocateCurrency = from;
-                    allocateValue = simpleLeavesQty;
+                    allocateValue = simpleLeavesQty.doubleValue();
                 } else { // sell USD
                     allocateCurrency = to;
-                    allocateValue = Double.valueOf(leavesQty);
+                    allocateValue = leavesQty.doubleValue();
                 }
                 Double all = allocatedMap.get(allocateCurrency);
                 if (all == null) {
@@ -1223,163 +1226,11 @@ console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; t
         }
 console("  nvps=" + nvps);
 
-        UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(nvps);
-console("  postEntity=" + postEntity + "; isRepeatable=" + postEntity.isRepeatable());
-
-        int postLength = (int) postEntity.getContentLength();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(postLength);
-        postEntity.writeTo(baos);
-        String postData = baos.toString();
-//        String postData = postEntity.toString();
-console("  postData=" + postData);
-
-
         String endpointPath = "/api/v1/order";
-        URI uri = new URIBuilder()
-                .setScheme("https")
-                .setHost(ENDPOINT_HOST)
-                .setPath(endpointPath)
-//                .addParameters(nvps)
-                .build();
-console("  uri=" + uri);
-        String address = uri.toString();
-        //String address = "https://testnet.bitmex.com/api/v1/order";
 
-        long expires = System.currentTimeMillis() / 1000L + 3600L; // set expires one hour in the future
-        String expiresStr = Long.toString(expires);
-console("  expiresStr=" + expiresStr);
-        String message = "POST" + endpointPath + expiresStr + postData;
-console("  message=" + message);
-        String signatureString = hmacSHA256(message);
-console("  signatureString=" + signatureString);
+        JsonElement json = loadJson(true, endpointPath, nvps);
+console("got json=" + json);
 
-        HttpPost httpPost = new HttpPost(uri);
-        httpPost.addHeader("Accept", "application/json");
-        httpPost.addHeader("X-Requested-With", "XMLHttpRequest");
-
-        httpPost.addHeader("api-expires", expiresStr);
-        httpPost.addHeader("api-key", m_apiKey);
-        httpPost.addHeader("api-signature", signatureString);
-
-        httpPost.setEntity(postEntity);
-
-        httpPost.setConfig(m_requestConfig);
-
-        console("execute " + httpPost);
-
-        // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
-        //     https://hc.apache.org/httpcomponents-client-ga/examples.html
-        CloseableHttpClient httpclient = HttpClients.custom()
-                .setKeepAliveStrategy(m_keepAliveStrat)
-                .build();
-        //CloseableHttpClient httpclient = HttpClients.createDefault();
-
-        try {
-            CloseableHttpResponse response = httpclient.execute(httpPost);
-            try {
-//if (LOG_HTTP) {
-if (true) {
-                    console("ProtocolVersion=" + response.getProtocolVersion());
-                    StatusLine statusLine = response.getStatusLine();
-                    console("StatusLine=" + statusLine);
-                    console(" StatusCode=" + statusLine.getStatusCode());
-                    console(" ReasonPhrase=" + statusLine.getReasonPhrase());
-                }
-
-//if (LOG_HEADERS) {
-if (true) {
-                    HeaderIterator it = response.headerIterator();
-                    while (it.hasNext()) {
-                        console("Header: " + it.next());
-                    }
-                }
-
-                HttpEntity entity = response.getEntity();
-                if (LOG_HTTP) {
-                    console("entity=" + entity);
-                }
-
-                if (entity != null) {
-                    long contentLength = entity.getContentLength();
-                    ContentType contentType = ContentType.getOrDefault(entity);
-                    Charset charset = contentType.getCharset();
-//if (LOG_HTTP) {
-if (true) {
-                        console("contentLength=" + contentLength);
-                        console("contentType=" + contentType);
-                        console("charset=" + charset);
-                    }
-                    InputStream is = entity.getContent();
-                    Reader reader = new InputStreamReader(is, charset);
-
-                    try {
-
-console("content:");
-char[] buf = new char[256];
-int read;
-while ((read = reader.read(buf)) > 0) {
-    String str = new String(buf, 0, read);
-    console(str);
-}
-                    } finally {
-                        reader.close();
-                    }
-                }
-                throw new RuntimeException("empty response from server");
-            } finally {
-                response.close();
-            }
-        } finally {
-            httpclient.close();
-        }
-
-
-
-        // ---------------------------------------------------------------------
-//        Map<String, String> sArray = new HashMap<>();
-//        sArray.put("symbol", symbol);
-//        sArray.put("side", side);
-//        sArray.put("simpleOrderQty", orderSize);
-//        sArray.put("clOrdID", oid);
-//        sArray.put("ordType", type);
-//        if (!isMarket) { // LMT
-//            sArray.put("price", orderPrice);
-//        }
-//
-//        String postData = Post.createHttpPostString(sArray, false);
-//        log("   postData=" + postData);
-//
-//        URL url = new URL(address);
-//        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-//
-//        try {
-//            con.setRequestProperty("api-expires", expiresStr);
-//            con.setRequestProperty("api-key", m_apiKey);
-//            con.setRequestProperty("api-signature", signatureString);
-//
-//            con.typ
-//
-//            con.setRequestMethod("POST");
-//            con.setUseCaches(false);
-//
-//            int responseCode = con.getResponseCode();
-//            log("    responseCode=" + responseCode);
-//
-//            if (responseCode == HttpsURLConnection.HTTP_OK) {
-////            List<TradeTickData> ticks = readAllTicks(con.getInputStream());
-////            return ticks;
-//            } else if (responseCode == HttpsURLConnection.HTTP_GATEWAY_TIMEOUT) {
-//                String msg = "HTTP_GATEWAY_TIMEOUT error";
-//                log(msg);
-//                throw new Exception(msg);
-//            } else {
-//                String msg = "ERROR: unexpected ResponseCode: " + responseCode + "; responseMessage=" + con.getResponseMessage();
-//                log(msg);
-//                throw new Exception(msg);
-//            }
-//        } finally {
-//            con.disconnect();
-//        }
     }
 
 
@@ -1430,6 +1281,24 @@ console("BitMex<> cacheDir=" + cacheDir);
         return trs;
     }
 
+    private JsonArray loadTable(List<NameValuePair> nvps) throws Exception {
+        JsonElement json = loadJson(false, "/api/v1/trade", nvps);
+
+        if (json instanceof JsonArray) {
+            JsonArray array = (JsonArray) json;
+            if (LOG_JSON_TABLE) {
+                for (JsonElement next : array) {
+                    console(next.toString());
+                }
+            }
+            return array;
+        } else {
+            JsonArray asJsonArray = json.getAsJsonArray();
+            console(json.toString());
+            return asJsonArray;
+        }
+    }
+
     private <X extends Object> List<X> create(JsonArray table, FromJsonCreator<X> creator) {
         List<X> ret = new ArrayList<>();
         for (JsonElement next : table) {
@@ -1440,21 +1309,55 @@ console("BitMex<> cacheDir=" + cacheDir);
         return ret;
     }
 
-    private JsonArray loadTable(List<NameValuePair> nvps) throws URISyntaxException, IOException {
+    private JsonElement loadJson(boolean isHttpPost, String endpointPath, List<NameValuePair> nvps) throws Exception {
 
-        // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
-        URI uri = new URIBuilder()
+        HttpRequestBase httpRequest;
+        URIBuilder builder = new URIBuilder()
                 .setScheme("https")
                 .setHost(ENDPOINT_HOST)
-                .setPath("/api/v1/trade")
-                .addParameters(nvps)
-                .build();
-        HttpGet httpget = new HttpGet(uri);
-        httpget.addHeader("Accept", "application/json");
+                .setPath(endpointPath);
+        if (isHttpPost) {
+            UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(nvps);
+            if (LOG_HTTP) {
+                console("  postEntity=" + postEntity + "; isRepeatable=" + postEntity.isRepeatable());
+            }
+            int postLength = (int) postEntity.getContentLength();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(postLength);
+            postEntity.writeTo(baos);
+            String postData = baos.toString();
+            if (LOG_HTTP) {
+                console("  postData=" + postData);
+            }
+            long expires = System.currentTimeMillis() / 1000L + 3600L; // set expires one hour in the future
+            String expiresStr = Long.toString(expires);
+            String message = "POST" + endpointPath + expiresStr + postData;
+            String signatureString = hmacSHA256(message);
+            if (LOG_HTTP) {
+                console("  expiresStr=" + expiresStr + "; message=" + message + "; signatureString=" + signatureString);
+            }
 
-        console("execute " + httpget);
+            URI uri = builder.build();
+            HttpPost httpPost = new HttpPost(uri);
 
-        httpget.setConfig(m_requestConfig);
+            httpPost.addHeader("X-Requested-With", "XMLHttpRequest");
+
+            httpPost.addHeader("api-expires", expiresStr);
+            httpPost.addHeader("api-key", m_apiKey);
+            httpPost.addHeader("api-signature", signatureString);
+
+            httpPost.setEntity(postEntity);
+
+            httpRequest = httpPost;
+        } else { // for GET - add params to URL
+            // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
+            builder = builder.addParameters(nvps);
+            URI uri = builder.build();
+            httpRequest = new HttpGet(uri);
+        }
+        httpRequest.addHeader("Accept", "application/json");
+        httpRequest.setConfig(m_requestConfig);
+
+        console("execute " + httpRequest);
 
         // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
         //     https://hc.apache.org/httpcomponents-client-ga/examples.html
@@ -1464,13 +1367,12 @@ console("BitMex<> cacheDir=" + cacheDir);
         //CloseableHttpClient httpclient = HttpClients.createDefault();
 
         try {
-            CloseableHttpResponse response = httpclient.execute(httpget);
+            CloseableHttpResponse response = httpclient.execute(httpRequest);
             try {
                 if (LOG_HTTP) {
                     console("ProtocolVersion=" + response.getProtocolVersion());
-                    console("StatusCode=" + response.getStatusLine().getStatusCode());
-                    console("ReasonPhrase=" + response.getStatusLine().getReasonPhrase());
-                    console("StatusLine=" + response.getStatusLine());
+                    StatusLine statusLine = response.getStatusLine();
+                    console("StatusLine='" + statusLine + "'; StatusCode=" + statusLine.getStatusCode() + "; ReasonPhrase=" + statusLine.getReasonPhrase());
                 }
 
                 if (LOG_HEADERS) {
@@ -1490,9 +1392,7 @@ console("BitMex<> cacheDir=" + cacheDir);
                     ContentType contentType = ContentType.getOrDefault(entity);
                     Charset charset = contentType.getCharset();
                     if (LOG_HTTP) {
-                        console("contentLength=" + contentLength);
-                        console("contentType=" + contentType);
-                        console("charset=" + charset);
+                        console("contentLength=" + contentLength + "; contentType=" + contentType + "; charset=" + charset);
                     }
                     InputStream is = entity.getContent();
                     Reader reader = new InputStreamReader(is, charset);
@@ -1500,19 +1400,7 @@ console("BitMex<> cacheDir=" + cacheDir);
                     try {
                         Gson gson = new GsonBuilder().create();
                         JsonElement json = gson.fromJson(reader, JsonElement.class);
-                        if (json instanceof JsonArray) {
-                            JsonArray array = (JsonArray) json;
-                            if (LOG_JSON_TABLE) {
-                                for (JsonElement next : array) {
-                                    console(next.toString());
-                                }
-                            }
-                            return array;
-                        } else {
-                            JsonArray asJsonArray = json.getAsJsonArray();
-                            console(json.toString());
-                            return asJsonArray;
-                        }
+                        return json;
 
 //                        List<? extends ITickData> list = parseTable(reader);
 //                        return list;
@@ -1545,7 +1433,7 @@ console("BitMex<> cacheDir=" + cacheDir);
 
     //---------------------------------------------------------------------------------
     private static class ReconnectHandler extends ClientManager.ReconnectHandler {
-        public static long s_reconnectTimeout = 2;
+        public static long s_reconnectTimeout = 2; // number of seconds
 
         private int m_counter;
         private int m_connectFailure;
@@ -1650,5 +1538,10 @@ console("BitMex<> cacheDir=" + cacheDir);
     //---------------------------------------------------------------------------------------------------
     private interface FromJsonCreator<X> {
         X create(JsonObject next);
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    private static class MarginToAccountModel {
+
     }
 }
