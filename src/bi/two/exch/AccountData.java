@@ -22,8 +22,8 @@ public class AccountData {
         m_exch = exch;
     }
 
-    public double available(Currency currency) { return notNull(m_funds.get(currency)); }
-    public double allocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
+    public double getAvailable(Currency currency) { return notNull(m_funds.get(currency)); }
+    public double getAllocated(Currency currency) { return notNull(m_allocatedFunds.get(currency)); }
     private double notNull(Double aDouble) { return aDouble == null ? 0 : aDouble.doubleValue(); }
 
     public void setAvailable(Currency currency, double value) {
@@ -196,8 +196,8 @@ public class AccountData {
         if (toLog) {
             log("    account in: " + this);
         }
-        double availableFrom = available(currencyFrom);
-        double availableTo = available(currencyTo);
+        double availableFrom = getAvailable(currencyFrom);
+        double availableTo = getAvailable(currencyTo);
 
         double amountFrom = convert(currencyTo, currencyFrom, amountTo);
         if (amountTo < 0) { // buy 'FROM' sell 'TO'

@@ -565,7 +565,7 @@ public class Tre implements OrderBook.IOrderBookListener {
             log("  entry=" + entry);
             Currency currency = entry.getKey();
             Double min = entry.getValue();
-            double available = m_accountData.available(currency);
+            double available = m_accountData.getAvailable(currency);
             log("   min=" + min + "; available=" + available);
             if (available > 0) {
                 double rate = available / min;
@@ -581,7 +581,7 @@ public class Tre implements OrderBook.IOrderBookListener {
         for (Map.Entry<Currency, Double> entry : minBalanceMap.entrySet()) {
             Currency currency = entry.getKey();
             Double min = entry.getValue();
-            double available = m_accountData.available(currency);
+            double available = m_accountData.getAvailable(currency);
             double need = min - available;
             double needRate = need / min;
             String entryLog = "  entry=" + entry + ":  min=" + Utils.format8(min) + "; available=" + available + "; need=" + Utils.format8(need) + "; needRate=" + Utils.format8(needRate);

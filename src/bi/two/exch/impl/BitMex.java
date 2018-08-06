@@ -739,87 +739,6 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         return ret;
     }
 
-    private void onOrder(JSONObject json) throws Exception {
-        // {"table":"order",
-        //  "action":"partial",
-        //  "keys":["orderID"],
-        //  "types":{"orderID":"guid","clOrdID":"symbol","clOrdLinkID":"symbol","account":"long","symbol":"symbol","side":"symbol","simpleOrderQty":"float","orderQty":"long",
-        //           "price":"float","displayQty":"long","stopPx":"float","pegOffsetValue":"float","pegPriceType":"symbol","currency":"symbol","settlCurrency":"symbol",
-        //           "ordType":"symbol","timeInForce":"symbol","execInst":"symbol","contingencyType":"symbol","exDestination":"symbol","ordStatus":"symbol","triggered":"symbol",
-        //           "workingIndicator":"boolean","ordRejReason":"symbol","simpleLeavesQty":"float","leavesQty":"long","simpleCumQty":"float","cumQty":"long","avgPx":"float",
-        //           "multiLegReportingType":"symbol","text":"symbol","transactTime":"timestamp","timestamp":"timestamp"},
-        //  "foreignKeys":{"symbol":"instrument","side":"side","ordStatus":"ordStatus"},
-        //  "attributes":{"orderID":"grouped","account":"grouped","ordStatus":"grouped","workingIndicator":"grouped"},
-        //  "filter":{"account":47464},
-        //  "data":[]
-        // }
-
-        // {"symbol":"XBTUSD","triggered":"","clOrdLinkID":"","execInst":"","pegOffsetValue":null,"pegPriceType":"","contingencyType":"","simpleCumQty":0,
-        //  "settlCurrency":"XBt","ordRejReason":"","price":7511,"orderQty":111,"currency":"USD","text":"Submission from testnet.bitmex.com","timeInForce":"GoodTillCancel",
-        //  "timestamp":"2018-07-21T11:48:31.595Z","ordStatus":"New","side":"Sell","simpleOrderQty":null,"orderID":"470d8f33-e6b6-14e9-850f-49f6cc696b97","leavesQty":111,
-        //  "cumQty":0,"displayQty":null,"simpleLeavesQty":0.0148,"clOrdID":"","avgPx":null,"multiLegReportingType":"SingleSecurity","workingIndicator":true,
-        //  "transactTime":"2018-07-21T11:48:31.595Z","exDestination":"XBME","account":47464,"stopPx":null,"ordType":"Limit"}
-
-        Map<Currency,Double> allocatedMap = new HashMap<>();
-
-String action = (String) json.get("action");
-        JSONArray data = (JSONArray) json.get("data");
-        int size = data.size();
-        console("  got " + size + " orders");
-        for (int i = 0; i < size; i++) {
-            JSONObject obj = (JSONObject) data.get(i);
-            console("   [" + i + "]:" + obj);
-
-            String side = (String) obj.get("side");
-            String ordType = (String) obj.get("ordType");
-            String symbol = (String) obj.get("symbol");
-            Number price = (Number) obj.get("price"); // if ordType=Market => price=null
-            Long orderQty = (Long) obj.get("orderQty");
-            Number leavesQty = (Number) obj.get("leavesQty");
-            Long cumQty = (Long) obj.get("cumQty");
-            Number simpleLeavesQty = (Number) obj.get("simpleLeavesQty");
-            String ordStatus = (String) obj.get("ordStatus");
-            Pair pairByName = getPairFromSymbol(symbol);
-            Currency from = pairByName.m_from;
-            Currency to = pairByName.m_to;
-            console("    side=" + side + "; symbol=" + symbol + "; ordType=" + ordType + "; price=" + price
-                    + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus
-                    + "; simpleLeavesQty=" + simpleLeavesQty
-                    + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
-
-            if (side != null) { // new order message has side; order update has no side
-                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
-
-                Currency allocateCurrency;
-                Double allocateValue;
-                if (theSide == OrderSide.SELL) { // sell XBT
-                    allocateCurrency = from;
-                    allocateValue = simpleLeavesQty.doubleValue();
-                } else { // sell USD
-                    allocateCurrency = to;
-                    allocateValue = leavesQty.doubleValue();
-                }
-                Double all = allocatedMap.get(allocateCurrency);
-                if (all == null) {
-                    all = 0d;
-                }
-                all += allocateValue;
-                allocatedMap.put(allocateCurrency, all);
-            }
-        }
-        console("   allocated=" + allocatedMap);
-
-        for (Currency currency : m_currencies.values()) {
-            Double allocated = allocatedMap.get(currency);
-            double all = (allocated == null) ? 0d : allocated;
-            m_exchange.m_accountData.setAllocated(currency, all);
-        }
-        logAccount();
-
-        m_gotFirstOrder = true;
-        notifyAccountListenerIfNeeded();
-    }
-
     private void logAccount() {
         console("     accountData=" + m_exchange.m_accountData);
     }
@@ -1192,22 +1111,20 @@ String action = (String) json.get("action");
         if (clientOrderId == null) {
             throw new RuntimeException("no clientOrderId. orderData=" + orderData);
         }
-        String oid = clientOrderId + "_place-order";
-//        m_submitOrderRequestsMap.put(oid, orderData);
         orderData.m_submitTime = System.currentTimeMillis();
-        placeOrder(oid, orderData.m_pair, orderType, orderSize, orderPrice, orderSide);
+        placeOrder(clientOrderId, orderData.m_pair, orderType, orderSize, orderPrice, orderSide);
         orderData.m_status = OrderStatus.SUBMITTED;
         orderData.notifyListeners();
     }
 
-    private void placeOrder(String oid, Pair pair, OrderType orderType, String orderSize, String orderPrice, OrderSide orderSide) throws Exception {
+    private void placeOrder(String clientOrderId, Pair pair, OrderType orderType, String orderSize, String orderPrice, OrderSide orderSide) throws Exception {
         // curl -X POST
         // --header 'Content-Type: application/x-www-form-urlencoded'
         // --header 'Accept: application/json'
         // --header 'X-Requested-With: XMLHttpRequest'
         // -d 'symbol=XBTUSD&side=Sell&simpleOrderQty=0.05&clOrdID=my_clOrdID&ordType=Market' 'https://testnet.bitmex.com/api/v1/order'
 
-console("placeOrder oid=" + oid + "; pair=" + pair + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+console("placeOrder clientOrderId=" + clientOrderId + "; pair=" + pair + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
 
         String symbol = pairToSymbol(pair);
         String side = orderSide.isBuy() ? "Buy" : "Sell";
@@ -1219,7 +1136,7 @@ console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; t
         nvps.add(new BasicNameValuePair("symbol", symbol));
         nvps.add(new BasicNameValuePair("side", side));
         nvps.add(new BasicNameValuePair("simpleOrderQty", orderSize));
-        nvps.add(new BasicNameValuePair("clOrdID", oid));
+        nvps.add(new BasicNameValuePair("clOrdID", clientOrderId));
         nvps.add(new BasicNameValuePair("ordType", type));
         if (!isMarket) { // LMT
             nvps.add(new BasicNameValuePair("price", orderPrice));
@@ -1230,9 +1147,161 @@ console("  nvps=" + nvps);
 
         JsonElement json = loadJson(true, endpointPath, nvps);
 console("got json=" + json);
-
     }
 
+    private void onOrder(JSONObject json) throws Exception {
+        // {"table":"order",
+        //  "action":"partial",
+        //  "keys":["orderID"],
+        //  "types":{"orderID":"guid","clOrdID":"symbol","clOrdLinkID":"symbol","account":"long","symbol":"symbol","side":"symbol","simpleOrderQty":"float","orderQty":"long",
+        //           "price":"float","displayQty":"long","stopPx":"float","pegOffsetValue":"float","pegPriceType":"symbol","currency":"symbol","settlCurrency":"symbol",
+        //           "ordType":"symbol","timeInForce":"symbol","execInst":"symbol","contingencyType":"symbol","exDestination":"symbol","ordStatus":"symbol","triggered":"symbol",
+        //           "workingIndicator":"boolean","ordRejReason":"symbol","simpleLeavesQty":"float","leavesQty":"long","simpleCumQty":"float","cumQty":"long","avgPx":"float",
+        //           "multiLegReportingType":"symbol","text":"symbol","transactTime":"timestamp","timestamp":"timestamp"},
+        //  "foreignKeys":{"symbol":"instrument","side":"side","ordStatus":"ordStatus"},
+        //  "attributes":{"orderID":"grouped","account":"grouped","ordStatus":"grouped","workingIndicator":"grouped"},
+        //  "filter":{"account":47464},
+        //  "data":[]
+        // }
+
+        // {"symbol":"XBTUSD","triggered":"","clOrdLinkID":"","execInst":"","pegOffsetValue":null,"pegPriceType":"","contingencyType":"","simpleCumQty":0,
+        //  "settlCurrency":"XBt","ordRejReason":"","price":7511,"orderQty":111,"currency":"USD","text":"Submission from testnet.bitmex.com","timeInForce":"GoodTillCancel",
+        //  "timestamp":"2018-07-21T11:48:31.595Z","ordStatus":"New","side":"Sell","simpleOrderQty":null,"orderID":"470d8f33-e6b6-14e9-850f-49f6cc696b97","leavesQty":111,
+        //  "cumQty":0,"displayQty":null,"simpleLeavesQty":0.0148,"clOrdID":"","avgPx":null,"multiLegReportingType":"SingleSecurity","workingIndicator":true,
+        //  "transactTime":"2018-07-21T11:48:31.595Z","exDestination":"XBME","account":47464,"stopPx":null,"ordType":"Limit"}
+
+        String action = (String) json.get("action");
+        JSONArray data = (JSONArray) json.get("data");
+        int size = data.size();
+        console("  got " + size + " orders");
+        for (int i = 0; i < size; i++) {
+            JSONObject obj = (JSONObject) data.get(i);
+            console("   [" + i + "]:" + obj);
+
+            String orderID = (String) obj.get("orderID");
+            String clOrdID = (String) obj.get("clOrdID");
+            String side = (String) obj.get("side");
+            String ordType = (String) obj.get("ordType");
+            String symbol = (String) obj.get("symbol");
+            Number price = (Number) obj.get("price"); // if ordType=Market => price=null
+            Long orderQty = (Long) obj.get("orderQty");
+            Number leavesQty = (Number) obj.get("leavesQty");
+            Long cumQty = (Long) obj.get("cumQty");
+            Number simpleLeavesQty = (Number) obj.get("simpleLeavesQty");
+            Number simpleCumQty = (Number) obj.get("simpleCumQty");
+            String ordStatus = (String) obj.get("ordStatus");
+            Pair pair = getPairFromSymbol(symbol);
+            Currency from = pair.m_from;
+            Currency to = pair.m_to;
+            console("    orderID=" + orderID + "; clOrdID=" + clOrdID + "; side=" + side + "; symbol=" + symbol
+                    + "; ordType=" + ordType + "; price=" + price + "; orderQty=" + orderQty + "; cumQty=" + cumQty
+                    + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus + "; simpleLeavesQty=" + simpleLeavesQty
+                    + "; simpleCumQty=" + simpleCumQty + "; pair=" + pair + "; from=" + from + "; to=" + to);
+
+            ExchPairData pairData = m_exchange.getPairData(pair);
+console("    pairData=" + pairData);
+            LiveOrdersData liveOrders = pairData.m_liveOrders;
+console("    liveOrders=" + liveOrders);
+
+            if (action.equals("insert")) { // new order,   "ordStatus":"New"
+                OrderData orderData = liveOrders.m_clientOrders.get(clOrdID);
+                console("    orderData=" + orderData);
+
+                if (orderData == null) {
+                    throw new RuntimeException("non existing order: symbol=" + symbol + "; clOrdID=" + clOrdID + "; clientOrders.keys: " + liveOrders.m_clientOrders.keySet());
+                }
+
+                orderData.m_orderId = orderID;
+
+                Currency allocateCurrency;
+                double allocateValue;
+                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
+                if (theSide == OrderSide.SELL) { // sell XBT
+                    allocateCurrency = from;
+                    allocateValue = simpleLeavesQty.doubleValue();
+                } else { // sell USD
+                    allocateCurrency = to;
+                    allocateValue = leavesQty.doubleValue();
+                }
+
+                addAllocated(allocateCurrency, allocateValue);
+
+                pairData.m_liveOrders.addOrder(orderData);
+
+                orderData.notifyListeners();
+            } else if (action.equals("update")) { // order update.
+                if (ordStatus != null) {
+                    OrderData orderData = liveOrders.m_orders.get(orderID);
+                    console("    orderData=" + orderData);
+
+                    if (orderData == null) {
+                        throw new RuntimeException("non existing order: symbol=" + symbol + "; orderID=" + orderID + "; clientOrders.keys: " + liveOrders.m_orders.keySet());
+                    }
+
+                    OrderSide theSide = (side != null)
+                            ? OrderSide.valueOf(side.toUpperCase())
+                            : orderData.m_side;
+                    Currency allocateCurrency = (theSide == OrderSide.SELL) ? from : to;
+                    console("     theSide=" + theSide + "; allocateCurrency=" + allocateCurrency);
+                    if (ordStatus.equals("Canceled")) { // ordStatus=Canceled
+                        orderData.m_status = OrderStatus.CANCELLED;
+
+                        addAllocated(allocateCurrency, -orderData.remained());
+
+                        orderData.notifyListeners();
+                    } else {
+                        Number filledNumber = (theSide == OrderSide.SELL) // sell XBT
+                                ? simpleCumQty // sell XBT
+                                : cumQty; // sell USD
+                        console("     filledNumber=" + filledNumber);
+                        if (filledNumber != null) {
+                            double filledValue = filledNumber.doubleValue();
+                            double orderFilled = orderData.m_filled;
+                            double deAllocateVal = filledValue - orderFilled;
+                            console("     order.filled=" + orderFilled + " -> filledValue=" + filledValue + "; deAllocateVal=" + deAllocateVal);
+                            if (filledValue < orderFilled) {
+                                throw new RuntimeException("new filled (" + filledValue + ") < current filled (" + orderFilled + ")");
+                            }
+
+                            if (ordStatus.equals("PartiallyFilled")) { // ordStatus=PartiallyFilled
+                                orderData.m_status = OrderStatus.PARTIALLY_FILLED;
+                                orderData.m_filled = filledValue;
+
+                                addAllocated(allocateCurrency, -deAllocateVal);
+
+                                orderData.notifyListeners();
+                            } else if (ordStatus.equals("Filled")) { // ordStatus=Filled
+                                orderData.m_status = OrderStatus.FILLED;
+                                orderData.m_filled = filledValue;
+
+                                addAllocated(allocateCurrency, -deAllocateVal);
+
+                                orderData.notifyListeners();
+                            } else {
+                                throw new RuntimeException("not expected ordStatus: " + ordStatus);
+                            }
+                        } else {
+                            console("     no filled field in order update - ignore");
+                        }
+                    }
+                } else {
+                    console("     no ordStatus in order update - ignore");
+                }
+            } else {
+                throw new RuntimeException("not expected order action: " + action);
+            }
+        }
+        m_gotFirstOrder = true;
+        notifyAccountListenerIfNeeded();
+    }
+
+    private void addAllocated(Currency allocateCurrency, double deAllocateVal) {
+        double all = m_exchange.m_accountData.getAllocated(allocateCurrency);
+        all += deAllocateVal;
+        m_exchange.m_accountData.setAllocated(allocateCurrency, all);
+// todo: update available accordingly
+        console("   accountData=" + m_exchange.m_accountData);
+    }
 
     @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
         String cacheDir = config.getPropertyNoComment("cache.dir");

@@ -379,14 +379,14 @@ public class CexIo extends BaseExchImpl {
 
             AccountData accountData = m_exchange.m_accountData;
             if (setAvailable) {
-                double available = accountData.available(currency);
+                double available = accountData.getAvailable(currency);
                 double delta = value - available;
                 String msg = "account[" + symbolStr + "] " + (delta > 0 ? "+" : "") + Utils.format8(delta);
                 console(msg);
                 log("      " + msg);
                 accountData.setAvailable(currency, value);
             } else {
-                double allocated = accountData.allocated(currency);
+                double allocated = accountData.getAllocated(currency);
                 double delta = value - allocated;
                 log("      account[" + symbolStr + "].allocated " + (delta > 0 ? "+" : "") + Utils.format8(delta));
                 accountData.setAllocated(currency, value);

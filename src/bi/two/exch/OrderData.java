@@ -21,7 +21,7 @@ public class OrderData {
     public double m_amount;
 
     public long m_placeTime;
-    private double m_filled; // filled amount
+    public double m_filled; // filled amount / cumQty
     private DecimalFormat m_priceFormat;
     private DecimalFormat m_sizeFormat;
     private List<IOrderListener> m_listeners;
@@ -54,7 +54,7 @@ public class OrderData {
     public boolean isActive() { return m_status.isActive(); }
     public boolean canCancel() { return m_status.isActive(); }
     public long placeTime() { return m_placeTime; }
-    public double remained() { return m_amount - m_filled; }
+    public double remained() { return m_amount - m_filled; } // leavesQty
 
     public boolean isFilled() {
         boolean statusOk = (m_status == OrderStatus.FILLED);
