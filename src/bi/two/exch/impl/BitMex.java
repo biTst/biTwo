@@ -15,10 +15,7 @@ import com.google.gson.*;
 import org.apache.http.*;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.entity.ContentType;
@@ -67,6 +64,16 @@ public class BitMex extends BaseExchImpl {
     private static final boolean LOG_HEADERS = false;
     private static final boolean LOG_HTTP = false;
     private static final boolean LOG_JSON_TABLE = false;
+    public static final String ORDER_ENDPOINT = "/api/v1/order";
+
+    // http actions
+    private static final String GET = "GET";
+    private static final String POST = "POST";
+    private static final String DELETE = "DELETE";
+
+    // order types
+    public static final String ORDER_TYPE_LIMIT = "Limit";
+    public static final String ORDER_TYPE_MARKET = "Market";
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -851,10 +858,17 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
 
             String symbol = (String) obj.get("symbol");
             Long currentQty = (Long) obj.get("currentQty");
+            Long openOrderSellQty = (Long) obj.get("openOrderSellQty"); // usd
+            Long openOrderSellCost = (Long) obj.get("openOrderSellCost"); // sato
+            Long openOrderBuyQty = (Long) obj.get("openOrderBuyQty"); // usd
+            Long openOrderBuyCost = (Long) obj.get("openOrderBuyCost"); // sato
             Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
             Currency to = pairByName.m_to;
-            console("    symbol=" + symbol + "; currentQty=" + currentQty + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
+            console("    symbol=" + symbol + "; currentQty=" + currentQty
+                    + "; openOrderBuyQty=" + openOrderBuyQty + "; openOrderBuyCost=" + openOrderBuyCost
+                    + "; openOrderSellQty=" + openOrderSellQty + "; openOrderSellCost=" + openOrderSellCost
+                    + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
 
             if (currentQty > 0) {
                 throw new RuntimeException("not supported positive position: " + currentQty);
@@ -1128,8 +1142,8 @@ console("placeOrder clientOrderId=" + clientOrderId + "; pair=" + pair + "; orde
 
         String symbol = pairToSymbol(pair);
         String side = orderSide.isBuy() ? "Buy" : "Sell";
-        boolean isMarket = orderType == OrderType.MARKET;
-        String type = isMarket ? "Market" : "Limit";
+        boolean isMarket = (orderType == OrderType.MARKET);
+        String type = isMarket ? ORDER_TYPE_MARKET : ORDER_TYPE_LIMIT;
 console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; type=" + type);
 
         List<NameValuePair> nvps = new ArrayList<>();
@@ -1143,9 +1157,7 @@ console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; t
         }
 console("  nvps=" + nvps);
 
-        String endpointPath = "/api/v1/order";
-
-        JsonElement json = loadJson(true, endpointPath, nvps);
+        JsonElement json = loadJson(POST, ORDER_ENDPOINT, nvps);
 console("got json=" + json);
     }
 
@@ -1181,29 +1193,55 @@ console("got json=" + json);
             String orderID = (String) obj.get("orderID");
             String clOrdID = (String) obj.get("clOrdID");
             String side = (String) obj.get("side");
-            String ordType = (String) obj.get("ordType");
+            String ordType = (String) obj.get("ordType"); // ordType=Limit
             String symbol = (String) obj.get("symbol");
             Number price = (Number) obj.get("price"); // if ordType=Market => price=null
             Long orderQty = (Long) obj.get("orderQty");
-            Number leavesQty = (Number) obj.get("leavesQty");
             Long cumQty = (Long) obj.get("cumQty");
-            Number simpleLeavesQty = (Number) obj.get("simpleLeavesQty");
+            Number leavesQty = (Number) obj.get("leavesQty");
+            Number simpleOrderQty = (Number) obj.get("simpleOrderQty");
             Number simpleCumQty = (Number) obj.get("simpleCumQty");
+            Number simpleLeavesQty = (Number) obj.get("simpleLeavesQty");
             String ordStatus = (String) obj.get("ordStatus");
             Pair pair = getPairFromSymbol(symbol);
             Currency from = pair.m_from;
             Currency to = pair.m_to;
-            console("    orderID=" + orderID + "; clOrdID=" + clOrdID + "; side=" + side + "; symbol=" + symbol
-                    + "; ordType=" + ordType + "; price=" + price + "; orderQty=" + orderQty + "; cumQty=" + cumQty
-                    + "; leavesQty=" + leavesQty + "; ordStatus=" + ordStatus + "; simpleLeavesQty=" + simpleLeavesQty
-                    + "; simpleCumQty=" + simpleCumQty + "; pair=" + pair + "; from=" + from + "; to=" + to);
+            console("    orderID=" + orderID + "; clOrdID=" + clOrdID + "; side=" + side
+                    + "; ordType=" + ordType + "; price=" + price + "; ordStatus=" + ordStatus
+                    + "; orderQty=" + orderQty + "; cumQty=" + cumQty + "; leavesQty=" + leavesQty
+                    + "; simpleOrderQty=" + simpleOrderQty + "; simpleCumQty=" + simpleCumQty + "; simpleLeavesQty=" + simpleLeavesQty
+                    + "; symbol=" + symbol + "; pair=" + pair + "; from=" + from + "; to=" + to);
 
             ExchPairData pairData = m_exchange.getPairData(pair);
-console("    pairData=" + pairData);
-            LiveOrdersData liveOrders = pairData.m_liveOrders;
-console("    liveOrders=" + liveOrders);
+            LiveOrdersData liveOrders = pairData.getLiveOrders();
+console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
 
-            if (action.equals("insert")) { // new order,   "ordStatus":"New"
+            if (action.equals("partial")) {  // orders snapshot
+                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
+                Exchange exchange = m_exchange;
+                OrderType orderType = parseOrderType(ordType);
+
+                double theOrderQty;
+                double theLeavesQty;
+                double theCumQty;
+                if (theSide == OrderSide.SELL) { // sell XBT
+                    theOrderQty = simpleOrderQty.doubleValue();
+                    theCumQty = simpleCumQty.doubleValue();
+                    theLeavesQty = simpleLeavesQty.doubleValue();
+                } else { // sell USD
+                    theOrderQty = orderQty.doubleValue();
+                    theCumQty = cumQty.doubleValue();
+                    theLeavesQty = leavesQty.doubleValue();
+                }
+                console("     theSide=" + theSide + "; orderType=" + orderType + "; theOrderQty=" + theOrderQty + "; theCumQty=" + theCumQty + "; theLeavesQty=" + theLeavesQty);
+
+                OrderData orderData = new OrderData(exchange, orderID, pair, theSide, orderType, price.doubleValue(), theOrderQty);
+                orderData.m_clientOrderId = clOrdID;
+                orderData.m_filled = theCumQty;
+                console("     orderData=" + orderData);
+                liveOrders.addOrder(orderData);
+
+            } else if (action.equals("insert")) { // new order,   "ordStatus":"New"
                 OrderData orderData = liveOrders.m_clientOrders.get(clOrdID);
                 console("    orderData=" + orderData);
 
@@ -1228,6 +1266,8 @@ console("    liveOrders=" + liveOrders);
 
                 pairData.m_liveOrders.addOrder(orderData);
 
+                liveOrders.notifyListener();
+
                 orderData.notifyListeners();
             } else if (action.equals("update")) { // order update.
                 if (ordStatus != null) {
@@ -1247,7 +1287,7 @@ console("    liveOrders=" + liveOrders);
                         orderData.m_status = OrderStatus.CANCELLED;
 
                         addAllocated(allocateCurrency, -orderData.remained());
-
+// todo: remove from LiveOrders list
                         orderData.notifyListeners();
                     } else {
                         Number filledNumber = (theSide == OrderSide.SELL) // sell XBT
@@ -1293,6 +1333,32 @@ console("    liveOrders=" + liveOrders);
         }
         m_gotFirstOrder = true;
         notifyAccountListenerIfNeeded();
+    }
+
+    private OrderType parseOrderType(String ordType) {
+        switch (ordType) {
+            case ORDER_TYPE_LIMIT: return OrderType.LIMIT;
+            case ORDER_TYPE_MARKET: return OrderType.MARKET;
+        }
+        throw new RuntimeException("unsupported orderType=" + ordType);
+    }
+
+    @Override public void cancelOrder(OrderData orderData) throws Exception {
+        // curl -X DELETE
+        // --header 'Content-Type: application/x-www-form-urlencoded'
+        // --header 'Accept: application/json'
+        // --header 'X-Requested-With: XMLHttpRequest'
+        // -d 'orderID=1234'
+        // 'https://testnet.bitmex.com/api/v1/order'
+        String orderId = orderData.m_orderId;
+        console("cancelOrder() orderId=" + orderId);
+
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair("orderID", orderId));
+        console("  nvps=" + nvps);
+
+        JsonElement json = loadJson(POST, ORDER_ENDPOINT, nvps);
+        console("got json=" + json);
     }
 
     private void addAllocated(Currency allocateCurrency, double deAllocateVal) {
@@ -1351,7 +1417,7 @@ console("BitMex<> cacheDir=" + cacheDir);
     }
 
     private JsonArray loadTable(List<NameValuePair> nvps) throws Exception {
-        JsonElement json = loadJson(false, "/api/v1/trade", nvps);
+        JsonElement json = loadJson(GET, "/api/v1/trade", nvps);
 
         if (json instanceof JsonArray) {
             JsonArray array = (JsonArray) json;
@@ -1378,14 +1444,14 @@ console("BitMex<> cacheDir=" + cacheDir);
         return ret;
     }
 
-    private JsonElement loadJson(boolean isHttpPost, String endpointPath, List<NameValuePair> nvps) throws Exception {
+    private JsonElement loadJson(String httpAction, String endpointPath, List<NameValuePair> nvps) throws Exception {
 
         HttpRequestBase httpRequest;
         URIBuilder builder = new URIBuilder()
                 .setScheme("https")
                 .setHost(ENDPOINT_HOST)
                 .setPath(endpointPath);
-        if (isHttpPost) {
+        if (httpAction.equals(POST)) {
             UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(nvps);
             if (LOG_HTTP) {
                 console("  postEntity=" + postEntity + "; isRepeatable=" + postEntity.isRepeatable());
@@ -1399,7 +1465,7 @@ console("BitMex<> cacheDir=" + cacheDir);
             }
             long expires = System.currentTimeMillis() / 1000L + 3600L; // set expires one hour in the future
             String expiresStr = Long.toString(expires);
-            String message = "POST" + endpointPath + expiresStr + postData;
+            String message = POST + endpointPath + expiresStr + postData;
             String signatureString = hmacSHA256(message);
             if (LOG_HTTP) {
                 console("  expiresStr=" + expiresStr + "; message=" + message + "; signatureString=" + signatureString);
@@ -1417,11 +1483,17 @@ console("BitMex<> cacheDir=" + cacheDir);
             httpPost.setEntity(postEntity);
 
             httpRequest = httpPost;
-        } else { // for GET - add params to URL
+        } else if (httpAction.equals(GET)) { // for GET - add params to URL
             // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
             builder = builder.addParameters(nvps);
             URI uri = builder.build();
             httpRequest = new HttpGet(uri);
+        } else if (httpAction.equals(DELETE)) {
+            builder = builder.addParameters(nvps);
+            URI uri = builder.build();
+            httpRequest = new HttpDelete(uri);
+        } else {
+            throw new RuntimeException("unsupported httpAction=" + httpAction);
         }
         httpRequest.addHeader("Accept", "application/json");
         httpRequest.setConfig(m_requestConfig);

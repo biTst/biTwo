@@ -14,6 +14,7 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -138,12 +139,31 @@ console("TradesPreloader SKIPPED");
 
         // todo: cancel all orders/positions first
 
+        ExchPairData pairData = m_exchange.getPairData(m_pair);
+        LiveOrdersData liveOrders = pairData.getLiveOrders();
+        Collection<OrderData> orders = liveOrders.m_orders.values();
+        int ordersNum = orders.size();
+        console(" pairData=" + pairData + "; liveOrders=" + liveOrders + "; ordersNum=" + ordersNum);
+
+        // todo: for now cancel first order
+        if (ordersNum > 0) {
+            OrderData[] array = orders.toArray(new OrderData[ordersNum]);
+            OrderData orderData = array[0];
+            console("  first order to cancel: orderData=" + orderData);
+            // todo: add live orders listener to continue only after canceling
+            m_exchange.cancelOrder(orderData);
+        } else {
+            console("  no orders to cancel");
+        }
+
         TopQuote topQuote = m_exchange.getTopQuote(m_pair);
         topQuote.subscribe(new TopQuote.ITopQuoteListener() {
             boolean m_gotFirstQuote = false;
+            private TopQuote m_topQuote;
 
-            @Override public void onTopQuoteUpdated(final TopQuote topQuote) {
+            @Override public void onTopQuoteUpdated(TopQuote topQuote) {
                 console("onTopQuoteUpdated: topQuote=" + topQuote);
+                m_topQuote = topQuote;
 
                 if (!m_gotFirstQuote) {
                     new Thread() {
@@ -151,7 +171,11 @@ console("TradesPreloader SKIPPED");
                             try {
                                 Thread.sleep(500);
                                 String orderId = "oid" + System.currentTimeMillis();
-                                OrderData orderData = new OrderData(m_exchange, orderId, m_pair, OrderSide.SELL, OrderType.LIMIT, topQuote.m_askPrice, 0.05);
+                                Double price = m_topQuote.m_askPrice + 10;
+                                OrderSide orderSide = OrderSide.SELL;
+//                                Double price = m_topQuote.m_bidPrice - 15;
+//                                OrderSide orderSide = OrderSide.BUY;
+                                OrderData orderData = new OrderData(m_exchange, orderId, m_pair, orderSide, OrderType.LIMIT, price, 0.05);
                                 orderData.addOrderListener(new OrderData.IOrderListener() {
                                     @Override public void onOrderUpdated(OrderData orderData) {
                                         console("onOrderUpdated: " + orderData);
@@ -164,8 +188,8 @@ console("TradesPreloader SKIPPED");
                             }
                         }
                     }.start();
+                    m_gotFirstQuote = true;
                 }
-                m_gotFirstQuote = true;
             }
         });
 
