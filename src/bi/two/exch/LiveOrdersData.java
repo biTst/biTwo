@@ -18,7 +18,7 @@ public class LiveOrdersData {
     }
 
     @Override public String toString() {
-        return "LiveOrdersData{" + "pair=" + m_pair + '}';
+        return "LiveOrdersData{" + "pair=" + m_pair + "; orders.num=" + m_orders.size() + '}';
     }
 
     public void addOrder(OrderData orderData) {
@@ -35,6 +35,21 @@ public class LiveOrdersData {
             m_clientOrders.remove(clientOrderId);
         }
         m_orders.put(orderId, orderData);
+    }
+
+    public void removeOrder(OrderData orderData) {
+        String orderId = orderData.m_orderId;
+        if (orderId == null) {
+            throw new RuntimeException("can not куьщму order with null orderId");
+        }
+        OrderData removed = m_orders.remove(orderId);
+        if (removed == null) {
+            throw new RuntimeException("unknown order with orderId=" + orderId + "; known keys: " + m_orders.keySet());
+        }
+        String clientOrderId = orderData.m_clientOrderId;
+        if (clientOrderId != null) {
+            m_clientOrders.remove(clientOrderId);
+        }
     }
 
     public void notifyListener() {

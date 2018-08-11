@@ -117,7 +117,7 @@ public class Main2 extends Thread {
 
                 @Override public void onAccountUpdated() {
                     try {
-                        if(m_counter++ == 0) {
+                        if (m_counter++ == 0) {
                             onFirstAccountUpdate();
                         }
                         Main2.this.onAccountUpdated();
@@ -145,15 +145,17 @@ console("TradesPreloader SKIPPED");
         int ordersNum = orders.size();
         console(" pairData=" + pairData + "; liveOrders=" + liveOrders + "; ordersNum=" + ordersNum);
 
-        // todo: for now cancel first order
-        if (ordersNum > 0) {
-            OrderData[] array = orders.toArray(new OrderData[ordersNum]);
-            OrderData orderData = array[0];
-            console("  first order to cancel: orderData=" + orderData);
-            // todo: add live orders listener to continue only after canceling
-            m_exchange.cancelOrder(orderData);
-        } else {
-            console("  no orders to cancel");
+        if (true) {
+            // todo: for now cancel first order
+            if (ordersNum > 0) {
+                OrderData[] array = orders.toArray(new OrderData[ordersNum]);
+                OrderData orderData = array[0];
+                console("  first order to cancel: orderData=" + orderData);
+                // todo: add live orders listener to continue only after canceling
+                m_exchange.cancelOrder(orderData);
+            } else {
+                console("  no orders to cancel");
+            }
         }
 
         TopQuote topQuote = m_exchange.getTopQuote(m_pair);
@@ -166,28 +168,30 @@ console("TradesPreloader SKIPPED");
                 m_topQuote = topQuote;
 
                 if (!m_gotFirstQuote) {
-                    new Thread() {
-                        @Override public void run() {
-                            try {
-                                Thread.sleep(500);
-                                String orderId = "oid" + System.currentTimeMillis();
-                                Double price = m_topQuote.m_askPrice + 10;
-                                OrderSide orderSide = OrderSide.SELL;
-//                                Double price = m_topQuote.m_bidPrice - 15;
-//                                OrderSide orderSide = OrderSide.BUY;
-                                OrderData orderData = new OrderData(m_exchange, orderId, m_pair, orderSide, OrderType.LIMIT, price, 0.05);
-                                orderData.addOrderListener(new OrderData.IOrderListener() {
-                                    @Override public void onOrderUpdated(OrderData orderData) {
-                                        console("onOrderUpdated: " + orderData);
-                                    }
-                                });
-                                console("submitOrder " + orderData);
-                                m_exchange.submitOrder(orderData);
-                            } catch (Exception e) {
-                                err("submitOrder error: " + e, e);
+                    if (true) {
+                        new Thread() {
+                            @Override public void run() {
+                                try {
+                                    Thread.sleep(500);
+                                    String orderId = "oid" + System.currentTimeMillis();
+                                    Double price = m_topQuote.m_askPrice + 10;
+                                    OrderSide orderSide = OrderSide.SELL;
+//                                    Double price = m_topQuote.m_bidPrice - 15;
+//                                    OrderSide orderSide = OrderSide.BUY;
+                                    OrderData orderData = new OrderData(m_exchange, orderId, m_pair, orderSide, OrderType.LIMIT, price, 0.05);
+                                    orderData.addOrderListener(new OrderData.IOrderListener() {
+                                        @Override public void onOrderUpdated(OrderData orderData) {
+                                            console("onOrderUpdated: " + orderData);
+                                        }
+                                    });
+                                    console("submitOrder " + orderData);
+                                    m_exchange.submitOrder(orderData);
+                                } catch (Exception e) {
+                                    err("submitOrder error: " + e, e);
+                                }
                             }
-                        }
-                    }.start();
+                        }.start();
+                    }
                     m_gotFirstQuote = true;
                 }
             }

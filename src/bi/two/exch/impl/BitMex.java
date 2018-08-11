@@ -74,6 +74,7 @@ public class BitMex extends BaseExchImpl {
     // order types
     public static final String ORDER_TYPE_LIMIT = "Limit";
     public static final String ORDER_TYPE_MARKET = "Market";
+    public static final double SATO_DIVIDER = 100000000d;
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -109,7 +110,6 @@ public class BitMex extends BaseExchImpl {
     };
     private boolean m_gotFirstMargin;
     private boolean m_gotFirstPosition;
-    private boolean m_gotFirstOrder;
 
 
     public BitMex(Exchange exchange) {
@@ -133,7 +133,7 @@ public class BitMex extends BaseExchImpl {
         if (symbol == null) {
             symbol = pair.m_from.m_name.toUpperCase() + pair.m_to.m_name.toUpperCase(); // "XBTUSD"
             m_pairToSymbolMap.put(pair, symbol);
-console("pairToSymbol pair=" + pair + "  => " + symbol);
+log("pairToSymbol pair=" + pair + "  => " + symbol);
         }
         return symbol;
     }
@@ -231,13 +231,13 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
                 Boolean success = (Boolean) json.get("success");
                 if (success != null) {
                     String subscribe = (String) json.get("subscribe");
-                    console(" success=" + success + "; subscribe=" + subscribe);
-                    if(success) {
+                    log(" success=" + success + "; subscribe=" + subscribe);
+                    if (success) {
                         if (subscribe != null) {
                             onSubscribed(session, subscribe, success, request);
                         } else {
                             String op = (String) request.get("op"); // operation
-                            console("  op=" + op);
+                            log("  op=" + op);
                             if (op.equals("authKey")) {
                                 onAuthenticated(session, success);
                             } else {
@@ -273,7 +273,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
                 } else {
                     String info = (String) json.get("info");
                     String version = (String) json.get("version");
-                    console(" info=" + info + "; version=" + version);
+                    console("onConnected: info=" + info + "; version=" + version);
                     if ((info != null) && (version != null)) {
                         m_exchange.notifyConnected();
                         // getting this as first message
@@ -321,8 +321,8 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         // {"success":true,"subscribe":"position","request":{"op":"subscribe","args":["position"]}}
         console("subscribed for position");
 
+// todo: actually orders not needed for account calculations
         // Live updates on your orders
-        m_gotFirstOrder = false;
         send(m_session, "{\"op\": \"subscribe\", \"args\": [\"order\"]}");
         // {"success":true,"subscribe":"order","request":{"op":"subscribe","args":["order"]}}
         console("subscribed for order");
@@ -368,11 +368,13 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         //  "marginBalance":20068936,"timestamp":"2018-07-20T00:16:40.184Z"}
 
         JSONArray data = (JSONArray) json.get("data");
-        console("onMargin() m_gotFirstMargin=" + m_gotFirstMargin + "; data=" + data);
+        int size = data.size();
+        console("onMargin() size=" + size + "; gotFirstMargin=" + m_gotFirstMargin + "; data=" + data);
 
-        for (Object obj : data) {
+        for (int i = 0; i < size; i++) {
+            Object obj = data.get(i);
             JSONObject datum = (JSONObject) obj;
-            console(" datum=" + datum);
+            console(" margin[" + i + "]=" + datum);
             String curr = (String) datum.get("currency");
             Long availableMargin = (Long) datum.get("availableMargin");
 
@@ -380,7 +382,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
             console("  curr=" + curr + "; availableMargin=" + availableMargin + "; currency=" + currency);
 
             if (availableMargin != null) { // if changed
-                double doubleValue = availableMargin / 100000000d; // marginBalance in satoshi
+                double doubleValue = availableMargin / SATO_DIVIDER; // marginBalance in satoshi
                 m_exchange.m_accountData.setAvailable(currency, doubleValue);
             }
         }
@@ -391,7 +393,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
     }
 
     private void notifyAccountListenerIfNeeded() throws Exception {
-        if (m_gotFirstMargin && m_gotFirstPosition && m_gotFirstOrder) {
+        if (m_gotFirstMargin && m_gotFirstPosition) {
             m_exchange.notifyAccountListener();
         }
     }
@@ -747,7 +749,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
     }
 
     private void logAccount() {
-        console("     accountData=" + m_exchange.m_accountData);
+        console("______accountData=" + m_exchange.m_accountData);
     }
 
     private void onExecution(JSONObject json) {
@@ -851,21 +853,21 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
 
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
-        console("  got " + size + " positions");
+        console(" onPosition() size=" + size);
         for (int i = 0; i < size; i++) {
             JSONObject obj = (JSONObject) data.get(i);
-            console("   [" + i + "]:" + obj);
+            console("  [" + i + "]:" + obj);
 
             String symbol = (String) obj.get("symbol");
             Long currentQty = (Long) obj.get("currentQty");
             Long openOrderSellQty = (Long) obj.get("openOrderSellQty"); // usd
             Long openOrderSellCost = (Long) obj.get("openOrderSellCost"); // sato
-            Long openOrderBuyQty = (Long) obj.get("openOrderBuyQty"); // usd
+            Number openOrderBuyQty = (Number) obj.get("openOrderBuyQty"); // usd
             Long openOrderBuyCost = (Long) obj.get("openOrderBuyCost"); // sato
             Pair pairByName = getPairFromSymbol(symbol);
             Currency from = pairByName.m_from;
             Currency to = pairByName.m_to;
-            console("    symbol=" + symbol + "; currentQty=" + currentQty
+            console("   symbol=" + symbol + "; currentQty=" + currentQty
                     + "; openOrderBuyQty=" + openOrderBuyQty + "; openOrderBuyCost=" + openOrderBuyCost
                     + "; openOrderSellQty=" + openOrderSellQty + "; openOrderSellCost=" + openOrderSellCost
                     + "; pairByName=" + pairByName + "; from=" + from + "; to=" + to);
@@ -917,10 +919,22 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
             //  "lastPrice":7297.83,"currentQty":-1055,"simpleQty":-0.144,"liquidationPrice":4166666.5}]}
 
             m_exchange.m_accountData.setAvailable(to, -currentQty);
-//            console("   accountData=" + m_exchange.m_accountData);
+
+            if (openOrderSellCost != null) {
+                double allocatedFrom = -openOrderSellCost / SATO_DIVIDER;
+                log("_____allocatedFrom=" + allocatedFrom);
+                m_exchange.m_accountData.setAllocated(from, allocatedFrom);
+            }
+
+            if (openOrderBuyQty != null) {
+                double allocatedTo = openOrderBuyQty.doubleValue();
+                log("_____allocatedTo=" + allocatedTo);
+                m_exchange.m_accountData.setAllocated(to, allocatedTo);
+            }
+
+            logAccount();
         }
 
-        logAccount();
         m_gotFirstPosition = true;
         notifyAccountListenerIfNeeded();
     }
@@ -1053,7 +1067,7 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
 
         Endpoint endpoint = new Endpoint() {
             @Override public void onOpen(final Session session, EndpointConfig config) {
-                console("Endpoint.onOpen");
+                log("Endpoint.onOpen");
                 try {
                     m_session = session;
                     session.addMessageHandler(new MessageHandler.Whole<String>() {
@@ -1138,13 +1152,13 @@ console("pairToSymbol pair=" + pair + "  => " + symbol);
         // --header 'X-Requested-With: XMLHttpRequest'
         // -d 'symbol=XBTUSD&side=Sell&simpleOrderQty=0.05&clOrdID=my_clOrdID&ordType=Market' 'https://testnet.bitmex.com/api/v1/order'
 
-console("placeOrder clientOrderId=" + clientOrderId + "; pair=" + pair + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide);
+        console("placeOrder() pair=" + pair + "; orderType=" + orderType + "; orderSize=" + orderSize + "; orderPrice=" + orderPrice + "; orderSide=" + orderSide + "; clientOrderId=" + clientOrderId);
 
         String symbol = pairToSymbol(pair);
         String side = orderSide.isBuy() ? "Buy" : "Sell";
         boolean isMarket = (orderType == OrderType.MARKET);
         String type = isMarket ? ORDER_TYPE_MARKET : ORDER_TYPE_LIMIT;
-console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; type=" + type);
+        log(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; type=" + type);
 
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair("symbol", symbol));
@@ -1158,7 +1172,7 @@ console(" symbol=" + symbol + "; side=" + side + "; isMarket=" + isMarket + "; t
 console("  nvps=" + nvps);
 
         JsonElement json = loadJson(POST, ORDER_ENDPOINT, nvps);
-console("got json=" + json);
+console("   placeOrder json=" + json);
     }
 
     private void onOrder(JSONObject json) throws Exception {
@@ -1185,7 +1199,7 @@ console("got json=" + json);
         String action = (String) json.get("action");
         JSONArray data = (JSONArray) json.get("data");
         int size = data.size();
-        console("  got " + size + " orders");
+        console("onOrder() size=" + size);
         for (int i = 0; i < size; i++) {
             JSONObject obj = (JSONObject) data.get(i);
             console("   [" + i + "]:" + obj);
@@ -1217,62 +1231,27 @@ console("got json=" + json);
 console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
 
             if (action.equals("partial")) {  // orders snapshot
-                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
-                Exchange exchange = m_exchange;
-                OrderType orderType = parseOrderType(ordType);
-
-                double theOrderQty;
-                double theLeavesQty;
-                double theCumQty;
-                if (theSide == OrderSide.SELL) { // sell XBT
-                    theOrderQty = simpleOrderQty.doubleValue();
-                    theCumQty = simpleCumQty.doubleValue();
-                    theLeavesQty = simpleLeavesQty.doubleValue();
-                } else { // sell USD
-                    theOrderQty = orderQty.doubleValue();
-                    theCumQty = cumQty.doubleValue();
-                    theLeavesQty = leavesQty.doubleValue();
-                }
-                console("     theSide=" + theSide + "; orderType=" + orderType + "; theOrderQty=" + theOrderQty + "; theCumQty=" + theCumQty + "; theLeavesQty=" + theLeavesQty);
-
-                OrderData orderData = new OrderData(exchange, orderID, pair, theSide, orderType, price.doubleValue(), theOrderQty);
-                orderData.m_clientOrderId = clOrdID;
-                orderData.m_filled = theCumQty;
-                console("     orderData=" + orderData);
-                liveOrders.addOrder(orderData);
-
+                onOrderSnapshot(orderID, clOrdID, side, ordType, price, orderQty, cumQty, leavesQty, simpleOrderQty, simpleCumQty, simpleLeavesQty, pair, liveOrders);
             } else if (action.equals("insert")) { // new order,   "ordStatus":"New"
                 OrderData orderData = liveOrders.m_clientOrders.get(clOrdID);
                 console("    orderData=" + orderData);
 
                 if (orderData == null) {
-                    throw new RuntimeException("non existing order: symbol=" + symbol + "; clOrdID=" + clOrdID + "; clientOrders.keys: " + liveOrders.m_clientOrders.keySet());
+                    console("non known order, CONCURRENT?: symbol=" + symbol + "; clOrdID=" + clOrdID);
+
+                    onOrderSnapshot(orderID, clOrdID, side, ordType, price, orderQty, cumQty, leavesQty, simpleOrderQty, simpleCumQty, simpleLeavesQty, pair, liveOrders);
+                } else {
+                    orderData.m_orderId = orderID;
+
+                    liveOrders.addOrder(orderData);
+                    liveOrders.notifyListener();
+
+                    orderData.notifyListeners();
                 }
-
-                orderData.m_orderId = orderID;
-
-                Currency allocateCurrency;
-                double allocateValue;
-                OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
-                if (theSide == OrderSide.SELL) { // sell XBT
-                    allocateCurrency = from;
-                    allocateValue = simpleLeavesQty.doubleValue();
-                } else { // sell USD
-                    allocateCurrency = to;
-                    allocateValue = leavesQty.doubleValue();
-                }
-
-                addAllocated(allocateCurrency, allocateValue);
-
-                pairData.m_liveOrders.addOrder(orderData);
-
-                liveOrders.notifyListener();
-
-                orderData.notifyListeners();
             } else if (action.equals("update")) { // order update.
                 if (ordStatus != null) {
                     OrderData orderData = liveOrders.m_orders.get(orderID);
-                    console("    orderData=" + orderData);
+console("    update for orderData=" + orderData);
 
                     if (orderData == null) {
                         throw new RuntimeException("non existing order: symbol=" + symbol + "; orderID=" + orderID + "; clientOrders.keys: " + liveOrders.m_orders.keySet());
@@ -1285,10 +1264,9 @@ console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
                     console("     theSide=" + theSide + "; allocateCurrency=" + allocateCurrency);
                     if (ordStatus.equals("Canceled")) { // ordStatus=Canceled
                         orderData.m_status = OrderStatus.CANCELLED;
-
-                        addAllocated(allocateCurrency, -orderData.remained());
-// todo: remove from LiveOrders list
                         orderData.notifyListeners();
+
+                        removeLiveOrder(liveOrders, orderData);
                     } else {
                         Number filledNumber = (theSide == OrderSide.SELL) // sell XBT
                                 ? simpleCumQty // sell XBT
@@ -1303,27 +1281,26 @@ console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
                                 throw new RuntimeException("new filled (" + filledValue + ") < current filled (" + orderFilled + ")");
                             }
 
+                            boolean isFilled = false;
                             if (ordStatus.equals("PartiallyFilled")) { // ordStatus=PartiallyFilled
                                 orderData.m_status = OrderStatus.PARTIALLY_FILLED;
-                                orderData.m_filled = filledValue;
-
-                                addAllocated(allocateCurrency, -deAllocateVal);
-
-                                orderData.notifyListeners();
                             } else if (ordStatus.equals("Filled")) { // ordStatus=Filled
                                 orderData.m_status = OrderStatus.FILLED;
-                                orderData.m_filled = filledValue;
-
-                                addAllocated(allocateCurrency, -deAllocateVal);
-
-                                orderData.notifyListeners();
+                                isFilled = true;
                             } else {
                                 throw new RuntimeException("not expected ordStatus: " + ordStatus);
+                            }
+                            orderData.m_filled = filledValue;
+                            orderData.notifyListeners();
+
+                            if (isFilled) {
+                                removeLiveOrder(liveOrders, orderData);
                             }
                         } else {
                             console("     no filled field in order update - ignore");
                         }
                     }
+console("    after update: orderData=" + orderData);
                 } else {
                     console("     no ordStatus in order update - ignore");
                 }
@@ -1331,8 +1308,49 @@ console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
                 throw new RuntimeException("not expected order action: " + action);
             }
         }
-        m_gotFirstOrder = true;
-        notifyAccountListenerIfNeeded();
+    }
+
+    private void removeLiveOrder(LiveOrdersData liveOrders, OrderData orderData) {
+        liveOrders.removeOrder(orderData);
+        liveOrders.notifyListener();
+    }
+
+    private void onOrderSnapshot(String orderID, String clOrdID, String side, String ordType, Number price, Long orderQty,
+                                 Long cumQty, Number leavesQty, Number simpleOrderQty, Number simpleCumQty, Number simpleLeavesQty,
+                                 Pair pair, LiveOrdersData liveOrders) {
+        if (side.length() == 0) { // for close positions order we are getting "side":"" - can not do anything
+            console("warning: no order side - seems position close order");
+            return;
+        }
+
+        OrderSide theSide = OrderSide.valueOf(side.toUpperCase());
+        Exchange exchange = m_exchange;
+        OrderType orderType = parseOrderType(ordType);
+
+        double theOrderQty;
+        double theLeavesQty;
+        double theCumQty;
+//        if (theSide == OrderSide.SELL) { // sell XBT
+            theLeavesQty = simpleLeavesQty.doubleValue();
+            theOrderQty = (simpleOrderQty == null) ? theLeavesQty : simpleOrderQty.doubleValue();
+            theCumQty = simpleCumQty.doubleValue();
+//        } else { // sell USD
+//            theOrderQty = orderQty.doubleValue();
+//            theCumQty = cumQty.doubleValue();
+//            theLeavesQty = leavesQty.doubleValue();
+//        }
+        console("     theSide=" + theSide + "; orderType=" + orderType + "; theOrderQty=" + theOrderQty + "; theCumQty=" + theCumQty + "; theLeavesQty=" + theLeavesQty);
+
+        double doubleValue = (price == null) ? 0 : price.doubleValue(); // no price for MKT order
+        OrderData orderData = new OrderData(exchange, orderID, pair, theSide, orderType, doubleValue, theOrderQty);
+        orderData.m_clientOrderId = clOrdID;
+        orderData.m_filled = theCumQty;
+        orderData.m_status = (theCumQty > 0)
+                ? (theLeavesQty > 0)  ? OrderStatus.PARTIALLY_FILLED : OrderStatus.FILLED
+                : OrderStatus.SUBMITTED;
+        console("     orderData=" + orderData);
+        liveOrders.addOrder(orderData);
+        liveOrders.notifyListener();
     }
 
     private OrderType parseOrderType(String ordType) {
@@ -1357,17 +1375,17 @@ console("    pairData=" + pairData + "; liveOrders=" + liveOrders);
         nvps.add(new BasicNameValuePair("orderID", orderId));
         console("  nvps=" + nvps);
 
-        JsonElement json = loadJson(POST, ORDER_ENDPOINT, nvps);
+        JsonElement json = loadJson(DELETE, ORDER_ENDPOINT, nvps);
         console("got json=" + json);
     }
 
-    private void addAllocated(Currency allocateCurrency, double deAllocateVal) {
-        double all = m_exchange.m_accountData.getAllocated(allocateCurrency);
-        all += deAllocateVal;
-        m_exchange.m_accountData.setAllocated(allocateCurrency, all);
-// todo: update available accordingly
-        console("   accountData=" + m_exchange.m_accountData);
-    }
+//    private void addAllocated(Currency allocateCurrency, double deAllocateVal) {
+//        double all = m_exchange.m_accountData.getAllocated(allocateCurrency);
+//        all += deAllocateVal;
+//        m_exchange.m_accountData.setAllocated(allocateCurrency, all);
+//// todo: update available accordingly
+//        console("   accountData=" + m_exchange.m_accountData);
+//    }
 
     @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
         String cacheDir = config.getPropertyNoComment("cache.dir");
@@ -1444,14 +1462,14 @@ console("BitMex<> cacheDir=" + cacheDir);
         return ret;
     }
 
-    private JsonElement loadJson(String httpAction, String endpointPath, List<NameValuePair> nvps) throws Exception {
+    private JsonElement loadJson(String httpActionName, String endpointPath, List<NameValuePair> nvps) throws Exception {
 
         HttpRequestBase httpRequest;
         URIBuilder builder = new URIBuilder()
                 .setScheme("https")
                 .setHost(ENDPOINT_HOST)
                 .setPath(endpointPath);
-        if (httpAction.equals(POST)) {
+        if (httpActionName.equals(POST) || httpActionName.equals(DELETE)) {
             UrlEncodedFormEntity postEntity = new UrlEncodedFormEntity(nvps);
             if (LOG_HTTP) {
                 console("  postEntity=" + postEntity + "; isRepeatable=" + postEntity.isRepeatable());
@@ -1465,35 +1483,36 @@ console("BitMex<> cacheDir=" + cacheDir);
             }
             long expires = System.currentTimeMillis() / 1000L + 3600L; // set expires one hour in the future
             String expiresStr = Long.toString(expires);
-            String message = POST + endpointPath + expiresStr + postData;
+            String message = httpActionName + endpointPath + expiresStr + postData;
             String signatureString = hmacSHA256(message);
             if (LOG_HTTP) {
                 console("  expiresStr=" + expiresStr + "; message=" + message + "; signatureString=" + signatureString);
             }
 
             URI uri = builder.build();
-            HttpPost httpPost = new HttpPost(uri);
+            HttpEntityEnclosingRequestBase httpAction;
+            if (httpActionName.equals(POST)) {
+                httpAction = new HttpPost(uri);
+            } else { // DELETE
+                httpAction = new HttpDeletePost(uri);
+            }
 
-            httpPost.addHeader("X-Requested-With", "XMLHttpRequest");
+            httpAction.addHeader("X-Requested-With", "XMLHttpRequest");
 
-            httpPost.addHeader("api-expires", expiresStr);
-            httpPost.addHeader("api-key", m_apiKey);
-            httpPost.addHeader("api-signature", signatureString);
+            httpAction.addHeader("api-expires", expiresStr);
+            httpAction.addHeader("api-key", m_apiKey);
+            httpAction.addHeader("api-signature", signatureString);
 
-            httpPost.setEntity(postEntity);
+            httpAction.setEntity(postEntity);
 
-            httpRequest = httpPost;
-        } else if (httpAction.equals(GET)) { // for GET - add params to URL
+            httpRequest = httpAction;
+        } else if (httpActionName.equals(GET)) { // for GET - add params to URL
             // https://testnet.bitmex.com/api/v1/trade?symbol=XBTUSD&count=100&reverse=false
             builder = builder.addParameters(nvps);
             URI uri = builder.build();
             httpRequest = new HttpGet(uri);
-        } else if (httpAction.equals(DELETE)) {
-            builder = builder.addParameters(nvps);
-            URI uri = builder.build();
-            httpRequest = new HttpDelete(uri);
         } else {
-            throw new RuntimeException("unsupported httpAction=" + httpAction);
+            throw new RuntimeException("unsupported httpAction=" + httpActionName);
         }
         httpRequest.addHeader("Accept", "application/json");
         httpRequest.setConfig(m_requestConfig);
@@ -1683,6 +1702,32 @@ console("BitMex<> cacheDir=" + cacheDir);
 
     // -----------------------------------------------------------------------------------------------------------
     private static class MarginToAccountModel {
+
+    }
+
+
+    // -----------------------------------------------------------------------------------------------------------
+    public class HttpDeletePost extends HttpEntityEnclosingRequestBase {
+
+        private final static String METHOD_NAME = "DELETE";
+
+        public HttpDeletePost() {
+            super();
+        }
+
+        public HttpDeletePost(final URI uri) {
+            super();
+            setURI(uri);
+        }
+
+        public HttpDeletePost(final String uri) {
+            super();
+            setURI(URI.create(uri));
+        }
+
+        @Override public String getMethod() {
+            return METHOD_NAME;
+        }
 
     }
 }
