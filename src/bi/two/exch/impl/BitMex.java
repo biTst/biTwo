@@ -135,7 +135,7 @@ public class BitMex extends BaseExchImpl {
         }
     }
 
-    public static List<TickData> readTicks(MapConfig config, long period) {
+    public static List<TickData> readTicks(MapConfig config, long period) throws IOException {
         String exchangeName = config.getString("exchange");
         Exchange exchange = Exchange.get(exchangeName);
         String pairName = config.getString("pair");
@@ -151,7 +151,11 @@ public class BitMex extends BaseExchImpl {
 //            }
         };
 
-        return ticksTs.getTicks();
+        preloader.playOnlyCache();
+
+        List<TickData> ticks = ticksTs.getTicks();
+        log("loaded from cache " + ticks.size() + " ticks");
+        return ticks;
     }
 
     public void init(MapConfig config) {

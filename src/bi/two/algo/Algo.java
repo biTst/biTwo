@@ -16,6 +16,7 @@ public enum Algo {
     ummar { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) { return new UmmarAlgo(algoConfig, parent); } },
     ummar2 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) { return new Ummar2Algo(algoConfig, parent); } },
     ummar3 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) { return new Ummar3Algo(algoConfig, parent); } },
+    qummar { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) { return new QummarAlgo(algoConfig, parent); } },
     ;
 
     public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent) {

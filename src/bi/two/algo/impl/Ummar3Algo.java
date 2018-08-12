@@ -73,15 +73,11 @@ public class Ummar3Algo extends BaseAlgo {
         m_e2 = config.getNumber(Vary.e2).floatValue();
 
         if (collectValues) {
-            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize*2);
+            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        if (TickReader.JOIN_TICKS_IN_READER ) {
-            createRibbon(tsd, collectValues);
-        } else {
-            BaseTimesSeriesData ticksJoiner = new TickJoinerTimesSeriesData(tsd, m_joinTicks);
-            createRibbon(ticksJoiner, collectValues);
-        }
+        ITimesSeriesData priceTsd = TickReader.JOIN_TICKS_IN_READER ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
+        createRibbon(priceTsd, collectValues);
 
         setParent(m_emas.get(0));
     }

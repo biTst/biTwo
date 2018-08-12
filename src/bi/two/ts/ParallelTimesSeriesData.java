@@ -93,7 +93,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     }
                 }
             }
-        }
+        } // synchronized (this)
     }
 
     private void updateFirstTickIndexIfNeeded(int processedTickIndex) {

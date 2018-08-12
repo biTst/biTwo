@@ -84,6 +84,18 @@ public class TradesPreloader implements Runnable {
         }
     }
 
+    public void playOnlyCache() throws IOException {
+        loadCacheInfo();
+
+        long stamp = System.currentTimeMillis();
+        for (TradesCacheEntry tradesCacheEntry : m_cache) {
+            long oldest = tradesCacheEntry.m_oldestTimestamp;
+            stamp = Math.min(stamp, oldest);
+        }
+
+        playCacheTrades(stamp);
+    }
+
     private void playCacheTrades(long oldestTradeTime) throws IOException {
         console("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
         long timestamp = oldestTradeTime;
@@ -92,6 +104,7 @@ public class TradesPreloader implements Runnable {
             console(" next iteration: timestamp=" + timestamp);
             boolean matched = false;
             int skippedTicksNum = 0;
+            int addedTicksNum = 0;
             for (TradesCacheEntry cacheEntry : m_cache) {
                 matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= cacheEntry.m_newestTimestamp);
                 if (matched) {
@@ -103,18 +116,14 @@ public class TradesPreloader implements Runnable {
                             if (timestamp < tickTime) {
                                 timestamp = tickTime;
                             }
-                            if (skippedTicksNum > 0) {
-                                console("  skipped " + skippedTicksNum + " ticks");
-                                skippedTicksNum = 0;
-                            }
-//                            console("  play tick: " + tick);
                             playTick(tick);
+                            addedTicksNum++;
                         } else {
-//                            log("  skip tick: " + tick);
                             skippedTicksNum++;
                         }
                     }
                     timestamp++;
+                    console("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
                     break;
                 }
             }

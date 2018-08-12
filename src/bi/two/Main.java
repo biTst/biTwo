@@ -116,7 +116,9 @@ public class Main {
             cleanMemory();
 
             BaseProducer bestProducer = producer.logResults();
-            bestProducer.logResultsEx();
+            if (bestProducer != null) {
+                bestProducer.logResultsEx();
+            }
 
             long allEndMillis = System.currentTimeMillis();
             console("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
@@ -193,8 +195,11 @@ public class Main {
             console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
                     + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
 
-            double gain = maxWatcher.totalPriceRatio(true);
-            console(maxWatcher.getGainLogStr("MAX ", gain));
+            double gain = 0;
+            if (maxWatcher != null) {
+                gain = maxWatcher.totalPriceRatio(true);
+                console(maxWatcher.getGainLogStr("MAX ", gain));
+            }
 
             double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
             console(" processedDays=" + processedDays
