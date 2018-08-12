@@ -1,6 +1,6 @@
 package bi.two.exch.impl;
 
-import bi.two.chart.TradeTickData;
+import bi.two.chart.TickData;
 import bi.two.exch.*;
 import bi.two.util.Hex;
 import bi.two.util.MapConfig;
@@ -1247,7 +1247,7 @@ public class CexIo extends BaseExchImpl {
     }
 
     // https://cex.io/rest-api#trade-history
-    public static List<TradeTickData> readTicks(long period) {
+    public static List<TickData> readTicks(long period) {
         // [{"type":"sell","date":"1519040965","amount":"0.02611252","price":"11142.3","tid":"6213558"},
         //  {"type":"buy","date":"1519040926","amount":"0.03700000","price":"11142.3","tid":"6213557"}]
         return null;

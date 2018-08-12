@@ -1,5 +1,6 @@
 package bi.two.exch.impl;
 
+import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 import bi.two.chart.TradeTickData;
 import bi.two.exch.BaseExchImpl;
@@ -41,7 +42,7 @@ public class Bitfinex extends BaseExchImpl {
             @Override public void run() {
                 setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
                 try {
-                    List<TradeTickData> allTicks = readTicks(null, TimeUnit.MINUTES.toMillis(5));
+                    List<TickData> allTicks = readTicks(null, TimeUnit.MINUTES.toMillis(5));
 
                     logTicks(allTicks, "ALL ticks: ", false);
                 } catch (Exception e) {
@@ -52,7 +53,7 @@ public class Bitfinex extends BaseExchImpl {
         }.start();
     }
 
-    public static List<TradeTickData> readTicks(MapConfig config, long period) throws Exception {
+    public static List<TickData> readTicks(MapConfig config, long period) throws Exception {
         log("readTicks() need period=" + Utils.millisToYDHMSStr(period));
         boolean downloadTicks = (config == null) || config.getBoolean("download.ticks");
         boolean downloadNewestTicks = downloadTicks && ((config == null) || config.getBoolean("download.newest.ticks"));
@@ -142,7 +143,9 @@ public class Bitfinex extends BaseExchImpl {
 
         logTicks(allTicks, "ALL ticks: ", false);
 
-        return allTicks;
+        List<TickData> ret = new ArrayList<>();
+        ret.addAll(allTicks);
+        return ret;
     }
 
     private static void mergeTicksWithCache(List<TradeTickData> allTicks, List<TradeTickData> cacheTicks) {
@@ -291,17 +294,17 @@ public class Bitfinex extends BaseExchImpl {
         return oldestTickTimestamp;
     }
 
-    private static void logTicks(List<TradeTickData> ticks, String prefix, boolean logArray) {
+    private static void logTicks(List<? extends TickData> ticks, String prefix, boolean logArray) {
         int size = ticks.size();
-        TickVolumeData newestTick = ticks.get(0);
-        TickVolumeData oldestTick = ticks.get(size - 1);
+        TickData newestTick = ticks.get(0);
+        TickData oldestTick = ticks.get(size - 1);
         long oldestTickTimestamp = oldestTick.getTimestamp();
         long newestTickTimestamp = newestTick.getTimestamp();
         String timePeriod = Utils.millisToYDHMSStr(newestTickTimestamp - oldestTickTimestamp);
         log(" " + prefix + ": size=" + size + "; time from " + new Date(oldestTickTimestamp) + " to " + new Date(newestTickTimestamp) + "; timePeriod=" + timePeriod);
         if (logArray) {
             for (int i = 0; i < size; i++) {
-                TickVolumeData tick = ticks.get(i);
+                TickData tick = ticks.get(i);
                 log(" tick[" + i + "]: " + tick);
             }
         }

@@ -2,8 +2,8 @@ package bi.two.ts;
 
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
-import bi.two.chart.TradeTickData;
 import bi.two.exch.ExchPairData;
+import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
 import bi.two.opt.Vary;
@@ -124,7 +124,7 @@ public enum TickReader {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
 //            long period = TimeUnit.HOURS.toMillis(10);
             long period = TimeUnit.DAYS.toMillis(365);
-            List<TradeTickData> ticks = Bitfinex.readTicks(config, period);
+            List<TickData> ticks = Bitfinex.readTicks(config, period);
             feedTicks(ticksTs, callback, ticks);
         }
     },
@@ -132,10 +132,18 @@ public enum TickReader {
         @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
 //            long period = TimeUnit.MINUTES.toMillis(200);
             long period = TimeUnit.DAYS.toMillis(365);
-            List<TradeTickData> ticks = CexIo.readTicks(period);
+            List<TickData> ticks = CexIo.readTicks(period);
             feedTicks(ticksTs, callback, ticks);
         }
-    };
+    },
+    BITMEX("bitmex") {
+        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+            long period = TimeUnit.DAYS.toMillis(365);
+            List<TickData> ticks = BitMex.readTicks(config, period);
+            feedTicks(ticksTs, callback, ticks);
+        }
+    }
+    ;
 
     public static final boolean JOIN_TICKS_IN_READER = false;
 
@@ -158,12 +166,12 @@ public enum TickReader {
         throw new RuntimeException("must be overridden");
     }
 
-    private static void feedTicks(TimesSeriesData<TickData> ticksTs, Runnable callback, List<TradeTickData> ticks) {
+    private static void feedTicks(TimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
         TimeStamp doneTs = new TimeStamp();
         TimeStamp ts = new TimeStamp();
         int size = ticks.size();
         for (int i = size - 1, count = 0; i >= 0; i--, count++) {
-            TradeTickData tick = ticks.get(i);
+            TickData tick = ticks.get(i);
             ticksTs.addNewestTick(tick);
             if (callback != null) {
                 callback.run();

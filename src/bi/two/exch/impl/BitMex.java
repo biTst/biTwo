@@ -2,11 +2,14 @@ package bi.two.exch.impl;
 
 import bi.two.DataFileType;
 import bi.two.chart.ITickData;
+import bi.two.chart.TickData;
 import bi.two.chart.TickPainter;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
 import bi.two.exch.Currency;
 import bi.two.main2.TicksCacheReader;
+import bi.two.main2.TradesPreloader;
+import bi.two.ts.TimesSeriesData;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -130,6 +133,25 @@ public class BitMex extends BaseExchImpl {
             Currency byName = Currency.getByName(nameLower);
             m_currencies.put(nameLower, byName);
         }
+    }
+
+    public static List<TickData> readTicks(MapConfig config, long period) {
+        String exchangeName = config.getString("exchange");
+        Exchange exchange = Exchange.get(exchangeName);
+        String pairName = config.getString("pair");
+        Pair pair = Pair.getByName(pairName);
+
+        TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
+        final TradesPreloader preloader = new TradesPreloader(exchange, pair, period, config, ticksTs) {
+//            @Override protected void onTicksPreloaded() {
+//                m_frame.repaint();
+//            }
+//            @Override protected void onLiveTick() {
+//                m_frame.repaint(100);
+//            }
+        };
+
+        return ticksTs.getTicks();
     }
 
     public void init(MapConfig config) {
