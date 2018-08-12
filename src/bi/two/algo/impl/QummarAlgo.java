@@ -5,13 +5,13 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.chart.*;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
 
-public class QummarAlgo extends BaseAlgo {
+public class QummarAlgo extends BaseAlgo<TickData> {
     public QummarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
@@ -34,7 +34,7 @@ public class QummarAlgo extends BaseAlgo {
                 ;
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 

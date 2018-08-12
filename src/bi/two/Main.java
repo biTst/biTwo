@@ -11,9 +11,10 @@ import bi.two.exch.Pair;
 import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
+import bi.two.ts.BaseTicksTimesSeriesData;
+import bi.two.ts.NoTicksTimesSeriesData;
 import bi.two.ts.TickReader;
 import bi.two.ts.TicksTimesSeriesData;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -84,7 +85,9 @@ public class Main {
 
                 console("## iteration " + i);
 
-                TimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData(collectTicks);
+                BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
+                        ? new TicksTimesSeriesData<TickData>(null)
+                        : new NoTicksTimesSeriesData<TickData>(null);
                 if (!collectTicks) { // add initial tick to update
                     ticksTs.addOlderTick(new TickData());
                 }
@@ -170,7 +173,7 @@ public class Main {
         return algoConfig;
     }
 
-    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs, List<Watcher> watchers) {
+    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, List<Watcher> watchers) {
         Watcher firstWatcher = watchers.get(0);
         firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }

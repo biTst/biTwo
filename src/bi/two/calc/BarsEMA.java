@@ -5,7 +5,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -105,7 +105,7 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     }
 
     //-------------------------------------------------------------------------------------
-    private class BarsProcessor implements TimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Double> {
+    private class BarsProcessor implements TicksTimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Double> {
         private int index = 0;
         private double ret = 0;
         private double weight = 0;

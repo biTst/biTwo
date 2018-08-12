@@ -7,18 +7,19 @@ import bi.two.algo.Watcher;
 import bi.two.calc.*;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MmarAlgo extends BaseAlgo {
+public class MmarAlgo extends BaseAlgo<TickData> {
     private static final boolean PINCH = true; // pinch by spread / spreadSmoothed
     private static final boolean FAST_RIBBON = true;
 
@@ -168,7 +169,7 @@ public class MmarAlgo extends BaseAlgo {
         return ((float) ((leadValue - min) / (max - min) * 2 - 1));
     }
 
-    private TimesSeriesData<TickData> getRibbonTs() {
+    private TicksTimesSeriesData<TickData> getRibbonTs() {
         return new JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_ribbonDirection;
@@ -176,7 +177,7 @@ public class MmarAlgo extends BaseAlgo {
         };
     }
 
-    private TimesSeriesData<TickData> getSpreadRateTs() {
+    private TicksTimesSeriesData<TickData> getSpreadRateTs() {
         return new JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_spreadRate;
@@ -184,7 +185,7 @@ public class MmarAlgo extends BaseAlgo {
         };
     }
 
-    @Override public ITickData getLatestTick() {
+    @Override public TickData getLatestTick() {
         return m_tickData;
     }
 
@@ -200,7 +201,7 @@ public class MmarAlgo extends BaseAlgo {
         ;
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
@@ -479,7 +480,7 @@ public class MmarAlgo extends BaseAlgo {
             return m_tick;
         }
 
-        TimesSeriesData<TickData> getMinTs() {
+        TicksTimesSeriesData<TickData> getMinTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_min;
@@ -487,7 +488,7 @@ public class MmarAlgo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMaxTs() {
+        TicksTimesSeriesData<TickData> getMaxTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_max;
@@ -584,7 +585,7 @@ public class MmarAlgo extends BaseAlgo {
             return m_parentLatestTick;
         }
 
-        TimesSeriesData<TickData> getMinRibbonSmoothedTs() {
+        TicksTimesSeriesData<TickData> getMinRibbonSmoothedTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_minRibbonSmoothed;
@@ -592,7 +593,7 @@ public class MmarAlgo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMaxRibbonSmoothedTs() {
+        TicksTimesSeriesData<TickData> getMaxRibbonSmoothedTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_maxRibbonSmoothed;
@@ -600,7 +601,7 @@ public class MmarAlgo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMinBarSpreadSmoothedTs() {
+        TicksTimesSeriesData<TickData> getMinBarSpreadSmoothedTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_minBarSpreadSmoothed;
@@ -608,7 +609,7 @@ public class MmarAlgo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMaxBarSpreadSmoothedTs() {
+        TicksTimesSeriesData<TickData> getMaxBarSpreadSmoothedTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_maxBarSpreadSmoothed;

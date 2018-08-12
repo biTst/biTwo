@@ -1,7 +1,7 @@
 package bi.two.chart;
 
 import bi.two.Colors;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.interpolation.SplineInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
@@ -24,11 +24,11 @@ public class ChartAreaPainter {
 
     //-----------------------------------------------------------------
     public static class PolynomChartAreaPainter extends ChartAreaPainter {
-        private final TimesSeriesData m_ticksTs;
+        private final TicksTimesSeriesData m_ticksTs;
         private double m_shareVelocity;
         private double m_shareError;
 
-        public PolynomChartAreaPainter(TimesSeriesData ticksTs) {
+        public PolynomChartAreaPainter(TicksTimesSeriesData ticksTs) {
             m_ticksTs = ticksTs;
         }
 
@@ -149,14 +149,14 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
     
     //-----------------------------------------------------------------
     public static class SplineChartAreaPainter extends ChartAreaPainter {
-        private final TimesSeriesData m_ticksTs;
+        private final TicksTimesSeriesData m_ticksTs;
         private final int m_points;
         private ITickData[] m_ticks;
         private final SplineInterpolator m_spline = new SplineInterpolator();
         private final double[] m_interpolateX;
         private final double[] m_interpolateY;
 
-        public SplineChartAreaPainter(TimesSeriesData ticksTs, int points) {
+        public SplineChartAreaPainter(TicksTimesSeriesData ticksTs, int points) {
             m_ticksTs = ticksTs;
             m_points = points;
             m_ticks = new ITickData[m_points];

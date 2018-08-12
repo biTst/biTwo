@@ -9,15 +9,15 @@ import bi.two.calc.TicksRegressor;
 import bi.two.calc.TicksSMA;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.List;
 
-public class EmaTrendAlgo extends BaseAlgo {
+public class EmaTrendAlgo extends BaseAlgo<TickData> {
     private final long m_barSize;
 //    private final float m_length;
     private final float m_longLength;
@@ -75,7 +75,7 @@ public class EmaTrendAlgo extends BaseAlgo {
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 

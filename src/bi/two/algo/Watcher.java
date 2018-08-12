@@ -8,7 +8,7 @@ import bi.two.exch.*;
 import bi.two.opt.Vary;
 import bi.two.tre.CurrencyValue;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
 
-public class Watcher extends TimesSeriesData<TradeData> {
+public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
@@ -271,7 +271,7 @@ if (timeToTradeClose < 0) {
                 + "\n]";
     }
 
-    public TimesSeriesData<TickData> getGainTs() {
+    public TicksTimesSeriesData<TickData> getGainTs() {
         return new GainTimesSeriesData(this);
     }
 

@@ -10,16 +10,17 @@ import bi.two.calc.SlidingTicksRegressor;
 import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Mmar3Algo extends BaseAlgo {
+public class Mmar3Algo extends BaseAlgo<TickData> {
     private final long m_barSize;
     private final float m_start;
     private final float m_step;
@@ -35,7 +36,7 @@ public class Mmar3Algo extends BaseAlgo {
     private final SlidingTicksRegressor m_velocityAdjRegr;
     private final VelocityAdj m_velocityAdj;
     private BaseTimesSeriesData m_spreadSmoothed;
-    private ITickData m_tickData;
+    private TickData m_tickData;
 
     public Mmar3Algo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -113,11 +114,11 @@ public class Mmar3Algo extends BaseAlgo {
         return m_tickData;
     }
 
-    @Override public ITickData getLatestTick() {
+    @Override public TickData getLatestTick() {
         return m_tickData;
     }
 
-    private TimesSeriesData<TickData> getPowAdjTs() {
+    private TicksTimesSeriesData<TickData> getPowAdjTs() {
         return new JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_minMaxSpread.m_powAdj;
@@ -125,7 +126,7 @@ public class Mmar3Algo extends BaseAlgo {
         };
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
@@ -307,7 +308,7 @@ public class Mmar3Algo extends BaseAlgo {
             return m_tick;
         }
 
-        TimesSeriesData<TickData> getMinTs() {
+        TicksTimesSeriesData<TickData> getMinTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_min;
@@ -315,7 +316,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMaxTs() {
+        TicksTimesSeriesData<TickData> getMaxTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_max;
@@ -487,7 +488,7 @@ public class Mmar3Algo extends BaseAlgo {
             return m_tick;
         }
 
-        TimesSeriesData<TickData> getMinTs() {
+        TicksTimesSeriesData<TickData> getMinTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_min;
@@ -495,7 +496,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getMaxTs() {
+        TicksTimesSeriesData<TickData> getMaxTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_max;
@@ -503,7 +504,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadMaxTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadMaxTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadMax;
@@ -511,7 +512,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadMaxTopTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadMaxTop;
@@ -519,7 +520,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadMaxBottom;
@@ -527,7 +528,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadFadingTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadFadingTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadFading;
@@ -535,7 +536,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadFadingTopTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadFadingTopTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadFadingTop;
@@ -543,7 +544,7 @@ public class Mmar3Algo extends BaseAlgo {
             };
         }
 
-        TimesSeriesData<TickData> getRibbonSpreadFadingBottomTs() {
+        TicksTimesSeriesData<TickData> getRibbonSpreadFadingBottomTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_ribbonSpreadFadingBottom;

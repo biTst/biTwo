@@ -7,10 +7,10 @@ import bi.two.algo.Watcher;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.ParallelTimesSeriesData;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
@@ -133,9 +133,9 @@ public class WatchersProducer {
         return false; // all inactive
     }
 
-    public List<Watcher> getWatchers(MapConfig algoConfig, TimesSeriesData<TickData> ticksTs0, MapConfig config, Exchange exchange, Pair pair) {
+    public List<Watcher> getWatchers(MapConfig algoConfig, BaseTicksTimesSeriesData<TickData> tsd, MapConfig config, Exchange exchange, Pair pair) {
         int parallel = config.getInt("parallel");
-        BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(ticksTs0, parallel);
+        BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(tsd, parallel);
 
         List<Watcher> watchers = new ArrayList<>();
         for (BaseProducer producer : m_producers) {

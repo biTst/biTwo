@@ -65,7 +65,7 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     }
 
 
-    public TimesSeriesData<TickData> getJoinNonChangedTs() {
+    public TicksTimesSeriesData<TickData> getJoinNonChangedTs() {
         return new JoinNonChangedTimesSeriesData(this);
     }
 }

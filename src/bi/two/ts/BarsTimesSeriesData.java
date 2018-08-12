@@ -3,17 +3,13 @@ package bi.two.ts;
 import bi.two.chart.BarData;
 import bi.two.chart.ITickData;
 
-public class BarsTimesSeriesData extends TimesSeriesData<BarData> {
+public class BarsTimesSeriesData extends TicksTimesSeriesData<BarData> {
     private final long m_barSize;
     BarData m_lastBar;
 
     public BarsTimesSeriesData(ITimesSeriesData parent, long barSize) {
         super(parent);
         m_barSize = barSize;
-    }
-
-    @Override public BarData getLatestTick() {
-        return super.getLatestTick();
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {

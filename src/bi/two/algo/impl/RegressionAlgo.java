@@ -12,17 +12,18 @@ import bi.two.calc.BarsRegressor;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 
-public class RegressionAlgo extends BaseAlgo {
+public class RegressionAlgo extends BaseAlgo<TickData> {
     public static final float DEF_THRESHOLD = 0.1f;
 
     public final HashMap<String,BarsRegressor> s_regressorsCache = new HashMap<>();
@@ -185,7 +186,7 @@ public class RegressionAlgo extends BaseAlgo {
         return lastTick;
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
@@ -542,7 +543,7 @@ public class RegressionAlgo extends BaseAlgo {
             super.onChanged(ts, iAmChanged);
         }
 
-        public TimesSeriesData<TickData> getMinTs() {
+        public TicksTimesSeriesData<TickData> getMinTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_min;
@@ -550,7 +551,7 @@ public class RegressionAlgo extends BaseAlgo {
             };
         }
 
-        public TimesSeriesData<TickData> getMaxTs() {
+        public TicksTimesSeriesData<TickData> getMaxTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_max;
@@ -558,7 +559,7 @@ public class RegressionAlgo extends BaseAlgo {
             };
         }
 
-        public TimesSeriesData<TickData> getZeroTs() {
+        public TicksTimesSeriesData<TickData> getZeroTs() {
             return new JoinNonChangedInnerTimesSeriesData(this) {
                 @Override protected Float getValue() {
                     return m_zero;

@@ -7,16 +7,17 @@ import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UmmarAlgo extends BaseAlgo {
+public class UmmarAlgo extends BaseAlgo<TickData> {
 
     private final double m_minOrderMul;
 
@@ -29,7 +30,7 @@ public class UmmarAlgo extends BaseAlgo {
     private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
-    private ITickData m_tickData;
+    private TickData m_tickData;
 
     public UmmarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -96,7 +97,7 @@ public class UmmarAlgo extends BaseAlgo {
         return null;
     }
 
-    @Override public ITickData getLatestTick() {
+    @Override public TickData getLatestTick() {
         return m_tickData;
     }
 
@@ -113,7 +114,7 @@ public class UmmarAlgo extends BaseAlgo {
                 ;
     }
 
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
@@ -314,17 +315,17 @@ public class UmmarAlgo extends BaseAlgo {
             return m_tick;
         }
 
-        TimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
-        TimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
+        TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
+        TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
 
-        TimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
-        TimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
-        TimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
-        TimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
-        TimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
-        TimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
-        TimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
-        TimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_adj2; } }; }
+        TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
+        TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
+        TicksTimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
+        TicksTimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
+        TicksTimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }
+        TicksTimesSeriesData<TickData> getReverseTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverse; } }; }
+        TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
+        TicksTimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_adj2; } }; }
     }
 
     //----------------------------------------------------------

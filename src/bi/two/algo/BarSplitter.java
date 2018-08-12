@@ -3,13 +3,13 @@ package bi.two.algo;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickPainter;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.Utils;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class BarSplitter extends TimesSeriesData<BarSplitter.BarHolder> {
+public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     public static final int BARS_NUM = 20;
     private static final long DEF_PERIOD = 60000L;
 

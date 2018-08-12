@@ -3,7 +3,7 @@ package bi.two.ts;
 import bi.two.chart.TickData;
 
 public class TickJoiner {
-    private final TimesSeriesData<TickData> m_tsd;
+    private final BaseTicksTimesSeriesData<TickData> m_tsd;
     private final long m_size;
     private long m_first;
     private long m_last;
@@ -14,7 +14,7 @@ public class TickJoiner {
     private int m_joinedCount;
     private int m_reportedCount;
 
-    public TickJoiner(TimesSeriesData<TickData> tsd, long size) {
+    public TickJoiner(BaseTicksTimesSeriesData<TickData> tsd, long size) {
         m_tsd = tsd;
         m_size = size;
     }

@@ -9,7 +9,7 @@ import bi.two.exch.*;
 import bi.two.exch.Currency;
 import bi.two.main2.TicksCacheReader;
 import bi.two.main2.TradesPreloader;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.Hex;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -141,7 +141,7 @@ public class BitMex extends BaseExchImpl {
         String pairName = config.getString("pair");
         Pair pair = Pair.getByName(pairName);
 
-        TimesSeriesData<TickData> ticksTs = new TimesSeriesData<TickData>(null);
+        TicksTimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData<TickData>(null);
         final TradesPreloader preloader = new TradesPreloader(exchange, pair, period, config, ticksTs) {
 //            @Override protected void onTicksPreloaded() {
 //                m_frame.repaint();

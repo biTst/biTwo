@@ -8,14 +8,14 @@ import bi.two.calc.SlidingTicksRegressor;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
 import bi.two.util.MapConfig;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.List;
 
-public class SlidingRegressionAlgo extends BaseAlgo {
+public class SlidingRegressionAlgo extends BaseAlgo<TickData> {
     private final float m_barSize;
     private final float m_length;
     private final TicksRegressor m_regressor;
@@ -38,8 +38,7 @@ public class SlidingRegressionAlgo extends BaseAlgo {
                 /*+ ", " + Utils.millisToYDHMSStr(period)*/;
     }
 
-
-    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData ticksTs, Watcher firstWatcher) {
+    @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 

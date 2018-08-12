@@ -22,7 +22,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private int m_counter; // number of processed ticks
     private boolean m_manyTicks; // flag that many non processed ticks in buffer
 
-    public ParallelTimesSeriesData(TimesSeriesData<TickData> ticksTs, int size) {
+    public ParallelTimesSeriesData(BaseTicksTimesSeriesData<TickData> ticksTs, int size) {
         super(ticksTs);
         m_activeIndex = 0;
         m_maxParallelSize = size;

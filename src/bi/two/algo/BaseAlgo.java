@@ -3,15 +3,16 @@ package bi.two.algo;
 import bi.two.ChartCanvas;
 import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.Log;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
+public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData<T> {
     public static final String COLLECT_VALUES_KEY = "collect.values";
     public static final String ALGO_NAME_KEY = "algoName";
     public static final String COMMISSION_KEY = "commission";
@@ -29,10 +30,10 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
     public ITickData getAdjusted() { return null; }
-    public void setupChart(boolean collectValues, ChartCanvas chartCanvas, TimesSeriesData<TickData> ticksTs, Watcher firstWatcher) { /*noop*/ }
+    public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) { /*noop*/ }
     public abstract String key(boolean detailed);
 
-    public TimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
+    public TicksTimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
         return new AlgoTimesSeriesData(this, joinNonChangedValues);
     }
 
@@ -51,7 +52,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TimesSeriesData<T> {
 
 
     //----------------------------------------------------------
-    public class AlgoTimesSeriesData extends TimesSeriesData<TickData> {
+    public class AlgoTimesSeriesData extends TicksTimesSeriesData<TickData> {
 
         private final boolean m_joinNonChangedValues;
 

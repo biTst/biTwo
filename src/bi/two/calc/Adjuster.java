@@ -5,7 +5,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 
 public class Adjuster extends BaseTimesSeriesData<ITickData> {
     private final float m_dropLevel;
@@ -100,7 +100,7 @@ public class Adjuster extends BaseTimesSeriesData<ITickData> {
         super.onChanged(ts, iAmChanged);
     }
 
-    public TimesSeriesData<TickData> getMinTs() {
+    public TicksTimesSeriesData<TickData> getMinTs() {
         return new BaseAlgo.JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_min;
@@ -108,7 +108,7 @@ public class Adjuster extends BaseTimesSeriesData<ITickData> {
         };
     }
 
-    public TimesSeriesData<TickData> getMaxTs() {
+    public TicksTimesSeriesData<TickData> getMaxTs() {
         return new BaseAlgo.JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_max;
@@ -116,7 +116,7 @@ public class Adjuster extends BaseTimesSeriesData<ITickData> {
         };
     }
 
-    public TimesSeriesData<TickData> getZeroTs() {
+    public TicksTimesSeriesData<TickData> getZeroTs() {
         return new BaseAlgo.JoinNonChangedInnerTimesSeriesData(this) {
             @Override protected Float getValue() {
                 return m_zero;

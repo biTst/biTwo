@@ -11,7 +11,7 @@ public class ParallelTimesSeriesDataTest {
     public static void main(String[] args) {
         TimeStamp timeStamp = new TimeStamp();
         final TickData[] tickData = new TickData[1];
-        TimesSeriesData<TickData> parent = new TimesSeriesData<TickData>(null) {
+        TicksTimesSeriesData<TickData> parent = new TicksTimesSeriesData<TickData>(null) {
             @Override public TickData getLatestTick() {
                 return tickData[0];
             }

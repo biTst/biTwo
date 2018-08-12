@@ -3,12 +3,12 @@ package bi.two.calc;
 import bi.two.algo.BarSplitter;
 import bi.two.chart.TickData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 
 import java.util.List;
 
 //----------------------------------------------------------
-public abstract class BarsBasedCalculator extends TimesSeriesData<TickData> {
+public abstract class BarsBasedCalculator extends TicksTimesSeriesData<TickData> {
 
     private final BarSplitter m_barSplitter;
     private final BarTicksProcessor m_processor;

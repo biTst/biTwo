@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public enum TickReader {
     FILE("file") {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
             long joinTicks = config.getNumber(Vary.joinTicks).longValue();
 
             String path = config.getPropertyNoComment("dataFile");
@@ -75,7 +75,7 @@ public enum TickReader {
             readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes, joinTicks);
         }
 
-        private void readFileTicks(Reader reader, TimesSeriesData<TickData> ticksTs, Runnable callback,
+        private void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
                                    String dataFileType, boolean skipBytes, long joinTicks) throws IOException {
             TimeStamp ts = new TimeStamp();
             BufferedReader br = new BufferedReader(reader, 256 * 1024);
@@ -121,7 +121,7 @@ public enum TickReader {
         }
     },
     BITFINEX("bitfinex") {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
 //            long period = TimeUnit.HOURS.toMillis(10);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = Bitfinex.readTicks(config, period);
@@ -129,7 +129,7 @@ public enum TickReader {
         }
     },
     CEX("cex") {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
 //            long period = TimeUnit.MINUTES.toMillis(200);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = CexIo.readTicks(period);
@@ -137,7 +137,7 @@ public enum TickReader {
         }
     },
     BITMEX("bitmex") {
-        @Override public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = BitMex.readTicks(config, period);
             feedTicks(ticksTs, callback, ticks);
@@ -162,11 +162,11 @@ public enum TickReader {
         throw new RuntimeException("Unknown TickReader '" + name + "'");
     }
 
-    public void readTicks(MapConfig config, TimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
         throw new RuntimeException("must be overridden");
     }
 
-    private static void feedTicks(TimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
+    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
         TimeStamp doneTs = new TimeStamp();
         TimeStamp ts = new TimeStamp();
         int size = ticks.size();

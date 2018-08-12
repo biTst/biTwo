@@ -5,13 +5,13 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 // -----------------------------------------------------------------------------
 // todo - switch to 'extends BarsBasedCalculator'
 public class BarsRegressor extends BaseTimesSeriesData<ITickData>
-        implements TimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Float> {
+        implements TicksTimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Float> {
     public final BarSplitter m_splitter;
     private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
     private long m_lastBarTickTime;

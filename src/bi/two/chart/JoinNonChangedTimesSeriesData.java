@@ -1,11 +1,11 @@
 package bi.two.chart;
 
 import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 
 import java.util.List;
 
-public class JoinNonChangedTimesSeriesData extends TimesSeriesData<TickData> {
+public class JoinNonChangedTimesSeriesData extends TicksTimesSeriesData<TickData> {
 
     // to override
     protected ITickData getTickValue() {
