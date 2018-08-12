@@ -12,10 +12,12 @@ import bi.two.ts.TimesSeriesData;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.awt.*;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Main2 extends Thread {
@@ -126,9 +128,6 @@ public class Main2 extends Thread {
                     }
                 }
             });
-
-console("TradesPreloader SKIPPED");
-//            startPreloader();
         } catch (Exception e) {
             err("onExchangeConnected error: " + e, e);
         }
@@ -137,26 +136,64 @@ console("TradesPreloader SKIPPED");
     private void onFirstAccountUpdate() throws Exception {
         console("onFirstAccountUpdate");
 
-        // todo: cancel all orders/positions first
-
+        // cancel all orders first
         ExchPairData pairData = m_exchange.getPairData(m_pair);
-        LiveOrdersData liveOrders = pairData.getLiveOrders();
+        final LiveOrdersData liveOrders = pairData.getLiveOrders();
         Collection<OrderData> orders = liveOrders.m_orders.values();
         int ordersNum = orders.size();
         console(" pairData=" + pairData + "; liveOrders=" + liveOrders + "; ordersNum=" + ordersNum);
 
-        if (true) {
-            // todo: for now cancel first order
+        if (true) { // do cancel orders
             if (ordersNum > 0) {
+
+                // add live orders listener to continue only after canceling
+                liveOrders.setOrdersListener(new Exchange.IOrdersListener() {
+                    @Override public void onUpdated(Map<String, OrderData> orders) {
+                        console("@@@@ live orders updated: " + orders);
+                        liveOrders.setOrdersListener(null);
+                        try {
+                            onAllTradesCancelled();
+                        } catch (Exception e) {
+                            err("onAllTradesCancelled error: " + e, e);
+                        }
+                    }
+                });
+
                 OrderData[] array = orders.toArray(new OrderData[ordersNum]);
+                // todo: for now cancel only first order
                 OrderData orderData = array[0];
                 console("  first order to cancel: orderData=" + orderData);
-                // todo: add live orders listener to continue only after canceling
                 m_exchange.cancelOrder(orderData);
             } else {
                 console("  no orders to cancel");
+                onAllTradesCancelled();
             }
+        } else {
+            onAllTradesCancelled();
         }
+
+//        OrderBook orderBook = m_exchange.getOrderBook(m_pair);
+//        orderBook.subscribe(new OrderBook.IOrderBookListener() {
+//            @Override public void onOrderBookUpdated(OrderBook orderBook) {
+//                console("onOrderBookUpdated: orderBook=" + orderBook);
+//            }
+//        }, 10);
+
+    }
+
+    private void onAllTradesCancelled() throws Exception {
+        console("onAllTradesCancelled()");
+
+//console("TradesPreloader SKIPPED");
+        startPreloader();
+
+        if (false) { // place test orders
+            placeTestOrders();
+        }
+    }
+
+    private void placeTestOrders() throws Exception {
+        console("placeTestOrders()");
 
         TopQuote topQuote = m_exchange.getTopQuote(m_pair);
         topQuote.subscribe(new TopQuote.ITopQuoteListener() {
@@ -168,41 +205,42 @@ console("TradesPreloader SKIPPED");
                 m_topQuote = topQuote;
 
                 if (!m_gotFirstQuote) {
-                    if (true) {
-                        new Thread() {
-                            @Override public void run() {
-                                try {
-                                    Thread.sleep(500);
-                                    String orderId = "oid" + System.currentTimeMillis();
-                                    Double price = m_topQuote.m_askPrice + 10;
-                                    OrderSide orderSide = OrderSide.SELL;
-//                                    Double price = m_topQuote.m_bidPrice - 15;
-//                                    OrderSide orderSide = OrderSide.BUY;
-                                    OrderData orderData = new OrderData(m_exchange, orderId, m_pair, orderSide, OrderType.LIMIT, price, 0.05);
-                                    orderData.addOrderListener(new OrderData.IOrderListener() {
-                                        @Override public void onOrderUpdated(OrderData orderData) {
-                                            console("onOrderUpdated: " + orderData);
-                                        }
-                                    });
-                                    console("submitOrder " + orderData);
-                                    m_exchange.submitOrder(orderData);
-                                } catch (Exception e) {
-                                    err("submitOrder error: " + e, e);
-                                }
-                            }
-                        }.start();
-                    }
                     m_gotFirstQuote = true;
+                    onFirstTopQuote();
                 }
             }
-        });
 
-//        OrderBook orderBook = m_exchange.getOrderBook(m_pair);
-//        orderBook.subscribe(new OrderBook.IOrderBookListener() {
-//            @Override public void onOrderBookUpdated(OrderBook orderBook) {
-//                console("onOrderBookUpdated: orderBook=" + orderBook);
-//            }
-//        }, 10);
+            private void onFirstTopQuote() {
+                new Thread() {
+                    @Override public void run() {
+                        try {
+                            Thread.sleep(500);
+                            String orderId = "oid" + System.currentTimeMillis();
+
+//                                    Double price = m_topQuote.m_askPrice + 15;
+//                                    OrderSide orderSide = OrderSide.SELL;
+                            Double price = m_topQuote.m_bidPrice - 15;
+                            OrderSide orderSide = OrderSide.BUY; // usd->btc
+
+//                                    OrderType orderType = OrderType.LIMIT;
+                            OrderType orderType = OrderType.MARKET;
+                            price = 0d;
+
+                            OrderData orderData = new OrderData(m_exchange, orderId, m_pair, orderSide, orderType, price, 0.05);
+                            orderData.addOrderListener(new OrderData.IOrderListener() {
+                                @Override public void onOrderUpdated(OrderData orderData) {
+                                    console("onOrderUpdated: " + orderData);
+                                }
+                            });
+                            console("submitOrder " + orderData);
+                            m_exchange.submitOrder(orderData);
+                        } catch (Exception e) {
+                            err("submitOrder error: " + e, e);
+                        }
+                    }
+                }.start();
+            }
+        });
     }
 
     private void onAccountUpdated() throws Exception {
@@ -210,7 +248,13 @@ console("TradesPreloader SKIPPED");
     }
 
     private void startPreloader() throws Exception {
-        long preloadPeriod = m_algoImpl.getPreloadPeriod();
+//        long preloadPeriod = m_algoImpl.getPreloadPeriod();
+//        long preloadPeriod = TimeUnit.MINUTES.toMillis(50);
+        long preloadPeriod = TimeUnit.HOURS.toMillis(10);
+//        long preloadPeriod = TimeUnit.DAYS.toMillis(365);
+
+        console("preloadPeriod=" + Utils.millisToYDHMSStr(preloadPeriod));
+
         final TradesPreloader preloader = new TradesPreloader(m_exchange, m_pair, preloadPeriod, m_config, m_ticksTs) {
             @Override protected void onTicksPreloaded() {
                 m_frame.repaint();

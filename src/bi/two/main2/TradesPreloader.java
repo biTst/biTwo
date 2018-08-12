@@ -107,10 +107,10 @@ public class TradesPreloader implements Runnable {
                                 console("  skipped " + skippedTicksNum + " ticks");
                                 skippedTicksNum = 0;
                             }
-                            console("  tick: " + tick);
+//                            console("  play tick: " + tick);
                             playTick(tick);
                         } else {
-                            log("  skip tick: " + tick);
+//                            log("  skip tick: " + tick);
                             skippedTicksNum++;
                         }
                     }
@@ -129,7 +129,7 @@ public class TradesPreloader implements Runnable {
         synchronized (m_liveTicks) {
             console("playLiveTicks: size=" + m_liveTicks.size());
             for (TradeData liveTick : m_liveTicks) {
-                console("  tick: " + liveTick);
+//                console("  tick: " + liveTick);
                 playTick(liveTick);
             }
             m_liveTicks.clear();
@@ -144,7 +144,7 @@ public class TradesPreloader implements Runnable {
 
     private long loadHistoryTrades() throws Exception {
         console("loadHistoryTrades for period: " + Utils.millisToYDHMSStr(m_periodToPreload));
-        int ticksNumInBlockToLoad = 500; // todo: make this exch dependent. bitmex: Maximum result count is 500
+        int ticksNumInBlockToLoad = m_exchange.getMaxTradeHistoryLoadCount(); // bitmex: Maximum result count is 500
         int maxIterations = 1000;
         long timestamp = m_lastLiveTradeTimestamp;
         for (int i = 0; i < maxIterations; i++) {
@@ -153,7 +153,7 @@ public class TradesPreloader implements Runnable {
             long cacheTimestamp = probeCache(timestamp);
             if (cacheTimestamp == 0) {
                 timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
-                TimeUnit.SECONDS.sleep(1); // do not DDOS
+                Thread.sleep(1500); // do not DDOS
             } else {
                 timestamp = cacheTimestamp; // got cached trades block containing requested timestamp; update timestamp to oldest block trade time
             }
