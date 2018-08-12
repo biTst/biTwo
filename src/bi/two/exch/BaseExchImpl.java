@@ -65,4 +65,8 @@ public class BaseExchImpl {
     public List<? extends ITickData> loadTrades(Pair pair, long timestamp, Direction direction, int tradesNum) throws Exception {
         throw new RuntimeException("not implemented: " + this);
     }
+
+    public int getMaxTradeHistoryLoadCount() {
+        throw new RuntimeException("not implemented: " + this);
+    }
 }

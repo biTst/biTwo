@@ -229,6 +229,10 @@ public class Exchange {
         }
     }
 
+    public int getMaxTradeHistoryLoadCount() {
+        return m_impl.getMaxTradeHistoryLoadCount();
+    }
+
 
     //----------------------------------------------------------------------------------------
     public interface IExchangeConnectListener {
@@ -246,6 +250,6 @@ public class Exchange {
 
     //----------------------------------------------------------------------------------------
     public interface IOrdersListener {
-        void onUpdated(Map<String, OrderData> m_orders);
+        void onUpdated(Map<String, OrderData> orders);
     }
 }

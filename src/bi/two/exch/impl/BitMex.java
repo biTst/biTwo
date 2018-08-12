@@ -51,20 +51,29 @@ import java.util.concurrent.TimeUnit;
 //  https://testnet.bitmex.com/app/restAPI
 //  https://testnet.bitmex.com/api/explorer/
 // todo: look at https://github.com/ccxt/ccxt
+//
+// http rate limit - 1req/sec (300 requests per 5 minutes)  not logged in - ratelimit is 150/5minutes.
+//
+// Our Keep-Alive timeout is 90 seconds.
+//
 public class BitMex extends BaseExchImpl {
-    private static final String URL = "wss://testnet.bitmex.com/realtime"; // wss://www.bitmex.com/realtime
+//    public static final String ENDPOINT_HOST = "www.bitmex.com";
+    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
+
+    private static final String WEB_SOCKET_URL = "wss://" + ENDPOINT_HOST + "/realtime"; // wss://www.bitmex.com/realtime
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
     private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
+
+    public static final String ORDER_ENDPOINT = "/api/v1/order";
+
     private static final String[] s_supportedCurrencies = new String[]{"xbt", "usd"};
 
     // debug
-    private static final boolean LOG_HEADERS = false;
-    private static final boolean LOG_HTTP = false;
+    private static final boolean LOG_HEADERS = true;
+    private static final boolean LOG_HTTP = true;
     private static final boolean LOG_JSON_TABLE = false;
-    public static final String ORDER_ENDPOINT = "/api/v1/order";
 
     // http actions
     private static final String GET = "GET";
@@ -74,6 +83,7 @@ public class BitMex extends BaseExchImpl {
     // order types
     public static final String ORDER_TYPE_LIMIT = "Limit";
     public static final String ORDER_TYPE_MARKET = "Market";
+
     public static final double SATO_DIVIDER = 100000000d;
 
     static {
@@ -1048,7 +1058,7 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
 
         client.getProperties().put(ClientProperties.RECONNECT_HANDLER, new ReconnectHandler());
 
-        client.connectToServer(endpoint, cec, new URI(URL));
+        client.connectToServer(endpoint, cec, new URI(WEB_SOCKET_URL));
     }
 
     private static void send(Session session, String str) throws IOException {
@@ -1432,6 +1442,10 @@ console("BitMex<> cacheDir=" + cacheDir);
             }
         });
         return trs;
+    }
+
+    @Override public int getMaxTradeHistoryLoadCount() {
+        return 500;
     }
 
     private JsonArray loadTable(List<NameValuePair> nvps) throws Exception {
