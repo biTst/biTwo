@@ -1559,10 +1559,18 @@ console("BitMex<> cacheDir=" + cacheDir);
 
         console("execute " + httpRequest);
 
+        int DEFAULT_TIMEOUT = 5000;
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(DEFAULT_TIMEOUT) // the time to establish the connection with the remote host
+                .setConnectionRequestTimeout(DEFAULT_TIMEOUT)
+                .setSocketTimeout(DEFAULT_TIMEOUT) // the time waiting for data – after the connection was established; maximum time of inactivity between two data packets
+                .build();
+
         // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
         //     https://hc.apache.org/httpcomponents-client-ga/examples.html
         CloseableHttpClient httpclient = HttpClients.custom()
                 .setKeepAliveStrategy(m_keepAliveStrat)
+                .setDefaultRequestConfig(requestConfig)
                 .build();
         //CloseableHttpClient httpclient = HttpClients.createDefault();
 
