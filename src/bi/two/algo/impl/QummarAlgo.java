@@ -6,10 +6,7 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
-import bi.two.ts.BarsTimesSeriesData;
-import bi.two.ts.BaseTicksTimesSeriesData;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
@@ -27,6 +24,12 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private boolean m_dirty; // when emas are changed
+    private boolean m_goUp;
+    private Float m_min;
+    private Float m_max;
+    private Float m_adj = 0F;
+
+    private TickData m_tickData;
 
     public QummarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
@@ -73,7 +76,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
         if (m_count != countFloor) {
             float fraction = m_count - countFloor;
-            float fractionLength = length - m_step + m_step * fraction;
+            float fractionLength = length - m_step + (m_step * fraction);
             BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
             ema.getActive().addListener(listener);
             m_emas.add(ema);
@@ -89,12 +92,72 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //        return new BarsTEMA(tsd, length, barSize);
     }
 
+    @Override public TickData getLatestTick() {
+        return m_tickData;
+    }
+
+    @Override public ITickData getAdjusted() {
+        if (m_dirty) {
+            ITickData parentLatestTick = getParent().getLatestTick();
+            if (parentLatestTick != null) {
+                Float adj = recalc();
+                if (adj != null) {
+                    long timestamp = parentLatestTick.getTimestamp();
+                    m_tickData = new TickData(timestamp, adj);
+                    return m_tickData;
+                }
+                // else - not ready yet
+            }
+        }
+        return m_tickData;
+    }
+
+    private Float recalc() {
+        float emasMin = Float.POSITIVE_INFINITY;
+        float emasMax = Float.NEGATIVE_INFINITY;
+        boolean allDone = true;
+        float leadEmaValue = 0;
+        int emasLen = m_emas.size();
+        for (int i = 0; i < emasLen; i++) {
+            ITimesSeriesData ema = m_emas.get(i);
+            ITickData lastTick = ema.getLatestTick();
+            if (lastTick != null) {
+                float value = lastTick.getClosePrice();
+                emasMin = Math.min(emasMin, value);
+                emasMax = Math.max(emasMax, value);
+                if (i == 0) {
+                    leadEmaValue = value;
+                }
+            } else {
+                allDone = false;
+                break; // not ready yet
+            }
+        }
+
+        if (allDone) {
+            boolean goUp = (leadEmaValue == emasMax)
+                    ? true // go up
+                    : ((leadEmaValue == emasMin)
+                    ? false // go down
+                    : m_goUp); // do not change
+            boolean directionChanged = (goUp != m_goUp);
+            m_goUp = goUp;
+
+            m_min = emasMin;
+            m_max = emasMax;
+
+        }
+        m_dirty = false;
+        return m_adj;
+    }
+
+
     @Override public String key(boolean detailed) {
-        return  "q"
-//                + (detailed ? ",start=" : ",") + m_start
-//                + (detailed ? ",step=" : ",") + m_step
-//                + (detailed ? ",count=" : ",") + m_count
-//                + (detailed ? ",multiplier=" : ",") + m_multiplier
+        return  ""
+                + (detailed ? ",start=" : ",") + m_start
+                + (detailed ? ",step=" : ",") + m_step
+                + (detailed ? ",count=" : ",") + m_count
+                + (detailed ? ",linRegMultiplier=" : ",") + m_linRegMultiplier
 //                + (detailed ? "|s1=" : "|") + m_s1
 //                + (detailed ? ",s2=" : ",") + m_s2
 //                + (detailed ? ",e1=" : ",") + m_e1
@@ -104,6 +167,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
+
+    @Override public long getPreloadPeriod() {
+        console("qummar.getPreloadPeriod() start=" + m_start + "; step=" + m_step + "; count=" + m_count);
+        return TimeUnit.MINUTES.toMillis(25); // todo: calc from algo params
+    }
+
+    TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
+    TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -131,9 +202,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
             }
 
-//            addChart(chartData, getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
-////
+            addChart(chartData, getMinTs(), topLayers, "min", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, getMaxTs(), topLayers, "max", Color.MAGENTA, TickPainter.LINE);
+
 //            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
 //            addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
 //            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
@@ -150,16 +221,16 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", color, TickPainter.LINE);
         }
 
-//        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.6f, 1, 0.2f, Color.LIGHT_GRAY);
-//        java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-//        {
-//// ???
-////            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.9f, 1, 0.1f, Color.LIGHT_GRAY);
+        java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        {
+// ???
+            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
 //            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-////            addChart(chartData, m_minMaxSpread.getAdj2Ts(), valueLayers, "adj2", Color.MAGENTA, TickPainter.LINE);
-////            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
-////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
-//        }
+//            addChart(chartData, m_minMaxSpread.getAdj2Ts(), valueLayers, "adj2", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
+        }
 
 //        if (collectValues) {
 //            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
