@@ -6,6 +6,7 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
+import bi.two.ts.BarsTimesSeriesData;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
@@ -23,18 +24,23 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final long m_barSize;
     private final float m_linRegMultiplier;
 
+    private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private boolean m_dirty; // when emas are changed
 
     public QummarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        boolean collectValues = false;
+        boolean collectValues = true;
         m_start = 5f;
         m_step = 5f;
         m_count = 18f;
         m_barSize = TimeUnit.MINUTES.toMillis(1); // 1min
         m_linRegMultiplier = 2f;
+
+        if (collectValues) {
+            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
+        }
 
 //        ITimesSeriesData priceTsd = TickReader.JOIN_TICKS_IN_READER ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
         ITimesSeriesData priceTsd = tsd;
@@ -108,19 +114,19 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 50), TickPainter.TICK);
-//            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Color.RED, 70), TickPainter.BAR);
+            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Color.RED, 70), TickPainter.BAR);
 
 //            chartData.setTicksData("spline", new NoTicksData());
 ////            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.SplineChartAreaPainter(ticksTs, 4)));
 //            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.PolynomChartAreaPainter(ticksTs)));
 
-            int emaAlpha = 25;
+            int emaAlpha = 50; // 25;
             Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
             int size = m_emas.size();
             for (int i = size - 1; i > 0; i--) { // paint without leadEma
                 BaseTimesSeriesData ema = m_emas.get(i);
                 Color color = (i == size - 1)
-                        ? Colors.alpha(Color.GRAY, emaAlpha*2) // slowest ema
+                        ? Colors.alpha(Color.GRAY, emaAlpha * 2) // slowest ema
                         : emaColor;
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
             }

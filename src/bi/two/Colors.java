@@ -10,6 +10,6 @@ public class Colors {
     public static final Color LIGHT_BLUE = new Color(171, 162, 255);
 
     public static Color alpha(Color color, int alpha) {
-        return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.min(255, alpha));
     }
 }

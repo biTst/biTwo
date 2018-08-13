@@ -102,7 +102,7 @@ public class Main2 extends Thread {
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
         // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.9f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             BaseAlgo.addChart(chartData, ticksTs,     topLayers, "price",     Colors.alpha(Color.RED, 70), TickPainter.TICK);
@@ -250,7 +250,7 @@ public class Main2 extends Thread {
     private void startPreloader() throws Exception {
 //        long preloadPeriod = m_algoImpl.getPreloadPeriod();
 //        long preloadPeriod = TimeUnit.MINUTES.toMillis(50);
-        long preloadPeriod = TimeUnit.HOURS.toMillis(10);
+        long preloadPeriod = TimeUnit.HOURS.toMillis(24);
 //        long preloadPeriod = TimeUnit.DAYS.toMillis(365);
 
         console("preloadPeriod=" + Utils.millisToYDHMSStr(preloadPeriod));
