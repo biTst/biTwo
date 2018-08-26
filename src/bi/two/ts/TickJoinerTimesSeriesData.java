@@ -3,6 +3,7 @@ package bi.two.ts;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
+/** join ticks; provides average price (do not count tick volume) */
 public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
     private ITickData m_lastTick;
 
