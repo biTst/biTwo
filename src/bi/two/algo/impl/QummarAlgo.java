@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
+    public static final float TARGET_LEVEL = 0.5f;
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -31,10 +32,12 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_max;
     private Float m_zigZag;
     private Float m_zerro;
+    private Float m_turn;
+    private Float m_target;
     private Float m_adj = 0F;
 
     private TickData m_tickData;
-    private float m_ribbonSpread;
+    private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 
@@ -154,16 +157,25 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             m_min = emasMin;
             m_max = emasMax;
 
+            // note - ribbonSpread from prev step here
             m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
 
             float ribbonSpread = emasMax - emasMin;
-            m_ribbonSpread = directionChanged // direction changed
+            m_maxRibbonSpread = directionChanged
                     ? ribbonSpread //reset
-                    : Math.max(ribbonSpread, m_ribbonSpread);
-            m_ribbonSpreadTop = goUp ? emasMin + m_ribbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
+                    : Math.max(ribbonSpread, m_maxRibbonSpread);
+            m_ribbonSpreadTop = goUp ? emasMin + m_maxRibbonSpread : emasMax;
+            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_maxRibbonSpread;
 
-            m_zerro = directionChanged ? Float.valueOf(goUp ? emasMax : emasMin) : m_zerro;
+            if (directionChanged) {
+                m_zerro = Float.valueOf(goUp ? emasMax : emasMin);
+                m_turn = Float.valueOf(goUp ? emasMin : emasMax);
+                m_target = m_turn + TARGET_LEVEL * (m_zerro - m_turn);
+            }
+
+//            m_power = goUp
+//                    ?(emasMin-) / ()
+//                    :() / ();
         }
         m_dirty = false;
         return m_adj;
@@ -197,13 +209,15 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
+    TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
+    TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_target; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
         // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.9f, Color.RED);
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.8f, Color.RED);
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 50), TickPainter.TICK);
@@ -230,6 +244,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE);
             addChart(chartData, getZerroTs(), topLayers, "zerro", Color.GRAY, TickPainter.LINE);
 
+            addChart(chartData, getTurnTs(), topLayers, "turn", Colors.DARK_GREEN, TickPainter.LINE);
+            addChart(chartData, getTargetTs(), topLayers, "target", Color.ORANGE, TickPainter.LINE);
+
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
 //            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
@@ -246,7 +263,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", color, TickPainter.LINE);
         }
 
-        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.9f, 1, 0.1f, Color.LIGHT_GRAY);
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.8f, 1, 0.1f, Color.LIGHT_GRAY);
         java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
 // ???
