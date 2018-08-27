@@ -6,6 +6,7 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
+import bi.two.opt.Vary;
 import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
@@ -20,6 +21,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final float m_count;
     private final long m_barSize;
     private final float m_linRegMultiplier;
+    private final long m_joinTicks;
 
     private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
@@ -39,18 +41,20 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     public QummarAlgo(MapConfig config, ITimesSeriesData tsd) {
         super(null);
 
-        boolean collectValues = true;
-        m_start = 5f;
-        m_step = 5f;
-        m_count = 18f;
-        m_barSize = TimeUnit.MINUTES.toMillis(1); // 1min
-        m_linRegMultiplier = 2f;
+        m_start = config.getNumber(Vary.start).floatValue();
+        m_step = config.getNumber(Vary.step).floatValue();
+        m_count = config.getNumber(Vary.count).floatValue();
+        m_barSize = config.getNumber(Vary.period).longValue();
+        m_linRegMultiplier = config.getNumber(Vary.multiplier).floatValue();
 
+        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
+
+        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        ITimesSeriesData priceTsd = TickReader.JOIN_TICKS_IN_READER ? tsd : new TickJoinerTimesSeriesData(tsd, 1);
+        ITimesSeriesData priceTsd = TickReader.JOIN_TICKS_IN_READER ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
         createRibbon(priceTsd, collectValues);
 
         setParent(tsd);
