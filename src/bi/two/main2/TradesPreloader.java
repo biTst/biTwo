@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -101,14 +102,14 @@ public class TradesPreloader implements Runnable {
         long timestamp = oldestTradeTime;
 
         while (true) {
-            console(" next iteration: timestamp=" + timestamp);
+            console(" next iteration: timestamp=" + timestamp + ". date=" + new Date(timestamp));
             boolean matched = false;
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
             for (TradesCacheEntry cacheEntry : m_cache) {
                 matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= cacheEntry.m_newestTimestamp);
                 if (matched) {
-                    console(" got matched cacheEntry: " + cacheEntry);
+                    log(" got matched cacheEntry: " + cacheEntry);
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
                     for (TickData tick : historyTicks) {
                         long tickTime = tick.getTimestamp();
@@ -123,7 +124,7 @@ public class TradesPreloader implements Runnable {
                         }
                     }
                     timestamp++;
-                    console("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
+                    log("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
                     break;
                 }
             }
