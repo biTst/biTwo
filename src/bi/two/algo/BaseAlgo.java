@@ -96,6 +96,10 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
             super(parent);
         }
 
+        protected JoinNonChangedInnerTimesSeriesData(ITimesSeriesData parent, boolean horizontal) {
+            super(parent, horizontal);
+        }
+
         @Override protected ITickData getTickValue() {
             ITickData latestTick = getParent().getLatestTick();
             if (latestTick != null) {
