@@ -35,7 +35,7 @@ public class Main {
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.StdLog();
+        Log.s_impl = new Log.FileLog();
         MarketConfig.initMarkets(false);
 
         final ChartFrame frame = new ChartFrame();
