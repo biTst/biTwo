@@ -16,7 +16,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
-    public static final float TARGET_LEVEL = 0.5f;
+    private static final float TARGET_LEVEL = 0.5f;
+
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -34,6 +35,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_zerro;
     private Float m_turn;
     private Float m_target;
+    private Float m_power;
     private Float m_adj = 0F;
 
     private TickData m_tickData;
@@ -173,9 +175,12 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 m_target = m_turn + TARGET_LEVEL * (m_zerro - m_turn);
             }
 
-//            m_power = goUp
-//                    ?(emasMin-) / ()
-//                    :() / ();
+            if (m_zerro != null) { // directionChanged once changed
+                float tail = goUp ? emasMin : emasMax;
+                float power = (tail - m_turn) / (m_target - m_turn);
+                m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
+            }
+
         }
         m_dirty = false;
         return m_adj;
@@ -207,21 +212,22 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
-    TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zigZag; } }; }
+    TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
     TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_target; } }; }
+    TicksTimesSeriesData<TickData> getPowerTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_power; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
         // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.8f, Color.RED);
-        java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.7f, Color.RED);
+        List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
-            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Color.RED, 50), TickPainter.TICK);
-            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Color.RED, 70), TickPainter.BAR);
+            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 70), TickPainter.TICK);
+            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Colors.DARK_RED, 80), TickPainter.BAR);
 
 //            chartData.setTicksData("spline", new NoTicksData());
 ////            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.SplineChartAreaPainter(ticksTs, 4)));
@@ -238,8 +244,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
             }
 
-            addChart(chartData, getMinTs(), topLayers, "min", Colors.DARK_RED, TickPainter.LINE);
-            addChart(chartData, getMaxTs(), topLayers, "max", Colors.DARK_RED, TickPainter.LINE);
+            addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE);
+            addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE);
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE);
             addChart(chartData, getZerroTs(), topLayers, "zerro", Color.GRAY, TickPainter.LINE);
@@ -263,8 +269,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", color, TickPainter.LINE);
         }
 
-        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.8f, 1, 0.1f, Color.LIGHT_GRAY);
-        java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
+        ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> powerLayers = power.getLayers();
+        {
+            addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE);
+        }
+
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.85f, 1, 0.15f, Color.LIGHT_GRAY);
+        List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
 // ???
             addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
