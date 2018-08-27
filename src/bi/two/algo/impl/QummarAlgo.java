@@ -36,6 +36,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_turn;
     private Float m_target;
     private Float m_power;
+    private Float m_value = 0F;
+    private Float m_mul = 0F;
     private Float m_adj = 0F;
 
     private TickData m_tickData;
@@ -175,10 +177,16 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 m_target = m_turn + TARGET_LEVEL * (m_zerro - m_turn);
             }
 
-            if (m_zerro != null) { // directionChanged once changed
+            if (m_zerro != null) { // directionChanged once observed
                 float tail = goUp ? emasMin : emasMax;
+                float head = goUp ? emasMax : emasMin;
+
                 float power = (tail - m_turn) / (m_target - m_turn);
                 m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
+
+                m_value = ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
+
+                m_mul = m_power * m_value;
             }
 
         }
@@ -217,6 +225,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
     TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_target; } }; }
     TicksTimesSeriesData<TickData> getPowerTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_power; } }; }
+    TicksTimesSeriesData<TickData> getValueTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_value; } }; }
+    TicksTimesSeriesData<TickData> getMulTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mul; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -278,10 +288,10 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.85f, 1, 0.15f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
-// ???
-            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
+//            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
 //            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-//            addChart(chartData, m_minMaxSpread.getAdj2Ts(), valueLayers, "adj2", Color.MAGENTA, TickPainter.LINE);
+            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE);
+            addChart(chartData, getMulTs(), valueLayers, "mul", Color.RED, TickPainter.LINE);
 //            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
