@@ -38,6 +38,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_power;
     private Float m_value = 0F;
     private Float m_mul = 0F;
+    private Float m_mulAndPrev = 0F;
+    private Float m_prevMulAndPrev = 0F;
     private Float m_adj = 0F;
 
     private TickData m_tickData;
@@ -156,6 +158,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                         ? false // go down
                         : m_goUp); // do not change
             boolean directionChanged = (goUp != m_goUp);
+            if (directionChanged) {
+                m_prevMulAndPrev = m_mulAndPrev; // save prev
+            }
             m_goUp = goUp;
 
             m_min = emasMin;
@@ -187,6 +192,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 m_value = ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
 
                 m_mul = m_power * m_value;
+                m_mulAndPrev = m_mul + m_prevMulAndPrev * (1 - m_power);
             }
 
         }
@@ -227,6 +233,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getPowerTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_power; } }; }
     TicksTimesSeriesData<TickData> getValueTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_value; } }; }
     TicksTimesSeriesData<TickData> getMulTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mul; } }; }
+    TicksTimesSeriesData<TickData> getMulAndPrevTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mulAndPrev; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -291,7 +298,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
 //            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
             addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE);
-            addChart(chartData, getMulTs(), valueLayers, "mul", Color.RED, TickPainter.LINE);
+            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE);
+            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE);
 //            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
