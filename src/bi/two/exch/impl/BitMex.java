@@ -89,6 +89,7 @@ public class BitMex extends BaseExchImpl {
 
     public static final double SATO_DIVIDER = 100000000d;
     public static final int MAX_TRADE_HISTORY_LOAD_COUNT = 500;
+    public static final String ENDPOINT_PATH = "/api/v1/trade";
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -1463,7 +1464,22 @@ console("BitMex<> cacheDir=" + cacheDir);
             nvps.add(new BasicNameValuePair("reverse", "true"));
         }
 
-        JsonArray table = loadTable(nvps);
+        JsonArray table;
+        int repeatCount = 0;
+        while (true) {
+            try {
+                table = loadTable(nvps);
+                break;
+            } catch (Exception e) {
+                if (repeatCount++ < 5) {
+                    int sec = 2 * repeatCount;
+                    err("error loadTable: repeating loadTrades in " + sec + "sec (repeatCount=" + repeatCount + "): " + e, e);
+                    TimeUnit.SECONDS.sleep(sec); // no ddos
+                } else {
+                    throw e; // rethrow
+                }
+            }
+        }
 
         List<Tr> trs = create(table, new FromJsonCreator<Tr>() {
             @Override public Tr create(JsonObject json) {
@@ -1478,7 +1494,7 @@ console("BitMex<> cacheDir=" + cacheDir);
     }
 
     private JsonArray loadTable(List<NameValuePair> nvps) throws Exception {
-        JsonElement json = loadJson(GET, "/api/v1/trade", nvps);
+        JsonElement json = loadJson(GET, ENDPOINT_PATH, nvps);
 
         if (json instanceof JsonArray) {
             JsonArray array = (JsonArray) json;
@@ -1611,7 +1627,25 @@ console("BitMex<> cacheDir=" + cacheDir);
                     int remaining = Integer.parseInt(remainingStr);
 
                     m_lastRateLimit = ((double) remaining) / limit;
-                    console("X-RateLimit: " + remaining + " of " + limit + " => " + m_lastRateLimit);
+                    log("X-RateLimit: " + remaining + " of " + limit + " => " + m_lastRateLimit);
+                    if (m_lastRateLimit < 0.9) {
+                        int secondsToSleep =
+                                m_lastRateLimit < 0.3
+                                    ? 64
+                                    : m_lastRateLimit < 0.4
+                                        ? 32
+                                        : m_lastRateLimit < 0.5
+                                            ? 16
+                                            : m_lastRateLimit < 0.6
+                                                ? 8
+                                                : m_lastRateLimit < 0.7
+                                                    ? 4
+                                                    : m_lastRateLimit < 0.8
+                                                        ? 2
+                                                        : 1;
+                        console("LOW X-RateLimit: " + m_lastRateLimit + ", sleep " + secondsToSleep + "sec");
+                        TimeUnit.SECONDS.sleep( secondsToSleep );
+                    }
                 }
 
                 HttpEntity entity = response.getEntity();
