@@ -22,6 +22,9 @@ import java.util.concurrent.TimeUnit;
 
 public class Main2 extends Thread {
     private static final String CONFIG = "cfg\\main2.properties";
+//    private static final long PRELOAD_PERIOD = TimeUnit.MINUTES.toMillis(50);
+//    private static final long PRELOAD_PERIOD = TimeUnit.HOURS.toMillis(24);
+    private static final long PRELOAD_PERIOD = TimeUnit.DAYS.toMillis(2);
 
     private Exchange m_exchange;
     private Pair m_pair;
@@ -248,10 +251,8 @@ public class Main2 extends Thread {
     }
 
     private void startPreloader() throws Exception {
-//        long preloadPeriod = m_algoImpl.getPreloadPeriod();
-//        long preloadPeriod = TimeUnit.MINUTES.toMillis(50);
-        long preloadPeriod = TimeUnit.HOURS.toMillis(24);
-//        long preloadPeriod = TimeUnit.DAYS.toMillis(365);
+//        long PRELOAD_PERIOD = m_algoImpl.getPreloadPeriod();
+        long preloadPeriod = PRELOAD_PERIOD;
 
         console("preloadPeriod=" + Utils.millisToYDHMSStr(preloadPeriod));
 
