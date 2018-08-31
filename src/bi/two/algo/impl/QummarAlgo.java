@@ -193,6 +193,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
                 m_mul = m_power * m_value;
                 m_mulAndPrev = m_mul + m_prevMulAndPrev * (1 - m_power);
+
+                m_adj = m_mulAndPrev;
             }
 
         }
@@ -250,16 +252,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 ////            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.SplineChartAreaPainter(ticksTs, 4)));
 //            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.PolynomChartAreaPainter(ticksTs)));
 
-            int emaAlpha = 25;
-            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
-            int size = m_emas.size();
-            for (int i = size - 1; i > 0; i--) { // paint without leadEma
-                BaseTimesSeriesData ema = m_emas.get(i);
-                Color color = (i == size - 1)
-                        ? Colors.alpha(Color.GRAY, emaAlpha * 2) // slowest ema
-                        : emaColor;
-                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
-            }
+            int emaAlpha = 20;
+//            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
+//            int size = m_emas.size();
+//            for (int i = size - 1; i > 0; i--) { // paint without leadEma
+//                BaseTimesSeriesData ema = m_emas.get(i);
+//                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, emaColor, TickPainter.LINE);
+//            }
 
             addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE);
             addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE);
@@ -286,13 +285,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", color, TickPainter.LINE);
         }
 
-        ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
+        ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
             addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE);
         }
 
-        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.85f, 1, 0.15f, Color.LIGHT_GRAY);
+        ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
 //            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
@@ -304,14 +303,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
 
-//        if (collectValues) {
-//            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-//            gain.setHorizontalLineValue(1);
-//
-//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
-//
-//            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-//            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
-//        }
+        if (collectValues) {
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+
+            ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
+            gain.setHorizontalLineValue(1);
+
+            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+        }
     }
 }
