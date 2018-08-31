@@ -60,8 +60,8 @@ import java.util.concurrent.TimeUnit;
 // Our Keep-Alive timeout is 90 seconds.
 //
 public class BitMex extends BaseExchImpl {
-//    public static final String ENDPOINT_HOST = "www.bitmex.com";
-    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
+    public static final String ENDPOINT_HOST = "www.bitmex.com";
+//    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
 
     private static final String WEB_SOCKET_URL = "wss://" + ENDPOINT_HOST + "/realtime"; // wss://www.bitmex.com/realtime
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
@@ -74,7 +74,7 @@ public class BitMex extends BaseExchImpl {
     private static final String[] s_supportedCurrencies = new String[]{"xbt", "usd"};
 
     // debug
-    private static final boolean LOG_HEADERS = true;
+    private static final boolean LOG_HEADERS = false;
     private static final boolean LOG_HTTP = true;
     private static final boolean LOG_JSON_TABLE = false;
 
@@ -123,6 +123,7 @@ public class BitMex extends BaseExchImpl {
     };
     private boolean m_gotFirstMargin;
     private boolean m_gotFirstPosition;
+    private double m_lastRateLimit; // http requests rate limit [1...0] close to 1 is FINE;  close to 0 is BAD - need pauses between requests
 
 
     public BitMex(Exchange exchange) {
@@ -1590,10 +1591,29 @@ console("BitMex<> cacheDir=" + cacheDir);
                     }
                 }
 
-                HttpEntity entity = response.getEntity();
-                if (LOG_HTTP) {
-                    console("entity=" + entity);
+                // Header: X-RateLimit-Limit: 150
+                // Header: X-RateLimit-Remaining: 149
+                Header rateLimitLimit = response.getFirstHeader("X-RateLimit-Limit");
+                Header rateLimitRemaining = response.getFirstHeader("X-RateLimit-Remaining");
+                if ((rateLimitLimit != null) && (rateLimitRemaining != null)) {
+                    HeaderElement[] elements = rateLimitLimit.getElements();
+                    HeaderElement element = elements[0];
+                    String limitStr = element.getName();
+                    int limit = Integer.parseInt(limitStr);
+
+                    elements = rateLimitRemaining.getElements();
+                    element = elements[0];
+                    String remainingStr = element.getName();
+                    int remaining = Integer.parseInt(remainingStr);
+
+                    m_lastRateLimit = ((double) remaining) / limit;
+                    console("X-RateLimit: " + remaining + " of " + limit + " => " + m_lastRateLimit);
                 }
+
+                HttpEntity entity = response.getEntity();
+//                if (LOG_HTTP) {
+//                    console("entity=" + entity);
+//                }
 
                 if (entity != null) {
                     long contentLength = entity.getContentLength();
@@ -1609,16 +1629,6 @@ console("BitMex<> cacheDir=" + cacheDir);
                         Gson gson = new GsonBuilder().create();
                         JsonElement json = gson.fromJson(reader, JsonElement.class);
                         return json;
-
-//                        List<? extends ITickData> list = parseTable(reader);
-//                        return list;
-
-//                            char[] buf = new char[256];
-//                            int read;
-//                            while ((read = reader.read(buf)) > 0) {
-//                                String str = new String(buf, 0, read);
-//                                console(str);
-//                            }
                     } finally {
                         reader.close();
                     }
