@@ -21,7 +21,6 @@ import java.util.List;
 
 // -----------------------------------------------------------------------------------------------------------
 public class TradesPreloader implements Runnable {
-    private static final int MAX_TICKS_NUM_IN_BLOCK_TO_LOAD = 500;
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
 
     private final Exchange m_exchange;
@@ -240,18 +239,20 @@ public class TradesPreloader implements Runnable {
 
                 return oldestPartialTimestamp;
             } else {
-                console("!!! ALL block ticks with the same timestamp - re-requesting with the bigger block");
-                Thread.sleep(SLEEP_MILLIS); // do not DDOS
                 int increasedTicksNumInBlockToLoad = ticksNumInBlockToLoad * 2;
-                if (increasedTicksNumInBlockToLoad <= MAX_TICKS_NUM_IN_BLOCK_TO_LOAD) {
+                int maxTicksNumInBlockToLoad = m_exchange.getMaxTradeHistoryLoadCount(); // bitmex: Maximum result count is 500
+                console("!!! ALL block ticks with the same timestamp. increasedTicksNumInBlockToLoad=" + increasedTicksNumInBlockToLoad + "; maxTicksNumInBlockToLoad=" + maxTicksNumInBlockToLoad);
+                if (increasedTicksNumInBlockToLoad <= maxTicksNumInBlockToLoad) {
+                    console(" - re-requesting with the bigger block " + increasedTicksNumInBlockToLoad);
+                    Thread.sleep(SLEEP_MILLIS); // do not DDOS
                     return loadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
                 } else {
-                    console("unable to re-request with the bigger block, max block reached");
+                    console("- unable to re-request with the bigger block, max block reached");
 
                     TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestPartialTimestamp, oldestPartialTimestamp);
                     writeToCache(trades, tradesCacheEntry);
 
-                    return oldestPartialTimestamp-1;
+                    return oldestPartialTimestamp - 1;
                 }
             }
         }

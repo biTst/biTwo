@@ -61,7 +61,7 @@ import java.util.concurrent.TimeUnit;
 //
 public class BitMex extends BaseExchImpl {
     public static final String ENDPOINT_HOST = "www.bitmex.com";
-//    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
+    //    public static final String ENDPOINT_HOST = "testnet.bitmex.com";
 
     private static final String WEB_SOCKET_URL = "wss://" + ENDPOINT_HOST + "/realtime"; // wss://www.bitmex.com/realtime
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
@@ -88,6 +88,7 @@ public class BitMex extends BaseExchImpl {
     public static final String ORDER_TYPE_MARKET = "Market";
 
     public static final double SATO_DIVIDER = 100000000d;
+    public static final int MAX_TRADE_HISTORY_LOAD_COUNT = 500;
 
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -125,6 +126,7 @@ public class BitMex extends BaseExchImpl {
     private boolean m_gotFirstPosition;
     private double m_lastRateLimit; // http requests rate limit [1...0] close to 1 is FINE;  close to 0 is BAD - need pauses between requests
 
+    @Override public int getMaxTradeHistoryLoadCount() { return MAX_TRADE_HISTORY_LOAD_COUNT; }
 
     public BitMex(Exchange exchange) {
         m_exchange = exchange;
@@ -1465,14 +1467,14 @@ console("BitMex<> cacheDir=" + cacheDir);
 
         List<Tr> trs = create(table, new FromJsonCreator<Tr>() {
             @Override public Tr create(JsonObject json) {
-                return Tr.createFrom(json);
+                try {
+                    return Tr.createFrom(json);
+                } catch (Exception e) {
+                    return null; // eat single trade parse error - logged inside createFrom()
+                }
             }
         });
         return trs;
-    }
-
-    @Override public int getMaxTradeHistoryLoadCount() {
-        return 500;
     }
 
     private JsonArray loadTable(List<NameValuePair> nvps) throws Exception {
@@ -1498,7 +1500,9 @@ console("BitMex<> cacheDir=" + cacheDir);
         for (JsonElement next : table) {
             JsonObject jsonObject = next.getAsJsonObject();
             X x = creator.create(jsonObject);
-            ret.add(x);
+            if (x != null) {
+                ret.add(x);
+            }
         }
         return ret;
     }
@@ -1579,9 +1583,9 @@ console("BitMex<> cacheDir=" + cacheDir);
             CloseableHttpResponse response = httpclient.execute(httpRequest);
             try {
                 if (LOG_HTTP) {
-                    console("ProtocolVersion=" + response.getProtocolVersion());
                     StatusLine statusLine = response.getStatusLine();
-                    console("StatusLine='" + statusLine + "'; StatusCode=" + statusLine.getStatusCode() + "; ReasonPhrase=" + statusLine.getReasonPhrase());
+                    console("ProtocolVersion=" + response.getProtocolVersion()+ "; StatusLine='" + statusLine
+                            + "'; StatusCode=" + statusLine.getStatusCode() + "; ReasonPhrase=" + statusLine.getReasonPhrase());
                 }
 
                 if (LOG_HEADERS) {
@@ -1725,18 +1729,17 @@ console("BitMex<> cacheDir=" + cacheDir);
         public static Tr createFrom(JsonObject json) {
             Tr ret = new Tr();
 
-            String timestamp = json.get("timestamp").getAsString();
-            Date date;
+            JsonElement timestamp = json.get("timestamp");
+            String timestampStr = timestamp.getAsString();
             try {
-                date = TIMESTAMP_FORMAT.parse(timestamp);
+                Date date = TIMESTAMP_FORMAT.parse(timestampStr);
+                ret.m_timestamp = date.getTime();
+                ret.m_price = json.get("price").getAsDouble();
+
+                return ret;
             } catch (ParseException e) {
-                throw new RuntimeException("timestamp parse error '" + timestamp + "': " + e, e);
+                throw new RuntimeException("timestamp parse error: timestamp=" + timestamp + "; '" + timestampStr + "'; json=" + json + ": " + e, e);
             }
-            ret.m_timestamp = date.getTime();
-
-            ret.m_price = json.get("price").getAsDouble();
-
-            return ret;
         }
     }
 
