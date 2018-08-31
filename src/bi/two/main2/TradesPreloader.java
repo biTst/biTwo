@@ -78,7 +78,7 @@ public class TradesPreloader implements Runnable {
 
         try {
             loadCacheInfo();
-            long oldestTradeTime = loadHistoryTrades();
+            long oldestTradeTime = downloadHistoryTrades();
             playCacheTrades(oldestTradeTime);
             playLiveTicks();
         } catch (Exception e) {
@@ -153,17 +153,18 @@ public class TradesPreloader implements Runnable {
         m_ticksTs.addNewestTick(tick);
     }
 
-    private long loadHistoryTrades() throws Exception {
-        console("loadHistoryTrades for period: " + Utils.millisToYDHMSStr(m_periodToPreload));
+    private long downloadHistoryTrades() throws Exception {
+        console("downloadHistoryTrades for period: " + Utils.millisToYDHMSStr(m_periodToPreload));
         int ticksNumInBlockToLoad = m_exchange.getMaxTradeHistoryLoadCount(); // bitmex: Maximum result count is 500
-        int maxIterations = 1000;
+        int maxIterations = 10000; // 1000 iteration ~= =18h
         long timestamp = m_lastLiveTradeTimestamp;
-        for (int i = 0; i < maxIterations; i++) {
-            console("---- next iteration[" + i + "]: timestamp=" + timestamp);
+        int iteration = 1;
+        while (iteration < maxIterations) {
+            console("---- next iteration[" + iteration + "]: timestamp=" + timestamp);
 
             long cacheTimestamp = probeCache(timestamp);
             if (cacheTimestamp == 0) {
-                timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
+                timestamp = downloadHistoryTrades(timestamp, ticksNumInBlockToLoad);
                 Thread.sleep(SLEEP_MILLIS); // do not DDOS
             } else {
                 timestamp = cacheTimestamp; // got cached trades block containing requested timestamp; update timestamp to oldest block trade time
@@ -175,6 +176,10 @@ public class TradesPreloader implements Runnable {
             if (allPeriod > m_periodToPreload) {
                 console("requested period loaded: " + Utils.millisToYDHMSStr(m_periodToPreload));
                 break;
+            }
+            iteration++;
+            if (iteration == maxIterations) {
+                console("maxIterations=" + maxIterations + " reached. stopping downloadHistoryTrades");
             }
         }
         return m_lastLiveTradeTimestamp - m_periodToPreload;
@@ -192,11 +197,11 @@ public class TradesPreloader implements Runnable {
         return 0;
     }
 
-    private long loadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
-        console("loadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
+    private long downloadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
+        console("downloadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
 
-        // todo: make this exch dependent: bitmex loads trades with timestamp LESS than passed, so add 1ms to load from incoming
-        List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, timestamp + 1, Direction.backward, ticksNumInBlockToLoad);
+        long actualTimestamp = timestamp + 1; // todo: make this exch dependent: bitmex loads trades with timestamp LESS than passed, so add 1ms to load from incoming
+        List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, actualTimestamp, Direction.backward, ticksNumInBlockToLoad);
 
         int tradesNum = trades.size();
         int numToLogAtEachSide = 7;
@@ -245,7 +250,7 @@ public class TradesPreloader implements Runnable {
                 if (increasedTicksNumInBlockToLoad <= maxTicksNumInBlockToLoad) {
                     console(" - re-requesting with the bigger block " + increasedTicksNumInBlockToLoad);
                     Thread.sleep(SLEEP_MILLIS); // do not DDOS
-                    return loadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
+                    return downloadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
                 } else {
                     console("- unable to re-request with the bigger block, max block reached");
 
