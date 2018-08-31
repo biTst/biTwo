@@ -18,10 +18,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 // -----------------------------------------------------------------------------------------------------------
 public class TradesPreloader implements Runnable {
+    private static final int MAX_TICKS_NUM_IN_BLOCK_TO_LOAD = 500;
+    private static final int SLEEP_MILLIS = 2000; // do not DDOS
+
     private final Exchange m_exchange;
     private final Pair m_pair;
     private final TicksCacheReader m_ticksCacheReader;
@@ -163,7 +165,7 @@ public class TradesPreloader implements Runnable {
             long cacheTimestamp = probeCache(timestamp);
             if (cacheTimestamp == 0) {
                 timestamp = loadHistoryTrades(timestamp, ticksNumInBlockToLoad);
-                Thread.sleep(1500); // do not DDOS
+                Thread.sleep(SLEEP_MILLIS); // do not DDOS
             } else {
                 timestamp = cacheTimestamp; // got cached trades block containing requested timestamp; update timestamp to oldest block trade time
             }
@@ -239,8 +241,18 @@ public class TradesPreloader implements Runnable {
                 return oldestPartialTimestamp;
             } else {
                 console("!!! ALL block ticks with the same timestamp - re-requesting with the bigger block");
-                TimeUnit.SECONDS.sleep(1); // do not DDOS
-                return loadHistoryTrades(timestamp, ticksNumInBlockToLoad * 2);
+                Thread.sleep(SLEEP_MILLIS); // do not DDOS
+                int increasedTicksNumInBlockToLoad = ticksNumInBlockToLoad * 2;
+                if (increasedTicksNumInBlockToLoad <= MAX_TICKS_NUM_IN_BLOCK_TO_LOAD) {
+                    return loadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
+                } else {
+                    console("unable to re-request with the bigger block, max block reached");
+
+                    TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestPartialTimestamp, oldestPartialTimestamp);
+                    writeToCache(trades, tradesCacheEntry);
+
+                    return oldestPartialTimestamp-1;
+                }
             }
         }
         return -1; // error
@@ -289,17 +301,24 @@ public class TradesPreloader implements Runnable {
         if (list != null) {
             for (String name : list) {
                 console("name: " + name);
+                // todo: use regexp
                 int indx1 = name.indexOf('-');
-                int indx2 = name.indexOf('-', indx1 + 1);
-                int indx3 = name.indexOf('.', indx2 + 1);
-                String s1 = name.substring(0, indx1);
-                String s2 = name.substring(indx1 + 1, indx2);
-                String s3 = name.substring(indx2 + 1, indx3);
-                console(" : " + s1 + " : " + s2 + " : " + s3);
-                long t1 = Long.parseLong(s1);
-                long t2 = Long.parseLong(s2);
-                long t3 = Long.parseLong(s3);
-                addTradesCacheEntry(t1, t2, t3);
+                if (indx1 != -1) {
+                    int indx2 = name.indexOf('-', indx1 + 1);
+                    if (indx2 != -1) {
+                        int indx3 = name.indexOf('.', indx2 + 1);
+                        if (indx3 != -1) {
+                            String s1 = name.substring(0, indx1);
+                            String s2 = name.substring(indx1 + 1, indx2);
+                            String s3 = name.substring(indx2 + 1, indx3);
+                            console(" : " + s1 + " : " + s2 + " : " + s3);
+                            long t1 = Long.parseLong(s1);
+                            long t2 = Long.parseLong(s2);
+                            long t3 = Long.parseLong(s3);
+                            addTradesCacheEntry(t1, t2, t3);
+                        }
+                    }
+                }
             }
             console("loaded " + m_cache.size() + " cache entries");
         } else {
