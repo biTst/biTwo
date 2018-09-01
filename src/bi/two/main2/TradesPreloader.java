@@ -89,18 +89,25 @@ public class TradesPreloader implements Runnable {
     public void playOnlyCache() throws IOException {
         loadCacheInfo();
 
-        long stamp = System.currentTimeMillis();
+        long newestTimestamp = 0;
+        long oldestTimestamp = System.currentTimeMillis();
         for (TradesCacheEntry tradesCacheEntry : m_cache) {
             long oldest = tradesCacheEntry.m_oldestTimestamp;
-            stamp = Math.min(stamp, oldest);
+            long newest = tradesCacheEntry.m_newestTimestamp;
+            oldestTimestamp = Math.min(oldestTimestamp, oldest);
+            newestTimestamp = Math.max(newestTimestamp, newest);
         }
+        long period = newestTimestamp - oldestTimestamp;
+        console("playOnlyCache: newestTimestamp=" + newestTimestamp + "; oldestTimestamp=" + oldestTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
 
-        playCacheTrades(stamp);
+        playCacheTrades(oldestTimestamp);
     }
 
     private void playCacheTrades(long oldestTradeTime) throws IOException {
         console("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
         long timestamp = oldestTradeTime;
+        int cacheEntriesProcessed = 0;
+        long newestTimestamp = 0;
 
         while (true) {
             console(" next iteration: timestamp=" + timestamp + ". date=" + new Date(timestamp));
@@ -108,7 +115,8 @@ public class TradesPreloader implements Runnable {
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
             for (TradesCacheEntry cacheEntry : m_cache) {
-                matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= cacheEntry.m_newestTimestamp);
+                long newest = cacheEntry.m_newestTimestamp;
+                matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= newest);
                 if (matched) {
                     log(" got matched cacheEntry: " + cacheEntry);
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
@@ -125,12 +133,15 @@ public class TradesPreloader implements Runnable {
                         }
                     }
                     timestamp++;
+                    cacheEntriesProcessed++;
+                    newestTimestamp = Math.max(newestTimestamp, newest);
                     log("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
                     break;
                 }
             }
             if (!matched) {
-                console(" no more matched cacheEntries");
+                long period = newestTimestamp - oldestTradeTime;
+                console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed + "; period=" + Utils.millisToYDHMSStr(period));
                 break;
             }
         }
@@ -306,7 +317,6 @@ public class TradesPreloader implements Runnable {
         String[] list = cacheDir.list();
         if (list != null) {
             for (String name : list) {
-                console("name: " + name);
                 // todo: use regexp
                 int indx1 = name.indexOf('-');
                 if (indx1 != -1) {
@@ -317,14 +327,16 @@ public class TradesPreloader implements Runnable {
                             String s1 = name.substring(0, indx1);
                             String s2 = name.substring(indx1 + 1, indx2);
                             String s3 = name.substring(indx2 + 1, indx3);
-                            console(" : " + s1 + " : " + s2 + " : " + s3);
+                            console("name: " + name + " : " + s1 + " : " + s2 + " : " + s3);
                             long t1 = Long.parseLong(s1);
                             long t2 = Long.parseLong(s2);
                             long t3 = Long.parseLong(s3);
-                            addTradesCacheEntry(t1, t2, t3);
+                            TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(t1, t2, t3);
+                            continue;
                         }
                     }
                 }
+                console("ignored name: " + name);
             }
             console("loaded " + m_cache.size() + " cache entries");
         } else {
@@ -332,8 +344,8 @@ public class TradesPreloader implements Runnable {
         }
     }
 
-    private TradesCacheEntry addTradesCacheEntry(long t1, long t2, long t3) {
-        TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(t1, t2, t3);
+    private TradesCacheEntry addTradesCacheEntry(long oldestPartialTimestamp, long oldestTimestamp, long newestTimestamp) {
+        TradesCacheEntry tradesCacheEntry = new TradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
         m_cache.add(tradesCacheEntry);
         return tradesCacheEntry;
     }
