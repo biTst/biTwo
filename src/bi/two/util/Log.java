@@ -74,6 +74,7 @@ public class Log {
 
     // -----------------------------------------------------------------------------
     public static class FileLog implements ILog {
+        static final String LOG_DIR = "logs";
         static final String LOG_FILE = "log.log";
 
         private final ExecutorService m_threadPool;
@@ -81,10 +82,18 @@ public class Log {
 
         public FileLog() {
             m_threadPool = Executors.newSingleThreadExecutor();
-            File file = new File(LOG_FILE);
+            File dir = new File(LOG_DIR);
+            if (!dir.exists()) {
+                boolean created = dir.mkdirs();
+                if (created) {
+                    System.out.print("error: logs dir not created: LOG_DIR=" + LOG_DIR + "; AbsolutePath=" + dir.getAbsolutePath());
+                }
+            }
+
+            File file = new File(dir, LOG_FILE);
             if (file.exists()) {
                 String newFileName = "log-" + System.currentTimeMillis() + ".log";
-                file.renameTo(new File(newFileName));
+                file.renameTo(new File(dir, newFileName));
             }
             try {
                 m_fos = new FileOutputStream(LOG_FILE);
