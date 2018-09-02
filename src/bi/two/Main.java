@@ -11,10 +11,7 @@ import bi.two.exch.Pair;
 import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
-import bi.two.ts.BaseTicksTimesSeriesData;
-import bi.two.ts.NoTicksTimesSeriesData;
-import bi.two.ts.TickReader;
-import bi.two.ts.TicksTimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -92,7 +89,15 @@ public class Main {
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                List<Watcher> watchers = producer.getWatchers(defAlgoConfig, ticksTs, config, exchange, pair);
+                BaseTicksTimesSeriesData<TickData> joinedTicksTs;
+                if (TickReader.JOIN_TICKS_IN_READER) {
+                    long joinTicks = config.getNumber(Vary.joinTicks).longValue();
+                    joinedTicksTs = new TickJoiner(ticksTs, joinTicks);
+                } else {
+                    joinedTicksTs = ticksTs;
+                }
+
+                List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
                 console(" watchers.num=" + watchers.size());
 
                 if (watchers.isEmpty()) {
@@ -101,7 +106,7 @@ public class Main {
 
                 if (collectTicks && chartNotLoaded) {
                     ChartCanvas chartCanvas = frame.getChartCanvas();
-                    setupChart(collectValues, chartCanvas, ticksTs, watchers);
+                    setupChart(collectValues, chartCanvas, joinedTicksTs, watchers);
                     chartNotLoaded = false;
                 }
 
@@ -109,6 +114,7 @@ public class Main {
 
                 Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
                 TickReader tickReader = TickReader.get(tickReaderName);
+
                 tickReader.readTicks(config, ticksTs, callback, pairData);
                 ticksTs.waitAllFinished();
 
