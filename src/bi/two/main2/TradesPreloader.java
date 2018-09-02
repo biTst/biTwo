@@ -127,13 +127,18 @@ public class TradesPreloader implements Runnable {
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
                     for (TickData tick : historyTicks) {
                         long tickTime = tick.getTimestamp();
-                        if (currentTimestamp <= tickTime) {
-                            if (currentTimestamp < tickTime) {
-                                currentTimestamp = tickTime;
+                        if (tickTime <= newest) {
+                            if (currentTimestamp <= tickTime) {
+                                if (currentTimestamp < tickTime) {
+                                    currentTimestamp = tickTime;
+                                }
+                                playTick(tick);
+                                addedTicksNum++;
+                            } else {
+                                skippedTicksNum++;
                             }
-//                            playTick(tick);
-                            addedTicksNum++;
                         } else {
+                            console("ERR: tick time " + tickTime + " is bigger than for TradesCacheEntry=" + cacheEntry);
                             skippedTicksNum++;
                         }
                     }
