@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -105,34 +106,38 @@ public class TradesPreloader implements Runnable {
 
     private void playCacheTrades(long oldestTradeTime) throws IOException {
         console("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
-        long timestamp = oldestTradeTime;
+        long currentTimestamp = oldestTradeTime;
         int cacheEntriesProcessed = 0;
         long newestTimestamp = 0;
 
+        int lastMatchedIndex = -1;
         while (true) {
-            console(" next iteration: timestamp=" + timestamp + ". date=" + new Date(timestamp));
+            console(" next iteration: currentTimestamp=" + currentTimestamp + ". date=" + new Date(currentTimestamp));
             boolean matched = false;
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
-            for (TradesCacheEntry cacheEntry : m_cache) {
+            int size = m_cache.size();
+            for (int i = 0; i < size; i++) {
+                TradesCacheEntry cacheEntry = m_cache.get(i);
                 long newest = cacheEntry.m_newestTimestamp;
-                matched = (cacheEntry.m_oldestPartialTimestamp < timestamp) && (timestamp <= newest);
+                matched = (cacheEntry.m_oldestPartialTimestamp < currentTimestamp) && (currentTimestamp <= newest);
                 if (matched) {
-                    log(" got matched cacheEntry: " + cacheEntry);
+                    lastMatchedIndex = i;
+                    log(" got matched cacheEntry[" + i + "]: " + cacheEntry);
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
                     for (TickData tick : historyTicks) {
                         long tickTime = tick.getTimestamp();
-                        if (timestamp <= tickTime) {
-                            if (timestamp < tickTime) {
-                                timestamp = tickTime;
+                        if (currentTimestamp <= tickTime) {
+                            if (currentTimestamp < tickTime) {
+                                currentTimestamp = tickTime;
                             }
-                            playTick(tick);
+//                            playTick(tick);
                             addedTicksNum++;
                         } else {
                             skippedTicksNum++;
                         }
                     }
-                    timestamp++;
+                    currentTimestamp++;
                     cacheEntriesProcessed++;
                     newestTimestamp = Math.max(newestTimestamp, newest);
                     log("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
@@ -141,8 +146,30 @@ public class TradesPreloader implements Runnable {
             }
             if (!matched) {
                 long period = newestTimestamp - oldestTradeTime;
-                console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed + "; period=" + Utils.millisToYDHMSStr(period));
-                break;
+                console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed
+                        + "; period=" + Utils.millisToYDHMSStr(period) + "; newestTimestamp=" + newestTimestamp);
+
+                if ((lastMatchedIndex != -1) && (lastMatchedIndex < (size - 1))) {
+                    int nextIndex = lastMatchedIndex + 1;
+                    TradesCacheEntry cacheEntryAfter = m_cache.get(nextIndex);
+                    log("   next after last matched cacheEntry[" + (lastMatchedIndex + 1) + "]: " + cacheEntryAfter);
+                }
+
+                long min = Long.MAX_VALUE;
+                for (int i = 0; i < m_cache.size(); i++) {
+                    TradesCacheEntry cacheEntry = m_cache.get(i);
+                    long oldest = cacheEntry.m_oldestTimestamp;
+                    if (newestTimestamp < oldest) {
+                        min = Math.min(min, oldest);
+                        long jump = min - newestTimestamp;
+                        console("  got after jump: cacheEntry[" + i + "]=" + cacheEntry + "; min=" + min + ";  jump=" + jump);
+                        currentTimestamp = cacheEntry.m_newestTimestamp + 1;
+                        break;
+                    }
+                }
+                if (min == Long.MAX_VALUE) {
+                    break;
+                }
             }
         }
     }
@@ -316,6 +343,7 @@ public class TradesPreloader implements Runnable {
         File cacheDir = m_ticksCacheReader.m_cacheDir;
         String[] list = cacheDir.list();
         if (list != null) {
+            Arrays.sort(list);
             for (String name : list) {
                 // todo: use regexp
                 int indx1 = name.indexOf('-');
@@ -327,18 +355,24 @@ public class TradesPreloader implements Runnable {
                             String s1 = name.substring(0, indx1);
                             String s2 = name.substring(indx1 + 1, indx2);
                             String s3 = name.substring(indx2 + 1, indx3);
-                            console("name: " + name + " : " + s1 + " : " + s2 + " : " + s3);
+//console("name: " + name + " : " + s1 + " : " + s2 + " : " + s3);
                             long t1 = Long.parseLong(s1);
                             long t2 = Long.parseLong(s2);
                             long t3 = Long.parseLong(s3);
-                            TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(t1, t2, t3);
+                            addTradesCacheEntry(t1, t2, t3);
                             continue;
                         }
                     }
                 }
                 console("ignored name: " + name);
             }
-            console("loaded " + m_cache.size() + " cache entries");
+            int size = m_cache.size();
+            console("loaded " + size + " cache entries");
+            if (size > 0) {
+                TradesCacheEntry firstEntry = m_cache.get(0);
+                TradesCacheEntry lastEntry = m_cache.get(size - 1);
+                console(" firstEntry " + firstEntry + "; lastEntry=" + lastEntry);
+            }
         } else {
             throw new RuntimeException("loadCacheInfo error: list=null");
         }
