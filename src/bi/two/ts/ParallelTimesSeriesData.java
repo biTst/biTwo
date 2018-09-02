@@ -1,7 +1,6 @@
 package bi.two.ts;
 
 import bi.two.chart.ITickData;
-import bi.two.chart.TickData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +21,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private int m_counter; // number of processed ticks
     private boolean m_manyTicks; // flag that many non processed ticks in buffer
 
-    public ParallelTimesSeriesData(BaseTicksTimesSeriesData<TickData> ticksTs, int size) {
+    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size) {
         super(ticksTs);
         m_activeIndex = 0;
         m_maxParallelSize = size;

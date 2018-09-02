@@ -4,10 +4,8 @@ import bi.two.Main;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
-import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.ParallelTimesSeriesData;
@@ -133,9 +131,14 @@ public class WatchersProducer {
         return false; // all inactive
     }
 
-    public List<Watcher> getWatchers(MapConfig algoConfig, BaseTicksTimesSeriesData<TickData> tsd, MapConfig config, Exchange exchange, Pair pair) {
-        int parallel = config.getInt("parallel");
-        BaseTimesSeriesData ticksTs = new ParallelTimesSeriesData(tsd, parallel);
+    public List<Watcher> getWatchers(MapConfig algoConfig, BaseTimesSeriesData tsd, MapConfig config, Exchange exchange, Pair pair) {
+        BaseTimesSeriesData ticksTs;
+        if ((m_producers.size() == 1) && m_producers.get(0).isSingle()) {
+            ticksTs = tsd;
+        } else { // not single - use parallel
+            int parallel = config.getInt("parallel");
+            ticksTs = new ParallelTimesSeriesData(tsd, parallel);
+        }
 
         List<Watcher> watchers = new ArrayList<>();
         for (BaseProducer producer : m_producers) {
@@ -164,6 +167,8 @@ public class WatchersProducer {
     private static class IterateProducer extends BaseProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
         private List<AlgoWatcher> m_watchers = new ArrayList<>();
+
+        @Override public boolean isSingle() { return true; }
 
         public IterateProducer(List<List<IterateConfig>> iterateConfigs) {
             m_iterateConfigs = iterateConfigs;
@@ -219,6 +224,8 @@ public class WatchersProducer {
     //=============================================================================================
     private static class SingleProducer extends BaseProducer {
         private AlgoWatcher m_watcher;
+
+        @Override public boolean isSingle() { return true; }
 
         @Override public void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers) {
             // single Watcher

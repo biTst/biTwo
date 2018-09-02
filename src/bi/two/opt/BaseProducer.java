@@ -18,4 +18,6 @@ public abstract class BaseProducer {
     public abstract double logResults();
 
     public void logResultsEx() { }
+
+    public abstract boolean isSingle();
 }
