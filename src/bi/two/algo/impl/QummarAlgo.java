@@ -71,15 +71,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
 
-        ITimesSeriesListener listener = new ITimesSeriesListener() {
-            @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-                if (changed) {
-                    m_dirty = true;
-                }
-            }
-            @Override public void waitWhenFinished() { }
-            @Override public void notifyNoMoreTicks() {}
-        };
+        ITimesSeriesListener listener = new RibbonTsListener();
 
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
         float length = m_start;
@@ -196,7 +188,6 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
                 m_adj = m_mulAndPrev;
             }
-
         }
         m_dirty = false;
         return m_adj;
@@ -312,5 +303,16 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
             addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
         }
+    }
+
+    private class RibbonTsListener implements ITimesSeriesListener {
+        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
+            if (changed) {
+                m_dirty = true;
+            }
+        }
+
+        @Override public void waitWhenFinished() { }
+        @Override public void notifyNoMoreTicks() {}
     }
 }
