@@ -145,7 +145,7 @@ public class BitMex extends BaseExchImpl {
         String pairName = config.getString("pair");
         Pair pair = Pair.getByName(pairName);
 
-        TicksTimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData<TickData>(null);
+        TicksTimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData<>(null);
         final TradesPreloader preloader = new TradesPreloader(exchange, pair, period, config, ticksTs) {
 //            @Override protected void onTicksPreloaded() {
 //                m_frame.repaint();
