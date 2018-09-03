@@ -1029,15 +1029,19 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
         for (int i = 0; i < size; i++) {
             JSONObject obj = (JSONObject) data.get(i);
             log("   [" + i + "]:" + obj);
-            TradeData td = parseTrade(obj);
-            String s = (String) obj.get("symbol");
-            if (!Utils.equals(s, symbol)) {
-                symbol = (String) obj.get("symbol");
-                Pair pair = getPairFromSymbol(symbol);
-                ExchPairData pairData = m_exchange.getPairData(pair);
-                trades = pairData.getTrades();
+            try {
+                TradeData td = parseTrade(obj);
+                String s = (String) obj.get("symbol");
+                if (!Utils.equals(s, symbol)) { // actually will get symbol from the first trade
+                    symbol = (String) obj.get("symbol");
+                    Pair pair = getPairFromSymbol(symbol);
+                    ExchPairData pairData = m_exchange.getPairData(pair);
+                    trades = pairData.getTrades();
+                }
+                trades.onTrade(td);
+            } catch (ParseException e) {
+                err("error parsing trade: " + e + "; obj=" + obj, e);
             }
-            trades.onTrade(td);
         }
     }
 
@@ -1049,6 +1053,17 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
         //    "grossValue":2820135, <in satoshi>  "homeNotional":0.02820135, <in BTC>
         //    "timestamp":"2018-03-15T00:47:57.027Z", "tickDirection":"MinusTick", "trdMatchID":"f47a0a0f-0067-db07-c551-4f71da87d5ed",
         //   }
+
+        // {"foreignNotional":44735,
+        //  "symbol":"XBTUSD",
+        //  "side":"Sell",
+        // "tickDirection":"MinusTick",
+        // "size":44735,
+        // "price":6951,
+        // "grossValue":643557710,
+        // "trdMatchID":"c4b5dd2f-2295-a134-8c18-0941b61c61da",
+        // "homeNotional":6.4355771,
+        // "timestamp":"2018-08-31T02:55:29.823Z"}
 
         String side = (String) obj.get("side");
         Number size = (Number) obj.get("homeNotional");
