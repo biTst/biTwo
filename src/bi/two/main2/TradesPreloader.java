@@ -6,7 +6,7 @@ import bi.two.chart.TradeData;
 import bi.two.exch.Direction;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
-import bi.two.ts.TicksTimesSeriesData;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -28,7 +28,7 @@ public class TradesPreloader implements Runnable {
     private final Pair m_pair;
     private final TicksCacheReader m_ticksCacheReader;
     private final long m_periodToPreload;
-    private final TicksTimesSeriesData<TickData> m_ticksTs;
+    private final BaseTicksTimesSeriesData<TickData> m_ticksTs;
     private boolean m_waitingFirstTrade = true;
     private long m_firstTradeTimestamp;
     private long m_lastLiveTradeTimestamp;
@@ -40,7 +40,7 @@ public class TradesPreloader implements Runnable {
     private static void log(String s) { Log.log(s); }
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
-    public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config, TicksTimesSeriesData<TickData> ticksTs) {
+    public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) {
         m_exchange = exchange;
         m_pair = pair;
         m_periodToPreload = preload;

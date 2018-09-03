@@ -7,8 +7,9 @@ import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.chart.*;
 import bi.two.exch.*;
+import bi.two.ts.BaseTicksTimesSeriesData;
+import bi.two.ts.NoTicksTimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
-import bi.two.ts.TicksTimesSeriesDataToDelete;
 import bi.two.util.ConsoleReader;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
@@ -30,7 +31,7 @@ public class Main2 extends Thread {
     private Pair m_pair;
     private final ChartFrame m_frame;
     private BaseAlgo m_algoImpl;
-    private TicksTimesSeriesDataToDelete m_ticksTs;
+    private BaseTicksTimesSeriesData<TickData> m_ticksTs;
     private MapConfig m_config;
 
     private static void console(String s) { Log.console(s); }
@@ -59,7 +60,9 @@ public class Main2 extends Thread {
             console("config loaded");
 
             boolean collectTicks = true;
-            m_ticksTs = new TicksTimesSeriesDataToDelete(collectTicks);
+            m_ticksTs = collectTicks
+                    ? new TicksTimesSeriesData<TickData>(null)
+                    : new NoTicksTimesSeriesData<TickData>(null); // : new TicksTimesSeriesDataToDelete(collectTicks);
             if (!collectTicks) { // add initial tick to update
                 m_ticksTs.addOlderTick(new TickData());
             }
@@ -100,7 +103,7 @@ public class Main2 extends Thread {
         }
     }
 
-    private void setupChart(ChartCanvas chartCanvas, TicksTimesSeriesData<TickData> ticksTs) {
+    private void setupChart(ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs) {
         ChartData chartData = chartCanvas.getChartData();
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
