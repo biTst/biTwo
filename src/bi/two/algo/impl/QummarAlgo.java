@@ -24,6 +24,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final long m_barSize;
     private final float m_linRegMultiplier;
     private final long m_joinTicks;
+    private final double m_minOrderMul;
 
     private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
@@ -57,6 +58,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
 
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
+        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
@@ -71,7 +73,6 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
-
         ITimesSeriesListener listener = new RibbonTsListener();
 
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
@@ -205,8 +206,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //                + (detailed ? ",s2=" : ",") + m_s2
 //                + (detailed ? ",e1=" : ",") + m_e1
 //                + (detailed ? ",e2=" : ",") + m_e2
-//                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
-//                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
+                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
+                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }
