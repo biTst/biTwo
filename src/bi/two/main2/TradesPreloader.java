@@ -350,7 +350,7 @@ public class TradesPreloader implements Runnable {
     }
 
     private void loadCacheInfo() {
-        console("loadCacheInfo");
+        log("loadCacheInfo");
 
         File cacheDir = m_ticksCacheReader.m_cacheDir;
         String[] list = cacheDir.list();

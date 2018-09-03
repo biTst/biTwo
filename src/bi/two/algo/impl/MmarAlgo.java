@@ -74,7 +74,7 @@ public class MmarAlgo extends BaseAlgo<TickData> {
     }
 
     public static void resetIterationCache() {
-        System.out.println("resetIterationCache: emaCacheHit=" + s_emaCacheHit + "; emaCacheMiss=" + s_emaCacheMiss);
+//        System.out.println("resetIterationCache: emaCacheHit=" + s_emaCacheHit + "; emaCacheMiss=" + s_emaCacheMiss);
         s_emaCache.clear();
         s_emaCacheHit = 0;
         s_emaCacheMiss = 0;
