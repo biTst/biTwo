@@ -11,9 +11,7 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -318,35 +316,7 @@ public class TradesPreloader implements Runnable {
         String fileName = tradesCacheEntry.getFileName();
         console("writeToCache() fileName=" + fileName);
 
-        File cacheDir = m_ticksCacheReader.m_cacheDir;
-        File file = new File(cacheDir, fileName);
-        try {
-            FileOutputStream fos = new FileOutputStream(file);
-            try {
-                BufferedOutputStream bos = new BufferedOutputStream(fos);
-                try {
-                    for (int i = trades.size() - 1; i >= 0; i--) {
-                        ITickData trade = trades.get(i);
-                        long timestamp = trade.getTimestamp();
-                        float price = trade.getClosePrice();
-                        bos.write(Long.toString(timestamp).getBytes());
-                        bos.write(';');
-                        bos.write(Float.toString(price).getBytes());
-                        bos.write('\n');
-                    }
-                } finally {
-                    bos.flush();
-                    bos.close();
-                }
-            } finally {
-                fos.close();
-            }
-
-            log(" writeToCache ok; fileLen=" + file.length());
-        } catch (Exception e) {
-            err("writeToCache error: " + e, e);
-            throw new RuntimeException("writeToCache error: " + e, e);
-        }
+        m_ticksCacheReader.writeToCache(trades, fileName);
     }
 
     private void loadCacheInfo() {
