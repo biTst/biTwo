@@ -235,7 +235,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         ChartSetting chartSetting = chartCanvas.getChartSetting();
 
         // layout
-        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.7f, Color.RED);
+        ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 70), TickPainter.TICK);
