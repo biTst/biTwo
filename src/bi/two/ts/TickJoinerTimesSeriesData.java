@@ -2,6 +2,7 @@ package bi.two.ts;
 
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
+import bi.two.util.Log;
 
 /** join ticks; provides average price (do not count tick volume) */
 public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
@@ -16,6 +17,8 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
     private ITickData m_firstTick;
     private int m_joinedCount;
     private int m_reportedCount;
+
+    protected static void log(String s) { Log.log(s); }
 
     public TickJoinerTimesSeriesData(ITimesSeriesData tsd, long size) {
         super(tsd);
@@ -71,6 +74,6 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
 
     @Override public void notifyNoMoreTicks() {
         super.notifyNoMoreTicks();
-        System.out.println("TickJoinerTs[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
+        log("TickJoinerTs[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
     }
 }

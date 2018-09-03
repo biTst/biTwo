@@ -23,6 +23,7 @@ import java.util.List;
 // -----------------------------------------------------------------------------------------------------------
 public class TradesPreloader implements Runnable {
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
+    private static final boolean LOG_PARSING = false;
 
     private final Exchange m_exchange;
     private final Pair m_pair;
@@ -99,20 +100,20 @@ public class TradesPreloader implements Runnable {
             newestTimestamp = Math.max(newestTimestamp, newest);
         }
         long period = newestTimestamp - oldestTimestamp;
-        console("playOnlyCache: newestTimestamp=" + newestTimestamp + "; oldestTimestamp=" + oldestTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
+        log("playOnlyCache: newestTimestamp=" + newestTimestamp + "; oldestTimestamp=" + oldestTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
 
         playCacheTrades(oldestTimestamp);
     }
 
     private void playCacheTrades(long oldestTradeTime) throws IOException {
-        console("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
+        log("playCacheTrades: oldestTradeTime=" + oldestTradeTime);
         long currentTimestamp = oldestTradeTime;
         int cacheEntriesProcessed = 0;
         long newestTimestamp = 0;
 
         int lastMatchedIndex = -1;
         while (true) {
-            console(" next iteration: currentTimestamp=" + currentTimestamp + ". date=" + new Date(currentTimestamp));
+            log(" next iteration: currentTimestamp=" + currentTimestamp + ". date=" + new Date(currentTimestamp));
             boolean matched = false;
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
@@ -138,7 +139,9 @@ public class TradesPreloader implements Runnable {
                                 skippedTicksNum++;
                             }
                         } else {
-                            console("ERR: tick time " + tickTime + " is bigger than for TradesCacheEntry=" + cacheEntry);
+                            if (LOG_PARSING) {
+                                console("ERR: tick time " + tickTime + " is bigger than for TradesCacheEntry=" + cacheEntry);
+                            }
                             skippedTicksNum++;
                         }
                     }
@@ -151,8 +154,10 @@ public class TradesPreloader implements Runnable {
             }
             if (!matched) {
                 long period = newestTimestamp - oldestTradeTime;
-                console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed
-                        + "; period=" + Utils.millisToYDHMSStr(period) + "; newestTimestamp=" + newestTimestamp);
+                if (LOG_PARSING) {
+                    console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed
+                            + "; period=" + Utils.millisToYDHMSStr(period) + "; newestTimestamp=" + newestTimestamp);
+                }
 
                 if ((lastMatchedIndex != -1) && (lastMatchedIndex < (size - 1))) {
                     int nextIndex = lastMatchedIndex + 1;
@@ -167,7 +172,9 @@ public class TradesPreloader implements Runnable {
                     if (newestTimestamp < oldest) {
                         min = Math.min(min, oldest);
                         long jump = min - newestTimestamp;
-                        console("  got after jump: cacheEntry[" + i + "]=" + cacheEntry + "; min=" + min + ";  jump=" + jump);
+                        if (LOG_PARSING) {
+                            console("  got after jump: cacheEntry[" + i + "]=" + cacheEntry + "; min=" + min + ";  jump=" + jump);
+                        }
                         currentTimestamp = cacheEntry.m_newestTimestamp + 1;
                         break;
                     }
@@ -369,14 +376,14 @@ public class TradesPreloader implements Runnable {
                         }
                     }
                 }
-                console("ignored name: " + name);
+                log("ignored name: " + name);
             }
             int size = m_cache.size();
-            console("loaded " + size + " cache entries");
+            log("loaded " + size + " cache entries");
             if (size > 0) {
                 TradesCacheEntry firstEntry = m_cache.get(0);
                 TradesCacheEntry lastEntry = m_cache.get(size - 1);
-                console(" firstEntry " + firstEntry + "; lastEntry=" + lastEntry);
+                log(" firstEntry=" + firstEntry + "; lastEntry=" + lastEntry);
             }
         } else {
             throw new RuntimeException("loadCacheInfo error: list=null");

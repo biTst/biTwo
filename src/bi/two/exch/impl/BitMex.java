@@ -1444,7 +1444,7 @@ console("    after update: orderData=" + orderData);
 
     @Override public TicksCacheReader getTicksCacheReader(MapConfig config) {
         String cacheDir = config.getPropertyNoComment("cache.dir");
-console("BitMex<> cacheDir=" + cacheDir);
+        log("BitMex<> cacheDir=" + cacheDir);
         if (cacheDir != null) {
             File dir = new File(cacheDir);
             if (dir.isDirectory()) {
