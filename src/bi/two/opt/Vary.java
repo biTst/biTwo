@@ -103,14 +103,18 @@ public enum Vary {
                 }
             }
             @Override public Number fromString(String str) { return Utils.toMillis(str); }
+            public Number fromParser(StringParser parser) {
+                // todo: add support like '1min'
+                return parser.readLong();
+            }
             @Override public Number mulAdd(Number mul1, int mul2, Number add) { return mul1.longValue() * mul2 + add.longValue(); }
         },
         ;
 
         public void iterate(IterateConfig iterateConfig, Main.IParamIterator<Number> paramIterator) { }
 
-        public Number fromString(String str) { throw new RuntimeException("should be overridden"); }
-        public Number fromParser(StringParser parser) { throw new RuntimeException("should be overridden"); }
-        public Number mulAdd(Number mul1, int mul2, Number add) { throw new RuntimeException("should be overridden"); }
+        public Number fromString(String str) { throw new RuntimeException("should be overridden on "+this); }
+        public Number fromParser(StringParser parser) { throw new RuntimeException("should be overridden on "+this); }
+        public Number mulAdd(Number mul1, int mul2, Number add) { throw new RuntimeException("should be overridden on "+this); }
     }
 }
