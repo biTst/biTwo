@@ -17,11 +17,13 @@ import java.util.concurrent.TimeUnit;
 public enum TickReader {
     FILE("file") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+            TimeStamp doneTs = new TimeStamp();
+
             String path = config.getPropertyNoComment("dataFile");
             File file = new File(path);
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
             long fileLength = file.length();
-            System.out.println("fileLength = " + fileLength);
+            console("fileLength = " + fileLength);
 
             final long lastBytesToProcess = config.getLong("process.bytes");
 
@@ -46,7 +48,7 @@ public enum TickReader {
                     int read = super.read(cbuf, off, len);
                     m_wasRead += read;
                     if (m_wasRead > lastBytesToProcess) {
-                        System.out.println("too many reads");
+                        console("too many reads");
                     }
                     if (m_wasRead > m_nextReport) {
                         long currentTimeMillis = System.currentTimeMillis();
@@ -55,7 +57,7 @@ public enum TickReader {
                             double fraction = ((double) m_wasRead) / lastBytesToProcess;
                             long projectedTotal = (long) (took / fraction);
                             long projectedRemained = projectedTotal - took;
-                            System.out.println("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
+                            console("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
                                     + ": total: " + Utils.millisToYDHMSStr(projectedTotal) + "; remained=" + Utils.millisToYDHMSStr(projectedRemained));
                             m_lastReportTime = currentTimeMillis;
                         }
@@ -67,7 +69,9 @@ public enum TickReader {
 
             String dataFileType = config.getProperty("dataFile.type");
 
-            readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes);
+            readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes); // reader closed inside
+
+            console("feedTicks() done in " + doneTs.getPassed());
         }
 
         private void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
@@ -82,6 +86,7 @@ public enum TickReader {
                 DataFileType type = DataFileType.get(dataFileType);
                 float lastClosePrice = 0;
                 String line;
+                int counter = 0;
                 while ((line = br.readLine()) != null) {
                     // System.out.println("line = " + line);
                     TickData tickData = type.parseLine(line);
@@ -98,9 +103,10 @@ public enum TickReader {
                         if (callback != null) {
                             callback.run();
                         }
+                        counter++;
                     }
                 }
-                System.out.println("ticksTs: all ticks was read in " + ts.getPassed());
+                console("ticksTs: " + counter + " ticks was read in " + ts.getPassed());
                 ticksTs.notifyNoMoreTicks();
             } finally {
                 br.close();
@@ -131,7 +137,7 @@ public enum TickReader {
             Iterable<TickData> iterable = fileTs.getReverseTicksIterable();
             feedTicks(ticksTs, callback, iterable, size);
         }
-    }
+    },
     ;
 
     private final String m_name;
