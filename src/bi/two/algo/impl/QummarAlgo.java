@@ -47,23 +47,24 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 
-    public QummarAlgo(MapConfig config, ITimesSeriesData tsd) {
+    public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null);
 
-        m_start = config.getNumber(Vary.start).floatValue();
-        m_step = config.getNumber(Vary.step).floatValue();
-        m_count = config.getNumber(Vary.count).floatValue();
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_linRegMultiplier = config.getNumber(Vary.multiplier).floatValue();
+        m_start = algoConfig.getNumber(Vary.start).floatValue();
+        m_step = algoConfig.getNumber(Vary.step).floatValue();
+        m_count = algoConfig.getNumber(Vary.count).floatValue();
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+        m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
 
-        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
+        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
 
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        ITimesSeriesData priceTsd = TickReader.JOIN_TICKS_IN_READER ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
+        boolean joinTicksInReader = algoConfig.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
+        ITimesSeriesData priceTsd = joinTicksInReader ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
         createRibbon(priceTsd, collectValues);
 
         setParent(tsd);

@@ -134,8 +134,6 @@ public enum TickReader {
     }
     ;
 
-    public static final boolean JOIN_TICKS_IN_READER = false;
-
     private final String m_name;
 
     private static void console(String s) { Log.console(s); }

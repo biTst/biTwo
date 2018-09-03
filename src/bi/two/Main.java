@@ -67,10 +67,13 @@ public class Main {
                 frame.setVisible(true);
             }
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+            boolean joinTicksInReader = config.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
             int prefillTicks = config.getInt("prefill.ticks");
 
             MapConfig defAlgoConfig = getDefaultConfig(config);
+            // todo: copy all keys from config to defAlgoConfig ?
             defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
+            defAlgoConfig.put(BaseAlgo.JOIN_TICKS_IN_READER_KEY, Boolean.toString(joinTicksInReader));
             defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
@@ -90,7 +93,7 @@ public class Main {
                 }
 
                 BaseTicksTimesSeriesData<TickData> joinedTicksTs;
-                if (TickReader.JOIN_TICKS_IN_READER) {
+                if (joinTicksInReader) {
                     long joinTicks = config.getNumber(Vary.joinTicks).longValue();
                     joinedTicksTs = new TickJoiner(ticksTs, joinTicks);
                 } else {
