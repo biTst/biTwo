@@ -43,6 +43,9 @@ public class TicksCacheReader {
     }
 
     public void writeToCache(List<? extends ITickData> trades, String fileName) {
+        if (!m_cacheDir.exists()) {
+            m_cacheDir.mkdirs();
+        }
         File file = new File(m_cacheDir, fileName);
         try {
             FileOutputStream fos = new FileOutputStream(file);
