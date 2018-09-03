@@ -28,7 +28,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         m_period = period;
     }
 
-    public List<BarHolder> getBars() { return getTicks(); }
+    public Iterable<BarHolder> getBarsIterable() { return getTicksIterable(); }
 
     public void setBarsNum(int barsNum) {
         if (m_lastTickTime != 0L) {
@@ -49,21 +49,14 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     }
 
     public String log() {
-        List<BarHolder> barHolders = getTicks();
-        int size = barHolders.size();
-        String logHolders = logHolders(barHolders);
-        return "BarSplitter[holdersNum=" + size
-                + logHolders
-                + "\n]";
-    }
-
-    private String logHolders(List<BarHolder> barHolders) {
+        int size = getTicksNum();
         StringBuilder sb = new StringBuilder();
-        int size = barHolders.size();
+        sb.append("BarSplitter[holdersNum=").append(size);
         for (int i = 0; i < size; i++) {
-            BarHolder barHolder = barHolders.get(i);
+            BarHolder barHolder = getTick(i);
             sb.append("\n holder[").append(i).append("]=").append(barHolder.log());
         }
+        sb.append("\n]");
         return sb.toString();
     }
 
@@ -90,11 +83,10 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                 long timeShift = timestamp - m_newestBar.m_time;
                 m_newestBar.put(tick);
                 if (timeShift > 0L) {
-                    List<BarHolder> barHolders = getTicks();
                     for (int index = 0; index < m_barsNum; ++index) {
-                        BarHolder newerBar = barHolders.get(index);
+                        BarHolder newerBar = getTick(index);
                         int nextIndex = index + 1;
-                        BarHolder olderBar = (nextIndex == m_barsNum) ? null : barHolders.get(nextIndex);
+                        BarHolder olderBar = (nextIndex == m_barsNum) ? null : getTick(nextIndex);
                         newerBar.shiftTime(timeShift, olderBar);
                     }
                 }

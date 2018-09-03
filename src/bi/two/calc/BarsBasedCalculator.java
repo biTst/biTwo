@@ -5,8 +5,6 @@ import bi.two.chart.TickData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 
-import java.util.List;
-
 //----------------------------------------------------------
 public abstract class BarsBasedCalculator extends TicksTimesSeriesData<TickData> {
 
@@ -25,7 +23,8 @@ public abstract class BarsBasedCalculator extends TicksTimesSeriesData<TickData>
         if (changed) {
             boolean anyNotified = false;
             int counter = 0;
-            for (final BarSplitter.BarHolder barHolder : m_barSplitter.getBars()) { // iterate all bars
+
+            for (BarSplitter.BarHolder barHolder : m_barSplitter.getBarsIterable()) { // iterate all bars
                 m_processor.restart(barHolder, counter);
                 Boolean notified = barHolder.iterateTicks(m_processor);
                 anyNotified |= notified;
@@ -58,9 +57,9 @@ public abstract class BarsBasedCalculator extends TicksTimesSeriesData<TickData>
             boolean notified;
             long time = m_barHolder.getTime();
             float value = calcValue();
-            List<TickData> ticks = getTicks(); // my ticks
-            if (m_barIndex < ticks.size()) { // if known bar changed - update my tick
-                TickData tickData = ticks.get(m_barIndex);
+            int size = getTicksNum();
+            if (m_barIndex < size) { // if known bar changed - update my tick
+                TickData tickData = getTick(m_barIndex); // my ticks
                 tickData.init(time, value);
                 notified = false;
             } else { // bars number is more than my ticks - add tick

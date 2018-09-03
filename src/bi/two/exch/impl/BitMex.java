@@ -10,10 +10,7 @@ import bi.two.exch.Currency;
 import bi.two.main2.TicksCacheReader;
 import bi.two.main2.TradesPreloader;
 import bi.two.ts.TicksTimesSeriesData;
-import bi.two.util.Hex;
-import bi.two.util.Log;
-import bi.two.util.MapConfig;
-import bi.two.util.Utils;
+import bi.two.util.*;
 import com.google.gson.*;
 import org.apache.http.*;
 import org.apache.http.client.config.RequestConfig;
@@ -139,7 +136,7 @@ public class BitMex extends BaseExchImpl {
         }
     }
 
-    public static List<TickData> readTicks(MapConfig config, long period) throws IOException {
+    public static ReverseListIterator<TickData> readTicks(MapConfig config, long period) throws IOException {
         String exchangeName = config.getString("exchange");
         Exchange exchange = Exchange.get(exchangeName);
         String pairName = config.getString("pair");
@@ -157,9 +154,10 @@ public class BitMex extends BaseExchImpl {
 
         preloader.playOnlyCache();
 
-        List<TickData> ticks = ticksTs.getTicks();
-        log("loaded from cache " + ticks.size() + " ticks");
-        return ticks;
+        log("loaded from cache " + ticksTs.getTicksNum() + " ticks");
+
+        ReverseListIterator<TickData> iterator = ticksTs.getReverseTicksIterator();
+        return iterator;
     }
 
     public void init(MapConfig config) {

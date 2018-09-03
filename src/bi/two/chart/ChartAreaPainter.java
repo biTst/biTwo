@@ -11,7 +11,6 @@ import org.apache.commons.math3.fitting.WeightedObservedPoint;
 import org.apache.commons.math3.fitting.WeightedObservedPoints;
 
 import java.awt.*;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeMap;
@@ -34,13 +33,12 @@ public class ChartAreaPainter {
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
                                              long timeMin, long timeMax, Point crossPoint) {
-            List<? extends ITickData> ticks = m_ticksTs.getTicks();
-            synchronized (ticks) {
+            synchronized (m_ticksTs.syncObject()) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
-                    int rightTickIndex = findTickIndexFromX(ticks, crossX, xAxe);
+                    int rightTickIndex = findTickIndexFromX(m_ticksTs, crossX, xAxe);
                     if (rightTickIndex > 0) {
-                        ITickData rightTick = ticks.get(rightTickIndex);
+                        ITickData rightTick = m_ticksTs.getTick(rightTickIndex);
                         long rightTickMillis = rightTick.getTimestamp();
 
 System.out.println("--------------------------------------------------------------");
@@ -49,7 +47,7 @@ System.out.println("------------------------------------------------------------
                         double velocitySum = 0;
                         TreeMap<Double, Double> map = new TreeMap<>();
                         for (int i = 0; i < count; i++) {
-                            paintFrame(g2, xAxe, yAxe, ticks, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i), i);
+                            paintFrame(g2, xAxe, yAxe, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i), i);
                             map.put(m_shareError, m_shareVelocity);
 System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
                             velocitySum += m_shareVelocity;
@@ -69,13 +67,13 @@ System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
             }
         }
 
-        private void paintFrame(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe, List<? extends ITickData> ticks,
+        private void paintFrame(Graphics2D g2, Axe.AxeLong xAxe, Axe yAxe,
                                 int rightTickIndex, long rightTickMillis, long frameSize, int lineNum) {
             long leftTickMillis = rightTickMillis - frameSize;
             int leftTickIndex = rightTickIndex - 1;
-            int size = ticks.size();
+            int size = m_ticksTs.getTicksNum();
             while (leftTickIndex < size) {
-                ITickData tick = ticks.get(leftTickIndex);
+                ITickData tick = m_ticksTs.getTick(leftTickIndex);
                 long timestamp = tick.getTimestamp();
                 if (timestamp < leftTickMillis) {
                     leftTickIndex--;
@@ -87,12 +85,12 @@ System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
                 leftTickIndex = size - 1;
             }
             if (leftTickIndex > rightTickIndex) { // ticks are in reverse order than on screen
-                ITickData leftTick = ticks.get(leftTickIndex);
+                ITickData leftTick = m_ticksTs.getTick(leftTickIndex);
                 leftTickMillis = leftTick.getTimestamp();
                 long frameWidth = rightTickMillis - leftTickMillis;
                 final WeightedObservedPoints obs = new WeightedObservedPoints();
                 for (int index = leftTickIndex, i = 0; index >= rightTickIndex; index--, i++) {
-                    ITickData tick = ticks.get(index);
+                    ITickData tick = m_ticksTs.getTick(index);
                     long timestamp = tick.getTimestamp();
                     float value = tick.getClosePrice();
                     long offset = timestamp - leftTickMillis;
@@ -166,23 +164,22 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
                                              long timeMin, long timeMax, Point crossPoint) {
-            List<? extends ITickData> ticks = m_ticksTs.getTicks();
-            synchronized (ticks) {
+            synchronized (m_ticksTs.syncObject()) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
-                    int mainTickIndex = findTickIndexFromX(ticks, crossX, xAxe);
+                    int mainTickIndex = findTickIndexFromX(m_ticksTs, crossX, xAxe);
                     if (mainTickIndex > 0) {
-                        ITickData iTickData = ticks.get(mainTickIndex);
+                        ITickData iTickData = m_ticksTs.getTick(mainTickIndex);
                         int lastIndex = m_points - 1;
                         m_ticks[lastIndex] = iTickData; // [oldest, ... , newest]
                         long timestamp = iTickData.getTimestamp() - Utils.MIN_IN_MILLIS;
                         boolean allFine = true;
-                        int ticksNum = ticks.size();
+                        int ticksNum = m_ticksTs.getTicksNum();
                         long prevTickTimestamp = timestamp+1;
                         for (int index = lastIndex - 1; index >= 0; index--) {
-                            int tickIndex = findTickIndexFromMillis(ticks, timestamp);
+                            int tickIndex = findTickIndexFromMillis(m_ticksTs, timestamp);
                             if ((tickIndex > 0) && (tickIndex < ticksNum)) {
-                                iTickData = ticks.get(tickIndex);
+                                iTickData = m_ticksTs.getTick(tickIndex);
                                 long thisTickTimestamp = iTickData.getTimestamp();
                                 if (thisTickTimestamp < prevTickTimestamp) { // MonotonicSequence - points X should strictly increasing
                                     m_ticks[index] = iTickData; // [oldest, ... , newest]
@@ -301,19 +298,18 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         }
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
-            List<? extends ITickData> ticks = ticksData.getTicks();
             int highlightTickIndex = -1;
-            synchronized (ticks) {
+            synchronized (ticksData.syncObject()) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
-                    highlightTickIndex = findTickIndexFromX(ticks, crossX, xAxe);
+                    highlightTickIndex = findTickIndexFromX(ticksData, crossX, xAxe);
                 }
 
-
                 ITickData prevTick = null;
-                int size = ticks.size();
+
+                int size = ticksData.getTicksNum();
                 for (int i = 0; i < size; i++) {
-                    ITickData tick = ticks.get(i);
+                    ITickData tick = ticksData.getTick(i);
                     long timestamp = tick.getTimestamp();
                     boolean timeAfterFrame = (timestamp > timeMax);
                     if (!timeAfterFrame) {
@@ -330,24 +326,26 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         }
     }
 
-    private static int findTickIndexFromX(List<? extends ITickData> ticks, final int crossX, final Axe.AxeLong xAxe) {
-        int highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
+    private static int findTickIndexFromX(ITicksData ticksData, final int crossX, final Axe.AxeLong xAxe) {
+        Comparator<ITickData> comparator = new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long millis = td1.getTimestamp();
                 double tickX = xAxe.translateDouble(millis);
                 return tickX > crossX
                         ? -1
                         : tickX < crossX
-                            ? 1
-                            : 0;
+                        ? 1
+                        : 0;
             }
-        });
+        };
+
+        int highlightTickIndex = ticksData.binarySearch(null, comparator);
         if (highlightTickIndex < 0) {
             highlightTickIndex = -highlightTickIndex - 1;
         }
-        if ((highlightTickIndex >= 1) && (highlightTickIndex < ticks.size())) {
-            ITickData tick1 = ticks.get(highlightTickIndex);
-            ITickData tick2 = ticks.get(highlightTickIndex - 1);
+        if ((highlightTickIndex >= 1) && (highlightTickIndex < ticksData.getTicksNum())) {
+            ITickData tick1 = ticksData.getTick(highlightTickIndex);
+            ITickData tick2 = ticksData.getTick(highlightTickIndex - 1);
 
             long timestamp1 = tick1.getTimestamp();
             double x1 = xAxe.translateDouble(timestamp1);
@@ -364,24 +362,25 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         return -1;
     }
 
-    private static int findTickIndexFromMillis(List<? extends ITickData> ticks, final long millis) {
-        int highlightTickIndex;
-        highlightTickIndex = Collections.binarySearch(ticks, null, new Comparator<ITickData>() {
+    private static int findTickIndexFromMillis(TicksTimesSeriesData ticksTs, final long millis) {
+        Comparator<ITickData> comparator = new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long tickMillis = td1.getTimestamp();
                 return tickMillis > millis
                         ? -1
                         : tickMillis < millis
-                            ? 1
-                            : 0;
+                        ? 1
+                        : 0;
             }
-        });
+        };
+
+        int highlightTickIndex = ticksTs.binarySearch(null, comparator);
         if (highlightTickIndex < 0) {
             highlightTickIndex = -highlightTickIndex - 1;
         }
-        if ((highlightTickIndex >= 1) && (highlightTickIndex > ticks.size())) {
-            ITickData tick1 = ticks.get(highlightTickIndex);
-            ITickData tick2 = ticks.get(highlightTickIndex - 1);
+        if ((highlightTickIndex >= 1) && (highlightTickIndex > ticksTs.getTicksNum())) {
+            ITickData tick1 = ticksTs.getTick(highlightTickIndex);
+            ITickData tick2 = ticksTs.getTick(highlightTickIndex - 1);
 
             long timestamp1 = tick1.getTimestamp();
             long timestamp2 = tick2.getTimestamp();

@@ -6,9 +6,7 @@ import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
-import bi.two.util.MapConfig;
-import bi.two.util.TimeStamp;
-import bi.two.util.Utils;
+import bi.two.util.*;
 
 import java.io.*;
 import java.nio.channels.Channels;
@@ -128,8 +126,8 @@ public enum TickReader {
     BITMEX("bitmex") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
-            List<TickData> ticks = BitMex.readTicks(config, period);
-            feedTicks(ticksTs, callback, ticks);
+            ReverseListIterator<TickData> iterator = BitMex.readTicks(config, period);
+            feedTicks(ticksTs, callback, iterator);
         }
     }
     ;
@@ -137,6 +135,8 @@ public enum TickReader {
     public static final boolean JOIN_TICKS_IN_READER = false;
 
     private final String m_name;
+
+    private static void console(String s) { Log.console(s); }
 
     TickReader(String name) {
         m_name = name;
@@ -156,21 +156,27 @@ public enum TickReader {
     }
 
     private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
+        ReverseListIterator<TickData> iterator = new ReverseListIterator<>(ticks);
+        feedTicks(ticksTs, callback, iterator);
+    }
+
+    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ReverseListIterator<TickData> iterator) {
         TimeStamp doneTs = new TimeStamp();
         TimeStamp ts = new TimeStamp();
-        int size = ticks.size();
-        for (int i = size - 1, count = 0; i >= 0; i--, count++) {
-            TickData tick = ticks.get(i);
+        int size = iterator.size();
+        int count = 0;
+        for (TickData tick : iterator) {
             ticksTs.addNewestTick(tick);
             if (callback != null) {
                 callback.run();
             }
             if (ts.getPassedMillis() > 30000) {
                 ts.restart();
-                System.out.println("feedTicks() " + count + " from " + size + " (" + (((float) count) / size) + ") total " + doneTs.getPassed());
+                console("feedTicks() " + count + " from " + size + " (" + (((float) count) / size) + ") total " + doneTs.getPassed());
             }
+            count++;
         }
-        System.out.println("feedTicks() done in " + doneTs.getPassed());
+        console("feedTicks() done in " + doneTs.getPassed());
         ticksTs.notifyNoMoreTicks();
     }
 }

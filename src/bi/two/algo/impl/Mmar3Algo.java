@@ -15,9 +15,12 @@ import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
+import bi.two.util.ReverseListIterator;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 public class Mmar3Algo extends BaseAlgo<TickData> {
@@ -222,8 +225,32 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
     }
 
     private static class NoTicksData implements ITicksData {
-        @Override public List getTicks() {
-            return null;
+        @Override public ITickData getTick(int index) {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        public int getTicksNum() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        @Override public Object syncObject() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        @Override public Iterator getTicksIterator() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        @Override public Iterable getTicksIterable() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        @Override public ReverseListIterator getReverseTicksIterator() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
+        @Override public int binarySearch(ITickData o, Comparator comparator) {
+            throw new RuntimeException("should not be called"); // or return 0 ?
         }
 
         @Override public ITimesSeriesData getParent() {

@@ -2,10 +2,7 @@ package bi.two.chart;
 
 import bi.two.util.Utils;
 
-import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.awt.Point;
+import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -40,15 +37,12 @@ public class ChartPainter {
                     ITicksData ticksData = cad.getTicksData();
                     if (ticksData != null) {
                         if (tryInitAxe) {
-                            List<? extends ITickData> ticks = ticksData.getTicks();
-                            if (ticks != null) {
-                                int size = ticks.size();
-                                if (size > 0) {
-                                    long oldestTimestamp = ticks.get(size - 1).getTimestamp();
-                                    minTimestamp = Math.min(minTimestamp, oldestTimestamp);
-                                    long newestTimestamp = ticks.get(0).getTimestamp();
-                                    maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
-                                }
+                            int size = ticksData.getTicksNum();
+                            if (size > 0) {
+                                long oldestTimestamp = ticksData.getTick(size - 1).getTimestamp();
+                                minTimestamp = Math.min(minTimestamp, oldestTimestamp);
+                                long newestTimestamp = ticksData.getTick(0).getTimestamp();
+                                maxTimestamp = Math.max(maxTimestamp, newestTimestamp);
                             }
                         }
                         int width = cad.getPriceAxeWidth();
@@ -101,19 +95,17 @@ public class ChartPainter {
                 if (cad != null) {
                     ITicksData ticksData = cad.getTicksData();
                     if (ticksData != null) {
-                        List<? extends ITickData> ticks = ticksData.getTicks();
-                        if (ticks != null) {
-                            synchronized (ticks) {
-                                for (ITickData tick : ticks) {
-                                    long timestamp = tick.getTimestamp();
-                                    if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                        float min = tick.getMinPrice();
-                                        float max = tick.getMaxPrice();
+                        synchronized (ticksData.syncObject()) {
+                            for (Object o : ticksData.getTicksIterable()) {
+                                ITickData tick = (ITickData) o;
+                                long timestamp = tick.getTimestamp();
+                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
+                                    float min = tick.getMinPrice();
+                                    float max = tick.getMaxPrice();
 
-                                        if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
-                                            maxPrice = Math.max(maxPrice, max);
-                                            minPrice = Math.min(minPrice, min);
-                                        }
+                                    if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max)) {
+                                        maxPrice = Math.max(maxPrice, max);
+                                        minPrice = Math.min(minPrice, min);
                                     }
                                 }
                             }

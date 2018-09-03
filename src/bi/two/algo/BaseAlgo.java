@@ -66,9 +66,9 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
                 ITickData value = getAdjusted();
                 if (value != null) {
                     if (m_joinNonChangedValues) {
-                        List<TickData> ticks = getTicks();
-                        if (!ticks.isEmpty()) {
-                            TickData newestAddedTick = ticks.get(0); // newest
+                        int ticksNum = getTicksNum();
+                        if (ticksNum > 0) {
+                            TickData newestAddedTick = getTick(0); // newest
                             float newestAddedPrice = newestAddedTick.getClosePrice();
                             float nowPrice = value.getClosePrice();
                             if (newestAddedPrice == nowPrice) {

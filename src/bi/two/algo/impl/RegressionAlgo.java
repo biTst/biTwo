@@ -58,8 +58,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
     public final Adjuster m_adjuster;
 
     public String log() {
-        List ticks = getTicks();
-        int size = ticks.size();
+        int size = getTicksNum();
         return "RegressionAlgo[ticksNum=" + size +
                 "\n regressor=" + m_regressor.log() +
                 "\n regressorBars=" + m_regressorBars.log() +

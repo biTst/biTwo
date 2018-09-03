@@ -3,8 +3,6 @@ package bi.two.chart;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 
-import java.util.List;
-
 public class JoinNonChangedTimesSeriesData extends TicksTimesSeriesData<TickData> {
 
     private final boolean m_horizontal;
@@ -26,15 +24,14 @@ public class JoinNonChangedTimesSeriesData extends TicksTimesSeriesData<TickData
         if (changed) {
             ITickData value = getTickValue();
             if (value != null) {
-                List<TickData> ticks = getTicks();
-                int size = ticks.size();
+                int size = getTicksNum();
                 if (size > 0) {
-                    TickData newestTick = ticks.get(0); // newest
+                    TickData newestTick = getTick(0); // newest
                     float newestTickPrice = newestTick.getClosePrice();
                     float nowPrice = value.getClosePrice();
                     if (newestTickPrice == nowPrice) { // same value tick as prev
                         if (m_horizontal) { // will paint with horizontal lines
-                            TickData secondNewestTick = (size > 1) ? ticks.get(1) : null;
+                            TickData secondNewestTick = (size > 1) ? getTick(1) : null;
                             float secondNewestTickPrice = (secondNewestTick == null) ? Float.NEGATIVE_INFINITY : secondNewestTick.getClosePrice();
                             if (secondNewestTickPrice == nowPrice) {
                                 newestTick.init(value); // just update newest added tick

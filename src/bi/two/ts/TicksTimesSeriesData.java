@@ -1,10 +1,9 @@
 package bi.two.ts;
 
 import bi.two.chart.ITickData;
+import bi.two.util.ReverseListIterator;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 // will hold ALL ticks
 public class TicksTimesSeriesData<T extends ITickData>
@@ -16,7 +15,21 @@ public class TicksTimesSeriesData<T extends ITickData>
     }
 
     public T getOldestTick() { return m_ticks.get(m_ticks.size() - 1); }
-    public List<T> getTicks() { return m_ticks; }
+    @Override public Object syncObject() { return m_ticks; }
+    @Override public T getTick(int index) { return m_ticks.get(index); }
+    public int getTicksNum() { return m_ticks.size(); }
+
+    public Iterator<T> getTicksIterator() { // reverse time iteration - newest first, oldest then
+        return m_ticks.iterator();
+    }
+
+    @Override public ReverseListIterator getReverseTicksIterator() { // forward time iteration - oldest first, newest then
+        return new ReverseListIterator<>(m_ticks);
+    }
+
+    public Iterable<T> getTicksIterable() { // reverse time iteration - newest first, oldest then
+        return m_ticks;
+    }
 
     public void addNewestTick(T t) {
         m_ticks.add(0, t);
@@ -43,6 +56,10 @@ public class TicksTimesSeriesData<T extends ITickData>
         }
         Ret done = iTicksProcessor.done();
         return done;
+    }
+
+    @Override public int binarySearch(T key, Comparator<ITickData> comparator) {
+        return Collections.binarySearch(m_ticks, key, comparator);
     }
 
     //----------------------------------------------------------------------

@@ -5,8 +5,8 @@ import bi.two.chart.ITicksData;
 
 /** TS which do not collects ticks */
 public abstract class BaseTicksTimesSeriesData<T extends ITickData>
-        extends BaseTimesSeriesData
-        implements ITicksData {
+        extends BaseTimesSeriesData<T>
+        implements ITicksData<T> {
     protected T m_newestTick;
 
     public BaseTicksTimesSeriesData(ITimesSeriesData parent) {
