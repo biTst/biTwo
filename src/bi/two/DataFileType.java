@@ -128,7 +128,7 @@ public enum DataFileType {
             return tickData;
         }
     },
-    SIMPLE("forex2") {
+    SIMPLE("forex3") {
         @Override public TickData parseLine(String line) {
             // 1526858169812;8444.0
             int indx1 = line.indexOf(';');
