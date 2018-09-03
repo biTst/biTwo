@@ -126,8 +126,10 @@ public enum TickReader {
     BITMEX("bitmex") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
-            ReverseListIterator<TickData> iterator = BitMex.readTicks(config, period);
-            feedTicks(ticksTs, callback, iterator);
+            TicksTimesSeriesData<TickData> fileTs = BitMex.readTicks(config, period);
+            int size = fileTs.getTicksNum();
+            Iterable<TickData> iterable = fileTs.getReverseTicksIterable();
+            feedTicks(ticksTs, callback, iterable, size);
         }
     }
     ;
@@ -156,14 +158,14 @@ public enum TickReader {
     }
 
     private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
+        int size = ticks.size();
         ReverseListIterator<TickData> iterator = new ReverseListIterator<>(ticks);
-        feedTicks(ticksTs, callback, iterator);
+        feedTicks(ticksTs, callback, iterator, size);
     }
 
-    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ReverseListIterator<TickData> iterator) {
+    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, Iterable<TickData> iterator, int size) {
         TimeStamp doneTs = new TimeStamp();
         TimeStamp ts = new TimeStamp();
-        int size = iterator.size();
         int count = 0;
         for (TickData tick : iterator) {
             ticksTs.addNewestTick(tick);

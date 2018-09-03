@@ -267,7 +267,7 @@ if (timeToTradeClose < 0) {
 
     public String log() {
         return "Watcher["
-                + "\n ticksNum=" + m_ticks.size()
+                + "\n ticksNum=" + getTicksNum()
                 + "\n]";
     }
 

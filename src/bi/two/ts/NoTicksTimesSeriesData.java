@@ -45,6 +45,10 @@ public class NoTicksTimesSeriesData<T extends ITickData> extends BaseTicksTimesS
         throw new RuntimeException("should not be called");
     }
 
+    @Override public Iterable<T> getReverseTicksIterable() {
+        throw new RuntimeException("should not be called");
+    }
+
     @Override public int binarySearch(T o, Comparator<ITickData> comparator) {
         throw new RuntimeException("should not be called");
     }

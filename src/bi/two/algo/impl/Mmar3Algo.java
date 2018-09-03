@@ -249,6 +249,10 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
             throw new RuntimeException("should not be called"); // or return 0 ?
         }
 
+        @Override public Iterable getReverseTicksIterable() {
+            throw new RuntimeException("should not be called"); // or return 0 ?
+        }
+
         @Override public int binarySearch(ITickData o, Comparator comparator) {
             throw new RuntimeException("should not be called"); // or return 0 ?
         }
