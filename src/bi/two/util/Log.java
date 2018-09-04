@@ -96,7 +96,7 @@ public class Log {
                 file.renameTo(new File(dir, newFileName));
             }
             try {
-                m_fos = new FileOutputStream(LOG_FILE);
+                m_fos = new FileOutputStream(file);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open lof file: " + e, e);
             }
