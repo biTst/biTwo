@@ -17,6 +17,8 @@ public enum Currency {
     DASH("dash", "d"),
     XRP("xrp", "x"),
     XBT("xbt", "b"), // bitmex btc interpretation
+    RUB("rub", "r"),
+    FUT("FUT", "F"), // FUTures contract
     ;
     
     public final String m_name;
