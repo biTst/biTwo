@@ -208,7 +208,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //                + (detailed ? ",e2=" : ",") + m_e2
                 + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
-//                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
+                + ", " + m_barSize
+//                + ", " + Utils.millisToYDHMSStr(m_barSize)
                 ;
     }
 
