@@ -162,13 +162,14 @@ public class MapConfig extends Properties {
         File file = (parentDir == null) ? new File(fileName) : new File(parentDir, fileName);
         load(file);
         String include = (String) remove(INCLUDE_KEY);
+        File baseDir = file.getParentFile();
         if (include != null) {
 System.out.println("loading include = " + include);
             MapConfig included = new MapConfig();
-            included.load(include);
+            included.load(baseDir, include);
             putAll(included);
         }
-        return file.getParentFile();
+        return baseDir;
     }
 
     public boolean needDecrypt() {
