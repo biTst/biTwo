@@ -25,13 +25,16 @@ public enum TickReader {
             long fileLength = file.length();
             console("fileLength = " + fileLength);
 
-            final long lastBytesToProcess = config.getLong("process.bytes");
+            long bytesToProcess = config.getLong("process.bytes");
+            final long lastBytesToProcess = bytesToProcess == 0 ? Long.MAX_VALUE : bytesToProcess;
 
+            boolean resetLine = false;
             boolean skipBytes = (lastBytesToProcess > 0);
             if (skipBytes) {
                 long toSkipBytes = fileLength - lastBytesToProcess;
                 if (toSkipBytes > 0) {
                     randomAccessFile.seek(toSkipBytes);
+                    resetLine = true;
                 }
             }
 
@@ -69,17 +72,17 @@ public enum TickReader {
 
             String dataFileType = config.getProperty("dataFile.type");
 
-            readFileTicks(reader, ticksTs, callback, dataFileType, skipBytes); // reader closed inside
+            readFileTicks(reader, ticksTs, callback, dataFileType, resetLine); // reader closed inside
 
             console("feedTicks() done in " + doneTs.getPassed());
         }
 
         private void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                   String dataFileType, boolean skipBytes) throws IOException {
+                                   String dataFileType, boolean resetLine) throws IOException {
             TimeStamp ts = new TimeStamp();
             BufferedReader br = new BufferedReader(reader, 256 * 1024);
             try {
-                if (skipBytes) { // after bytes skipping we may point to the middle of line
+                if (resetLine) { // after bytes skipping we may point to the middle of line
                     br.readLine(); // skip to the end of line
                 }
 
