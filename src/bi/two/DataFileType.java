@@ -36,12 +36,10 @@ public enum DataFileType {
     },
     CSV2("csv2") { // csv-like
         private SimpleDateFormat m_fmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
+//        private SimpleDateFormat m_fmtGmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
         {
             m_fmt.setTimeZone(TimeZone.getTimeZone("GMT+3"));
-        }
-        private SimpleDateFormat m_fmt_gmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
-        {
-            m_fmt_gmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+//            m_fmtGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
         }
 
         @Override public TickData parseLine(String line) {
