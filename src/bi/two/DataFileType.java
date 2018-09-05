@@ -3,6 +3,8 @@ package bi.two;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +34,47 @@ public enum DataFileType {
             return null;
         }
     },
+    CSV2("csv2") { // csv-like
+        private SimpleDateFormat m_fmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
+        {
+            m_fmt.setTimeZone(TimeZone.getTimeZone("GMT+3"));
+        }
+        private SimpleDateFormat m_fmt_gmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
+        {
+            m_fmt_gmt.setTimeZone(TimeZone.getTimeZone("GMT"));
+        }
+
+        @Override public TickData parseLine(String line) {
+            // DATE,TIME,LAST,VOL
+            // 20180820,100000,67289.000000000,1
+            int indx1 = line.indexOf(",");
+            if (indx1 > 0) {
+                int timeIndex = indx1 + 1;
+                int indx2 = line.indexOf(",", timeIndex);
+                if (indx2 > 0) {
+                    int priceIndex = indx2 + 1;
+                    int indx3 = line.indexOf(",", priceIndex);
+                    if (indx3 > 0) {
+                        //int sizeIndex = indx3 + 1;
+
+                        String dateTimeStr = line.substring(0, indx2);
+                        String priceStr = line.substring(priceIndex, indx3);
+
+                        try {
+                            Date date = m_fmt.parse(dateTimeStr);
+                            long millis = date.getTime();
+                            float price = Float.parseFloat(priceStr);
+                            TickData tickData = new TickData(millis, price);
+                            return tickData;
+                        } catch (ParseException e) {
+                            System.out.println("parseLine error: " + e + "; for string'" + line + "'");
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+    },
     TABBED("tabbed") {
         private final long STEP = TimeUnit.MINUTES.toMillis(5);
 
@@ -46,6 +89,7 @@ public enum DataFileType {
         }
     },
     BITFINEX("bitfinex") {
+//        ID,MILLIS,SIZE,PRICE
 //        198787874,1519054093604,0.00926031,11160
         @Override public TickData parseLine(String line) {
             int length = line.length();
@@ -93,6 +137,7 @@ public enum DataFileType {
         private GregorianCalendar m_gmtCalendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"), Locale.getDefault());
 
         @Override public TickData parseLine(String line) {
+            // DATE TIME,BID,ASK,?
             // 20170901 000000727,1.190130,1.190170,0
             int indx1 = line.indexOf(' ');
             int indx2 = line.indexOf(',');
@@ -130,6 +175,7 @@ public enum DataFileType {
     },
     SIMPLE("forex3") {
         @Override public TickData parseLine(String line) {
+            // MILLIS,PRICE
             // 1526858169812;8444.0
             int indx1 = line.indexOf(';');
             String timeStr = line.substring(0, indx1); // "1526858169812"
