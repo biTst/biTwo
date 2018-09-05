@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
     private static final float TARGET_LEVEL = 0.5f;
+    private static final float REVERSE_LEVEL = 0.5f;
 
     private final float m_start;
     private final float m_step;
@@ -39,6 +40,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_power;
     private Float m_value = 0F;
     private Float m_mul = 0F;
+    private Float m_reverseLevel = 0F;
     private Float m_mulAndPrev = 0F;
     private Float m_prevMulAndPrev = 0F;
     private Float m_adj = 0F;
@@ -189,6 +191,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 m_mulAndPrev = m_mul + m_prevMulAndPrev * (1 - m_power);
 
                 m_adj = m_mulAndPrev;
+
+                m_reverseLevel = m_zerro + REVERSE_LEVEL * (head-m_zerro);
             }
         }
         m_dirty = false;
@@ -230,6 +234,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getValueTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_value; } }; }
     TicksTimesSeriesData<TickData> getMulTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mul; } }; }
     TicksTimesSeriesData<TickData> getMulAndPrevTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mulAndPrev; } }; }
+    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_reverseLevel; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -258,12 +263,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE);
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, getZerroTs(), topLayers, "zerro", Color.GRAY, TickPainter.LINE);
+            addChart(chartData, getZerroTs(), topLayers, "zerro", Color.PINK, TickPainter.LINE);
 
             addChart(chartData, getTurnTs(), topLayers, "turn", Colors.DARK_GREEN, TickPainter.LINE);
             addChart(chartData, getTargetTs(), topLayers, "target", Color.ORANGE, TickPainter.LINE);
 
-            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.CYAN, TickPainter.LINE);
+            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Color.PINK, TickPainter.LINE);
+
+            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Color.GRAY, TickPainter.LINE);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
 //            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
 ////            addChart(chartData, getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
@@ -298,7 +305,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
 
         if (collectValues) {
-            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
 
             ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
             gain.setHorizontalLineValue(1);
