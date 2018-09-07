@@ -29,6 +29,8 @@ public enum Vary {
     e1(VaryType.FLOAT), // spread proportional end
     e2(VaryType.FLOAT), // gain proportional end
 
+    target(VaryType.FLOAT), // qummar target
+
     minOrderMul(VaryType.FLOAT),
     joinTicks(VaryType.LONG),
     ;
