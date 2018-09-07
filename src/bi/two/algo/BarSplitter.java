@@ -17,6 +17,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     public final long m_period;
     public long m_lastTickTime;
     public BarSplitter.BarHolder m_newestBar;
+    private boolean m_muteListeners;
 
     public BarSplitter(ITimesSeriesData iTicksData) {
         this(iTicksData, BARS_NUM, DEF_PERIOD);
@@ -67,6 +68,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                 long timeShift = timestamp;
                 BarHolder prevBar = null;
 
+                m_muteListeners = true; // do not notify listeners on first bars creation
                 for (int i = 0; i < m_barsNum; ++i) {
                     BarHolder bar = new BarHolder(timeShift, m_period);
                     addOlderTick(bar);
@@ -76,6 +78,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                     }
                     prevBar = bar;
                 }
+                m_muteListeners = false;
 
                 m_newestBar = getLatestTick();
                 m_newestBar.put(tick);
@@ -95,6 +98,13 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
             m_lastTickTime = timestamp;
         }
         notifyListeners(changed);
+    }
+
+    @Override protected void notifyListeners(boolean changed) {
+        if (m_muteListeners) {
+            return;
+        }
+        super.notifyListeners(changed);
     }
 
     //---------------------------------------------------------------
