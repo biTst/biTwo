@@ -4,7 +4,8 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.SlidingTicksRegressor;
+import bi.two.calc.BarsRegressor;
+import bi.two.calc.TicksSMA;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
@@ -18,8 +19,8 @@ import java.util.concurrent.TimeUnit;
 public class QummarAlgo extends BaseAlgo<TickData> {
     private static final float TARGET_LEVEL = 0.5f;
     private static final float REVERSE_LEVEL = 0.5f;
-    private static final float REVERSE_MUL = 1.0f; // 2
-    private static final boolean APPLY_REVERSE = false;
+    private static final float REVERSE_MUL = 2.0f; // 2
+    private static final boolean APPLY_REVERSE = true;
 
     private final float m_start;
     private final float m_step;
@@ -54,6 +55,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 
+    private BaseTimesSeriesData m_sliding;
+
     public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null);
 
@@ -81,6 +84,10 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
         ITimesSeriesListener listener = new RibbonTsListener();
 
+//        long period = (long) (m_start * m_barSize * m_linRegMultiplier);
+//        SlidingTicksRegressor sliding0 = new SlidingTicksRegressor(tsd, period, false);
+//        m_sliding = new TicksSMA(sliding0, m_barSize);
+
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
         float length = m_start;
         int countFloor = (int) m_count;
@@ -102,8 +109,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
-        long period = (long) (length * barSize * m_linRegMultiplier);
-        return new SlidingTicksRegressor(tsd, period, collectValues);
+//        long period = (long) (length * barSize * m_linRegMultiplier);
+//        return new SlidingTicksRegressor(tsd, period, false);
+
+//        return new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier*5);
+
+        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
+        return new TicksSMA(r, m_barSize/2);
+
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
@@ -270,12 +283,15 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //            topLayers.add(new ChartAreaLayerSettings("spline", Color.RED, new ChartAreaPainter.PolynomChartAreaPainter(ticksTs)));
 
             int emaAlpha = 20;
-//            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
-//            int size = m_emas.size();
-//            for (int i = size - 1; i > 0; i--) { // paint without leadEma
-//                BaseTimesSeriesData ema = m_emas.get(i);
-//                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, emaColor, TickPainter.LINE);
-//            }
+            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
+            int size = m_emas.size();
+            for (int i = size - 1; i > 0; i--) { // paint without leadEma
+                BaseTimesSeriesData ema = m_emas.get(i);
+                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, emaColor, TickPainter.LINE);
+            }
+
+//            addChart(chartData, m_sliding.getJoinNonChangedTs(), topLayers, "sliding", Colors.BALERINA, TickPainter.LINE);
+
 
             addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE);
             addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE);
@@ -291,17 +307,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE);
 
-//            addChart(chartData, getXxxTs(), topLayers, "xxx", Color.GRAY, TickPainter.LINE);
-////            addChart(chartData, getTrendTs(), topLayers, "trend", Color.GRAY, TickPainter.LINE);
-////            addChart(chartData, getMirrorTs(), topLayers, "mirror", Colors.DARK_RED, TickPainter.LINE);
-////            addChart(chartData, getReverseTs(), topLayers, "reverse", Colors.DARK_GREEN, TickPainter.LINE);
-//            addChart(chartData, getTopTs(), topLayers, "top", Colors.DARK_RED, TickPainter.LINE);
-//            addChart(chartData, getBottomTs(), topLayers, "bottom", Colors.DARK_GREEN, TickPainter.LINE);
-//            addChart(chartData, getLevelTs(), topLayers, "level", Color.PINK, TickPainter.LINE);
-////            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.PINK, TickPainter.LINE);
-
             BaseTimesSeriesData leadEma = m_emas.get(0); // fastest ema
-            Color color = Colors.alpha(Color.GREEN, emaAlpha * 2);
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE);
         }
 
@@ -326,7 +332,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
 
         if (collectValues) {
-//            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
+            addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
 
             ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
             gain.setHorizontalLineValue(1);
