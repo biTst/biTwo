@@ -1,9 +1,11 @@
 package bi.two.ts;
 
+import bi.two.DataFileType;
 import bi.two.chart.TickData;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
+import bi.two.exch.schedule.TradeSchedule;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.ReverseListIterator;
@@ -31,6 +33,9 @@ public enum TickReader {
 
             String filePattern = config.getPropertyNoComment("filePattern");
 
+            DataFileType type = DataFileType.init(config);
+            TradeSchedule tradeSchedule = TradeSchedule.init(config);
+
             int filesProcessed = 0;
             File[] files = dir.listFiles();
             Arrays.sort(files, Comparator.comparing(File::getName));
@@ -46,7 +51,7 @@ public enum TickReader {
                     }
 
                     console("readFileTicks: " + file.getAbsolutePath());
-                    FileTickReader.readFileTicks(config, ticksTs, callback, file);
+                    FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule);
                     filesProcessed++;
                 } else {
                     console("skipped subdirectory: " + file.getAbsolutePath());

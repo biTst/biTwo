@@ -21,14 +21,18 @@ public class FileTickReader {
         String path = config.getPropertyNoComment("dataFile");
         File file = new File(path);
 
-        readFileTicks(config, ticksTs, callback, file);
+        DataFileType type = DataFileType.init(config);
+        TradeSchedule tradeSchedule = TradeSchedule.init(config);
+
+        readFileTicks(config, ticksTs, callback, file, type, tradeSchedule);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
         ticksTs.notifyNoMoreTicks();
     }
 
-    public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, File file) throws IOException {
+    public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
+                                     File file, DataFileType type, TradeSchedule tradeSchedule) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
         console("fileLength = " + fileLength);
@@ -78,20 +82,17 @@ public class FileTickReader {
             }
         };
 
-        readFileTicks(reader, ticksTs, callback, resetLine, config); // reader closed inside
+        readFileTicks(reader, ticksTs, callback, resetLine, type, tradeSchedule); // reader closed inside
     }
 
     private static void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                      boolean resetFirstLine, MapConfig config) throws IOException {
+                                      boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule) throws IOException {
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 256 * 1024);
         try {
             if (resetFirstLine) { // after bytes skipping we may point to the middle of line
                 br.readLine(); // skip to the end of line
             }
-
-            DataFileType type = DataFileType.init(config);
-            TradeSchedule tradeSchedule = TradeSchedule.init(config);
 
             float lastClosePrice = 0;
             String line;
