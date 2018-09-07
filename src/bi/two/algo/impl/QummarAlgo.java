@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
-    private static final float TARGET_LEVEL = 0.5f;
     private static final float REVERSE_LEVEL = 0.5f;
     private static final float REVERSE_MUL = 2.0f; // 2
     private static final boolean APPLY_REVERSE = true;
@@ -27,7 +26,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final long m_barSize;
     private final float m_linRegMultiplier;
     private final long m_joinTicks;
-    private final double m_minOrderMul;
+    private final float m_minOrderMul;
+    private final float m_target;
 
     private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
@@ -38,7 +38,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_zigZag;
     private Float m_zerro;
     private Float m_turn;
-    private Float m_target;
+    private Float m_targetLevel;
     private Float m_power;
     private Float m_value = 0F;
     private Float m_mul = 0F;
@@ -67,6 +67,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
+        m_target = algoConfig.getNumber(Vary.target).floatValue();
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
@@ -191,14 +192,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             if (directionChanged) {
                 m_zerro = Float.valueOf(goUp ? emasMax : emasMin);
                 m_turn = Float.valueOf(goUp ? emasMin : emasMax);
-                m_target = m_turn + TARGET_LEVEL * (m_zerro - m_turn);
+                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
             }
 
             if (m_zerro != null) { // directionChanged once observed
                 float head = goUp ? emasMax : emasMin;
                 float tail = goUp ? emasMin : emasMax;
 
-                float power = (tail - m_turn) / (m_target - m_turn);
+                float power = (tail - m_turn) / (m_targetLevel - m_turn);
                 m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
 
                 m_value = ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
@@ -257,7 +258,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
-    TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_target; } }; }
+    TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_targetLevel; } }; }
     TicksTimesSeriesData<TickData> getPowerTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_power; } }; }
     TicksTimesSeriesData<TickData> getValueTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_value; } }; }
     TicksTimesSeriesData<TickData> getMulTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mul; } }; }
