@@ -266,26 +266,32 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
             JSONObject request = (JSONObject) json.get("request");
             log(" request=" + request);
             if (request != null) {
-                // {"success":true,                     "request":{"op":"authKey","args":["QGCD0OqdauJZ9LHbvBuq0tHE",1521898505226,"caa8ec1a5cecd030019c22f73a42a0774775653a9a21dd90395ffbafb9e87b98"]}}
-                // {"success":true,"subscribe":"margin","request":{"op":"subscribe","args":["margin"]}}
+                // {"success":true,                             "request":{"op":"authKey","args":["QGCD0OqdauJZ9LHbvBuq0tHE",1521898505226,"caa8ec1a5cecd030019c22f73a42a0774775653a9a21dd90395ffbafb9e87b98"]}}
+                // {"success":true,"subscribe":"margin",        "request":{"op":"subscribe","args":["margin"]}}
+                // {"success":true,"unsubscribe":"trade:XBTUSD","request":{"op":"unsubscribe","args":["trade:XBTUSD"]}}
                 Boolean success = (Boolean) json.get("success");
                 if (success != null) {
-                    String subscribe = (String) json.get("subscribe");
-                    log(" success=" + success + "; subscribe=" + subscribe);
                     if (success) {
+                        String subscribe = (String) json.get("subscribe");
+                        String unsubscribe = (String) json.get("unsubscribe");
+                        log(" success=" + success + "; subscribe=" + subscribe + "; unsubscribe=" + unsubscribe);
                         if (subscribe != null) {
                             onSubscribed(session, subscribe, success, request);
                         } else {
-                            String op = (String) request.get("op"); // operation
-                            log("  op=" + op);
-                            if (op.equals("authKey")) {
-                                onAuthenticated(session, success);
+                            if (unsubscribe != null) {
+                                onUnsubscribed(session, unsubscribe, success, request);
                             } else {
-                                console("ERROR: not supported message (op='" + op + "'): " + json);
+                                String op = (String) request.get("op"); // operation
+                                log("  op=" + op);
+                                if (op.equals("authKey")) {
+                                    onAuthenticated(session, success);
+                                } else {
+                                    console("ERROR: not supported message (op='" + op + "'): " + json);
+                                }
                             }
                         }
                     } else {
-                        console("ERROR: not subscribed: " + json);
+                        console("ERROR: success!=true: " + json);
                     }
                 } else {
                     console("ERROR: not supported message (no success): " + json);
@@ -331,11 +337,11 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
 
     private static void onSubscribed(Session session, String topic, Boolean success, JSONObject request) throws IOException {
         console("  onSubscribed topic=" + topic + "; success=" + success);
-//        if (op.equals("authKey")) {
-//            onAuthenticated(session, success);
-//        } else {
-//            console("ERROR: not supported subscribe message (op='" + op + "'): request=" + request);
-//        }
+    }
+
+
+    private static void onUnsubscribed(Session session, String topic, Boolean success, JSONObject request) throws IOException {
+        console("  onUnsubscribed topic=" + topic + "; success=" + success);
     }
 
     private void onAuthenticated(Session session, Boolean success) throws IOException {

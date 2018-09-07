@@ -40,7 +40,7 @@ public class Main2 extends Thread {
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.FileLog("log/main2.txt");
+        Log.s_impl = new Log.FileLog("logs/main2.txt");
         MarketConfig.initMarkets(false);
 
         new Main2().start();
