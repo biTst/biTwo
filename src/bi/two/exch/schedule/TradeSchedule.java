@@ -23,12 +23,12 @@ public class TradeSchedule {
         if (m_currentTradeHours == null) {
             m_currentTradeHours = new TradeHours(m_schedule, timestamp);
         }
-        boolean inside = m_currentTradeHours.inside(timestamp);
+        boolean inside = m_currentTradeHours.isInsideOfTradingHours(timestamp);
         if (!inside) {
             TradeHours nextTradeHours = m_currentTradeHours.getNextTradeHours();
-            inside = nextTradeHours.inside(timestamp);
+            inside = nextTradeHours.isInsideOfTradingHours(timestamp);
             if (!inside) {
-                throw new RuntimeException("timestamp is not inside of current and next trade day hours: current=" + m_currentTradeHours + "; next=" + nextTradeHours);
+                throw new RuntimeException("timestamp is not inside of current and next trade day hours: current=" + m_currentTradeHours + "; next=" + nextTradeHours + "; schedule=" + m_schedule);
             }
             long nextTradeStartTime = nextTradeHours.m_tradeStartMillis;
             long currentTradeEndTime = m_currentTradeHours.m_tradeEndMillis;

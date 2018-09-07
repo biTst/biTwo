@@ -12,13 +12,15 @@ public class TradeHours {
     private final long m_dayStartMillis;
     final long m_tradeStartMillis;
     final long m_tradeEndMillis;
+//    private final String m_dayStartFormatted;
+    private final String m_tradeStartFormatted;
+    private final String m_tradeEndFormatted;
 
     @Override public String toString() {
-        return "TradeHours{" +
-                "from " + m_dayStartMillis +
-                " to " + m_tradeStartMillis +
-                " schedule=" + m_schedule +
-                '}';
+        return "TradeHours[" +
+                "from " + m_tradeStartFormatted +
+                " to " + m_tradeEndFormatted +
+                ']';
     }
 
     TradeHours(Schedule schedule, long timestamp) {
@@ -27,43 +29,40 @@ public class TradeHours {
         TimeZone timezone = schedule.getTimezone();
         m_calendar = new GregorianCalendar(timezone, Locale.getDefault());
         m_calendar.setTimeInMillis(timestamp);
-        Date initTime = m_calendar.getTime();
 
-System.out.println("TradeHours<> timestamp=" + timestamp + "; initTime=" + initTime.toGMTString());
+//        Date initTime = m_calendar.getTime();
+//System.out.println("TradeHours<> timestamp=" + timestamp + "; initTime=" + initTime.toGMTString());
 
         DateFormat dateTimeInstance = SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.LONG, SimpleDateFormat.LONG);
         dateTimeInstance.setTimeZone(timezone);
-        String format = dateTimeInstance.format(initTime);
-System.out.println("format=" + format);
-
-        int hour = m_calendar.get(Calendar.HOUR_OF_DAY);
-System.out.println("hour=" + hour);
+//        String format = dateTimeInstance.format(initTime);
+//System.out.println("format=" + format);
 
         m_calendar.set(Calendar.HOUR_OF_DAY, 0);
         m_calendar.set(Calendar.MINUTE, 0);
         m_calendar.set(Calendar.SECOND, 0);
         m_calendar.set(Calendar.MILLISECOND, 0);
-        Date dayStartTime = m_calendar.getTime();
-        String dayStartFormat = dateTimeInstance.format(dayStartTime);
-System.out.println("dayStartFormat=" + dayStartFormat);
+//        Date dayStartTime = m_calendar.getTime();
+//        m_dayStartFormatted = dateTimeInstance.format(dayStartTime);
+//System.out.println("dayStartFormatted=" + m_dayStartFormatted);
         m_dayStartMillis = m_calendar.getTimeInMillis();
 
         m_calendar.set(Calendar.HOUR_OF_DAY, schedule.getFromHours());
         m_calendar.set(Calendar.MINUTE, schedule.getFromMinutes());
         Date tradeStartTime = m_calendar.getTime();
-        String tradeStartFormat = dateTimeInstance.format(tradeStartTime);
-System.out.println("tradeStartFormat=" + tradeStartFormat);
+        m_tradeStartFormatted = dateTimeInstance.format(tradeStartTime);
+//System.out.println("tradeStartFormatted=" + m_tradeStartFormatted);
         m_tradeStartMillis = m_calendar.getTimeInMillis();
 
         m_calendar.set(Calendar.HOUR_OF_DAY, schedule.getToHours());
         m_calendar.set(Calendar.MINUTE, schedule.getToMinutes());
         Date tradeEndTime = m_calendar.getTime();
-        String tradeEndFormat = dateTimeInstance.format(tradeEndTime);
-System.out.println("tradeEndFormat=" + tradeEndFormat);
+        m_tradeEndFormatted = dateTimeInstance.format(tradeEndTime);
+//System.out.println("tradeEndFormatted=" + m_tradeEndFormatted);
         m_tradeEndMillis = m_calendar.getTimeInMillis();
     }
 
-    public boolean inside(long timestamp) {
+    public boolean isInsideOfTradingHours(long timestamp) {
         return (m_tradeStartMillis <= timestamp) && (timestamp < m_tradeEndMillis);
     }
 
@@ -82,12 +81,13 @@ System.out.println("tradeEndFormat=" + tradeEndFormat);
         } else {
             Holidays holidays = m_schedule.getHolidays();
             if (holidays != null) {
-                DateFormat dateFormat = SimpleDateFormat.getDateInstance(SimpleDateFormat.MEDIUM);
+                DateFormat dateFormat = new SimpleDateFormat("ddMMyyyy");
                 TimeZone timezone = m_schedule.getTimezone();
                 dateFormat.setTimeZone(timezone);
-                String format = dateFormat.format(m_calendar.getTime());
-System.out.println("dateFormat=" + format);
-                boolean holiday = holidays.isHoliday(format);
+                Date time = m_calendar.getTime();
+                String dateFormatted = dateFormat.format(time);
+//System.out.println("dateFormatted=" + dateFormatted);
+                boolean holiday = holidays.isHoliday(dateFormatted);
                 if(holiday) {
                     shiftCalendarToNextDay();
                 }
