@@ -13,15 +13,13 @@ import bi.two.util.Utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 // -----------------------------------------------------------------------------------------------------------
 public class TradesPreloader implements Runnable {
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
     private static final boolean LOG_PARSING = false;
+    public static final int MAX_HISTORY_LOAD_ITERATIONS = 10000; // BitMex: 1000 iteration ~= =18h
 
     private final Exchange m_exchange;
     private final Pair m_pair;
@@ -205,7 +203,7 @@ public class TradesPreloader implements Runnable {
     private long downloadHistoryTrades() throws Exception {
         console("downloadHistoryTrades for period: " + Utils.millisToYDHMSStr(m_periodToPreload));
         int ticksNumInBlockToLoad = m_exchange.getMaxTradeHistoryLoadCount(); // bitmex: Maximum result count is 500
-        int maxIterations = 10000; // 1000 iteration ~= =18h
+        int maxIterations = MAX_HISTORY_LOAD_ITERATIONS; // 1000 iteration ~= =18h
         long timestamp = m_lastLiveTradeTimestamp;
         int iteration = 1;
         while (iteration < maxIterations) {
@@ -253,6 +251,24 @@ public class TradesPreloader implements Runnable {
         List<? extends ITickData> trades = m_exchange.loadTrades(m_pair, actualTimestamp, Direction.backward, ticksNumInBlockToLoad);
 
         int tradesNum = trades.size();
+        ITickData firstTrade = trades.get(0);
+        long newestTimestamp = firstTrade.getTimestamp();
+        int lastIndex = tradesNum - 1;
+        ITickData lastTrade = trades.get(lastIndex);
+        long oldestPartialTimestamp = lastTrade.getTimestamp();
+
+        // verify timestamps in bounds
+        ListIterator<? extends ITickData> listIterator = trades.listIterator();
+        while (listIterator.hasNext()) {
+            ITickData trade = listIterator.next();
+            long tradeTimestamp = trade.getTimestamp();
+            if ((tradeTimestamp < oldestPartialTimestamp) || (newestTimestamp < tradeTimestamp)) {
+                console("trade timestamp=" + tradeTimestamp + " out of block bounds [" + oldestPartialTimestamp + "..." + newestTimestamp + "] removing");
+                listIterator.remove();
+                tradesNum--;
+            }
+        }
+
         int numToLogAtEachSide = 7;
         for (int i = 0; i < tradesNum; i++) {
             ITickData trade = trades.get(i);
@@ -263,11 +279,6 @@ public class TradesPreloader implements Runnable {
             }
         }
         if (!trades.isEmpty()) {
-            ITickData first = trades.get(0);
-            long newestTimestamp = first.getTimestamp();
-            int lastIndex = tradesNum - 1;
-            ITickData last = trades.get(lastIndex);
-            long oldestPartialTimestamp = last.getTimestamp();
             long diff = timestamp - newestTimestamp;
             long period = newestTimestamp - oldestPartialTimestamp;
             console(tradesNum + " trades loaded: newestTimestamp=" + newestTimestamp + "; oldestPartialTimestamp[" + lastIndex + "]=" + oldestPartialTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
