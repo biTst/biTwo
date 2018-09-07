@@ -1699,7 +1699,7 @@ console("    after update: orderData=" + orderData);
                         console("contentLength=" + contentLength + "; contentType=" + contentType + "; charset=" + charset);
                     }
                     InputStream is = entity.getContent();
-                    Reader reader = new InputStreamReader(is, charset);
+                    Reader reader = new InputStreamReader(is, charset); // todo: extend to count traffic ?
 
                     try {
                         Gson gson = new GsonBuilder().create();

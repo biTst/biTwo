@@ -1,5 +1,6 @@
 package bi.two.exch;
 
+import bi.two.exch.schedule.Schedule;
 import bi.two.tre.CurrencyValue;
 
 import java.io.File;

@@ -2,6 +2,7 @@ package bi.two;
 
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
+import bi.two.util.MapConfig;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -200,6 +201,12 @@ public enum DataFileType {
             }
         }
         throw new RuntimeException("Unknown DataFileType '" + type + "'");
+    }
+
+    public static DataFileType init(MapConfig config) {
+        String dataFileType = config.getProperty("dataFile.type");
+        DataFileType type = DataFileType.get(dataFileType);
+        return type;
     }
 
     public TickData parseLine(String line) { throw new RuntimeException("must be overridden"); }

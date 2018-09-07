@@ -3,10 +3,11 @@ package bi.two.ts;
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
 import bi.two.exch.ExchPairData;
-import bi.two.exch.TradeSchedule;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
+import bi.two.exch.schedule.TradeSchedule;
+import bi.two.main2.TicksCacheReader;
 import bi.two.util.*;
 
 import java.io.*;
@@ -27,7 +28,7 @@ public enum TickReader {
             console("fileLength = " + fileLength);
 
             long bytesToProcess = config.getLong("process.bytes");
-            final long lastBytesToProcess = bytesToProcess == 0 ? Long.MAX_VALUE : bytesToProcess;
+            final long lastBytesToProcess = (bytesToProcess == 0) ? Long.MAX_VALUE : bytesToProcess;
 
             boolean resetLine = false;
             boolean skipBytes = (lastBytesToProcess > 0);
@@ -71,23 +72,23 @@ public enum TickReader {
                 }
             };
 
-            String dataFileType = config.getProperty("dataFile.type");
-
-            readFileTicks(reader, ticksTs, callback, dataFileType, resetLine); // reader closed inside
+            readFileTicks(reader, ticksTs, callback, resetLine, config); // reader closed inside
 
             console("feedTicks() done in " + doneTs.getPassed());
         }
 
         private void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                   String dataFileType, boolean resetLine) throws IOException {
+                                   boolean resetFirstLine, MapConfig config) throws IOException {
             TimeStamp ts = new TimeStamp();
             BufferedReader br = new BufferedReader(reader, 256 * 1024);
             try {
-                if (resetLine) { // after bytes skipping we may point to the middle of line
+                if (resetFirstLine) { // after bytes skipping we may point to the middle of line
                     br.readLine(); // skip to the end of line
                 }
 
-                DataFileType type = DataFileType.get(dataFileType);
+                DataFileType type = DataFileType.init(config);
+                TradeSchedule tradeSchedule = TradeSchedule.init(config);
+
                 float lastClosePrice = 0;
                 String line;
                 int counter = 0;
@@ -104,7 +105,9 @@ public enum TickReader {
                         }
                         lastClosePrice = closePrice;
 
-                        TradeSchedule.updateTime(tickData);
+                        if (tradeSchedule != null) {
+                            tradeSchedule.updateTickTimeToSchedule(tickData);
+                        }
 
                         ticksTs.addNewestTick(tickData);
                         if (callback != null) {

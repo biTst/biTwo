@@ -1,6 +1,7 @@
 package bi.two.exch;
 
 import bi.two.chart.ITickData;
+import bi.two.exch.schedule.Schedule;
 import bi.two.main2.TicksCacheReader;
 import bi.two.tre.CurrencyValue;
 import bi.two.util.Log;
