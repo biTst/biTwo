@@ -110,6 +110,7 @@ public class TradesPreloader implements Runnable {
 
         int lastMatchedIndex = -1;
         while (true) {
+            long startTimestamp = currentTimestamp;
             log(" next iteration: currentTimestamp=" + currentTimestamp + ". date=" + new Date(currentTimestamp));
             boolean matched = false;
             int skippedTicksNum = 0;
@@ -179,6 +180,9 @@ public class TradesPreloader implements Runnable {
                 if (min == Long.MAX_VALUE) {
                     break;
                 }
+            }
+            if (startTimestamp == currentTimestamp) {
+                throw new RuntimeException("error startTimestamp is not changed: " + startTimestamp);
             }
         }
     }
@@ -262,14 +266,22 @@ public class TradesPreloader implements Runnable {
         while (listIterator.hasNext()) {
             ITickData trade = listIterator.next();
             long tradeTimestamp = trade.getTimestamp();
-            if ((tradeTimestamp < oldestPartialTimestamp) || (newestTimestamp < tradeTimestamp)) {
-                console("trade timestamp=" + tradeTimestamp + " out of block bounds [" + oldestPartialTimestamp + "..." + newestTimestamp + "] removing");
+            long diff = 0;
+            if (tradeTimestamp < oldestPartialTimestamp) {
+                diff = tradeTimestamp - oldestPartialTimestamp;
+            } else if (newestTimestamp < tradeTimestamp) {
+                diff = tradeTimestamp - newestTimestamp;
+            }
+            if (diff != 0) {
+                console("trade timestamp=" + tradeTimestamp + " out of block bounds. diff=" + diff
+                        + "; [" + oldestPartialTimestamp + "..." + newestTimestamp + "] removing");
                 listIterator.remove();
                 tradesNum--;
+                lastIndex--;
             }
         }
 
-        int numToLogAtEachSide = 7;
+        int numToLogAtEachSide = 5;
         for (int i = 0; i < tradesNum; i++) {
             ITickData trade = trades.get(i);
             log("[" + i + "] " + trade.toString());
