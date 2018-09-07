@@ -1041,8 +1041,8 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
                     trades = pairData.getTrades();
                 }
                 trades.onTrade(td);
-            } catch (ParseException e) {
-                err("error parsing trade: " + e + "; obj=" + obj, e);
+            } catch (Exception e) {
+                err("error parsing trade[" + i + "]: " + e + "; obj=" + obj, e);
             }
         }
     }
@@ -1072,13 +1072,21 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
         Number price = (Number) obj.get("price");
         String timestampStr = (String) obj.get("timestamp");
 
-        boolean isBuy = side.equals("Buy");
-        OrderSide orderSide = OrderSide.get(isBuy);
-        Date date = TIMESTAMP_FORMAT.parse(timestampStr);
-        long timestamp = date.getTime();
-        console("    side=" + side + "; size=" + size + "; price=" + price + "; timestampStr=" + timestampStr + "; isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
+        try {
+            boolean isBuy = side.equals("Buy");
+            OrderSide orderSide = OrderSide.get(isBuy);
+            Date date = TIMESTAMP_FORMAT.parse(timestampStr);
+            long timestamp = date.getTime();
+            console("    side=" + side + "; size=" + size + "; price=" + price + "; timestampStr=" + timestampStr + "; isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
 
-        return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
+            return new TradeData(timestamp, price.floatValue(), size.floatValue(), orderSide);
+        } catch (Exception e) {
+            String msg = "parseTrade error: timestampStr='" + timestampStr + "'; obj=" + obj + " : " + e;
+            err(msg, e);
+            ParseException parseException = new ParseException(msg, -1);
+            parseException.initCause(e);
+            throw parseException;
+        }
     }
 
     private static void connectToServer(Endpoint endpoint) throws DeploymentException, IOException, URISyntaxException {
@@ -1486,11 +1494,12 @@ console("    after update: orderData=" + orderData);
                 table = loadTable(nvps);
                 break;
             } catch (Exception e) {
-                if (repeatCount++ < 5) {
+                if (repeatCount++ < 20) {
                     int sec = 2 * repeatCount;
                     err("error loadTable: repeating loadTrades in " + sec + "sec (repeatCount=" + repeatCount + "): " + e, e);
                     TimeUnit.SECONDS.sleep(sec); // no ddos
                 } else {
+                    err("error loadTable: no more wait: rethrow: " + e, e);
                     throw e; // rethrow
                 }
             }
