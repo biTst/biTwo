@@ -3,6 +3,7 @@ package bi.two.ts;
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
 import bi.two.exch.ExchPairData;
+import bi.two.exch.TradeSchedule;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
@@ -102,6 +103,9 @@ public enum TickReader {
                             }
                         }
                         lastClosePrice = closePrice;
+
+                        TradeSchedule.updateTime(tickData);
+
                         ticksTs.addNewestTick(tickData);
                         if (callback != null) {
                             callback.run();

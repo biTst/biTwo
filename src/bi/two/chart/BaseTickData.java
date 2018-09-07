@@ -37,10 +37,9 @@ public class BaseTickData implements ITickData {
         return TickPainter.TICK;
     }
     @Override public ITickData getOlderTick() { return null; }
-
     @Override public long getBarSize() { return 0; }
 
-
+    public void setTimestamp(long timestamp) { m_timestamp = timestamp; }
     public void setOlderTick(ITickData olderTick) { /*noop*/ }
 
     @Override public boolean isValid() { return (m_price != Utils.INVALID_PRICE) && (m_price > 0); }
