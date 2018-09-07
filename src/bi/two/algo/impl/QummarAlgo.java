@@ -4,8 +4,7 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.BarsRegressor;
-import bi.two.calc.TicksSMA;
+import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
@@ -109,13 +108,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
-//        long period = (long) (length * barSize * m_linRegMultiplier);
-//        return new SlidingTicksRegressor(tsd, period, false);
+        long period = (long) (length * barSize * m_linRegMultiplier);
+        return new SlidingTicksRegressor(tsd, period, false);
 
 //        return new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier*5);
 
-        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
-        return new TicksSMA(r, m_barSize/2);
+//        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
+//        return new TicksSMA(r, m_barSize/2);
 
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
