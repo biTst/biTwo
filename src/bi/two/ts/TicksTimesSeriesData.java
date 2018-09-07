@@ -42,7 +42,7 @@ public class TicksTimesSeriesData<T extends ITickData>
         notifyListeners(true);
     }
 
-    public void addOlderTick(T t) { // older tick at the begining
+    public void addOlderTick(T t) { // older tick at the beginning
         int size = m_reverseTicks.size();
         if (size > 0) {
             T last = m_reverseTicks.get(0);

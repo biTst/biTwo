@@ -13,15 +13,16 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 public class BarsRegressor extends BaseTimesSeriesData<ITickData>
         implements TicksTimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Float> {
     public final BarSplitter m_splitter;
-    private final SimpleRegression m_simpleRegression = new SimpleRegression(true);
+    private final SimpleRegression m_simpleRegression = new SimpleRegression(true); // todo: check MillerUpdatingRegression
     private long m_lastBarTickTime;
-    private boolean m_initialized;
+    private boolean m_notInitialized = true;
     private boolean m_filled;
     private boolean m_dirty;
     private TickData m_tickData;
 
     public BarsRegressor(ITimesSeriesData<ITickData> tsd, int barsNum, long barSize, float divider) {
         m_splitter = new BarSplitter(tsd, (int) (barsNum * divider), (long) (barSize/divider));
+        int splitterBarsNum = m_splitter.m_barsNum;
         setParent(m_splitter);
     }
 
@@ -71,8 +72,8 @@ public class BarsRegressor extends BaseTimesSeriesData<ITickData>
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         boolean iAmChanged = false;
         if (changed) {
-            if (!m_initialized) {
-                m_initialized = true;
+            if (m_notInitialized) { // do once on first tick
+                m_notInitialized = false;
                 final BarSplitter.BarHolder oldestTick = m_splitter.getOldestTick();
                 oldestTick.addBarHolderListener(new BarSplitter.BarHolder.IBarHolderListener() {
                     @Override public void onTickEnter(ITickData tickData) {
