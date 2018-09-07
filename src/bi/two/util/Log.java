@@ -81,7 +81,7 @@ public class Log {
         private final FileOutputStream m_fos;
 
         public FileLog() {
-            this(LOG_DIR + File.pathSeparator + DEF_LOG_FILE);
+            this(LOG_DIR + File.separator + DEF_LOG_FILE);
         }
 
         public FileLog(String logFileLocation) {
