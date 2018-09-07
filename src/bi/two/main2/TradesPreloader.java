@@ -100,7 +100,8 @@ public class TradesPreloader implements Runnable {
         long period = newestTimestamp - oldestTimestamp;
         log("playOnlyCache: newestTimestamp=" + newestTimestamp + "; oldestTimestamp=" + oldestTimestamp + "; period=" + Utils.millisToYDHMSStr(period));
 
-        playCacheTrades(oldestTimestamp);
+        long startTimestamp = (period > m_periodToPreload) ? newestTimestamp - m_periodToPreload : oldestTimestamp;
+        playCacheTrades(startTimestamp);
     }
 
     private void playCacheTrades(long oldestTradeTime) throws IOException {
