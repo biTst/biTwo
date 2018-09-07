@@ -44,7 +44,8 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     }
 
     protected void notifyListeners(boolean changed) {
-        for (ITimesSeriesListener listener : m_listeners) {
+        for (int i = 0, size = m_listeners.size(); i < size; i++) {
+            ITimesSeriesListener listener = m_listeners.get(i);
             listener.onChanged(this, changed);
         }
     }
