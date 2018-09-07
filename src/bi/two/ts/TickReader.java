@@ -9,12 +9,54 @@ import bi.two.util.MapConfig;
 import bi.two.util.ReverseListIterator;
 import bi.two.util.TimeStamp;
 
+import java.io.File;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public enum TickReader {
     DIR("dir") {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+            TimeStamp doneTs = new TimeStamp();
 
+            String path = config.getPropertyNoComment("dataDir");
+            File dir = new File(path);
+            if (!dir.exists()) {
+                throw new RuntimeException("directory does not exists: " + path);
+            }
+            if (!dir.isDirectory()) {
+                throw new RuntimeException("not a directory: " + path);
+            }
+
+            String filePattern = config.getPropertyNoComment("filePattern");
+
+            int filesProcessed = 0;
+            File[] files = dir.listFiles();
+            Arrays.sort(files, Comparator.comparing(File::getName));
+            for (File file : files) {
+                if (file.isFile()) {
+                    if (filePattern != null) {
+                        String name = file.getName();
+                        boolean matches = name.matches(filePattern);
+                        if (!matches) {
+                            console("skipped file: " + name + "; not matched");
+                            continue;
+                        }
+                    }
+
+                    console("readFileTicks: " + file.getAbsolutePath());
+                    FileTickReader.readFileTicks(config, ticksTs, callback, file);
+                    filesProcessed++;
+                } else {
+                    console("skipped subdirectory: " + file.getAbsolutePath());
+                }
+            }
+
+            console("readDirTicks() done in " + doneTs.getPassed() + ";  filesProcessed=" + filesProcessed);
+
+            ticksTs.notifyNoMoreTicks();
+        }
     },
     FILE("file") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {

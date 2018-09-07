@@ -20,6 +20,15 @@ public class FileTickReader {
 
         String path = config.getPropertyNoComment("dataFile");
         File file = new File(path);
+
+        readFileTicks(config, ticksTs, callback, file);
+
+        console("readFileTicks() done in " + doneTs.getPassed());
+
+        ticksTs.notifyNoMoreTicks();
+    }
+
+    public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, File file) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
         console("fileLength = " + fileLength);
@@ -70,8 +79,6 @@ public class FileTickReader {
         };
 
         readFileTicks(reader, ticksTs, callback, resetLine, config); // reader closed inside
-
-        console("feedTicks() done in " + doneTs.getPassed());
     }
 
     private static void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
@@ -114,10 +121,8 @@ public class FileTickReader {
                 }
             }
             console("ticksTs: " + counter + " ticks was read in " + ts.getPassed());
-            ticksTs.notifyNoMoreTicks();
         } finally {
             br.close();
         }
     }
-
 }
