@@ -142,6 +142,13 @@ public class Exchange {
         m_impl.subscribeTrades(trades);
     }
 
+    public void unsubscribeTrades(Pair pair) throws Exception {
+        ExchPairData pairData = getPairData(pair);
+        ExchPairData.TradesData trades = pairData.getTrades();
+        trades.setTradeListener(null);
+        m_impl.unsubscribeTrades(trades);
+    }
+
     public void queryAccount(IAccountListener iAccountListener) throws Exception {
         m_accountListener = iAccountListener;
         m_impl.queryAccount();

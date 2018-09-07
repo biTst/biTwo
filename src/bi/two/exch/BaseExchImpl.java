@@ -58,6 +58,10 @@ public class BaseExchImpl {
         throw new RuntimeException("not implemented: " + this);
     }
 
+    public void unsubscribeTrades(ExchPairData.TradesData tradesData) throws Exception {
+        throw new RuntimeException("not implemented: " + this);
+    }
+
     public TicksCacheReader getTicksCacheReader(MapConfig config) {
         throw new RuntimeException("not implemented: " + this);
     }

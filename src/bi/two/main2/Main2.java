@@ -40,7 +40,7 @@ public class Main2 extends Thread {
     private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.FileLog(); //StdLog();
+        Log.s_impl = new Log.FileLog("log/main2.txt");
         MarketConfig.initMarkets(false);
 
         new Main2().start();
@@ -273,6 +273,11 @@ public class Main2 extends Thread {
             @Override public void onTrade(TradeData td) {
                 console("onTrade td=" + td);
                 preloader.addNewestTick(td); // this will start preloader on first trade
+                try {
+                    m_exchange.unsubscribeTrades(m_pair);
+                } catch (Exception e) {
+                    err("unsubscribeTrades error: " + e, e);
+                }
             }
         });
     }
