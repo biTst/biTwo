@@ -75,28 +75,39 @@ public class Log {
     // -----------------------------------------------------------------------------
     public static class FileLog implements ILog {
         static final String LOG_DIR = "logs";
-        static final String LOG_FILE = "log.log";
+        static final String DEF_LOG_FILE = "log.log";
 
         private final ExecutorService m_threadPool;
         private final FileOutputStream m_fos;
 
         public FileLog() {
+            this(LOG_DIR + File.pathSeparator + DEF_LOG_FILE);
+        }
+
+        public FileLog(String logFileLocation) {
             m_threadPool = Executors.newSingleThreadExecutor();
-            File dir = new File(LOG_DIR);
-            if (!dir.exists()) {
-                boolean created = dir.mkdirs();
+
+            File logFile = new File(logFileLocation);
+            File logDir = logFile.getParentFile();
+
+            if (!logDir.exists()) {
+                boolean created = logDir.mkdirs();
                 if (created) {
-                    System.out.print("error: logs dir not created: LOG_DIR=" + LOG_DIR + "; AbsolutePath=" + dir.getAbsolutePath());
+                    throw new RuntimeException("error: logs dir not created: LOG_DIR=" + LOG_DIR + "; AbsolutePath=" + logDir.getAbsolutePath());
                 }
             }
 
-            File file = new File(dir, LOG_FILE);
-            if (file.exists()) {
-                String newFileName = "log-" + System.currentTimeMillis() + ".log";
-                file.renameTo(new File(dir, newFileName));
+            if (logFile.exists()) {
+                String fileName = logFile.getName();
+                int indx = fileName.indexOf(".");
+                String name = (indx > 0) ? fileName.substring(0, indx) : fileName;
+                String ext = (indx > 0) ? fileName.substring(indx) : ""; // extension with dot
+
+                String newFileName = name + "-" + System.currentTimeMillis() + ext;
+                logFile.renameTo(new File(logDir, newFileName));
             }
             try {
-                m_fos = new FileOutputStream(file);
+                m_fos = new FileOutputStream(logFile);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open lof file: " + e, e);
             }
