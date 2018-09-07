@@ -67,7 +67,6 @@ public class BitMex extends BaseExchImpl {
     private static final String CONFIG_FILE = "cfg\\bitmex.properties";
     private static final String API_KEY_KEY = "bitmex_apiKey";
     private static final String API_SECRET_KEY = "bitmex_apiSecret";
-    private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
     public static final String ORDER_ENDPOINT = "/api/v1/order";
 
@@ -91,6 +90,7 @@ public class BitMex extends BaseExchImpl {
     public static final int MAX_TRADE_HISTORY_LOAD_COUNT = 500;
     public static final String ENDPOINT_PATH = "/api/v1/trade";
 
+    private static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     static {
         TIMESTAMP_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
@@ -213,7 +213,7 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
                                     // {"op": "subscribe", "args": ["trade:XBTUSD","instrument:XBTUSD"]}
 
 //                                    requestFullOrderBook(session);
-//                                    requestLiveTrades(session);
+//                                    sendLiveTrades(session);
 //                                    requestInstrument(session);
 //                                    requestOrderBook10(session);
 //                                    requestQuote(session);
@@ -682,11 +682,12 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
         //  "data":[{"symbol":"XBTUSD","indicativeSettlePrice":8114.41,"timestamp":"2018-03-15T00:53:10.000Z"}]}
     }
 
-    private void requestLiveTrades(Session session, Pair pair) throws IOException {
+    private void sendLiveTrades(Session session, Pair pair, String operation) throws IOException {
         String symbol = pairToSymbol(pair);
         // -------------------------------------------------------------------------------------------------------------------------------------
         // Live trades
-        send(session, "{\"op\": \"subscribe\", \"args\": [\"trade:" + symbol + "\"]}");
+        //                                subscribe
+        send(session, "{\"op\": \"" + operation + "\", \"args\": [\"trade:" + symbol + "\"]}");
 
         // {"success":true,
         //  "subscribe":"trade:XBTUSD",
@@ -1075,7 +1076,7 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
         try {
             boolean isBuy = side.equals("Buy");
             OrderSide orderSide = OrderSide.get(isBuy);
-            Date date = TIMESTAMP_FORMAT.parse(timestampStr);
+            Date date = parseTimestamp(timestampStr);
             long timestamp = date.getTime();
             console("    side=" + side + "; size=" + size + "; price=" + price + "; timestampStr=" + timestampStr + "; isBuy=" + isBuy + "; orderSide=" + orderSide + "; date=" + date + "; timestamp=" + timestamp);
 
@@ -1122,7 +1123,11 @@ log("pairToSymbol pair=" + pair + "  => " + symbol);
     }
 
     @Override public void subscribeTrades(ExchPairData.TradesData tradesData) throws IOException {
-        requestLiveTrades(m_session, tradesData.m_pair);
+        sendLiveTrades(m_session, tradesData.m_pair, "subscribe");
+    }
+
+    @Override public void unsubscribeTrades(ExchPairData.TradesData tradesData) throws IOException {
+        sendLiveTrades(m_session, tradesData.m_pair, "unsubscribe");
     }
 
     @Override public void connect(Exchange.IExchangeConnectListener listener) throws Exception {
@@ -1471,7 +1476,10 @@ console("    after update: orderData=" + orderData);
         String symbol = pairToSymbol(pair);
 
         Date date = new Date(timestamp);
-        String time = TIMESTAMP_FORMAT.format(date);
+        String time;
+        synchronized (TIMESTAMP_FORMAT) {
+            time = TIMESTAMP_FORMAT.format(date);
+        }
         String count = Integer.toString(tradesNum);
         console("loadTrades timestamp=" + timestamp + "; start=" + time + "; symbol=" + symbol + "; count=" + count);
 
@@ -1704,7 +1712,13 @@ console("    after update: orderData=" + orderData);
         }
     }
 
-//    private <T> List<T> parseTable(Reader reader) {
+    private static Date parseTimestamp(String timestampStr) throws ParseException {
+        synchronized (TIMESTAMP_FORMAT) {
+            return TIMESTAMP_FORMAT.parse(timestampStr);
+        }
+    }
+
+    //    private <T> List<T> parseTable(Reader reader) {
 //        Gson gson = new GsonBuilder().create();
 //        List<T> list = gson.fromJson(reader, new TypeToken<List<T>>(){}.getType());
 //        return list;
@@ -1790,7 +1804,7 @@ console("    after update: orderData=" + orderData);
             JsonElement timestamp = json.get("timestamp");
             String timestampStr = timestamp.getAsString();
             try {
-                Date date = TIMESTAMP_FORMAT.parse(timestampStr);
+                Date date = parseTimestamp(timestampStr);
                 ret.m_timestamp = date.getTime();
                 ret.m_price = json.get("price").getAsDouble();
 
