@@ -14,6 +14,7 @@ import java.nio.charset.Charset;
 
 public class FileTickReader {
     private static void console(String s) { Log.console(s); }
+    private static void log(String s) { Log.log(s); }
 
     public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws IOException {
         TimeStamp doneTs = new TimeStamp();
@@ -35,7 +36,7 @@ public class FileTickReader {
                                      File file, DataFileType type, TradeSchedule tradeSchedule) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
-        console("fileLength = " + fileLength);
+        log("fileLength = " + fileLength);
 
         long bytesToProcess = config.getLong("process.bytes");
         final long lastBytesToProcess = (bytesToProcess == 0) ? Long.MAX_VALUE : bytesToProcess;

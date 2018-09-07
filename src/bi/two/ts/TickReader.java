@@ -45,12 +45,12 @@ public enum TickReader {
                         String name = file.getName();
                         boolean matches = name.matches(filePattern);
                         if (!matches) {
-                            console("skipped file: " + name + "; not matched");
+                            log("skipped file: " + name + "; not matched");
                             continue;
                         }
                     }
 
-                    console("readFileTicks: " + file.getAbsolutePath());
+                    log("readFileTicks: " + file.getAbsolutePath());
                     FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule);
                     filesProcessed++;
                 } else {
@@ -98,6 +98,7 @@ public enum TickReader {
     private final String m_name;
 
     private static void console(String s) { Log.console(s); }
+    private static void log(String s) { Log.log(s); }
 
     TickReader(String name) {
         m_name = name;
