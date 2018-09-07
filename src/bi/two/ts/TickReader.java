@@ -1,130 +1,28 @@
 package bi.two.ts;
 
-import bi.two.DataFileType;
 import bi.two.chart.TickData;
-import bi.two.exch.ExchPairData;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
-import bi.two.exch.schedule.TradeSchedule;
-import bi.two.main2.TicksCacheReader;
-import bi.two.util.*;
+import bi.two.util.Log;
+import bi.two.util.MapConfig;
+import bi.two.util.ReverseListIterator;
+import bi.two.util.TimeStamp;
 
-import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public enum TickReader {
+    DIR("dir") {
+
+    },
     FILE("file") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
-            TimeStamp doneTs = new TimeStamp();
-
-            String path = config.getPropertyNoComment("dataFile");
-            File file = new File(path);
-            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-            long fileLength = file.length();
-            console("fileLength = " + fileLength);
-
-            long bytesToProcess = config.getLong("process.bytes");
-            final long lastBytesToProcess = (bytesToProcess == 0) ? Long.MAX_VALUE : bytesToProcess;
-
-            boolean resetLine = false;
-            boolean skipBytes = (lastBytesToProcess > 0);
-            if (skipBytes) {
-                long toSkipBytes = fileLength - lastBytesToProcess;
-                if (toSkipBytes > 0) {
-                    randomAccessFile.seek(toSkipBytes);
-                    resetLine = true;
-                }
-            }
-
-            InputStream is = Channels.newInputStream(randomAccessFile.getChannel());
-            Reader reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
-                private static final long REPORT_BLOCK_SIZE = 10000;
-
-                private long m_wasRead = 0;
-                private long m_startTime = System.currentTimeMillis();
-                private long m_nextReport = REPORT_BLOCK_SIZE;
-                private long m_lastReportTime;
-
-                @Override public int read(char[] cbuf, int off, int len) throws IOException {
-                    int read = super.read(cbuf, off, len);
-                    m_wasRead += read;
-                    if (m_wasRead > lastBytesToProcess) {
-                        console("too many reads");
-                    }
-                    if (m_wasRead > m_nextReport) {
-                        long currentTimeMillis = System.currentTimeMillis();
-                        if (currentTimeMillis - m_lastReportTime > 20000) {
-                            long took = currentTimeMillis - m_startTime;
-                            double fraction = ((double) m_wasRead) / lastBytesToProcess;
-                            long projectedTotal = (long) (took / fraction);
-                            long projectedRemained = projectedTotal - took;
-                            console("was read=" + m_wasRead + "bytes; from=" + lastBytesToProcess + "; " + Utils.format5(fraction)
-                                    + ": total: " + Utils.millisToYDHMSStr(projectedTotal) + "; remained=" + Utils.millisToYDHMSStr(projectedRemained));
-                            m_lastReportTime = currentTimeMillis;
-                        }
-                        m_nextReport += REPORT_BLOCK_SIZE;
-                    }
-                    return read;
-                }
-            };
-
-            readFileTicks(reader, ticksTs, callback, resetLine, config); // reader closed inside
-
-            console("feedTicks() done in " + doneTs.getPassed());
-        }
-
-        private void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                   boolean resetFirstLine, MapConfig config) throws IOException {
-            TimeStamp ts = new TimeStamp();
-            BufferedReader br = new BufferedReader(reader, 256 * 1024);
-            try {
-                if (resetFirstLine) { // after bytes skipping we may point to the middle of line
-                    br.readLine(); // skip to the end of line
-                }
-
-                DataFileType type = DataFileType.init(config);
-                TradeSchedule tradeSchedule = TradeSchedule.init(config);
-
-                float lastClosePrice = 0;
-                String line;
-                int counter = 0;
-                while ((line = br.readLine()) != null) {
-                    // System.out.println("line = " + line);
-                    TickData tickData = type.parseLine(line);
-                    if (tickData != null) {
-                        float closePrice = tickData.getClosePrice();
-                        if (lastClosePrice != 0) {
-                            float rate = closePrice / lastClosePrice;
-                            if ((rate < 0.5) || (rate > 1.5)) {
-                                continue; // skip too big price drops
-                            }
-                        }
-                        lastClosePrice = closePrice;
-
-                        if (tradeSchedule != null) {
-                            tradeSchedule.updateTickTimeToSchedule(tickData);
-                        }
-
-                        ticksTs.addNewestTick(tickData);
-                        if (callback != null) {
-                            callback.run();
-                        }
-                        counter++;
-                    }
-                }
-                console("ticksTs: " + counter + " ticks was read in " + ts.getPassed());
-                ticksTs.notifyNoMoreTicks();
-            } finally {
-                br.close();
-            }
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+            FileTickReader.readFileTicks( config, ticksTs, callback);
         }
     },
     BITFINEX("bitfinex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
 //            long period = TimeUnit.HOURS.toMillis(10);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = Bitfinex.readTicks(config, period);
@@ -132,7 +30,7 @@ public enum TickReader {
         }
     },
     CEX("cex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
 //            long period = TimeUnit.MINUTES.toMillis(200);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = CexIo.readTicks(period);
@@ -140,7 +38,7 @@ public enum TickReader {
         }
     },
     BITMEX("bitmex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             TicksTimesSeriesData<TickData> fileTs = BitMex.readTicks(config, period);
             int size = fileTs.getTicksNum();
@@ -167,7 +65,7 @@ public enum TickReader {
         throw new RuntimeException("Unknown TickReader '" + name + "'");
     }
 
-    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, ExchPairData pairData) throws Exception {
+    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
         throw new RuntimeException("must be overridden");
     }
 

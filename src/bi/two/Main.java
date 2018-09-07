@@ -4,7 +4,6 @@ import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.chart.TickData;
-import bi.two.exch.ExchPairData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
 import bi.two.exch.Pair;
@@ -59,7 +58,7 @@ public class Main {
             Exchange exchange = Exchange.get(exchangeName);
             String pairName = config.getString("pair");
             Pair pair = Pair.getByName(pairName);
-            ExchPairData pairData = exchange.getPairData(pair);
+//            ExchPairData pairData = exchange.getPairData(pair);
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
@@ -86,8 +85,8 @@ public class Main {
                 console("## iteration " + i);
 
                 BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
-                        ? new TicksTimesSeriesData<TickData>(null)
-                        : new NoTicksTimesSeriesData<TickData>(null);
+                        ? new TicksTimesSeriesData<>(null)
+                        : new NoTicksTimesSeriesData<>(null);
                 if (!collectTicks) { // add initial tick to update
                     ticksTs.addOlderTick(new TickData());
                 }
@@ -118,7 +117,7 @@ public class Main {
                 Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
                 TickReader tickReader = TickReader.get(tickReaderName);
 
-                tickReader.readTicks(config, ticksTs, callback, pairData);
+                tickReader.readTicks(config, ticksTs, callback);
                 ticksTs.waitAllFinished();
 
                 logResults(watchers, startMillis);
