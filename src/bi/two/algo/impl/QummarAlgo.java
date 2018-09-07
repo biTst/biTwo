@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
-    private static final float REVERSE_LEVEL = 0.5f;
-    private static final float REVERSE_MUL = 2.0f; // 2
     private static final boolean APPLY_REVERSE = true;
 
     private final float m_start;
@@ -28,6 +26,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final long m_joinTicks;
     private final float m_minOrderMul;
     private final float m_target;
+    private final float m_reverse;
+    private final float m_reverseMul;
 
     private BarsTimesSeriesData m_priceBars;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
@@ -68,6 +68,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
         m_target = algoConfig.getNumber(Vary.target).floatValue();
+        m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
+        m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
@@ -208,12 +210,12 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 m_mulAndPrev = m_mul + m_prevAdj * (1 - m_power);
 
                 Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
-                m_reverseLevel = m_zerro + REVERSE_LEVEL * (ribbonSpreadHead - m_zerro);
+                m_reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
 
                 boolean checkReverse = (goUp && (head < m_reverseLevel)) || (!goUp && (head > m_reverseLevel));
                 float reversePower = 0;
                 if (checkReverse) {
-                    reversePower = (head - m_reverseLevel) / (tail - m_reverseLevel) * REVERSE_MUL;
+                    reversePower = (head - m_reverseLevel) / (tail - m_reverseLevel) * m_reverseMul;
                     reversePower = Math.max(0.0f, Math.min(1.0f, reversePower)); // bounds
                 }
 
@@ -235,10 +237,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMultiplier=" : ",") + m_linRegMultiplier
-//                + (detailed ? "|s1=" : "|") + m_s1
-//                + (detailed ? ",s2=" : ",") + m_s2
-//                + (detailed ? ",e1=" : ",") + m_e1
-//                + (detailed ? ",e2=" : ",") + m_e2
+                + (detailed ? ",target=" : ",") + m_target
+                + (detailed ? ",reverse=" : ",") + m_reverse
+                + (detailed ? ",reverseMul=" : ",") + m_reverseMul
                 + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + ", " + m_barSize
