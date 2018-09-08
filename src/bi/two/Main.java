@@ -170,6 +170,17 @@ public class Main {
     private static MapConfig getDefaultConfig(MapConfig config) {
         MapConfig algoConfig = new MapConfig();
 
+        String params = config.getString("params");
+        if (params != null) {
+            String[] split = params.split(";");
+            for (String s : split) {
+                String[] nv = s.trim().split("=");
+                String name = nv[0];
+                String value = nv[1];
+                algoConfig.put(name, value);
+            }
+        }
+
         // read default config
         for (Vary vary : Vary.values()) {
             String name = vary.name();
