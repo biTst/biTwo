@@ -17,7 +17,7 @@ import java.util.TreeMap;
 
 public class ChartAreaPainter {
 
-    public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
+    public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, int xMin, int xMax, long timeMin, long timeMax, Point crossPoint) {
 
     }
 
@@ -32,7 +32,7 @@ public class ChartAreaPainter {
         }
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
-                                             long timeMin, long timeMax, Point crossPoint) {
+                                             int xMin, int xMax, long timeMin, long timeMax, Point crossPoint) {
             synchronized (m_ticksTs.syncObject()) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
@@ -163,7 +163,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         }
 
         @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe,
-                                             long timeMin, long timeMax, Point crossPoint) {
+                                             int xMin, int xMax, long timeMin, long timeMax, Point crossPoint) {
             synchronized (m_ticksTs.syncObject()) {
                 if (crossPoint != null) {
                     int crossX = crossPoint.x;
@@ -297,7 +297,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
             m_tickPainter = tickPainter;
         }
 
-        @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, long timeMin, long timeMax, Point crossPoint) {
+        @Override public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, int xMin, int xMax, long timeMin, long timeMax, Point crossPoint) {
             int highlightTickIndex = -1;
             synchronized (ticksData.syncObject()) {
                 if (crossPoint != null) {
@@ -308,6 +308,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                 ITickData prevTick = null;
 
                 int size = ticksData.getTicksNum();
+                m_tickPainter.startPaintTicks(xMin, xMax);
                 for (int i = 0; i < size; i++) {
                     ITickData tick = ticksData.getTick(i);
                     long timestamp = tick.getTimestamp();
@@ -322,6 +323,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                     }
                     prevTick = tick;
                 }
+                m_tickPainter.endPaintTicks(g2);
             }
         }
     }

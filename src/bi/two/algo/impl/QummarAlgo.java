@@ -276,7 +276,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
-            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 70), TickPainter.TICK);
+            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 70), TickPainter.TICK_JOIN);
             addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Colors.DARK_RED, 80), TickPainter.BAR);
 
 //            chartData.setTicksData("spline", new NoTicksData());
@@ -315,31 +315,32 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
-            addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE);
-            addChart(chartData, getReversePowerTs(), powerLayers, "reversePower", Color.LIGHT_GRAY, TickPainter.LINE);
+//            addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE);
+//            addChart(chartData, getReversePowerTs(), powerLayers, "reversePower", Color.LIGHT_GRAY, TickPainter.LINE);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
-//            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
-//            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE);
-            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE);
-            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE);
-            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE);
-//            addChart(chartData, getPowAdjTs(), valueLayers, "powValue", Color.MAGENTA, TickPainter.LINE);
-//            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
+////            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
+////            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+//            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE);
+//            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE);
+//            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE);
+//            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE);
+////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
 
         if (collectValues) {
             addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
 
+
             ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
             gain.setHorizontalLineValue(1);
-
-            List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-            addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+            {
+                List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
+                addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE);
+            }
         }
     }
 

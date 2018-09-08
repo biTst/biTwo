@@ -205,7 +205,7 @@ public class ChartPainter {
                         g2.setColor(layerColor);
 
                         ChartAreaPainter chartAreaPainter = ls.getChartAreaPainter();
-                        chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, timeMin, timeMax, crossPoint);
+                        chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, 0, priceRight, timeMin, timeMax, crossPoint);
                     }
                 }
             }
