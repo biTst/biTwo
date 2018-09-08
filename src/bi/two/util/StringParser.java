@@ -5,6 +5,7 @@ public class StringParser {
     private int m_index;
 
     public int getIndex() { return m_index; }
+    public String getString() { return m_str; }
 
     public StringParser(String str) {
         m_str = str;
