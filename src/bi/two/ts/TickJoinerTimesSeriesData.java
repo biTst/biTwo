@@ -17,6 +17,7 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
     private ITickData m_firstTick;
     private int m_joinedCount;
     private int m_reportedCount;
+    private float m_lastPrice;
 
     protected static void log(String s) { Log.log(s); }
 
@@ -32,6 +33,7 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
             ITickData latestTick = parent.getLatestTick();
 
             float price = latestTick.getClosePrice();
+            m_lastPrice = price;
             long timestamp = latestTick.getTimestamp();
 
             if (timestamp < m_end) {
@@ -40,9 +42,13 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
                 m_count++;
             } else {
                 if (m_count > 1) { // reportTick
-                    long avdTimestamp = (m_first + m_last) / 2; // mid time
-                    float avgPrice = m_summ / m_count;
-                    TickData avgTickData = new TickData(avdTimestamp, avgPrice);
+                    // report avg price and time
+//                    long tickTimestamp = (m_first + m_last) / 2; // mid time
+//                    float tickPrice = m_summ / m_count;
+                    // report last price and time
+                    long tickTimestamp = m_end;      // (m_first + m_last) / 2; // mid time
+                    float tickPrice = m_lastPrice;    // m_summ / m_count;
+                    TickData avgTickData = new TickData(tickTimestamp, tickPrice);
                     m_lastTick = avgTickData;
                     myChanged = true;
                     m_joinedCount += m_count;
