@@ -88,7 +88,8 @@ public class TradeHours {
                 String dateFormatted = dateFormat.format(time);
 //System.out.println("dateFormatted=" + dateFormatted);
                 boolean holiday = holidays.isHoliday(dateFormatted);
-                if(holiday) {
+                if (holiday) {
+System.out.println("skip holiday=" + dateFormatted);
                     shiftCalendarToNextDay();
                 }
             }
