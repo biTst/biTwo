@@ -119,7 +119,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_isUp = (direction>0);
             m_changedDirection++;
         }
-
+// todo: check
         if (m_exch.hasSchedule()) {
             long tickTime = tickAdjusted.getTimestamp();
             if ((m_nextTradeCloseTime == null) || (m_nextTradeCloseTime.getTime() < tickTime)) {
@@ -205,11 +205,11 @@ if (timeToTradeClose < 0) {
     }
 
     public double totalPriceRatio(boolean toLog) {
-        Currency currencyFrom = m_pair.m_from; // cnh=from
-        Currency currencyTo = m_pair.m_to;     // btc=to
         if (m_accountData == null) { // error
             return 1;
         }
+        Currency currencyFrom = m_pair.m_from; // cnh=from
+        Currency currencyTo = m_pair.m_to;     // btc=to
         double valuateToNow = m_accountData.evaluateAll(currencyTo);
         double valuateFromNow = m_accountData.evaluateAll(currencyFrom);
 
