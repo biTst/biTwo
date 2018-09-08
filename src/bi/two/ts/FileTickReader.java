@@ -25,15 +25,15 @@ public class FileTickReader {
         DataFileType type = DataFileType.init(config);
         TradeSchedule tradeSchedule = TradeSchedule.init(config);
 
-        readFileTicks(config, ticksTs, callback, file, type, tradeSchedule);
+        readFileTicks(config, ticksTs, callback, file, type, tradeSchedule, 0);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
         ticksTs.notifyNoMoreTicks();
     }
 
-    public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                     File file, DataFileType type, TradeSchedule tradeSchedule) throws IOException {
+    public static long readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
+                                     File file, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
         log("fileLength = " + fileLength);
@@ -44,9 +44,9 @@ public class FileTickReader {
         boolean resetLine = false;
         boolean skipBytes = (lastBytesToProcess > 0);
         if (skipBytes) {
-            long toSkipBytes = fileLength - lastBytesToProcess;
-            if (toSkipBytes > 0) {
-                randomAccessFile.seek(toSkipBytes);
+            long toSkipByteNum = fileLength - lastBytesToProcess;
+            if (toSkipByteNum > 0) {
+                randomAccessFile.seek(toSkipByteNum);
                 resetLine = true;
             }
         }
@@ -83,11 +83,12 @@ public class FileTickReader {
             }
         };
 
-        readFileTicks(reader, ticksTs, callback, resetLine, type, tradeSchedule); // reader closed inside
+        return readFileTicks(reader, ticksTs, callback, resetLine, type, tradeSchedule, lastProcessedTickTime); // reader closed inside
     }
 
-    private static void readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                      boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule) throws IOException {
+    private static long readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
+                                      boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
+        long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 256 * 1024);
         try {
@@ -97,34 +98,44 @@ public class FileTickReader {
 
             float lastClosePrice = 0;
             String line;
-            int counter = 0;
+            int readCounter = 0;
+            int processCounter = 0;
+            int skipCounter = 0;
             while ((line = br.readLine()) != null) {
                 // System.out.println("line = " + line);
                 TickData tickData = type.parseLine(line);
                 if (tickData != null) {
-                    float closePrice = tickData.getClosePrice();
-                    if (lastClosePrice != 0) {
-                        float rate = closePrice / lastClosePrice;
-                        if ((rate < 0.5) || (rate > 1.5)) {
-                            continue; // skip too big price drops
+                    readCounter++;
+                    long timestamp = tickData.getTimestamp();
+                    if (timestamp > lastProcessedTickTime) {
+                        float closePrice = tickData.getClosePrice();
+                        if (lastClosePrice != 0) {
+                            float rate = closePrice / lastClosePrice;
+                            if ((rate < 0.5) || (rate > 1.5)) {
+                                continue; // skip too big price drops
+                            }
                         }
-                    }
-                    lastClosePrice = closePrice;
+                        lastClosePrice = closePrice;
 
-                    if (tradeSchedule != null) {
-                        tradeSchedule.updateTickTimeToSchedule(tickData);
-                    }
+                        if (tradeSchedule != null) {
+                            tradeSchedule.updateTickTimeToSchedule(tickData);
+                        }
 
-                    ticksTs.addNewestTick(tickData);
-                    if (callback != null) {    // todo: use ProxyTimesSeriesData
-                        callback.run();
+                        ticksTs.addNewestTick(tickData);
+                        if (callback != null) {    // todo: use ProxyTimesSeriesData
+                            callback.run();
+                        }
+                        processCounter++;
+                        lastTickTime = timestamp;
+                    } else {
+                        skipCounter++;
                     }
-                    counter++;
                 }
             }
-            console("ticksTs: " + counter + " ticks was read in " + ts.getPassed());
+            console("ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());
         } finally {
             br.close();
         }
+        return lastTickTime;
     }
 }

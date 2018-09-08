@@ -36,6 +36,7 @@ public enum TickReader {
             DataFileType type = DataFileType.init(config);
             TradeSchedule tradeSchedule = TradeSchedule.init(config);
 
+            long lastProcessedTickTime = 0;
             int filesProcessed = 0;
             File[] files = dir.listFiles();
             Arrays.sort(files, Comparator.comparing(File::getName));
@@ -51,7 +52,7 @@ public enum TickReader {
                     }
 
                     log("readFileTicks: " + file.getAbsolutePath());
-                    FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule);
+                    lastProcessedTickTime = FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime);
                     filesProcessed++;
                 } else {
                     console("skipped subdirectory: " + file.getAbsolutePath());
