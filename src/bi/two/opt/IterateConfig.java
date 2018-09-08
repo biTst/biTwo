@@ -20,7 +20,7 @@ public class IterateConfig {
     }
 
     public static IterateConfig parseIterate(String config, Vary vary) {
-        // "15.5+-5*0.5"
+        // "15.5+-5*0.5"       center+-number*step
         StringParser parser = new StringParser(config);
         Vary.VaryType varyType = vary.m_varyType;
         Number center = varyType.fromParser(parser);
@@ -28,23 +28,31 @@ public class IterateConfig {
             if (parser.atEnd()) {
                 return new IterateConfig(vary, center, center, 1);
             }
-            if (parser.read("+-")) {
-                Integer count = parser.readInteger();
-                if (count != null) {
-                    if (parser.read("*")) {
-                        Number step = varyType.fromParser(parser);
-                        if (step != null) {
-                            Number from = varyType.mulAdd(step, -count, center);
-                            Number to = varyType.mulAdd(step, count, center);
-                            return new IterateConfig(vary, from, to, step);
-                        }
-                    }
-                }
-            } else {
-                // todo - separate +steps and -steps support
+            if (parser.read("+-")) { // "15.5+-5*0.5"
+                return steps(parser, vary, varyType, center, true, true);
+            } else if (parser.read("+")) { // "15.5+5*0.5"
+                return steps(parser, vary, varyType, center, false, true);
+            } else if (parser.read("-")) { // "15.5-5*0.5"
+                return steps(parser, vary, varyType, center, true, false);
             }
         }
         throw new RuntimeException("invalid IterateConfig: " + config);
+    }
+
+    private static IterateConfig steps(StringParser parser, Vary vary, Vary.VaryType varyType, Number center,
+                                       boolean countLess, boolean countMore) {
+        Integer count = parser.readInteger();
+        if (count != null) {
+            if (parser.read("*")) {
+                Number step = varyType.fromParser(parser);
+                if (step != null) {
+                    Number from = countLess ? varyType.mulAdd(step, -count, center) : center;
+                    Number to = countMore ? varyType.mulAdd(step, count, center) : center;
+                    return new IterateConfig(vary, from, to, step);
+                }
+            }
+        }
+        throw new RuntimeException("invalid IterateConfig: " + parser.getString());
     }
 
     @Override public String toString() {
