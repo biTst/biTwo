@@ -3,7 +3,9 @@ version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
 
-sourceCompatibility = 1.7
+//sourceCompatibility = 1.7
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 repositories {
     mavenCentral()
@@ -31,8 +33,12 @@ dependencies {
     // https://mvnrepository.com/artifact/javax.xml.bind/jaxb-api
     compile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.3.0'
 
-    compile 'org.apache.commons:commons-math3:+'  // 3.6.1
-    compile 'org.slf4j:slf4j-jdk14:+'
+    //compile 'org.apache.commons:commons-math3:+'  // 3.6.1
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+    compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+
+    // https://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14
+//    compile 'org.slf4j:slf4j-jdk14:1.7.25'
 
     // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
     compile group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1.1'
