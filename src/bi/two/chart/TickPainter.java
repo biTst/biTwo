@@ -29,27 +29,12 @@ public enum TickPainter {
         static final int DIAMETER = 8;
         static final int RADIUS = DIAMETER / 2;
 
-        private int[] m_max = new int[500];
-        private int[] m_min = new int[500];
-        private int m_xMin;
-        private int m_width;
         private int m_highLightY;
         private int m_highLightX;
+        private Stripes m_stripes = new Stripes();
 
         public void startPaintTicks(int xMin, int xMax) {
-            int width = xMax - xMin + 1;
-            if (width > m_max.length) {
-                m_max = new int[width];
-                m_min = new int[width];
-            }
-            m_width = width;
-            m_xMin = xMin;
-
-            for (int i = 0; i < width; i++) {
-                m_max[i] = -1;
-                m_min[i] = -1;
-            }
-
+            m_stripes.start(xMin, xMax);
             m_highLightY = -1;
             m_highLightX = -1;
         }
@@ -59,37 +44,19 @@ public enum TickPainter {
             if ((price != Utils.INVALID_PRICE) && (price != 0)) {
                 long timestamp = tick.getTimestamp();
                 int x = xAxe.translateInt(timestamp);
-                int indx = x - m_xMin;
+                int y = yAxe.translateInt(price);
 
-                if (indx >= 0 && indx < m_width) {
-                    int y = yAxe.translateInt(price);
+                m_stripes.add(x, y, y);
 
-                    m_max[indx] = Math.max(m_max[indx], y);
-                    m_min[indx] = Math.min(m_max[indx], y);
-
-                    if (highlightTick) {
-                        m_highLightX = x;
-                        m_highLightY = y;
-                    }
+                if (highlightTick) {
+                    m_highLightX = x;
+                    m_highLightY = y;
                 }
             }
         }
 
         public void endPaintTicks(Graphics2D g2) {
-            for (int i = 0; i < m_width; i++) {
-                int max = this.m_max[i];
-                if (max != -1) {
-                    int min = m_min[i];
-                    int x = m_xMin + i;
-                    if (max == min) { // paint cross
-                        int y = max;
-                        g2.drawLine(x - X_RADIUS, y, x + X_RADIUS, y);
-                        g2.drawLine(x, y - X_RADIUS, x, y + X_RADIUS);
-                    } else { // paint v-line
-                        g2.drawLine(x, min, x, max);
-                    }
-                }
-            }
+            m_stripes.paint(g2);
             if (m_highLightX != -1) {
                 g2.fillOval(m_highLightX - RADIUS, m_highLightY - RADIUS, DIAMETER, DIAMETER);
             }
@@ -182,4 +149,54 @@ public enum TickPainter {
     public void startPaintTicks(int xMin, int xMax) {}
     public abstract void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick);
     public void endPaintTicks(Graphics2D g2) {}
+
+
+    // ------------------------------------------------------------------------
+    //   join multiple ticks-lines into one v-line
+    class Stripes {
+        private int[] m_max = new int[500];
+        private int[] m_min = new int[500];
+        private int m_xMin;
+        private int m_width;
+
+        void start(int xMin, int xMax) {
+            int width = xMax - xMin + 1;
+            if (width > m_max.length) {
+                m_max = new int[width];
+                m_min = new int[width];
+            }
+            m_width = width;
+            m_xMin = xMin;
+
+            for (int i = 0; i < width; i++) {
+                m_max[i] = -1;
+                m_min[i] = -1;
+            }
+        }
+
+        void add(int x, int y1, int y2) {
+            int indx = x - m_xMin;
+            if ((indx >= 0) && (indx < m_width)) {
+                m_max[indx] = Math.max(m_max[indx], Math.max(y1, y2));
+                m_min[indx] = Math.min(m_max[indx], Math.min(y1, y2));
+            }
+        }
+
+        void paint(Graphics2D g2) {
+            for (int i = 0; i < m_width; i++) {
+                int max = this.m_max[i];
+                if (max != -1) {
+                    int min = m_min[i];
+                    int x = m_xMin + i;
+                    if (max == min) { // paint cross
+                        int y = max;
+                        g2.drawLine(x - X_RADIUS, y, x + X_RADIUS, y);
+                        g2.drawLine(x, y - X_RADIUS, x, y + X_RADIUS);
+                    } else { // paint v-line
+                        g2.drawLine(x, min, x, max);
+                    }
+                }
+            }
+        }
+    }
 }
