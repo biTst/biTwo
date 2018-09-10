@@ -92,8 +92,8 @@ public class Log {
 
             if (!logDir.exists()) {
                 boolean created = logDir.mkdirs();
-                if (created) {
-                    throw new RuntimeException("error: logs dir not created: LOG_DIR=" + LOG_DIR + "; AbsolutePath=" + logDir.getAbsolutePath());
+                if (!created) {
+                    throw new RuntimeException("error: logs dir not created: logFileLocation=" + logFileLocation + "; dir=" + logDir.getAbsolutePath());
                 }
             }
 
@@ -109,7 +109,7 @@ public class Log {
             try {
                 m_fos = new FileOutputStream(logFile);
             } catch (FileNotFoundException e) {
-                throw new RuntimeException("unable to open lof file: " + e, e);
+                throw new RuntimeException("unable to open log file: " + e, e);
             }
         }
 

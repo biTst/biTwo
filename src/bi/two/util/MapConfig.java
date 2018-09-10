@@ -228,7 +228,7 @@ System.out.println("loading encrypt = " + encryptedFileName);
             int index = property.indexOf('#'); // remove comments at the end of strings
             if (index != -1) {
                 property = property.substring(0, index);
-                setProperty(name, property);
+                setProperty(name, property.trim());
             }
         }
     }
