@@ -19,9 +19,9 @@ import java.util.*;
 public class TradesPreloader implements Runnable {
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
     private static final boolean LOG_PARSING = false;
-    public static final int MAX_HISTORY_LOAD_ITERATIONS = 40000; // BitMex:  1000 iteration ~= =18h
-                                                                 //         10000           ~= 6d 11h
-
+    public static final int MAX_HISTORY_LOAD_ITERATIONS = 60000; // BitMex:  1000 iterations ~=     18h
+                                                                 //         10000            ~=  6d 11h
+                                                                 //         20900            ~= 15d
     private final Exchange m_exchange;
     private final Pair m_pair;
     private final TicksCacheReader m_ticksCacheReader;
@@ -322,18 +322,18 @@ public class TradesPreloader implements Runnable {
             } else {
                 int increasedTicksNumInBlockToLoad = ticksNumInBlockToLoad * 2;
                 int maxTicksNumInBlockToLoad = m_exchange.getMaxTradeHistoryLoadCount(); // bitmex: Maximum result count is 500
-                console("!!! ALL block ticks with the same timestamp. increasedTicksNumInBlockToLoad=" + increasedTicksNumInBlockToLoad + "; maxTicksNumInBlockToLoad=" + maxTicksNumInBlockToLoad);
+                console("!!! ALL block ticks with the same timestamp=" + newestTimestamp + ". increasedTicksNumInBlockToLoad=" + increasedTicksNumInBlockToLoad + "; maxTicksNumInBlockToLoad=" + maxTicksNumInBlockToLoad);
                 if (increasedTicksNumInBlockToLoad <= maxTicksNumInBlockToLoad) {
                     console(" - re-requesting with the bigger block " + increasedTicksNumInBlockToLoad);
                     Thread.sleep(SLEEP_MILLIS); // do not DDOS
                     return downloadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
                 } else {
-                    console("- unable to re-request with the bigger block, max block reached");
-
                     TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestPartialTimestamp, oldestPartialTimestamp);
                     writeToCache(trades, tradesCacheEntry);
 
-                    return oldestPartialTimestamp - 1;
+                    long oldestPartialTimestampMinusOne = Math.min(timestamp, oldestPartialTimestamp) - 1;
+                    console("- unable to re-request with the bigger block, max block reached. request from oldestPartialTimestampMinusOne="+oldestPartialTimestampMinusOne);
+                    return oldestPartialTimestampMinusOne;
                 }
             }
         }
