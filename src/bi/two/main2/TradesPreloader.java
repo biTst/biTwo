@@ -19,7 +19,7 @@ import java.util.*;
 public class TradesPreloader implements Runnable {
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
     private static final boolean LOG_PARSING = false;
-    public static final int MAX_HISTORY_LOAD_ITERATIONS = 60000; // BitMex:  1000 iterations ~=     18h
+    public static final int MAX_HISTORY_LOAD_ITERATIONS = 80000; // BitMex:  1000 iterations ~=     18h
                                                                  //         10000            ~=  6d 11h
                                                                  //         20900            ~= 15d
     private final Exchange m_exchange;
@@ -116,14 +116,14 @@ public class TradesPreloader implements Runnable {
             boolean matched = false;
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
-            int size = m_cache.size();
-            for (int i = 0; i < size; i++) {
+            int cacheSize = m_cache.size();
+            for (int i = 0; i < cacheSize; i++) {
                 TradesCacheEntry cacheEntry = m_cache.get(i);
-                long newest = cacheEntry.m_newestTimestamp;
-                matched = (cacheEntry.m_oldestPartialTimestamp < currentTimestamp) && (currentTimestamp <= newest);
+                matched = cacheEntry.matched(currentTimestamp);
                 if (matched) {
                     lastMatchedIndex = i;
                     log(" got matched cacheEntry[" + i + "]: " + cacheEntry);
+                    long newest = cacheEntry.m_newestTimestamp;
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
                     for (TickData tick : historyTicks) {
                         long tickTime = tick.getTimestamp();
@@ -158,14 +158,17 @@ public class TradesPreloader implements Runnable {
                             + "; period=" + Utils.millisToYDHMSStr(period) + "; newestTimestamp=" + newestTimestamp);
                 }
 
-                if ((lastMatchedIndex != -1) && (lastMatchedIndex < (size - 1))) {
+                if ((lastMatchedIndex != -1) && (lastMatchedIndex < (cacheSize - 1))) {
                     int nextIndex = lastMatchedIndex + 1;
                     TradesCacheEntry cacheEntryAfter = m_cache.get(nextIndex);
-                    log("   next after last matched cacheEntry[" + (lastMatchedIndex + 1) + "]: " + cacheEntryAfter);
+                    matched = cacheEntryAfter.matched(currentTimestamp);
+                    if (LOG_PARSING) {
+                        console("   next after last matched cacheEntry[" + nextIndex + "]: " + cacheEntryAfter + "; currentTimestamp=" + currentTimestamp + "; matched=" + matched);
+                    }
                 }
 
                 long min = Long.MAX_VALUE;
-                for (int i = 0; i < m_cache.size(); i++) {
+                for (int i = 0; i < cacheSize; i++) {
                     TradesCacheEntry cacheEntry = m_cache.get(i);
                     long oldest = cacheEntry.m_oldestTimestamp;
                     if (newestTimestamp < oldest) {
@@ -174,7 +177,7 @@ public class TradesPreloader implements Runnable {
                         if (LOG_PARSING) {
                             console("  got after jump: cacheEntry[" + i + "]=" + cacheEntry + "; min=" + min + ";  jump=" + jump);
                         }
-                        currentTimestamp = cacheEntry.m_newestTimestamp + 1;
+                        currentTimestamp = oldest;
                         break;
                     }
                 }
@@ -425,6 +428,13 @@ public class TradesPreloader implements Runnable {
 
         public String getFileName() {
             return m_oldestPartialTimestamp + "-" + m_oldestTimestamp + "-" + m_newestTimestamp + ".trades";
+        }
+
+        public boolean matched(long currentTimestamp) {
+            return ((m_oldestPartialTimestamp == m_oldestTimestamp)
+                        ? (m_oldestTimestamp <= currentTimestamp)
+                        : (m_oldestPartialTimestamp < currentTimestamp))
+                    && (currentTimestamp <= m_newestTimestamp);
         }
     }
 }
