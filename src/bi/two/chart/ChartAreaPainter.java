@@ -305,74 +305,25 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                     highlightTickIndex = findTickIndexFromX(ticksData, crossX, xAxe);
                 }
 
+                ITickData prevTick = null;
+
                 int size = ticksData.getTicksNum();
-                if (size > 0) {
-                    ITickData newestTick = ticksData.getTick(0);
-                    long newestRightTickTimestamp = newestTick.getTimestamp();
-
-                    ITickData oldestTick = ticksData.getTick(size-1);
-                    long oldestLeftTickTimestamp = oldestTick.getTimestamp();
-
-                    int leftIndex;
-                    if (oldestLeftTickTimestamp < timeMin) {
-                        Comparator<ITickData> comparatorL = new Comparator<ITickData>() {
-                            @Override public int compare(ITickData td1, ITickData td2) {
-                                long tickMillis = td1.getTimestamp();
-                                return tickMillis > timeMin
-                                            ? 1
-                                            : tickMillis < timeMin
-                                                ? -1
-                                                : 0;
-                            }
-                        };
-                        leftIndex = ticksData.binarySearch(null, comparatorL);
-                        if (leftIndex < 0) {
-                            leftIndex = -leftIndex - 1;
+                m_tickPainter.startPaintTicks(xMin, xMax);
+                for (int i = 0; i < size; i++) {
+                    ITickData tick = ticksData.getTick(i);
+                    long timestamp = tick.getTimestamp();
+                    boolean timeAfterFrame = (timestamp > timeMax);
+                    if (!timeAfterFrame) {
+                        boolean highlightTick = (i == highlightTickIndex);
+                        m_tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe, highlightTick);
+                        boolean timeBeforeFrame = (timestamp < timeMin);
+                        if (timeBeforeFrame) {
+                            break;
                         }
-                    } else {
-                        leftIndex = size;
                     }
-
-
-                    int rightIndex;
-                    if (timeMax < newestRightTickTimestamp) {
-                        Comparator<ITickData> comparatorR = new Comparator<ITickData>() {
-                            @Override public int compare(ITickData td1, ITickData td2) {
-                                long tickMillis = td1.getTimestamp();
-                                return tickMillis > timeMax
-                                            ? 1
-                                            : tickMillis < timeMax
-                                                ? -1
-                                                : 0;
-                            }
-                        };
-                        rightIndex = ticksData.binarySearch(null, comparatorR);
-                        if (rightIndex < 0) {
-                            rightIndex = -rightIndex - 1;
-                        }
-                    } else {
-                        rightIndex = 0;
-                    }
-
-                    ITickData prevTick = null;
-
-                    m_tickPainter.startPaintTicks(xMin, xMax);
-                    for (int i = leftIndex; i < rightIndex; i++) {
-                        ITickData tick = ticksData.getTick(i);
-                        long timestamp = tick.getTimestamp();
-                        boolean timeAfterFrame = (timestamp > timeMax);
-                        if (!timeAfterFrame) {
-                            boolean highlightTick = (i == highlightTickIndex);
-                            m_tickPainter.paintTick(g2, tick, prevTick, xAxe, yAxe, highlightTick);
-                            boolean timeBeforeFrame = (timestamp < timeMin);
-                            if (timeBeforeFrame) {
-                                break;
-                            }
-                        }
-                        prevTick = tick;
-                    }
-                    m_tickPainter.endPaintTicks(g2);
+                    prevTick = tick;
                 }
+                m_tickPainter.endPaintTicks(g2);
             }
         }
     }
@@ -413,7 +364,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         return -1;
     }
 
-    public static int findTickIndexFromMillis(ITicksData<ITickData> ticksTs, final long millis) {
+    private static int findTickIndexFromMillis(TicksTimesSeriesData ticksTs, final long millis) {
         Comparator<ITickData> comparator = new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long tickMillis = td1.getTimestamp();
@@ -429,7 +380,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         if (highlightTickIndex < 0) {
             highlightTickIndex = -highlightTickIndex - 1;
         }
-        if ((highlightTickIndex >= 1) && (highlightTickIndex < ticksTs.getTicksNum())) {
+        if ((highlightTickIndex >= 1) && (highlightTickIndex > ticksTs.getTicksNum())) {
             ITickData tick1 = ticksTs.getTick(highlightTickIndex);
             ITickData tick2 = ticksTs.getTick(highlightTickIndex - 1);
 
