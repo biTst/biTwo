@@ -91,7 +91,7 @@ public class ChartCanvas extends JComponent {
         TimeStamp timeStamp = new TimeStamp();
         m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData, m_point, m_selectPoint);
         if (timeStamp.getPassedMillis() > 5000) {
-            console("pain takes " + timeStamp.getPassedMillis());
+            console("paint takes " + timeStamp.getPassedMillis());
         }
     }
 
