@@ -56,7 +56,7 @@ public enum TickPainter {
         }
 
         public void endPaintTicks(Graphics2D g2) {
-            m_stripes.paint(g2);
+            m_stripes.paint(g2, true);
             if (m_highLightX != -1) {
                 g2.fillOval(m_highLightX - RADIUS, m_highLightY - RADIUS, DIAMETER, DIAMETER);
             }
@@ -81,6 +81,41 @@ public enum TickPainter {
                     }
                 }
             }
+        }
+    },
+    LINE_JOIN {
+        private Stripes m_stripes = new Stripes();
+
+        public void startPaintTicks(int xMin, int xMax) {
+            m_stripes.start(xMin, xMax);
+        }
+
+        @Override public void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick) {
+            if (prevTick != null) {
+                float price = tick.getClosePrice();
+                if ((price != Utils.INVALID_PRICE) && !Float.isInfinite(price)) {
+                    float prevPrice = prevTick.getClosePrice();
+                    if ((prevPrice != Utils.INVALID_PRICE) && !Float.isInfinite(prevPrice)) {
+                        int y = yAxe.translateInt(price);
+                        long timestamp = tick.getTimestamp();
+                        int x = xAxe.translateInt(timestamp);
+
+                        int prevY = yAxe.translateInt(prevPrice);
+                        long prevTimestamp = prevTick.getTimestamp();
+                        int prevX = xAxe.translateInt(prevTimestamp);
+
+                        if (prevX == x) {
+                            m_stripes.add(x, prevY, y);
+                        } else {
+                            g2.drawLine(prevX, prevY, x, y);
+                        }
+                    }
+                }
+            }
+        }
+
+        public void endPaintTicks(Graphics2D g2) {
+            m_stripes.paint(g2, false);
         }
     },
     BAR {
@@ -169,8 +204,8 @@ public enum TickPainter {
             m_xMin = xMin;
 
             for (int i = 0; i < width; i++) {
-                m_max[i] = -1;
-                m_min[i] = -1;
+                m_max[i] = Integer.MIN_VALUE;
+                m_min[i] = Integer.MAX_VALUE;
             }
         }
 
@@ -178,17 +213,17 @@ public enum TickPainter {
             int indx = x - m_xMin;
             if ((indx >= 0) && (indx < m_width)) {
                 m_max[indx] = Math.max(m_max[indx], Math.max(y1, y2));
-                m_min[indx] = Math.min(m_max[indx], Math.min(y1, y2));
+                m_min[indx] = Math.min(m_min[indx], Math.min(y1, y2));
             }
         }
 
-        void paint(Graphics2D g2) {
+        void paint(Graphics2D g2, boolean paintCross) {
             for (int i = 0; i < m_width; i++) {
-                int max = this.m_max[i];
-                if (max != -1) {
+                int max = m_max[i];
+                if (max != Integer.MIN_VALUE) {
                     int min = m_min[i];
                     int x = m_xMin + i;
-                    if (max == min) { // paint cross
+                    if (paintCross && (max == min)) { // paint cross
                         int y = max;
                         g2.drawLine(x - X_RADIUS, y, x + X_RADIUS, y);
                         g2.drawLine(x, y - X_RADIUS, x, y + X_RADIUS);

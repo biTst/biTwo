@@ -5,6 +5,7 @@ import bi.two.chart.ChartPaintSetting;
 import bi.two.chart.ChartPainter;
 import bi.two.chart.ChartSetting;
 import bi.two.util.Log;
+import bi.two.util.TimeStamp;
 
 import javax.swing.*;
 import java.awt.*;
@@ -87,7 +88,11 @@ public class ChartCanvas extends JComponent {
     }
 
     private void doPaint(Graphics2D g2) {
+        TimeStamp timeStamp = new TimeStamp();
         m_chartPainter.paintChart(g2, m_chartSetting, m_cps, m_chartData, m_point, m_selectPoint);
+        if (timeStamp.getPassedMillis() > 5000) {
+            console("pain takes " + timeStamp.getPassedMillis());
+        }
     }
 
     private Graphics2D initGraphics2D(Graphics2D g) {
