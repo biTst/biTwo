@@ -178,6 +178,7 @@ public class Main {
                 String name = nv[0];
                 String value = nv[1];
                 algoConfig.put(name, value);
+                config.put(name, value);
             }
         }
 

@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class QummarAlgo extends BaseAlgo<TickData> {
     private static final boolean APPLY_REVERSE = true;
+    private static final boolean LIMIT_BY_PRICE = true;
 
     private final float m_start;
     private final float m_step;
@@ -132,7 +133,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         if (m_dirty) {
             ITickData parentLatestTick = getParent().getLatestTick();
             if (parentLatestTick != null) {
-                Float adj = recalc();
+                float lastPrice = parentLatestTick.getClosePrice();
+                Float adj = recalc(lastPrice);
                 if (adj != null) {
                     long timestamp = parentLatestTick.getTimestamp();
                     m_tickData = new TickData(timestamp, adj);
@@ -144,7 +146,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         return m_tickData;
     }
 
-    private Float recalc() {
+    private Float recalc(float lastPrice) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
@@ -223,7 +225,21 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
                 m_revMulAndPrev = (goUp ? -reversePower : reversePower) + m_mulAndPrev * (1 - reversePower);
 
-                m_adj = APPLY_REVERSE ? m_revMulAndPrev : m_mulAndPrev;
+                Float adj = APPLY_REVERSE ? m_revMulAndPrev : m_mulAndPrev;
+
+                if (LIMIT_BY_PRICE) {
+                    if (adj > m_adj) {
+                        if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
+                            m_adj = adj;
+                        }
+                    } else { // adj < m_adj
+                        if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
+                            m_adj = adj;
+                        }
+                    }
+                } else {
+                    m_adj = adj;
+                }
             }
         }
         m_dirty = false;
