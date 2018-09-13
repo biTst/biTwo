@@ -6,7 +6,6 @@ import bi.two.ind.BaseIndicator;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
-import bi.two.util.Log;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -23,10 +22,6 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public BaseAlgo(ITimesSeriesData parent) {
         super(parent);
     }
-
-    protected static void console(String s) { Log.console(s); }
-    protected  static void log(String s) { Log.log(s); }
-    protected  static void err(String s, Throwable t) { Log.err(s, t); }
 
     // override
     public double getDirectionAdjusted() { return 0; } // [-1 ... 1]
@@ -49,6 +44,10 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
 
     public long getPreloadPeriod() {
         throw new RuntimeException("need to override");
+    }
+
+    public void reset() {
+        throw new RuntimeException("not implemented");
     }
 
 

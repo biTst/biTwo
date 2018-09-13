@@ -99,7 +99,7 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
         return null;
     }
 
-    public String log() {
+    public String toLog() {
         return "SlidingTicksRegressor["
 //                + "\nsplitter=" + m_splitter.log()
                 + "\n]";

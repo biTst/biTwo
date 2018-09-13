@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.console;
+
 public class Ummar3Algo extends BaseAlgo<TickData> {
 
     private final double m_minOrderMul;

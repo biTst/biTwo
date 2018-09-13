@@ -16,12 +16,17 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
+import static bi.two.util.Log.console;
+import static bi.two.util.Log.log;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
+    private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start deflate after 1 min
+    private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
+    private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
 
     private final Exchange m_exch;
     private final Pair m_pair;
@@ -48,6 +53,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private float m_lastDirection = 0;
     private Boolean m_isUp;
     private int m_changedDirection; // counter
+    private TickData m_firstTick;
+    private TickData m_lastTick;
+    private float m_fadeOutRate = 1f; // fully faded out at start
+    private float m_fadeInRate = 0; // fade in as trades comes
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
         super(null);
@@ -75,11 +84,47 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        // note, here changed is not checked = run on ever tick, to recheck int state often
+        // note, here changed are not checked = run on ever tick, to recheck int state often
 
         TickData latestPriceTick = m_priceTs.getLatestTick();
         if (latestPriceTick == null) {
             return; // skip
+        }
+
+        long currTimestamp = latestPriceTick.getTimestamp();
+        if (m_lastTick != null) {
+            long lastTimestamp = m_lastTick.getTimestamp();
+            long gap = currTimestamp - lastTimestamp;
+
+            if (gap > MIN_GAP_TO_FADE_OUT) { // we had no ticks some dangerous amount of time. start fading out
+                float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
+                fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
+                m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
+                log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                m_fadeInRate = 0;
+                applyFadeOut();
+                m_firstTick = null; // reset first tick
+
+                if (m_fadeOutRate == 1) { // full fade out
+                    m_algo.reset();
+                }
+            }
+        }
+
+        if (m_firstTick != null) {
+            long firstTimestamp = m_firstTick.getTimestamp();
+            long gap = currTimestamp - firstTimestamp;
+            float fadeInRate = ((float) gap) / FADE_IN_TIME;
+            fadeInRate = Math.min(1, fadeInRate); // [0 -> 1]
+            m_fadeInRate = fadeInRate;
+            if (fadeInRate == 1) {
+                m_fadeOutRate = 0; // no fade out - trades are flowing fine
+            }
+        }
+
+        m_lastTick = latestPriceTick;
+        if (m_firstTick == null) {
+            m_firstTick = latestPriceTick;
         }
 
         float closePrice = latestPriceTick.getClosePrice();
@@ -107,8 +152,6 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     }
 
     private void process(ITickData tickAdjusted) {
-        boolean toLog = LOG_ALL;
-
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
         if (m_lastDirection == direction) {
             return; // todo: do not process same value twice in simulation
@@ -140,28 +183,44 @@ if (timeToTradeClose < 0) {
             }
         }
 
+        long timestamp = process(direction);
+        m_lastMillis = timestamp;
+    }
+
+    private void applyFadeOut() {
+        log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
+        process(m_lastDirection);
+    }
+
+    private long process(float directionIn) {
+        boolean toLog = LOG_ALL;
+
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;
         String pairToName = currencyTo.m_name;
 
+        float fadeRate = (1 - m_fadeOutRate) + (m_fadeOutRate * m_fadeInRate);
+        float direction = directionIn * fadeRate;
+
         if (toLog) {
-            System.out.println("Watcher.process() direction=" + direction);
+            console("Watcher.process() direction=" + direction);
         }
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
+
         if (toLog) {
-            System.out.println(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
+            console(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
         }
 
-        needBuyTo *= 0.95;
+        needBuyTo *= 0.95; // leave some pennies on account
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
         if (toLog) {
-            System.out.println("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
+            console("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
         }
 
         double exchMinOrderToCreateValue = m_exchMinOrderToCreate.m_value;
-        if(m_exchMinOrderToCreate.m_currency != currencyTo) {
+        if (m_exchMinOrderToCreate.m_currency != currencyTo) {
             exchMinOrderToCreateValue = m_accountData.convert(currencyFrom, currencyTo, exchMinOrderToCreateValue);
         }
 
@@ -173,7 +232,7 @@ if (timeToTradeClose < 0) {
 
             boolean toLogMove = LOG_MOVE || toLog;
             if (toLogMove) {
-                System.out.println("Watcher.process() direction=" + direction
+                console("Watcher.process() direction=" + direction
                         + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
                         + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
                         + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
@@ -185,7 +244,7 @@ if (timeToTradeClose < 0) {
 
             if (toLogMove) {
                 double gain = totalPriceRatio(true);
-                System.out.println("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
+                console("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
             }
 
             if (m_collectValues) {
@@ -193,7 +252,7 @@ if (timeToTradeClose < 0) {
                 addNewestTick(new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide));
             }
         }
-        m_lastMillis = timestamp;
+        return timestamp;
     }
 
     public long getProcessedPeriod() {
@@ -220,7 +279,7 @@ if (timeToTradeClose < 0) {
 
         if (toLog) {
             if (LOG_MOVE || LOG_ALL) {
-                System.out.println("totalPriceRatio() accountData=" + m_accountData
+                console("totalPriceRatio() accountData=" + m_accountData
                         + "; from=" + currencyFrom.m_name
                         + ": valuateInit=" + m_valuateFromInit
                         + ", valuateNow=" + valuateFromNow
@@ -239,7 +298,7 @@ if (timeToTradeClose < 0) {
     private void init() {
         m_startMillis = m_priceTs.getLatestTick().getTimestamp();
         if (LOG_ALL) {
-            System.out.println("init() topData = " + m_topData);
+            console("init() topData = " + m_topData);
         }
 
         m_initTopData = new TopData(m_topData);
@@ -261,11 +320,11 @@ if (timeToTradeClose < 0) {
         m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
         m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
         if (LOG_ALL) {
-            System.out.println(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
+            console(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
         }
     }
 
-    public String log() {
+    public String toLog() {
         return "Watcher["
                 + "\n ticksNum=" + getTicksNum()
                 + "\n]";

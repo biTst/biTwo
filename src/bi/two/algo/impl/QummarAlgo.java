@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.console;
+
 public class QummarAlgo extends BaseAlgo<TickData> {
     private static final boolean APPLY_REVERSE = true;
     private static final boolean LIMIT_BY_PRICE = true;
@@ -41,24 +43,26 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_turn;
     private Float m_targetLevel;
     private Float m_power;
-    private Float m_value = 0F;
-    private Float m_mul = 0F;
+    private Float m_value;
+    private Float m_mul;
     private Float m_reverseLevel;
     private Float m_reversePower;
-    private Float m_mulAndPrev = 0F;
-    private Float m_revMulAndPrev = 0F;
-    private Float m_prevAdj = 0F;
-    private Float m_adj = 0F;
-
-    private TickData m_tickData;
+    private Float m_mulAndPrev;
+    private Float m_revMulAndPrev;
+    private Float m_prevAdj;
+    private Float m_adj;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
+
+    private TickData m_tickData;
 
     private BaseTimesSeriesData m_sliding;
 
     public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null);
+
+        reset();
 
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
@@ -80,7 +84,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         boolean joinTicksInReader = algoConfig.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
         ITimesSeriesData priceTsd = joinTicksInReader ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
         createRibbon(priceTsd, collectValues);
-
+// todo use priceTsd below ?
         setParent(tsd);
     }
 
@@ -203,10 +207,15 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 float head = goUp ? emasMax : emasMin;
                 float tail = goUp ? emasMin : emasMax;
 
-                float power = (tail - m_turn) / (m_targetLevel - m_turn);
+                float diff = m_targetLevel - m_turn;
+                float power = (diff == 0)
+                                ? 0 // avoid NaN value
+                                : (tail - m_turn) / diff;
                 m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
 
-                m_value = ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
+                m_value = (m_maxRibbonSpread == 0)
+                        ? 0
+                        : ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
 
                 m_mul = m_power * m_value;
                 m_mulAndPrev = m_mul + m_prevAdj * (1 - m_power);
@@ -268,6 +277,27 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         return TimeUnit.MINUTES.toMillis(60); // todo: calc from algo params
     }
 
+    @Override public void reset() {
+        m_min = null;
+        m_max = null;
+        m_zigZag = null;
+        m_zerro = null;
+        m_turn = null;
+        m_targetLevel = null;
+        m_power = null;
+        m_value = 0F;
+        m_mul = 0F;
+        m_reverseLevel = null;
+        m_reversePower = null;
+        m_mulAndPrev = 0F;
+        m_revMulAndPrev = 0F;
+        m_prevAdj = 0F;
+        m_adj = 0F;
+        m_maxRibbonSpread = 0f;
+        m_ribbonSpreadTop = null;
+        m_ribbonSpreadBottom = null;
+    }
+
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
@@ -310,41 +340,41 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //            addChart(chartData, m_sliding.getJoinNonChangedTs(), topLayers, "sliding", Colors.BALERINA, TickPainter.LINE);
 
 
-            addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE_JOIN);
-
-            addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
-
-            addChart(chartData, getZerroTs(), topLayers, "zerro", Color.PINK, TickPainter.LINE_JOIN);
-            addChart(chartData, getTurnTs(), topLayers, "turn", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
-            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
-
-            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
-
-            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
-            addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
-
-            BaseTimesSeriesData leadEma = m_emas.get(0); // fastest ema
-            addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
+//            addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE_JOIN);
+//            addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE_JOIN);
+//
+//            addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
+//
+//            addChart(chartData, getZerroTs(), topLayers, "zerro", Color.PINK, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTurnTs(), topLayers, "turn", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
+//
+//            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
+//
+//            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
+//            addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
+//
+//            BaseTimesSeriesData leadEma = m_emas.get(0); // fastest ema
+//            addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
-            addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE_JOIN);
-            addChart(chartData, getReversePowerTs(), powerLayers, "reversePower", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
+//            addChart(chartData, getPowerTs(), powerLayers, "power", Color.MAGENTA, TickPainter.LINE_JOIN);
+//            addChart(chartData, getReversePowerTs(), powerLayers, "reversePower", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
-//            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
-//            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
-            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
-            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
-//            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
+////            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
+////            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
+//            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
+//            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
+//            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE_JOIN);
+//            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
+////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
 
         if (collectValues) {
@@ -359,6 +389,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
     }
 
+    //-------------------------------------------------------------------------------------------
     private class RibbonTsListener implements ITimesSeriesListener {
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
             if (changed) {

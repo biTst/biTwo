@@ -18,7 +18,6 @@ public class Utils {
     public static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
 
     public static final float INVALID_PRICE = Float.MAX_VALUE;
-    public static final double INVALID_PRICE_DOUBLE = Double.NaN;
 
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
     public static final DecimalFormat X_YYYYYY = new DecimalFormat("0.000000");
