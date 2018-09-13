@@ -25,7 +25,7 @@ public class Main2 extends Thread {
     private static final String CONFIG = "cfg\\main2.properties";
 //    private static final long PRELOAD_PERIOD = TimeUnit.MINUTES.toMillis(50);
 //    private static final long PRELOAD_PERIOD = TimeUnit.HOURS.toMillis(24);
-    private static final long PRELOAD_PERIOD = TimeUnit.DAYS.toMillis(30);
+    private static final long PRELOAD_PERIOD = TimeUnit.DAYS.toMillis(60);
 
     private Exchange m_exchange;
     private Pair m_pair;
