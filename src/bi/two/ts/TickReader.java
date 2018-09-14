@@ -41,6 +41,7 @@ public enum TickReader {
             File[] files = dir.listFiles();
             Arrays.sort(files, Comparator.comparing(File::getName));
             for (File file : files) {
+                String absolutePath = file.getAbsolutePath();
                 if (file.isFile()) {
                     if (filePattern != null) {
                         String name = file.getName();
@@ -51,11 +52,15 @@ public enum TickReader {
                         }
                     }
 
-                    log("readFileTicks: " + file.getAbsolutePath());
-                    lastProcessedTickTime = FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime);
+                    log("readFileTicks: " + absolutePath);
+                    try {
+                        lastProcessedTickTime = FileTickReader.readFileTicks(config, ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime);
+                    } catch (Exception e) {
+                        throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
+                    }
                     filesProcessed++;
                 } else {
-                    console("skipped subdirectory: " + file.getAbsolutePath());
+                    console("skipped subdirectory: " + absolutePath);
                 }
             }
 

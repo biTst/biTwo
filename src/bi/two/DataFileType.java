@@ -9,6 +9,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.err;
+
 public enum DataFileType {
     CSV("csv") {
         @Override public TickData parseLine(String line) {
@@ -66,7 +68,8 @@ public enum DataFileType {
                             TickData tickData = new TickData(millis, price);
                             return tickData;
                         } catch (ParseException e) {
-                            System.out.println("parseLine error: " + e + "; for string'" + line + "'");
+                            err("parseLine error: " + e + "; for string'" + line + "'", e);
+                            throw new RuntimeException("error parsing line: " + line, e);
                         }
                     }
                 }
