@@ -1668,17 +1668,17 @@ console("    after update: orderData=" + orderData);
                     log("X-RateLimit: " + remaining + " of " + limit + " => " + m_lastRateLimit);
                     if (m_lastRateLimit < 0.9) {
                         int secondsToSleep =
-                                m_lastRateLimit < 0.3
+                                m_lastRateLimit < 0.4
                                     ? 64
-                                    : m_lastRateLimit < 0.4
+                                    : m_lastRateLimit < 0.5
                                         ? 32
-                                        : m_lastRateLimit < 0.5
+                                        : m_lastRateLimit < 0.6
                                             ? 16
-                                            : m_lastRateLimit < 0.6
+                                            : m_lastRateLimit < 0.7
                                                 ? 8
-                                                : m_lastRateLimit < 0.7
+                                                : m_lastRateLimit < 0.8
                                                     ? 4
-                                                    : m_lastRateLimit < 0.8
+                                                    : m_lastRateLimit < 0.9
                                                         ? 2
                                                         : 1;
                         console("LOW X-RateLimit: " + m_lastRateLimit + ", sleep " + secondsToSleep + "sec");
