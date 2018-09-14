@@ -12,6 +12,8 @@ import bi.two.ts.ParallelTimesSeriesData;
 import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class WatchersProducer {
@@ -153,6 +155,12 @@ public class WatchersProducer {
     public BaseProducer logResults() {
         BaseProducer bestProducer = null;
         double bestTotalPriceRatio = 0;
+        List<BaseProducer> producers = new ArrayList<>(m_producers);
+        Collections.sort(producers, new Comparator<BaseProducer>() {
+            @Override public int compare(BaseProducer p1, BaseProducer p2) {
+                return Double.compare(p1.maxTotalPriceRatio(), p2.maxTotalPriceRatio());
+            }
+        });
         for (BaseProducer producer : m_producers) {
             double totalPriceRatio = producer.logResults();
             if(totalPriceRatio > bestTotalPriceRatio) {

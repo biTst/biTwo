@@ -21,6 +21,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     WatchersProducer.AlgoWatcher m_maxWatcher;
 
     @Override public boolean isSingle() { return true; }
+    public double maxTotalPriceRatio() { return m_maxTotalPriceRatio; }
 
     OptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         m_optimizeConfigs = optimizeConfigs;

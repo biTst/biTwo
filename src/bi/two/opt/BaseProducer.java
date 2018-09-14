@@ -20,4 +20,6 @@ public abstract class BaseProducer {
     public void logResultsEx() { }
 
     public abstract boolean isSingle();
+
+    public double maxTotalPriceRatio() { throw new RuntimeException("not implemented"); }
 }
