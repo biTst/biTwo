@@ -82,8 +82,6 @@ public class Main {
             for (int i = 1; producer.isActive(); i++) {
                 cleanMemory();
 
-                console("## iteration " + i);
-
                 BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
                         ? new TicksTimesSeriesData<>(null)
                         : new NoTicksTimesSeriesData<>(null);
@@ -100,7 +98,7 @@ public class Main {
                 }
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
-                console(" watchers.num=" + watchers.size());
+                console("## iteration " + i + "  watchers.num=" + watchers.size());
 
                 if (watchers.isEmpty()) {
                     continue;
