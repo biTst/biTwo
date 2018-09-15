@@ -255,6 +255,7 @@ public class TradesPreloader implements Runnable {
         return 0;
     }
 
+    // [timestamp ... older)
     private long downloadHistoryTrades(long timestamp, int ticksNumInBlockToLoad) throws Exception {
         console("downloadHistoryTrades() timestamp=" + timestamp + "; ticksNumInBlockToLoad=" + ticksNumInBlockToLoad + " ...");
 
@@ -317,8 +318,8 @@ public class TradesPreloader implements Runnable {
                     }
                     cutIndex--;
                 }
-
-                TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, newestTimestamp);
+                                                                                                                 // V  use timestamp here - no breaks in time
+                TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestTimestamp, timestamp);
                 writeToCache(trades, tradesCacheEntry);
 
                 return oldestPartialTimestamp;
@@ -331,7 +332,8 @@ public class TradesPreloader implements Runnable {
                     Thread.sleep(SLEEP_MILLIS); // do not DDOS
                     return downloadHistoryTrades(timestamp, increasedTicksNumInBlockToLoad);
                 } else {
-                    TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestPartialTimestamp, oldestPartialTimestamp);
+                                                                                                                           // V  use timestamp here - no breaks in time
+                    TradesCacheEntry tradesCacheEntry = addTradesCacheEntry(oldestPartialTimestamp, oldestPartialTimestamp, timestamp);
                     writeToCache(trades, tradesCacheEntry);
 
                     long oldestPartialTimestampMinusOne = Math.min(timestamp, oldestPartialTimestamp) - 1;
