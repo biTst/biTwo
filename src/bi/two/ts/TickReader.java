@@ -97,10 +97,11 @@ public enum TickReader {
     BITMEX("bitmex") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
-            TicksTimesSeriesData<TickData> fileTs = BitMex.readTicks(config, period);
-            int size = fileTs.getTicksNum();
-            Iterable<TickData> iterable = fileTs.getReverseTicksIterable();
-            feedTicks(ticksTs, callback, iterable, size);
+            BitMex.readAndFeedTicks(config, period, ticksTs);
+//            TicksTimesSeriesData<TickData> fileTs = BitMex.readTicks(config, period);
+//            int size = fileTs.getTicksNum();
+//            Iterable<TickData> iterable = fileTs.getReverseTicksIterable();
+//            feedTicks(ticksTs, callback, iterable, size);
         }
     },
     ;

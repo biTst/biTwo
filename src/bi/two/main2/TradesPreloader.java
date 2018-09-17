@@ -9,6 +9,7 @@ import bi.two.exch.Pair;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.io.File;
@@ -108,6 +109,7 @@ public class TradesPreloader implements Runnable {
         long currentTimestamp = oldestTradeTime;
         int cacheEntriesProcessed = 0;
         long newestTimestamp = 0;
+        TimeStamp timeStamp = new TimeStamp();
 
         int lastMatchedIndex = -1;
         while (true) {
@@ -125,6 +127,7 @@ public class TradesPreloader implements Runnable {
                     log(" got matched cacheEntry[" + i + "]: " + cacheEntry);
                     long newest = cacheEntry.m_newestTimestamp;
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
+//console("playTicks : " + cacheEntry + "; size=" + historyTicks.size());
                     for (TickData tick : historyTicks) {
                         long tickTime = tick.getTimestamp();
                         if (tickTime <= newest) {
@@ -137,7 +140,7 @@ public class TradesPreloader implements Runnable {
                             } else {
                                 skippedTicksNum++;
                             }
-                        } else {
+                        } else { // else tickTime > newest
                             if (LOG_PARSING) {
                                 console("ERR: tick time " + tickTime + " is bigger than for TradesCacheEntry=" + cacheEntry);
                             }
@@ -152,17 +155,17 @@ public class TradesPreloader implements Runnable {
                 }
             }
             if (!matched) {
-                long period = newestTimestamp - oldestTradeTime;
                 if (LOG_PARSING) {
+                    long period = newestTimestamp - oldestTradeTime;
                     console("NO MORE matched cacheEntries. cacheEntriesProcessed=" + cacheEntriesProcessed
                             + "; period=" + Utils.millisToYDHMSStr(period) + "; newestTimestamp=" + newestTimestamp);
                 }
 
                 if ((lastMatchedIndex != -1) && (lastMatchedIndex < (cacheSize - 1))) {
-                    int nextIndex = lastMatchedIndex + 1;
-                    TradesCacheEntry cacheEntryAfter = m_cache.get(nextIndex);
-                    matched = cacheEntryAfter.matched(currentTimestamp);
                     if (LOG_PARSING) {
+                        int nextIndex = lastMatchedIndex + 1;
+                        TradesCacheEntry cacheEntryAfter = m_cache.get(nextIndex);
+                        matched = cacheEntryAfter.matched(currentTimestamp);
                         console("   next after last matched cacheEntry[" + nextIndex + "]: " + cacheEntryAfter + "; currentTimestamp=" + currentTimestamp + "; matched=" + matched);
                     }
                 }
@@ -173,8 +176,8 @@ public class TradesPreloader implements Runnable {
                     long oldest = cacheEntry.m_oldestTimestamp;
                     if (newestTimestamp < oldest) {
                         min = Math.min(min, oldest);
-                        long jump = min - newestTimestamp;
                         if (LOG_PARSING) {
+                            long jump = min - newestTimestamp;
                             console("  got after jump: cacheEntry[" + i + "]=" + cacheEntry + "; min=" + min + ";  jump=" + jump);
                         }
                         currentTimestamp = oldest;
@@ -184,6 +187,10 @@ public class TradesPreloader implements Runnable {
                 if (min == Long.MAX_VALUE) {
                     break;
                 }
+            }
+            if (timeStamp.getPassedMillis() > 10000) {
+                timeStamp.restart();
+                console("playCacheTrades : " + cacheEntriesProcessed + " of " + cacheSize);
             }
             if (startTimestamp == currentTimestamp) {
                 throw new RuntimeException("error startTimestamp is not changed: " + startTimestamp);
@@ -358,7 +365,7 @@ public class TradesPreloader implements Runnable {
         File cacheDir = m_ticksCacheReader.m_cacheDir;
         String[] list = cacheDir.list();
         if (list != null) {
-            Arrays.sort(list);
+            Arrays.sort(list); // sort files by name
             for (String name : list) {
                 // todo: use regexp
                 int indx1 = name.indexOf('-');

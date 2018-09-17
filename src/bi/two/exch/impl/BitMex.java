@@ -9,6 +9,7 @@ import bi.two.exch.*;
 import bi.two.exch.Currency;
 import bi.two.main2.TicksCacheReader;
 import bi.two.main2.TradesPreloader;
+import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.Hex;
 import bi.two.util.Log;
@@ -140,12 +141,17 @@ public class BitMex extends BaseExchImpl {
     }
 
     public static TicksTimesSeriesData<TickData> readTicks(MapConfig config, long period) throws IOException {
+        TicksTimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData<>(null);
+        readAndFeedTicks(config, period, ticksTs);
+        return ticksTs;
+    }
+
+    public static void readAndFeedTicks(MapConfig config, long period, BaseTicksTimesSeriesData<TickData> ticksTs) throws IOException {
         String exchangeName = config.getString("exchange");
         Exchange exchange = Exchange.get(exchangeName);
         String pairName = config.getString("pair");
         Pair pair = Pair.getByName(pairName);
 
-        TicksTimesSeriesData<TickData> ticksTs = new TicksTimesSeriesData<>(null);
         final TradesPreloader preloader = new TradesPreloader(exchange, pair, period, config, ticksTs) {
 //            @Override protected void onTicksPreloaded() {
 //                m_frame.repaint();
@@ -157,10 +163,9 @@ public class BitMex extends BaseExchImpl {
 
         preloader.playOnlyCache();
 
-        log("loaded from cache " + ticksTs.getTicksNum() + " ticks");
-
-        return ticksTs;
+//        log("loaded from cache " + ticksTs.getTicksNum() + " ticks");
     }
+
 
     public void init(MapConfig config) {
         m_apiKey = config.getString(API_KEY_KEY);

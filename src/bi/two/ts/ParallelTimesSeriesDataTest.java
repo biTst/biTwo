@@ -36,7 +36,7 @@ public class ParallelTimesSeriesDataTest {
                     if(timestamp % 100000 == 0) {
 
                         ParallelTimesSeriesData.InnerTimesSeriesData itsd = (ParallelTimesSeriesData.InnerTimesSeriesData) ts;
-                        String log = itsd.log();
+                        String log = itsd.getLogStr();
 
                         System.out.println(" child[" + finalI + "] passed:  " + timestamp + "; " + log);
                     }
