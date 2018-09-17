@@ -19,7 +19,7 @@ import java.util.*;
 public class TradesPreloader implements Runnable {
     private static final int SLEEP_MILLIS = 2000; // do not DDOS
     private static final boolean LOG_PARSING = false;
-    public static final int MAX_HISTORY_LOAD_ITERATIONS = 80000; // BitMex:  1000 iterations ~=     18h
+    public static final int MAX_HISTORY_LOAD_ITERATIONS = 120000; // BitMex:  1000 iterations ~=     18h
                                                                  //         10000            ~=  6d 11h
                                                                  //         20900            ~= 15d
     private final Exchange m_exchange;
