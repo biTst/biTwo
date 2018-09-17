@@ -15,6 +15,7 @@ import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
+import java.io.File;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -34,19 +35,19 @@ public class Main {
         Log.s_impl = new Log.FileLog();
         MarketConfig.initMarkets(false);
 
-        final ChartFrame frame = new ChartFrame();
-
         new Thread("MAIN") {
             @Override public void run() {
                 setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
-                loadData(frame, args);
+                loadData(args);
             }
         }.start();
     }
 
-    private static void loadData(final ChartFrame frame, String[] args) {
+    private static void loadData(String[] args) {
+        ChartFrame frame = null;
+
         try {
-            String file = "cfg\\vary.properties";
+            String file = "cfg" + File.separator + "vary.properties";
             if (args.length > 0) {
                 file = args[0];
             }
@@ -63,6 +64,7 @@ public class Main {
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
             if (collectTicks) {
+                frame = new ChartFrame();
                 frame.setVisible(true);
             }
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
@@ -83,8 +85,8 @@ public class Main {
                 cleanMemory();
 
                 BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
-                        ? new TicksTimesSeriesData<>(null)
-                        : new NoTicksTimesSeriesData<>(null);
+                        ? new TicksTimesSeriesData<TickData>(null)
+                        : new NoTicksTimesSeriesData<TickData>(null);
                 if (!collectTicks) { // add initial tick to update
                     ticksTs.addOlderTick(new TickData());
                 }
@@ -120,7 +122,9 @@ public class Main {
 
                 logResults(watchers, startMillis);
 
-                frame.repaint();
+                if (frame != null) {
+                    frame.repaint();
+                }
             }
             cleanMemory();
 
@@ -270,8 +274,11 @@ public class Main {
             if (m_counter == m_prefillTicks) {
                 console("PREFILLED: ticksCount=" + m_counter);
             } else if (m_counter > m_prefillTicks) {
+                // them simulate slow trades
                 if (m_counter % 40 == 0) {
-                    m_frame.repaint();
+                    if (m_frame != null) {
+                        m_frame.repaint();
+                    }
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException e) { /*noop*/ }
@@ -287,5 +294,4 @@ public class Main {
             }
         }
     }
-
 }
