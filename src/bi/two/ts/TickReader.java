@@ -39,7 +39,11 @@ public enum TickReader {
             long lastProcessedTickTime = 0;
             int filesProcessed = 0;
             File[] files = dir.listFiles();
-            Arrays.sort(files, Comparator.comparing(File::getName));
+            Arrays.sort(files, new Comparator<File>() {
+                @Override public int compare(File f1, File f2) {
+                    return f1.getName().compareTo(f2.getName());
+                }
+            });
             for (File file : files) {
                 String absolutePath = file.getAbsolutePath();
                 if (file.isFile()) {
