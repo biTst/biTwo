@@ -7,6 +7,8 @@ import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 
+import static bi.two.util.Log.console;
+
 public class Adjuster extends BaseTimesSeriesData<ITickData> {
     private final float m_dropLevel;
     private boolean m_dirty;
@@ -89,7 +91,7 @@ public class Adjuster extends BaseTimesSeriesData<ITickData> {
 
 
                     if (Math.abs(m_xxx) > 1) {
-                        System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+                        console("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
                     }
 
                     iAmChanged = true;

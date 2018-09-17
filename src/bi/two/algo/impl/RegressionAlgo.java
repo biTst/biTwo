@@ -23,6 +23,8 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 
+import static bi.two.util.Log.console;
+
 public class RegressionAlgo extends BaseAlgo<TickData> {
     public static final float DEF_THRESHOLD = 0.1f;
 
@@ -486,7 +488,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                     float delta = m_directionTracker.update(value);
 
                     if (delta != 0) { // value changed
-//System.out.println("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+//console("=== value=" + value + "; delta=" + delta + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
 
                         if ((m_max > value) && (value > m_min)) { // between
                             if (delta > 0) { // going up
@@ -527,11 +529,11 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                         } else {
                             m_xxx = (value - m_min) / (m_zero - m_min) - 1; // [-1 .. 0]
                         }
-//System.out.println("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
+//console("===     value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max + "  ==>>  xxx=" + m_xxx);
 
 
                         if (Math.abs(m_xxx) > 1) {
-                            System.out.println("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
+                            console("ERROR: m_xxx=" + m_xxx + "; value=" + value + "; m_min=" + m_min + "; zero=" + m_zero + "; m_max=" + m_max);
                         }
 
                         iAmChanged = true;
@@ -662,7 +664,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                         float diff = differTick.getClosePrice();
                         float price = priceTick.getClosePrice();
                         m_scaled = diff / price * m_multiplier;
-//                        System.out.println("scaler: diff=" + Utils.format8((double) diff)
+//                        console("scaler: diff=" + Utils.format8((double) diff)
 //                                        + "; price=" + Utils.format8((double) price)
 //                                        + "; scaled=" + Utils.format8((double) m_scaled)
 //                        );
@@ -715,7 +717,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 String expectStr = splitterLatestData.m_extra[1];
                 float expectVal = Float.parseFloat(expectStr);
                 float err = (regressVal - expectVal) / expectVal;
-                System.out.println("regressVal=" + regressVal
+                console("regressVal=" + regressVal
                         + "; closePrice=" + closePrice
                         + "; expectVal=" + expectVal
                         + "; err=" + Utils.format8((double) err)
@@ -756,7 +758,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 String expectStr = splitterLatestData.m_extra[2];
                 float expectVal = Float.parseFloat(expectStr);
                 float err = differVal - expectVal;
-                System.out.println("differVal=" + Utils.format8((double) differVal)
+                console("differVal=" + Utils.format8((double) differVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
@@ -799,7 +801,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 float expectVal = Float.parseFloat(expectStr);
                 float err = scalerVal - expectVal;
 
-                System.out.println("scalerVal=" + Utils.format8((double) scalerVal)
+                console("scalerVal=" + Utils.format8((double) scalerVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
@@ -843,7 +845,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 float expectVal = Float.parseFloat(expectStr);
                 float err = averagerVal - expectVal;
 
-                System.out.println("averagerVal=" + Utils.format8((double) averagerVal)
+                console("averagerVal=" + Utils.format8((double) averagerVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
@@ -889,7 +891,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 float expectVal = Float.parseFloat(expectStr);
                 float err = signalerVal - expectVal;
 
-                System.out.println("signalerVal=" + Utils.format8((double) signalerVal)
+                console("signalerVal=" + Utils.format8((double) signalerVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );
@@ -936,7 +938,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
                 float expectVal = Float.parseFloat(expectStr);
                 float err = powererVal - expectVal;
 
-                System.out.println("powererVal=" + Utils.format8((double) powererVal)
+                console("powererVal=" + Utils.format8((double) powererVal)
                         + "; expectVal=" + Utils.format8((double) expectVal)
                         + "; err=" + Utils.format8((double) err)
                 );

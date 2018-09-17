@@ -15,6 +15,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.TreeMap;
 
+import static bi.two.util.Log.console;
+
 public class ChartAreaPainter {
 
     public void paintChartArea(Graphics2D g2, ITicksData ticksData, Axe.AxeLong xAxe, Axe yAxe, int xMin, int xMax, long timeMin, long timeMax, Point crossPoint) {
@@ -41,7 +43,7 @@ public class ChartAreaPainter {
                         ITickData rightTick = m_ticksTs.getTick(rightTickIndex);
                         long rightTickMillis = rightTick.getTimestamp();
 
-System.out.println("--------------------------------------------------------------");
+                        console("--------------------------------------------------------------");
                         int start = 3;
                         int count = 14;
                         double velocitySum = 0;
@@ -49,7 +51,7 @@ System.out.println("------------------------------------------------------------
                         for (int i = 0; i < count; i++) {
                             paintFrame(g2, xAxe, yAxe, rightTickIndex, rightTickMillis, Utils.MIN_IN_MILLIS * (start + i), i);
                             map.put(m_shareError, m_shareVelocity);
-System.out.println("velocity: " + m_shareVelocity + "; error: " + m_shareError);
+                            console("velocity: " + m_shareVelocity + "; error: " + m_shareError);
                             velocitySum += m_shareVelocity;
                         }
 

@@ -4,6 +4,8 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static bi.two.util.Log.console;
+
 //--------------------------------------------------------------------------------------
 public class TradeHours {
     private final Schedule m_schedule;
@@ -86,10 +88,9 @@ public class TradeHours {
                 dateFormat.setTimeZone(timezone);
                 Date time = m_calendar.getTime();
                 String dateFormatted = dateFormat.format(time);
-//System.out.println("dateFormatted=" + dateFormatted);
                 boolean holiday = holidays.isHoliday(dateFormatted);
                 if (holiday) {
-System.out.println("skip holiday=" + dateFormatted);
+console("skip holiday=" + dateFormatted);
                     shiftCalendarToNextDay();
                 }
             }

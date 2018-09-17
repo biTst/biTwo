@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+import static bi.two.util.Log.console;
+
 public class MapConfig extends Properties {
     private static final String INCLUDE_KEY = "include";
     private static final String ENCRYPTED_KEY = "encrypted";
@@ -164,7 +166,7 @@ public class MapConfig extends Properties {
         String include = (String) remove(INCLUDE_KEY);
         File baseDir = file.getParentFile();
         if (include != null) {
-System.out.println("loading include = " + include);
+console("loading include = " + include);
             MapConfig included = new MapConfig();
             included.load(baseDir, include);
             putAll(included);
@@ -190,7 +192,7 @@ System.out.println("loading include = " + include);
     public void loadEncrypted(File parent, String pwd) throws Exception {
         String encryptedFileName = (String) remove(ENCRYPTED_KEY);
         if (encryptedFileName != null) {
-System.out.println("loading encrypt = " + encryptedFileName);
+console("loading encrypt = " + encryptedFileName);
             MapConfig encrypted = new MapConfig();
             encrypted.load(parent, encryptedFileName);
             encrypted.decryptAll(pwd);

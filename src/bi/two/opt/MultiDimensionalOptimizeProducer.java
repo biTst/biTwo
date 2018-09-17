@@ -19,6 +19,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.*;
+
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     public static final int MAX_EVALS_COUNT = 150;
     public static final double RELATIVE_TOLERANCE = 1e-7;
@@ -48,12 +50,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     double val = value * multiplier;
                     double min = fieldConfig.m_min.doubleValue();
                     if (val < min) {
-                        System.out.println("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
+                        console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
                         val = min;
                     }
                     double max = fieldConfig.m_max.doubleValue();
                     if (val > max) {
-                        System.out.println("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
+                        console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
                         val = max;
                     }
 
@@ -67,17 +69,17 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_sync.notify();
 
                     try {
-//                System.out.println("BrentOptimizer start waiting for result");
+                        log("BrentOptimizer start waiting for result: " + this);
                         m_sync.wait();
-//                System.out.println("BrentOptimizer waiting for done");
+                        log("BrentOptimizer waiting done: " + this);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        err("InterruptedException: " + e, e);
                     }
                     m_state = State.optimizerCalculation;
                 }
 
                 sb.append(m_onFinishTotalPriceRatio);
-                System.out.println(sb.toString());
+                console(sb.toString());
 
                 if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
                     m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;
@@ -94,7 +96,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
         Thread.currentThread().setName("MultiDimensionalOptimizeProducer");
         try {
-            System.out.println("start PowellOptimizer=======================");
+            console("start PowellOptimizer=======================");
             MultivariateOptimizer optimize = new PowellOptimizer(
                     RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
             );
@@ -107,18 +109,18 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds*/    // PowellOptimizer not supports bounds
             );
 
-            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console("optimize: Evaluations=" + optimize.getEvaluations()
                     + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
-            System.out.println("error: " + e);
+            console("error: " + e);
             e.printStackTrace();
         }
 
 
         // -----------------------------------------------------------------------------------
         try {
-            System.out.println("start BOBYQAOptimizer=======================");
+            console("start BOBYQAOptimizer=======================");
             int numberOfInterpolationPoints = 2 * m_startPoint.length + 1; // + additionalInterpolationPoints
             MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
 
@@ -130,17 +132,17 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds
             );
 
-            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console("optimize: Evaluations=" + optimize.getEvaluations()
                     + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
-            System.out.println("error: " + e);
+            console("error: " + e);
             e.printStackTrace();
         }
 
         // -----------------------------------------------------------------------------------
         try {
-            System.out.println("start SimplexOptimizer=======================");
+            console("start SimplexOptimizer=======================");
             MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-5);
 
             PointValuePair pair1 = optimize.optimize(
@@ -151,11 +153,11 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     new MultiDirectionalSimplex(m_startPoint.length)
             );
 
-            System.out.println("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            System.out.println("optimize: Evaluations=" + optimize.getEvaluations()
+            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console("optimize: Evaluations=" + optimize.getEvaluations()
                     + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
-            System.out.println("error: " + e);
+            console("error: " + e);
             e.printStackTrace();
         }
 
@@ -211,7 +213,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             double maxim = max / multiplier;
             mins[i] = minim;
             maxs[i] = maxim;
-            System.out.println("buildBounds field[" + field.name() + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
+            console("buildBounds field[" + field.name() + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
         return new SimpleBounds(mins, maxs);
     }
@@ -229,24 +231,24 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             startPoint[i] = strt;
             sb.append(field.name()).append("=").append(Utils.format5(start)).append("(").append(Utils.format5(strt)).append("); ");
         }
-        System.out.println(sb.toString());
+        console(sb.toString());
         return startPoint;
     }
 
     @Override public double logResults() {
-        System.out.println("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio);
+        console("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio);
         return m_maxTotalPriceRatio;
     }
 
     @Override public void logResultsEx() {
         double gain = m_maxWatcher.totalPriceRatio(true);
-        System.out.println(m_maxWatcher.getGainLogStr("MAX ", gain));
+        console(m_maxWatcher.getGainLogStr("MAX ", gain));
 
         long processedPeriod = m_maxWatcher.getProcessedPeriod();
-        System.out.println("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
+        console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
-        System.out.println(" processedDays=" + processedDays
+        console(" processedDays=" + processedDays
                 + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
                 + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
         );

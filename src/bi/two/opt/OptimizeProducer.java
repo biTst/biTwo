@@ -9,6 +9,8 @@ import bi.two.util.MapConfig;
 
 import java.util.List;
 
+import static bi.two.util.Log.console;
+
 public abstract class OptimizeProducer extends BaseProducer implements Runnable {
     final List<OptimizeConfig> m_optimizeConfigs;
     final MapConfig m_algoConfig;
@@ -62,7 +64,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
     }
 
     @Override public double logResults() {
-        System.out.println("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_onFinishTotalPriceRatio);
+        console("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_onFinishTotalPriceRatio);
         return m_onFinishTotalPriceRatio;
     }
 

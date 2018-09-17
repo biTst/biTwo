@@ -16,6 +16,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import static bi.two.util.Log.console;
+
 public class WatchersProducer {
     public static final String OPT_KEY = "opt";
     public static final String ITERATE_KEY = "iterate";
@@ -80,7 +82,7 @@ public class WatchersProducer {
                     throw new RuntimeException("vary not found with name " + name + " for config: " + s);
                 }
             } else {
-                System.out.println("OptimizeConfig '" + s + "' is invalid");
+                console("OptimizeConfig '" + s + "' is invalid");
             }
         }
         return ret;
@@ -118,7 +120,7 @@ public class WatchersProducer {
                     throw new RuntimeException("vary not found with name " + name + " for config: " + s);
                 }
             } else {
-                System.out.println("IterateConfig '" + s + "' is invalid");
+                console("IterateConfig '" + s + "' is invalid");
             }
         }
         return ret;
@@ -211,7 +213,7 @@ public class WatchersProducer {
 
         @Override public double logResults() {
             AlgoWatcher bestWatcher = findBestWatcher();
-            System.out.println("IterateProducer result: " + bestWatcher);
+            console("IterateProducer result: " + bestWatcher);
             return bestWatcher.totalPriceRatio();
         }
 
@@ -243,7 +245,7 @@ public class WatchersProducer {
         }
 
         @Override public double logResults() {
-            System.out.println("SingleProducer result: " + m_watcher);
+            console("SingleProducer result: " + m_watcher);
             return m_watcher.totalPriceRatio();
         }
     }

@@ -2,6 +2,8 @@ package bi.two.exch.schedule;
 
 import java.util.*;
 
+import static bi.two.util.Log.console;
+
 // exch working schedule
 public enum Schedule {
     crypto(),
@@ -24,7 +26,7 @@ public enum Schedule {
                 Date shiftedTime = calendar.getTime();
                 shiftedMillis = shiftedTime.getTime();
                 if (shiftedMillis < tickTime) {
-                    System.out.println("one shift is not enough: init: " + initTime.toGMTString() + "; bounded=" + boundedTime.toGMTString() + "; shifted=" + shiftedTime.toGMTString());
+                    console("one shift is not enough: init: " + initTime.toGMTString() + "; bounded=" + boundedTime.toGMTString() + "; shifted=" + shiftedTime.toGMTString());
                 }
             }
             return calendar.getTime();
