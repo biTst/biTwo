@@ -50,7 +50,7 @@ m_ticksEntered++;
     }
 
     private void addNewestTick(ITickData latestTick) {
-if ((m_ticksEntered % 1000000) == 0) {
+if ((m_ticksEntered % 2000000) == 0) {
     StringBuilder sb = new StringBuilder("entered=" + m_ticksEntered + "; buffers");
     for (InnerTimesSeriesData innerTsd : m_array) {
         int size = innerTsd.m_queue.size();
@@ -71,13 +71,20 @@ if ((m_ticksEntered % 1000000) == 0) {
                 maxSize = Math.max(maxSize, size);
                 minSize = Math.min(minSize, size);
             }
-            if (maxSize > 16000) {
+            if (maxSize > 32000) {
                 try {
+//console("sleep 150");
+                    Thread.sleep(150);
+                } catch (InterruptedException e) { /*noop*/ }
+            } else if (maxSize > 16000) {
+                try {
+//console("sleep 50");
                     Thread.sleep(50);
                 } catch (InterruptedException e) { /*noop*/ }
             } else if (maxSize > 8000) {
                 try {
-                    Thread.sleep(10);
+//console("sleep 5");
+                    Thread.sleep(5);
                 } catch (InterruptedException e) { /*noop*/ }
             }
         } else {
