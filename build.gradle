@@ -2,13 +2,18 @@ group 'biTwo'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: 'java-library-distribution'
 
 //apply plugin: 'findbugs'
 //apply plugin: 'pmd'
 
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
 //sourceCompatibility = 1.7
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
 
 repositories {
     mavenCentral()
@@ -64,4 +69,18 @@ dependencies {
 
     compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.+'
 
+    compile 'com.github.pengrad:java-telegram-bot-api:4.1.0'
+}
+
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'ImplTitle',
+                   'Implementation-Version': version,
+                   'Main-Class': 'bi.two.Main'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }
