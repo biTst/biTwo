@@ -159,11 +159,17 @@ TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWrit
         return config;
     }
 
+
+    private static long s_maxUsedMemory = 0;
+
     private static void cleanMemory() {
+
+
         long freeMemory1 = Runtime.getRuntime().freeMemory();
         long totalMemory1 = Runtime.getRuntime().totalMemory();
         long maxMemory1 = Runtime.getRuntime().maxMemory();
         long usedMemory1 = totalMemory1 - freeMemory1;
+        s_maxUsedMemory = Math.max(s_maxUsedMemory, usedMemory1);
         Algo.resetIterationCaches();
         Runtime.getRuntime().gc();
         long freeMemory2 = Runtime.getRuntime().freeMemory();
@@ -171,15 +177,15 @@ TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWrit
         long maxMemory2 = Runtime.getRuntime().maxMemory();
         long usedMemory2 = totalMemory2 - freeMemory2;
 
-
         console("memory(free/used/total/max): "
-                + format(freeMemory1) + "/" + format(usedMemory1) + "/" + format(totalMemory1) + "/" + format(maxMemory1)
+                + formatMemory(freeMemory1) + "/" + formatMemory(usedMemory1) + "/" + formatMemory(totalMemory1) + "/" + formatMemory(maxMemory1)
                 + "  =>  "
-                + format(freeMemory2) + "/" + format(usedMemory2) + "/" + format(totalMemory2) + "/" + format(maxMemory2)
+                + formatMemory(freeMemory2) + "/" + formatMemory(usedMemory2) + "/" + formatMemory(totalMemory2) + "/" + formatMemory(maxMemory2)
+                + "; maxUsed=" + formatMemory(s_maxUsedMemory)
         );
     }
 
-    private static String format(long memory) {
+    private static String formatMemory(long memory) {
         return INTEGER_FORMAT.format(memory);
     }
 
