@@ -16,6 +16,7 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.awt.*;
+import java.io.File;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,9 @@ import java.util.concurrent.TimeUnit;
 import static bi.two.util.Log.*;
 
 public class Main2 extends Thread {
-    private static final String CONFIG = "cfg\\main2.properties";
+    private static final String CONFIG = "cfg" + File.separator + "main2.properties";
+    public static final String LOG_FILE_LOCATION = "logs" + File.separator + "main2.дщп";
+
 //    private static final long PRELOAD_PERIOD = TimeUnit.MINUTES.toMillis(50);
 //    private static final long PRELOAD_PERIOD = TimeUnit.HOURS.toMillis(24);
     private static final long PRELOAD_PERIOD = TimeUnit.DAYS.toMillis(120);
@@ -37,7 +40,7 @@ public class Main2 extends Thread {
     private MapConfig m_config;
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.FileLog("logs/main2.txt");
+        Log.s_impl = new Log.FileLog(LOG_FILE_LOCATION);
         MarketConfig.initMarkets(false);
 
         new Main2().start();
