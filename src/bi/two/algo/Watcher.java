@@ -22,9 +22,10 @@ import static bi.two.util.Log.log;
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
+    private static final boolean LOG_GAPS = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
-    private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start deflate after 1 min
+    private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
 
@@ -100,7 +101,9 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
                 fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
                 m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
-                log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                if (LOG_GAPS) {
+                    log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                }
                 m_fadeInRate = 0;
                 applyFadeOut();
                 m_firstTick = null; // reset first tick
@@ -188,7 +191,7 @@ if (timeToTradeClose < 0) {
     }
 
     private void applyFadeOut() {
-        log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
+        //log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
         process(m_lastDirection);
     }
 
