@@ -116,7 +116,7 @@ public class Main {
                 Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
 
-                String tickWriterName = config.getString("tick.writer");
+                String tickWriterName = config.getPropertyNoComment("tick.writer");
 TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
 
                 tradesReader.readTicks(config, ticksTs, callback);
