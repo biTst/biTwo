@@ -1,9 +1,10 @@
 package bi.two.exch;
 
-import bi.two.util.Log;
 import bi.two.util.Utils;
 
 import java.util.*;
+
+import static bi.two.util.Log.log;
 
 public class AccountData {
     private static final boolean VERBOSE = false;
@@ -13,10 +14,6 @@ public class AccountData {
     private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
     private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<Currency,Double>();
     public Map<Pair,TopData> m_topDatas = new HashMap<>();
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public AccountData(Exchange exch) {
         m_exch = exch;
@@ -158,15 +155,13 @@ public class AccountData {
                     "; allocated" + currency2.m_name + "=" + Utils.format8(allocatedTo) + " " + currency2.m_name);
         }
         if (allocatedTo != null) {
-            Double rate = rate(currency2, currency);
-            if (rate != null) { // if can convert
-                Double allocatedToForFrom = allocatedTo / rate;
-                from += allocatedToForFrom;
-                if(VERBOSE) {
-                    log("    " + currency2.m_name + "->" + currency.m_name + " rate=" + Utils.format8(rate) +
-                            "; allocated" + currency2.m_name + "in" + currency.m_name + "=" + Utils.format8(allocatedToForFrom) + " " + currency.m_name +
-                            "; total" + currency.m_name + " = " + Utils.format8(from) + " " + currency.m_name);
-                }
+            double rate = rate(currency2, currency);
+            Double allocatedToForFrom = allocatedTo / rate;
+            from += allocatedToForFrom;
+            if(VERBOSE) {
+                log("    " + currency2.m_name + "->" + currency.m_name + " rate=" + Utils.format8(rate) +
+                        "; allocated" + currency2.m_name + "in" + currency.m_name + "=" + Utils.format8(allocatedToForFrom) + " " + currency.m_name +
+                        "; total" + currency.m_name + " = " + Utils.format8(from) + " " + currency.m_name);
             }
         }
         return from;

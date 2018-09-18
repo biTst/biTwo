@@ -84,8 +84,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         boolean joinTicksInReader = algoConfig.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
         ITimesSeriesData priceTsd = joinTicksInReader ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
         createRibbon(priceTsd, collectValues);
-// todo use priceTsd below ?
-        setParent(tsd);
+
+        setParent(priceTsd);
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {

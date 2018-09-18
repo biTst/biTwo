@@ -3,7 +3,6 @@ package bi.two.ts;
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
 import bi.two.exch.schedule.TradeSchedule;
-import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
@@ -12,11 +11,12 @@ import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.charset.Charset;
 
-public class FileTickReader {
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
+import static bi.two.util.Log.console;
+import static bi.two.util.Log.log;
 
-    public static void readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws IOException {
+public class FileTradesReader {
+
+    public static void readFileTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback) throws IOException {
         TimeStamp doneTs = new TimeStamp();
 
         String path = config.getPropertyNoComment("dataFile");
@@ -25,15 +25,15 @@ public class FileTickReader {
         DataFileType type = DataFileType.init(config);
         TradeSchedule tradeSchedule = TradeSchedule.init(config);
 
-        readFileTicks(config, ticksTs, callback, file, type, tradeSchedule, 0);
+        readFileTrades(config, tradesTs, callback, file, type, tradeSchedule, 0);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
-        ticksTs.notifyNoMoreTicks();
+        tradesTs.notifyNoMoreTicks();
     }
 
-    public static long readFileTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                     File file, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
+    public static long readFileTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback,
+                                      File file, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
         log("fileLength = " + fileLength);
@@ -83,11 +83,11 @@ public class FileTickReader {
             }
         };
 
-        return readFileTicks(reader, ticksTs, callback, resetLine, type, tradeSchedule, lastProcessedTickTime); // reader closed inside
+        return readFileTrades(reader, tradesTs, callback, resetLine, type, tradeSchedule, lastProcessedTickTime); // reader closed inside
     }
 
-    private static long readFileTicks(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                      boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
+    private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
+                                       boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 256 * 1024);

@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.*;
+
 public class Main2 extends Thread {
     private static final String CONFIG = "cfg\\main2.properties";
 //    private static final long PRELOAD_PERIOD = TimeUnit.MINUTES.toMillis(50);
@@ -33,10 +35,6 @@ public class Main2 extends Thread {
     private BaseAlgo m_algoImpl;
     private BaseTicksTimesSeriesData<TickData> m_ticksTs;
     private MapConfig m_config;
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
         Log.s_impl = new Log.FileLog("logs/main2.txt");

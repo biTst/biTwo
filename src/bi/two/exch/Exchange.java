@@ -4,12 +4,13 @@ import bi.two.chart.ITickData;
 import bi.two.exch.schedule.Schedule;
 import bi.two.main2.TicksCacheReader;
 import bi.two.tre.CurrencyValue;
-import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
+
+import static bi.two.util.Log.console;
 
 public class Exchange {
     public static final List<Exchange> s_exchanges = new ArrayList<Exchange>();
@@ -27,8 +28,6 @@ public class Exchange {
     public boolean m_live; // true if connected
 
     public void setThreadPool(ExecutorService threadPool) { m_threadPool = threadPool; }
-
-    private static void console(String s) { Log.console(s); }
 
     public Exchange(String name, String impl, Currency baseCurrency) {
         m_name = name;

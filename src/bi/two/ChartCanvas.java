@@ -4,12 +4,13 @@ import bi.two.chart.ChartData;
 import bi.two.chart.ChartPaintSetting;
 import bi.two.chart.ChartPainter;
 import bi.two.chart.ChartSetting;
-import bi.two.util.Log;
 import bi.two.util.TimeStamp;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+
+import static bi.two.util.Log.console;
 
 public class ChartCanvas extends JComponent {
     private final ChartPainter m_chartPainter;
@@ -20,10 +21,6 @@ public class ChartCanvas extends JComponent {
     private boolean m_recalcBounds = true;
     private Point m_point; // point to highlight
     private Point m_selectPoint; // start of line to draw
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public ChartCanvas() {
         setMinimumSize(new Dimension(800, 500));

@@ -1,10 +1,11 @@
 package bi.two.tre;
 
 import bi.two.exch.*;
-import bi.two.util.Log;
 import bi.two.util.Utils;
 
 import java.util.List;
+
+import static bi.two.util.Log.log;
 
 public enum RoundNodeType {
     MKT {
@@ -196,10 +197,6 @@ public enum RoundNodeType {
         }
     },
     ;
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public abstract String getPrefix();
     public abstract double fee(ExchPairData exchPairData);

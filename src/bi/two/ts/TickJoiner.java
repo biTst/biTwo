@@ -2,7 +2,8 @@ package bi.two.ts;
 
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
-import bi.two.util.Log;
+
+import static bi.two.util.Log.console;
 
 public class TickJoiner extends TicksTimesSeriesData {
     private final long m_size;
@@ -16,8 +17,6 @@ public class TickJoiner extends TicksTimesSeriesData {
     private int m_reportedCount;
 
     private ITickData m_latestTick;
-
-    private static void console(String s) { Log.console(s); }
 
     @Override public ITickData getLatestTick() { return m_latestTick; }
 

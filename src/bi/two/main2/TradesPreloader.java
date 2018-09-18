@@ -7,7 +7,6 @@ import bi.two.exch.Direction;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
 import bi.two.ts.BaseTicksTimesSeriesData;
-import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
@@ -15,6 +14,8 @@ import bi.two.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+
+import static bi.two.util.Log.*;
 
 // -----------------------------------------------------------------------------------------------------------
 public class TradesPreloader implements Runnable {
@@ -34,10 +35,6 @@ public class TradesPreloader implements Runnable {
     private final List<TradeData> m_liveTicks = new ArrayList<>();
     private List<TradesCacheEntry> m_cache = new ArrayList<>();
     private boolean m_preloaded;
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public TradesPreloader(Exchange exchange, Pair pair, long preload, MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) {
         m_exchange = exchange;

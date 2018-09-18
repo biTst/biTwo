@@ -20,16 +20,15 @@ import java.text.NumberFormat;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.console;
+import static bi.two.util.Log.err;
+
 public class Main {
     private static NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
 
     static {
         INTEGER_FORMAT.setGroupingUsed(true);
     }
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(final String[] args) {
         Log.s_impl = new Log.FileLog();
@@ -115,9 +114,12 @@ public class Main {
                 long startMillis = System.currentTimeMillis();
 
                 Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
-                TickReader tickReader = TickReader.get(tickReaderName);
+                TradesReader tradesReader = TradesReader.get(tickReaderName);
 
-                tickReader.readTicks(config, ticksTs, callback);
+                String tickWriterName = config.getString("tick.writer");
+                TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
+
+                tradesReader.readTicks(config, ticksTs, callback);
                 ticksTs.waitAllFinished();
 
                 logResults(watchers, startMillis);

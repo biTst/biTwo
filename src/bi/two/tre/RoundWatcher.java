@@ -1,13 +1,15 @@
 package bi.two.tre;
 
 import bi.two.exch.*;
-import bi.two.util.Log;
 import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static bi.two.util.Log.console;
+import static bi.two.util.Log.err;
 
 public class RoundWatcher implements Tre.IWatcher {
     private final Exchange m_exchange;
@@ -16,10 +18,6 @@ public class RoundWatcher implements Tre.IWatcher {
     private double m_startEvaluateAll;
     private TimeStamp m_startStamp;
     private RoundWatcherState m_state = RoundWatcherState.none;
-
-    static void console(String s) { Log.console(s); }
-    static void log(String s) { Log.log(s); }
-    static void err(String s, Throwable t) { Log.err(s, t); }
 
     public RoundWatcher(Exchange exchange, RoundPlan plan, RoundPlan lllPlan) {
         m_exchange = exchange;

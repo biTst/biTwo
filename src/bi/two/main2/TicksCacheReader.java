@@ -3,19 +3,17 @@ package bi.two.main2;
 import bi.two.DataFileType;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
-import bi.two.util.Log;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static bi.two.util.Log.err;
+import static bi.two.util.Log.log;
+
 public class TicksCacheReader {
     public final DataFileType m_dataFileType;
     public final File m_cacheDir;
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public TicksCacheReader(DataFileType dataFileType, String cacheDir) {
         this(dataFileType, new File(cacheDir));

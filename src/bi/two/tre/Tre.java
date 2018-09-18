@@ -13,6 +13,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static bi.two.util.Log.*;
+
 public class Tre implements OrderBook.IOrderBookListener {
     public static final boolean LOG_ROUND_CALC = false;
     public static final boolean LOG_MKT_DISTRIBUTION = false;
@@ -59,10 +61,6 @@ public class Tre implements OrderBook.IOrderBookListener {
     private long m_firstBookUpdateTime;
     private int m_bookUpdatesNum;
     public static boolean m_pauseBookRoundNotify;
-
-    private static void console(String s) { Log.console(s); }
-    private static void log(String s) { Log.log(s); }
-    private static void err(String s, Throwable t) { Log.err(s, t); }
 
     public static void main(String[] args) {
         new Tre().main();
