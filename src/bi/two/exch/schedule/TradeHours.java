@@ -83,7 +83,7 @@ public class TradeHours {
         } else {
             Holidays holidays = m_schedule.getHolidays();
             if (holidays != null) {
-                DateFormat dateFormat = new SimpleDateFormat("ddMMyyyy");
+                DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
                 TimeZone timezone = m_schedule.getTimezone();
                 dateFormat.setTimeZone(timezone);
                 Date time = m_calendar.getTime();

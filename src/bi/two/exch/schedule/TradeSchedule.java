@@ -3,6 +3,11 @@ package bi.two.exch.schedule;
 import bi.two.chart.TickData;
 import bi.two.util.MapConfig;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.TimeZone;
+
 // ticks following schedule
 public class TradeSchedule {
     private final Schedule m_schedule;
@@ -28,7 +33,11 @@ public class TradeSchedule {
             TradeHours nextTradeHours = m_currentTradeHours.getNextTradeHours();
             inside = nextTradeHours.isInsideOfTradingHours(timestamp);
             if (!inside) {
-                throw new RuntimeException("timestamp is not inside of current and next trade day hours: current=" + m_currentTradeHours + "; next=" + nextTradeHours + "; schedule=" + m_schedule);
+                DateFormat dateTimeInstance = SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.LONG, SimpleDateFormat.LONG);
+                TimeZone timezone = m_schedule.getTimezone();
+                dateTimeInstance.setTimeZone(timezone);
+                String formatted = dateTimeInstance.format(new Date(timestamp));
+                throw new RuntimeException("timestamp '" + formatted + "' is not inside of current and next trade day hours: current=" + m_currentTradeHours + "; next=" + nextTradeHours + "; schedule=" + m_schedule);
             }
             long nextTradeStartTime = nextTradeHours.m_tradeStartMillis;
             long currentTradeEndTime = m_currentTradeHours.m_tradeEndMillis;
