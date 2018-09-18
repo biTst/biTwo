@@ -112,16 +112,27 @@ public class TradesPreloader implements Runnable {
         while (true) {
             long startTimestamp = currentTimestamp;
             log(" next iteration: currentTimestamp=" + currentTimestamp + ". date=" + new Date(currentTimestamp));
-            boolean matched = false;
             int skippedTicksNum = 0;
             int addedTicksNum = 0;
             int cacheSize = m_cache.size();
+            List<TradesCacheEntry> matchedList = new ArrayList<>();
+            List<Integer> matchedIndexes = new ArrayList<>();
             for (int i = 0; i < cacheSize; i++) {
                 TradesCacheEntry cacheEntry = m_cache.get(i);
-                matched = cacheEntry.matched(currentTimestamp);
+                boolean matched = cacheEntry.matched(currentTimestamp);
                 if (matched) {
-                    lastMatchedIndex = i;
-                    log(" got matched cacheEntry[" + i + "]: " + cacheEntry);
+                    matchedList.add(cacheEntry);
+                    matchedIndexes.add(i);
+                }
+            }
+            boolean matched = false;
+            int matchedNum = matchedList.size();
+            if (matchedNum > 0) {
+                log(" got matched " + matchedNum + " cacheEntries");
+                for (int i = 0, matchedListSize = matchedList.size(); i < matchedListSize; i++) {
+                    TradesCacheEntry cacheEntry = matchedList.get(i);
+                    Integer index = matchedIndexes.get(i);
+                    log("  matched cacheEntry[" + i + "]: index=" + index + "; " + cacheEntry);
                     long newest = cacheEntry.m_newestTimestamp;
                     List<TickData> historyTicks = cacheEntry.loadTrades(m_ticksCacheReader);
 //console("playTicks : " + cacheEntry + "; size=" + historyTicks.size());
@@ -144,11 +155,16 @@ public class TradesPreloader implements Runnable {
                             skippedTicksNum++;
                         }
                     }
-                    currentTimestamp++;
-                    cacheEntriesProcessed++;
-                    newestTimestamp = Math.max(newestTimestamp, newest);
-                    log("  added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
-                    break;
+                    if (addedTicksNum > 0) {
+                        lastMatchedIndex = index;
+                        currentTimestamp++;
+                        cacheEntriesProcessed++;
+                        newestTimestamp = Math.max(newestTimestamp, newest);
+                        log("   added " + addedTicksNum + " ticks, skipped " + skippedTicksNum + " ticks");
+                        break;
+                    } else {
+                        log("   no ticks added from " + cacheEntry);
+                    }
                 }
             }
             if (!matched) {
@@ -167,6 +183,7 @@ public class TradesPreloader implements Runnable {
                     }
                 }
 
+                // search cache entry after
                 long min = Long.MAX_VALUE;
                 for (int i = 0; i < cacheSize; i++) {
                     TradesCacheEntry cacheEntry = m_cache.get(i);
