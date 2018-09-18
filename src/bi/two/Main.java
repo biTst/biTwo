@@ -16,7 +16,9 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.NumberFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -24,14 +26,18 @@ import static bi.two.util.Log.console;
 import static bi.two.util.Log.err;
 
 public class Main {
-    private static NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
+    private static final String DEF_CONFIG_FILE = "cfg" + File.separator + "vary.properties";
 
+    private static NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
     static {
         INTEGER_FORMAT.setGroupingUsed(true);
     }
 
     public static void main(final String[] args) {
-        Log.s_impl = new Log.FileLog();
+        String logFileLocation = (args.length) > 1 ? args[1] : Log.FileLog.DEF_LOG_FILE_LOCATION;
+        System.out.println("Started: " + (new Date()) + "; logFileLocation = " + logFileLocation);
+        Log.s_impl = new Log.FileLog(logFileLocation);
+
         MarketConfig.initMarkets(false);
 
         new Thread("MAIN") {
@@ -46,13 +52,7 @@ public class Main {
         ChartFrame frame = null;
 
         try {
-            String file = "cfg" + File.separator + "vary.properties";
-            if (args.length > 0) {
-                file = args[0];
-            }
-            MapConfig config = new MapConfig();
-//            config.loadAndEncrypted(file);
-            config.load(file);
+            MapConfig config = initConfig(args);
 
             String exchangeName = config.getString("exchange");
             Exchange exchange = Exchange.get(exchangeName);
@@ -117,7 +117,7 @@ public class Main {
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
 
                 String tickWriterName = config.getString("tick.writer");
-                TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
+TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
 
                 tradesReader.readTicks(config, ticksTs, callback);
                 ticksTs.waitAllFinished();
@@ -145,6 +145,18 @@ public class Main {
             Runtime.getRuntime().gc();
             TimeUnit.DAYS.sleep(3);
         } catch (InterruptedException e) { /*noop*/ }
+    }
+
+    private static MapConfig initConfig(String[] args) throws IOException {
+        String file = DEF_CONFIG_FILE;
+        if (args.length > 0) {
+            file = args[0];
+        }
+        MapConfig config = new MapConfig();
+//            config.loadAndEncrypted(file);
+        console("use config file: " + file);
+        config.load(file);
+        return config;
     }
 
     private static void cleanMemory() {

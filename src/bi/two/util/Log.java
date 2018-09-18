@@ -76,12 +76,13 @@ public class Log {
     public static class FileLog implements ILog {
         static final String LOG_DIR = "logs";
         static final String DEF_LOG_FILE = "log.log";
+        public static final String DEF_LOG_FILE_LOCATION = LOG_DIR + File.separator + DEF_LOG_FILE;
 
         private final ExecutorService m_threadPool;
         private final FileOutputStream m_fos;
 
         public FileLog() {
-            this(LOG_DIR + File.separator + DEF_LOG_FILE);
+            this(DEF_LOG_FILE_LOCATION);
         }
 
         public FileLog(String logFileLocation) {
