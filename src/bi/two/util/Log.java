@@ -80,6 +80,7 @@ public class Log {
 
         private final ExecutorService m_threadPool;
         private final FileOutputStream m_fos;
+        private final FileOutputStream m_consoleFos;
 
         public FileLog() {
             this(DEF_LOG_FILE_LOCATION);
@@ -98,12 +99,12 @@ public class Log {
                 }
             }
 
-            if (logFile.exists()) {
-                String fileName = logFile.getName();
-                int indx = fileName.indexOf(".");
-                String name = (indx > 0) ? fileName.substring(0, indx) : fileName;
-                String ext = (indx > 0) ? fileName.substring(indx) : ""; // extension with dot
+            String fileName = logFile.getName();
+            int indx = fileName.lastIndexOf(".");
+            String name = (indx > 0) ? fileName.substring(0, indx) : fileName;
+            String ext = (indx > 0) ? fileName.substring(indx) : ""; // extension with dot
 
+            if (logFile.exists()) {
                 String newFileName = name + "-" + System.currentTimeMillis() + ext;
                 logFile.renameTo(new File(logDir, newFileName));
             }
@@ -112,13 +113,27 @@ public class Log {
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open log file: " + e, e);
             }
+
+            String consoleName =  name + "-" + "console";
+            String consoleFileName =  consoleName + "-" + ext;
+            File consoleFile = new File(logDir, consoleFileName);
+            if (consoleFile.exists()) {
+                String newFileName = consoleName + "-" + System.currentTimeMillis() + ext;
+                consoleFile.renameTo(new File(logDir, newFileName));
+            }
+
+            try {
+                m_consoleFos = new FileOutputStream(logFile);
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException("unable to open console log file: " + e, e);
+            }
         }
 
         @Override public void log(final String s) {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     String str = System.currentTimeMillis() + ": " + s + "\n";
-                    logInt(str);
+                    logInt(str, m_fos);
                 }
             });
         }
@@ -127,15 +142,16 @@ public class Log {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     String str = System.currentTimeMillis() + ": " + s + "\n";
-                    logInt(str);
+                    logInt(str, m_fos);
+                    logInt(str, m_consoleFos);
                     System.out.print(str);
                 }
             });
         }
 
-        private void logInt(String str) {
+        private void logInt(String str, FileOutputStream stream) {
             try {
-                m_fos.write(str.getBytes());
+                stream.write(str.getBytes());
             } catch (IOException e) {
                 System.out.println("log error: " + e);
                 e.printStackTrace();
@@ -161,6 +177,7 @@ public class Log {
                     }
                     try {
                         bos.writeTo(m_fos);
+                        bos.writeTo(m_consoleFos);
                     } catch (IOException e) {
                         System.out.println("log error: " + e);
                         e.printStackTrace();
