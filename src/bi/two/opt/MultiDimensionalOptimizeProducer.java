@@ -96,7 +96,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
         Thread.currentThread().setName("MultiDimensionalOptimizeProducer");
         try {
-            console("start PowellOptimizer=======================");
+            log("start PowellOptimizer=======================");
             MultivariateOptimizer optimize = new PowellOptimizer(
                     RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE            //  1e-13, FastMath.ulp(1d)
             );
@@ -109,9 +109,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds*/    // PowellOptimizer not supports bounds
             );
 
-            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console("optimize: Evaluations=" + optimize.getEvaluations()
-                    + "; Iterations=" + optimize.getIterations());
+            console("PowellOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();
@@ -120,7 +119,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
         // -----------------------------------------------------------------------------------
         try {
-            console("start BOBYQAOptimizer=======================");
+            log("start BOBYQAOptimizer=======================");
             int numberOfInterpolationPoints = 2 * m_startPoint.length + 1; // + additionalInterpolationPoints
             MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
 
@@ -132,9 +131,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds
             );
 
-            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console("optimize: Evaluations=" + optimize.getEvaluations()
-                    + "; Iterations=" + optimize.getIterations());
+            console("BOBYQAOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();
@@ -142,7 +140,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
         // -----------------------------------------------------------------------------------
         try {
-            console("start SimplexOptimizer=======================");
+            log("start SimplexOptimizer=======================");
             MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-5);
 
             PointValuePair pair1 = optimize.optimize(
@@ -153,9 +151,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     new MultiDirectionalSimplex(m_startPoint.length)
             );
 
-            console("point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console("optimize: Evaluations=" + optimize.getEvaluations()
-                    + "; Iterations=" + optimize.getIterations());
+            console("SimplexOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
+            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();
@@ -213,7 +210,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             double maxim = max / multiplier;
             mins[i] = minim;
             maxs[i] = maxim;
-            console("buildBounds field[" + field.name() + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
+            log("buildBounds field[" + field.name() + "] min=" + minim + "(" + min + "); max=" + maxim + "(" + max + ")");
         }
         return new SimpleBounds(mins, maxs);
     }

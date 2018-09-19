@@ -107,7 +107,7 @@ public class FileTradesReader {
                 if (tickData != null) {
                     readCounter++;
                     long timestamp = tickData.getTimestamp();
-                    if (timestamp > lastProcessedTickTime) {
+                    if (timestamp > lastProcessedTickTime) { // skip tick already processed outside
                         float closePrice = tickData.getClosePrice();
                         if (lastClosePrice != 0) {
                             float rate = closePrice / lastClosePrice;
