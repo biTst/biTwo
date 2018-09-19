@@ -117,9 +117,9 @@ public class Main {
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
 
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
-TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
+                TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
 
-                tradesReader.readTicks(config, ticksTs, callback);
+                tradesReader.readTicks(config, ticksTs, callback, tradesWriter);
                 ticksTs.waitAllFinished();
 
                 logResults(watchers, startMillis);

@@ -28,8 +28,8 @@ public class DirTradesReader {
 
         String filePattern = config.getPropertyNoComment("filePattern");
 
-        DataFileType type = DataFileType.init(config);
-        TradeSchedule tradeSchedule = TradeSchedule.init(config);
+        DataFileType type = DataFileType.obtain(config);
+        TradeSchedule tradeSchedule = TradeSchedule.obtain(config);
 
         long lastProcessedTickTime = 0;
         int filesProcessed = 0;

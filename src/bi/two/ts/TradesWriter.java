@@ -1,7 +1,9 @@
 package bi.two.ts;
 
 public enum TradesWriter {
-    ;
+    simple("simple") {
+
+    };
 
     private final String m_name;
 

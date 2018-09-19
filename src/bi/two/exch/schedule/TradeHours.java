@@ -4,7 +4,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static bi.two.util.Log.console;
+import static bi.two.util.Log.log;
 
 //--------------------------------------------------------------------------------------
 public class TradeHours {
@@ -78,7 +78,7 @@ public class TradeHours {
         m_calendar.add(Calendar.DAY_OF_YEAR, 1);
 
         int dayOfWeek = m_calendar.get(Calendar.DAY_OF_WEEK);
-        if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+        if ((dayOfWeek == Calendar.SATURDAY) || (dayOfWeek == Calendar.SUNDAY)) {
             shiftCalendarToNextDay();
         } else {
             Holidays holidays = m_schedule.getHolidays();
@@ -90,7 +90,7 @@ public class TradeHours {
                 String dateFormatted = dateFormat.format(time);
                 boolean holiday = holidays.isHoliday(dateFormatted);
                 if (holiday) {
-console("skip holiday=" + dateFormatted);
+                    log("skip holiday=" + dateFormatted);
                     shiftCalendarToNextDay();
                 }
             }

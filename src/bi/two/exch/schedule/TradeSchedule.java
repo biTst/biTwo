@@ -48,7 +48,7 @@ public class TradeSchedule {
         return timestamp - m_currentTimeJoin;
     }
 
-    public static TradeSchedule init(MapConfig config) {
+    public static TradeSchedule obtain(MapConfig config) {
         TradeSchedule tradeSchedule;
         String scheduleName = config.getProperty("schedule");
         if (scheduleName != null) {

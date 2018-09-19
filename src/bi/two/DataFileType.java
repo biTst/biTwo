@@ -206,7 +206,7 @@ public enum DataFileType {
         throw new RuntimeException("Unknown DataFileType '" + type + "'");
     }
 
-    public static DataFileType init(MapConfig config) {
+    public static DataFileType obtain(MapConfig config) {
         String dataFileType = config.getProperty("dataFile.type");
         DataFileType type = DataFileType.get(dataFileType);
         return type;

@@ -22,8 +22,8 @@ public class FileTradesReader {
         String path = config.getPropertyNoComment("dataFile");
         File file = new File(path);
 
-        DataFileType type = DataFileType.init(config);
-        TradeSchedule tradeSchedule = TradeSchedule.init(config);
+        DataFileType type = DataFileType.obtain(config);
+        TradeSchedule tradeSchedule = TradeSchedule.obtain(config);
 
         readFileTrades(config, tradesTs, callback, file, type, tradeSchedule, 0);
 
