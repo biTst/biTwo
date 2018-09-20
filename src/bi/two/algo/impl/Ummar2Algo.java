@@ -63,13 +63,8 @@ public class Ummar2Algo extends BaseAlgo<TickData> {
         m_threshold = config.getNumber(Vary.threshold).floatValue();
         m_reverse = config.getNumber(Vary.reverse).floatValue();
 
-        boolean joinTicksInReader = config.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
-        if (joinTicksInReader) {
-            createRibbon(tsd, collectValues);
-        } else {
-            BaseTimesSeriesData ticksJoiner = new TickJoinerTimesSeriesData(tsd, m_joinTicks);
-            createRibbon(ticksJoiner, collectValues);
-        }
+        ITimesSeriesData wrappedTs = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
+        createRibbon(wrappedTs, collectValues);
 
         setParent(m_emas.get(0));
     }

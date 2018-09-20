@@ -23,8 +23,8 @@ import static bi.two.util.Log.*;
 
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     public static final int MAX_EVALS_COUNT = 150;
-    public static final double RELATIVE_TOLERANCE = 1e-7;
-    public static final double ABSOLUTE_TOLERANCE = 1e-9;
+    public static final double RELATIVE_TOLERANCE = 1e-6;
+    public static final double ABSOLUTE_TOLERANCE = 1e-8;
 
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
@@ -109,8 +109,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds*/    // PowellOptimizer not supports bounds
             );
 
-            console("PowellOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
+            console("PowellOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue()
+                    + ";; optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();
@@ -120,8 +120,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         // -----------------------------------------------------------------------------------
         try {
             log("start BOBYQAOptimizer=======================");
+
+            // its value must be in the interval [n+2, (n+1)(n+2)/2]. Choices that exceed {@code 2n+1} are not recommended
             int numberOfInterpolationPoints = 2 * m_startPoint.length + 1; // + additionalInterpolationPoints
-            MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints);
+            MultivariateOptimizer optimize = new BOBYQAOptimizer(numberOfInterpolationPoints,
+                    BOBYQAOptimizer.DEFAULT_INITIAL_RADIUS,
+                    BOBYQAOptimizer.DEFAULT_STOPPING_RADIUS);
 
             PointValuePair pair1 = optimize.optimize(
                     new ObjectiveFunction(m_function),
@@ -131,8 +135,8 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     m_bounds
             );
 
-            console("BOBYQAOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
+            console("BOBYQAOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue()
+                    + ";; optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();
@@ -141,18 +145,20 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         // -----------------------------------------------------------------------------------
         try {
             log("start SimplexOptimizer=======================");
-            MultivariateOptimizer optimize = new SimplexOptimizer(1e-3, 1e-5);
+            double relativeThreshold = 1e-3;
+            double absoluteThreshold = 1e-5;
+            MultivariateOptimizer optimize = new SimplexOptimizer(relativeThreshold, absoluteThreshold);
 
             PointValuePair pair1 = optimize.optimize(
                     new ObjectiveFunction(m_function),
                     new MaxEval(MAX_EVALS_COUNT),
                     GoalType.MAXIMIZE,
                     new InitialGuess(m_startPoint),
-                    new MultiDirectionalSimplex(m_startPoint.length)
+                    new MultiDirectionalSimplex(m_startPoint.length) // new NelderMeadSimplex(initialGuess.length)
             );
 
-            console("SimplexOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue());
-            console(" optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
+            console("SimplexOptimizer: point=" + Arrays.toString(pair1.getPoint()) + "; value=" + pair1.getValue()
+                    + ";; optimize: Evaluations=" + optimize.getEvaluations() + "; Iterations=" + optimize.getIterations());
         } catch (Exception e) {
             console("error: " + e);
             e.printStackTrace();

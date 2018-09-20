@@ -19,7 +19,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     public BarSplitter.BarHolder m_newestBar;
     private boolean m_muteListeners;
 
-    public BarSplitter(ITimesSeriesData iTicksData) {
+    public BarSplitter(ITimesSeriesData<ITickData> iTicksData) {
         this(iTicksData, BARS_NUM, DEF_PERIOD);
     }
 

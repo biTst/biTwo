@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
@@ -18,7 +19,9 @@ import bi.two.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -60,6 +63,9 @@ public class Main {
             Pair pair = Pair.getByName(pairName);
 //            ExchPairData pairData = exchange.getPairData(pair);
 
+            Integer joinTicksInReader = config.getInt("joinTicksInReader");
+            boolean joinTicks = (joinTicksInReader > 0);
+
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
             if (collectTicks) {
@@ -67,13 +73,11 @@ public class Main {
                 frame.setVisible(true);
             }
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-            boolean joinTicksInReader = config.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
             int prefillTicks = config.getInt("prefill.ticks");
 
             MapConfig defAlgoConfig = getDefaultConfig(config);
             // todo: copy all keys from config to defAlgoConfig ?
             defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
-            defAlgoConfig.put(BaseAlgo.JOIN_TICKS_IN_READER_KEY, Boolean.toString(joinTicksInReader));
             defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
@@ -90,13 +94,7 @@ public class Main {
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                BaseTicksTimesSeriesData<TickData> joinedTicksTs;
-                if (joinTicksInReader) {
-                    long joinTicks = config.getNumber(Vary.joinTicks).longValue();
-                    joinedTicksTs = new TickJoiner(ticksTs, joinTicks);
-                } else {
-                    joinedTicksTs = ticksTs;
-                }
+                BaseTicksTimesSeriesData<TickData> joinedTicksTs = joinTicks ? new TickJoiner(ticksTs, joinTicksInReader) : ticksTs;
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
                 console("## iteration " + i + "  watchers.num=" + watchers.size());
@@ -119,7 +117,14 @@ public class Main {
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
                 TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
 
-                tradesReader.readTicks(config, ticksTs, callback, tradesWriter);
+                BaseTicksTimesSeriesData<TickData> writerTicksTs;
+                if (tickWriterName != null) {
+                    writerTicksTs = new TradesWriterTicksTs(ticksTs, tradesWriter);
+                } else {
+                    writerTicksTs = ticksTs;
+                }
+
+                tradesReader.readTicks(config, writerTicksTs, callback, tradesWriter);
                 ticksTs.waitAllFinished();
 
                 logResults(watchers, startMillis);
@@ -312,6 +317,59 @@ public class Main {
                     }
                 }
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------------
+    private static class TradesWriterTicksTs extends BaseTicksTimesSeriesData<TickData> {
+        private final TradesWriter m_tradesWriter;
+        private final BaseTicksTimesSeriesData<TickData> m_proxyTicksTs;
+
+        public TradesWriterTicksTs(BaseTicksTimesSeriesData<TickData> proxyTicksTs, TradesWriter tradesWriter) {
+            super(null);
+            m_proxyTicksTs = proxyTicksTs;
+            m_tradesWriter = tradesWriter;
+        }
+
+        public void addNewestTick(TickData tickData) {
+            m_tradesWriter.writeTick(tickData);
+            m_proxyTicksTs.addNewestTick(tickData);
+        }
+
+        public void addOlderTick(TickData tickData) {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public TickData getTick(int index) {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public Iterator<TickData> getTicksIterator() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public Iterable<TickData> getTicksIterable() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public Iterator<TickData> getReverseTicksIterator() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public Iterable<TickData> getReverseTicksIterable() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public int getTicksNum() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public Object syncObject() {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override public int binarySearch(TickData o, Comparator<ITickData> comparator) {
+            throw new RuntimeException("not implemented");
         }
     }
 }

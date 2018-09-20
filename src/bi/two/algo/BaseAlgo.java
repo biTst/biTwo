@@ -15,7 +15,6 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public static final String COLLECT_VALUES_KEY = "collect.values";
     public static final String ALGO_NAME_KEY = "algoName";
     public static final String COMMISSION_KEY = "commission";
-    public static final String JOIN_TICKS_IN_READER_KEY = "joinTicksInReader";
 
     public List<BaseIndicator> m_indicators = new ArrayList<>();
 

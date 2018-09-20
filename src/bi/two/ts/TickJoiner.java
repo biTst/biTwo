@@ -1,24 +1,23 @@
 package bi.two.ts;
 
-import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
 import static bi.two.util.Log.console;
 
-public class TickJoiner extends TicksTimesSeriesData {
+public class TickJoiner extends TicksTimesSeriesData<TickData> {
     private final long m_size;
     private long m_first;
     private long m_last;
     private long m_end;
     private float m_summ;
     private int m_count;
-    private ITickData m_firstTick;
+    private TickData m_firstTick;
     private int m_joinedCount;
     private int m_reportedCount;
 
-    private ITickData m_latestTick;
+    private TickData m_latestTick;
 
-    @Override public ITickData getLatestTick() { return m_latestTick; }
+    @Override public TickData getLatestTick() { return m_latestTick; }
 
     public TickJoiner(ITimesSeriesData tsd, long size) {
         super(tsd);
@@ -26,9 +25,9 @@ public class TickJoiner extends TicksTimesSeriesData {
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-        if(changed) {
-            ITimesSeriesData parent = getParent();
-            ITickData tickData = parent.getLatestTick();
+        if (changed) {
+            ITimesSeriesData<TickData> parent = getParent();
+            TickData tickData = parent.getLatestTick();
             float price = tickData.getClosePrice();
             long timestamp = tickData.getTimestamp();
 

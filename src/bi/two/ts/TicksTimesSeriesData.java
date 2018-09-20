@@ -9,7 +9,8 @@ import java.util.*;
 public class TicksTimesSeriesData<T extends ITickData>
         extends BaseTicksTimesSeriesData<T> {
     // [0] - oldest tick;  newest ticks at the end
-    protected List<T> m_reverseTicks = Collections.synchronizedList(new ArrayList<T>()); // CopyOnWriteArrayList<T>();
+    protected List<T> m_reverseTicks = Collections.synchronizedList(new ArrayList<T>());
+// todo: test/verify for CopyOnWriteArrayList<T>();
 
     public TicksTimesSeriesData(ITimesSeriesData parent) {
         super(parent);

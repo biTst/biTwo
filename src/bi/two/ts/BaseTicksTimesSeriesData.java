@@ -9,7 +9,7 @@ public abstract class BaseTicksTimesSeriesData<T extends ITickData>
         implements ITicksData<T> {
     protected T m_newestTick;
 
-    public BaseTicksTimesSeriesData(ITimesSeriesData parent) {
+    public BaseTicksTimesSeriesData(ITimesSeriesData<T> parent) {
         super(parent);
     }
 

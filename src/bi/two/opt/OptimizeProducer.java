@@ -5,6 +5,7 @@ import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.ITimesSeriesListener;
 import bi.two.util.MapConfig;
 
 import java.util.List;
@@ -50,7 +51,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
             }
         }
         m_lastWatcher = new WatchersProducer.AlgoWatcher(config, m_algoConfig, exchange, pair, ticksTs);
-        m_lastWatcher.addListener(new ITimesSeriesData.ITimesSeriesListener() {
+        m_lastWatcher.addListener(new ITimesSeriesListener() {
             @Override public void onChanged(ITimesSeriesData ts, boolean changed) { }
             @Override public void waitWhenFinished() { }
             @Override public void notifyNoMoreTicks() {

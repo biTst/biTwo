@@ -12,10 +12,7 @@ import bi.two.calc.BarsRegressor;
 import bi.two.calc.TicksRegressor;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
-import bi.two.ts.BaseTicksTimesSeriesData;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.TicksTimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 

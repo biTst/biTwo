@@ -78,8 +78,7 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        boolean joinTicksInReader = config.getBoolean(BaseAlgo.JOIN_TICKS_IN_READER_KEY);
-        ITimesSeriesData priceTsd = joinTicksInReader ? tsd : new TickJoinerTimesSeriesData(tsd, m_joinTicks);
+        ITimesSeriesData priceTsd = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
         createRibbon(priceTsd, collectValues);
 
         setParent(m_emas.get(0));
