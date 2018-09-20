@@ -39,6 +39,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private final CurrencyValue m_exchMinOrderToCreate;
     private final boolean m_priceAtSameTick; // apply price from same tick or from the next
     private final double m_minOrderMul;
+    private final boolean m_hasSchedule;
     private AccountData m_initAcctData;
     private AccountData m_accountData;
     public TopData m_topData = new TopData(0,0,0);
@@ -63,6 +64,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         super(null);
         m_priceTs = ts;
         m_exch = exch;
+        m_hasSchedule = m_exch.hasSchedule();
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
         double commission = config.getDoubleOrDefault(BaseAlgo.COMMISSION_KEY, Double.POSITIVE_INFINITY);
@@ -123,12 +125,11 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             if (fadeInRate == 1) {
                 m_fadeOutRate = 0; // no fade out - trades are flowing fine
             }
+        } else {
+            m_firstTick = latestPriceTick;
         }
 
         m_lastTick = latestPriceTick;
-        if (m_firstTick == null) {
-            m_firstTick = latestPriceTick;
-        }
 
         float closePrice = latestPriceTick.getClosePrice();
         m_topData.m_last = closePrice;
@@ -136,20 +137,19 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         m_topData.m_ask = closePrice;
 
         if (m_initAcctData == null) { // very first tick
-            init();
+            init(currTimestamp);
         } else {
-            if (m_lastAdjusted != null) { // process delayed first
-                process(m_lastAdjusted);
-                m_lastAdjusted = null;
-            }
-
-            ITickData adjusted = m_algo.getAdjusted();
-            if (adjusted != null) {
-                if (m_priceAtSameTick) {
+            if (m_priceAtSameTick) {
+                ITickData adjusted = m_algo.getAdjusted();
+                if (adjusted != null) {
                     process(adjusted);
-                } else {
-                    m_lastAdjusted = adjusted; // save to process on next tick
                 }
+            } else {
+                if (m_lastAdjusted != null) { // process delayed first
+                    process(m_lastAdjusted);
+                }
+                ITickData adjusted = m_algo.getAdjusted();
+                m_lastAdjusted = adjusted; // save to process on next tick
             }
         }
     }
@@ -161,14 +161,14 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         }
         m_lastDirection = direction;
 
-        if((m_isUp == null) || (m_isUp && (direction==-1)) || (!m_isUp && (direction==1)) ) {
-            m_isUp = (direction>0);
+        if ((m_isUp == null) || (m_isUp && (direction == -1)) || (!m_isUp && (direction == 1))) {
+            m_isUp = (direction > 0);
             m_changedDirection++;
         }
 // todo: check
-        if (m_exch.hasSchedule()) {
+        if (m_hasSchedule) {
             long tickTime = tickAdjusted.getTimestamp();
-            if ((m_nextTradeCloseTime == null) || (m_nextTradeCloseTime.getTime() < tickTime)) {
+            if ((m_nextTradeCloseTime == null) || (m_nextTradeCloseTime.getTime() < tickTime)) { // todo, remake m_nextTradeCloseTime viwth Long ?
                 m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
             }
             long tradeCloseTime = m_nextTradeCloseTime.getTime();
@@ -298,8 +298,8 @@ if (timeToTradeClose < 0) {
     }
 
 
-    private void init() {
-        m_startMillis = m_priceTs.getLatestTick().getTimestamp();
+    private void init(long currTimestamp) {
+        m_startMillis = currTimestamp;
         if (LOG_ALL) {
             console("init() topData = " + m_topData);
         }

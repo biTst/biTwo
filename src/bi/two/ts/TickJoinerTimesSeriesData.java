@@ -26,8 +26,7 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
         m_size = size;
     }
 
-    @Override protected void notifyListeners(boolean changed) {
-        boolean myChanged = false;
+    @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if (changed) {
             ITimesSeriesData parent = getParent();
             ITickData latestTick = parent.getLatestTick();
@@ -42,20 +41,23 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
                 m_count++;
             } else {
                 if (m_count > 1) { // reportTick
+
                     // report avg price and time
 //                    long tickTimestamp = (m_first + m_last) / 2; // mid time
 //                    float tickPrice = m_summ / m_count;
+
                     // report last price and time
                     long tickTimestamp = m_end;      // (m_first + m_last) / 2; // mid time
                     float tickPrice = m_lastPrice;    // m_summ / m_count;
+
                     TickData avgTickData = new TickData(tickTimestamp, tickPrice);
                     m_lastTick = avgTickData;
-                    myChanged = true;
+                    notifyListeners(true);
                     m_joinedCount += m_count;
                     m_reportedCount++;
                 } else if (m_count == 1) {
                     m_lastTick = m_firstTick;
-                    myChanged = true;
+                    notifyListeners(true);
                     m_joinedCount += 1;
                     m_reportedCount++;
                 }
@@ -67,10 +69,6 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
                 m_count = 1;
                 m_end = timestamp + m_size;
             }
-        }
-        // todo: need notify if not changed ?
-        if (myChanged) {
-            super.notifyListeners(true);
         }
     }
 

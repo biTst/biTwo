@@ -9,14 +9,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class BaseTimesSeriesData<T extends ITickData>
         implements ITimesSeriesData<T>, ITimesSeriesListener<T> {
-    public ITimesSeriesData<T> m_parent;
+    public ITimesSeriesData m_parent;
     private List<ITimesSeriesListener<T>> m_listeners = new CopyOnWriteArrayList<>();
 
     public ITimesSeriesData<T> getActive() { return this; }
-    public ITimesSeriesData<T> getParent() { return m_parent; }
+    public ITimesSeriesData getParent() { return m_parent; }
 
-    public BaseTimesSeriesData() {
-    }
+    public BaseTimesSeriesData() {  }
 
     public BaseTimesSeriesData(ITimesSeriesData<? extends ITickData> parent) {
         setParent(parent);

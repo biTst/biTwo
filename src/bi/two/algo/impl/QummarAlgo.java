@@ -33,7 +33,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final float m_reverseMul;
 
     private BarsTimesSeriesData m_priceBars;
-    private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
+    private BaseTimesSeriesData[] m_emas;
+    private int m_emasNum;
     private boolean m_dirty; // when emas are changed
     private boolean m_goUp;
     private Float m_min;
@@ -94,24 +95,26 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 //        SlidingTicksRegressor sliding0 = new SlidingTicksRegressor(tsd, period, false);
 //        m_sliding = new TicksSMA(sliding0, m_barSize);
 
-        List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
+        List<BaseTimesSeriesData> list = new ArrayList<>();
         float length = m_start;
-        int countFloor = (int) m_count;
-        for (int i = 0; i < countFloor; i++) {
+        int len = (int) m_count;
+        for (int i = 0; i < len; i++) {
             BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues);
             ema.getActive().addListener(listener);
-            m_emas.add(ema);
-            iEmas.add(ema);
+            list.add(ema);
             length += m_step;
         }
-        if (m_count != countFloor) {
-            float fraction = m_count - countFloor;
+        if (m_count != len) {
+            float fraction = m_count - len;
             float fractionLength = length - m_step + (m_step * fraction);
             BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
             ema.getActive().addListener(listener);
-            m_emas.add(ema);
-            iEmas.add(ema);
+            list.add(ema);
+            len++;
         }
+
+        m_emasNum = len;
+        m_emas = list.toArray(new BaseTimesSeriesData[len]);
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
@@ -134,13 +137,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
     @Override public ITickData getAdjusted() {
         if (m_dirty) {
-            ITickData parentLatestTick = getParent().getLatestTick();
+            ITickData parentLatestTick = m_parent.getLatestTick();
             if (parentLatestTick != null) {
                 float lastPrice = parentLatestTick.getClosePrice();
                 Float adj = recalc(lastPrice);
                 if (adj != null) {
                     long timestamp = parentLatestTick.getTimestamp();
-                    m_tickData = new TickData(timestamp, adj);
+                    m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not chnaged
                     return m_tickData;
                 }
                 // else - not ready yet
@@ -154,9 +157,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
         float leadEmaValue = 0;
-        int emasLen = m_emas.size();
-        for (int i = 0; i < emasLen; i++) {
-            ITimesSeriesData ema = m_emas.get(i);
+        for (int i = 0; i < m_emasNum; i++) {
+            ITimesSeriesData ema = m_emas[i];
             ITickData lastTick = ema.getLatestTick();
             if (lastTick != null) {
                 float value = lastTick.getClosePrice();
@@ -222,13 +224,14 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
                 m_reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
 
+                float reversePower;
                 boolean checkReverse = (goUp && (head < m_reverseLevel)) || (!goUp && (head > m_reverseLevel));
-                float reversePower = 0;
                 if (checkReverse) {
-                    reversePower = (head - m_reverseLevel) / (tail - m_reverseLevel) * m_reverseMul;
-                    reversePower = Math.max(0.0f, Math.min(1.0f, reversePower)); // bounds
+                    float rp = (head - m_reverseLevel) / (tail - m_reverseLevel) * m_reverseMul;
+                    reversePower = Math.max(0.0f, Math.min(1.0f, rp)); // bounds
+                } else {
+                    reversePower = 0;
                 }
-
                 m_reversePower = reversePower;
 
                 m_revMulAndPrev = (goUp ? -reversePower : reversePower) + m_mulAndPrev * (1 - reversePower);
@@ -353,7 +356,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
 
-            BaseTimesSeriesData leadEma = m_emas.get(0); // fastest ema
+            BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
         }
 
