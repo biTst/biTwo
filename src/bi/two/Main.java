@@ -3,7 +3,6 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
@@ -19,9 +18,7 @@ import bi.two.util.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
-import java.util.Comparator;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -117,12 +114,7 @@ public class Main {
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
                 TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
 
-                BaseTicksTimesSeriesData<TickData> writerTicksTs;
-                if (tickWriterName != null) {
-                    writerTicksTs = new TradesWriterTicksTs(ticksTs, tradesWriter);
-                } else {
-                    writerTicksTs = ticksTs;
-                }
+                BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
                 tradesReader.readTicks(config, writerTicksTs, callback, tradesWriter);
                 ticksTs.waitAllFinished();
@@ -320,56 +312,4 @@ public class Main {
         }
     }
 
-    // -------------------------------------------------------------------------------
-    private static class TradesWriterTicksTs extends BaseTicksTimesSeriesData<TickData> {
-        private final TradesWriter m_tradesWriter;
-        private final BaseTicksTimesSeriesData<TickData> m_proxyTicksTs;
-
-        public TradesWriterTicksTs(BaseTicksTimesSeriesData<TickData> proxyTicksTs, TradesWriter tradesWriter) {
-            super(null);
-            m_proxyTicksTs = proxyTicksTs;
-            m_tradesWriter = tradesWriter;
-        }
-
-        public void addNewestTick(TickData tickData) {
-            m_tradesWriter.writeTick(tickData);
-            m_proxyTicksTs.addNewestTick(tickData);
-        }
-
-        public void addOlderTick(TickData tickData) {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public TickData getTick(int index) {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public Iterator<TickData> getTicksIterator() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public Iterable<TickData> getTicksIterable() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public Iterator<TickData> getReverseTicksIterator() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public Iterable<TickData> getReverseTicksIterable() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public int getTicksNum() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public Object syncObject() {
-            throw new RuntimeException("not implemented");
-        }
-
-        @Override public int binarySearch(TickData o, Comparator<ITickData> comparator) {
-            throw new RuntimeException("not implemented");
-        }
-    }
 }

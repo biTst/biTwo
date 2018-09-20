@@ -21,7 +21,7 @@ public enum TradesReader {
     },
     FILE("file") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, TradesWriter tradesWriter) throws Exception {
-            FileTradesReader.readFileTrades( config, ticksTs, callback);
+            FileTradesReader.readFileTrades(config, ticksTs, callback);
         }
     },
     BITFINEX("bitfinex") {
