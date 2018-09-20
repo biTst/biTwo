@@ -1,6 +1,5 @@
-package bi.two.tre;
+package bi.two.exch;
 
-import bi.two.exch.Currency;
 import bi.two.util.Utils;
 
 public class CurrencyValue {

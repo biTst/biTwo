@@ -1,5 +1,6 @@
 package bi.two.tre;
 
+import bi.two.exch.CurrencyValue;
 import bi.two.exch.OrderSide;
 import bi.two.exch.Pair;
 import bi.two.util.Utils;

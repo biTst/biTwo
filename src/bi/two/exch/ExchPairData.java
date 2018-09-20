@@ -1,7 +1,6 @@
 package bi.two.exch;
 
 import bi.two.chart.TradeData;
-import bi.two.tre.CurrencyValue;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;

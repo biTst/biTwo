@@ -6,7 +6,6 @@ import bi.two.chart.TickData;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
 import bi.two.opt.Vary;
-import bi.two.tre.CurrencyValue;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;

@@ -1,5 +1,6 @@
 package bi.two.tre;
 
+import bi.two.exch.CurrencyValue;
 import bi.two.util.Utils;
 
 import java.util.Comparator;
