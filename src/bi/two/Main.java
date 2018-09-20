@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.exch.MarketConfig;
@@ -91,7 +92,10 @@ public class Main {
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                BaseTicksTimesSeriesData<TickData> joinedTicksTs = joinTicks ? new TickJoiner(ticksTs, joinTicksInReader) : ticksTs;
+                BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = joinTicks
+                         ? new AvgTickJoiner(ticksTs, joinTicksInReader)
+//                        ? new CloseTickJoiner(ticksTs, joinTicksInReader)
+                        : ticksTs;
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
                 console("## iteration " + i + "  watchers.num=" + watchers.size());
@@ -212,7 +216,7 @@ public class Main {
         return algoConfig;
     }
 
-    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, List<Watcher> watchers) {
+    private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<? extends ITickData> ticksTs, List<Watcher> watchers) {
         Watcher firstWatcher = watchers.get(0);
         firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }

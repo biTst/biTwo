@@ -1,33 +1,33 @@
 package bi.two.ts;
 
+import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
 import static bi.two.util.Log.console;
 
-public class TickJoiner extends TicksTimesSeriesData<TickData> {
+public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
     private final long m_size;
     private long m_first;
     private long m_last;
     private long m_end;
     private float m_summ;
     private int m_count;
-    private TickData m_firstTick;
+    private ITickData m_firstTick;
     private int m_joinedCount;
     private int m_reportedCount;
 
-    private TickData m_latestTick;
+    private ITickData m_latestTick;
 
-    @Override public TickData getLatestTick() { return m_latestTick; }
+    @Override public ITickData getLatestTick() { return m_latestTick; }
 
-    public TickJoiner(ITimesSeriesData tsd, long size) {
+    public AvgTickJoiner(ITimesSeriesData tsd, long size) {
         super(tsd);
         m_size = size;
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if (changed) {
-            ITimesSeriesData<TickData> parent = getParent();
-            TickData tickData = parent.getLatestTick();
+            ITickData tickData = m_parent.getLatestTick();
             float price = tickData.getClosePrice();
             long timestamp = tickData.getTimestamp();
 
@@ -45,14 +45,14 @@ public class TickJoiner extends TicksTimesSeriesData<TickData> {
                 m_end = timestamp + m_size;
             }
         }
-        super.onChanged(ts, changed);
     }
 
     private void reportTick() {
         if (m_count > 1) {
-            long avdTimestamp = (m_first + m_last) / 2;
+            // average time and price
+            long avgTimestamp = (m_first + m_last) / 2;
             float avgPrice = m_summ / m_count;
-            TickData avgTickData = new TickData(avdTimestamp, avgPrice);
+            TickData avgTickData = new TickData(avgTimestamp, avgPrice);
             m_latestTick = avgTickData;
             notifyListeners(true);
             m_joinedCount += m_count;
@@ -67,7 +67,7 @@ public class TickJoiner extends TicksTimesSeriesData<TickData> {
 
     @Override public void notifyNoMoreTicks() {
         reportTick();
-        console("TickJoiner[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
+        console("AvgTickJoiner[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
         super.notifyNoMoreTicks();
     }
 }
