@@ -178,7 +178,7 @@ public class WatchersProducer {
         private final List<List<IterateConfig>> m_iterateConfigs;
         private List<AlgoWatcher> m_watchers = new ArrayList<>();
 
-        @Override public boolean isSingle() { return true; }
+        @Override public boolean isSingle() { return false; }
 
         public IterateProducer(List<List<IterateConfig>> iterateConfigs) {
             m_iterateConfigs = iterateConfigs;
