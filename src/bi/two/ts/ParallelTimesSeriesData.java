@@ -48,9 +48,13 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
+
+    private int m_reportCounter;
+    private int m_sleepCounter;
     private void addNewestTick(ITickData latestTick) {
 
-        if ((m_ticksEntered % 2000000) == 0) { // log queue states
+        if ((++m_reportCounter) == 2000000) { // log queue states
+            m_reportCounter = 0;
             StringBuilder sb = new StringBuilder("entered=" + m_ticksEntered + "; buffers");
             for (InnerTimesSeriesData innerTsd : m_array) {
                 int size = innerTsd.m_queue.size();
@@ -61,7 +65,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             return;
         }
 
-        if ((m_ticksEntered % 4000) == 0) {
+        if ((++m_sleepCounter) == 40000) {
+            m_sleepCounter = 0;
             int maxSize = 0;
             int minSize = Integer.MAX_VALUE;
             for (int i = 0, arraySize = m_array.size(); i < arraySize; i++) {
@@ -72,16 +77,18 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 minSize = Math.min(minSize, size);
             }
             if (maxSize > 40000) {
+                long sleep;
+                if (maxSize > 80000) {
+                    if (maxSize > 160000) {
+                        sleep = 250;
+                    } else {
+                        sleep = 50;
+                    }
+                } else {
+                    sleep = 5;
+                }
                 try {
-                    Thread.sleep(250);
-                } catch (InterruptedException e) { /*noop*/ }
-            } else if (maxSize > 20000) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) { /*noop*/ }
-            } else if (maxSize > 10000) {
-                try {
-                    Thread.sleep(5);
+                    Thread.sleep(sleep);
                 } catch (InterruptedException e) { /*noop*/ }
             }
         } else {
@@ -144,7 +151,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_innerIndex = index;
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
-            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+//            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
             thread.start();
         }
 
