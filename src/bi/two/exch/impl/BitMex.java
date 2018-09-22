@@ -163,7 +163,9 @@ public class BitMex extends BaseExchImpl {
 
         preloader.playOnlyCache();
 
-//        log("loaded from cache " + ticksTs.getTicksNum() + " ticks");
+        ticksTs.notifyNoMoreTicks();
+
+        //        log("loaded from cache " + ticksTs.getTicksNum() + " ticks");
     }
 
 
