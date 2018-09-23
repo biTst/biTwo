@@ -207,7 +207,7 @@ public enum DataFileType {
     }
 
     public static DataFileType obtain(MapConfig config) {
-        String dataFileType = config.getProperty("dataFile.type");
+        String dataFileType = config.getString("dataFile.type");
         DataFileType type = DataFileType.get(dataFileType);
         return type;
     }

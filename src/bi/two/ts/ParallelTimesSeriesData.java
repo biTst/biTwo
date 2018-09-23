@@ -43,8 +43,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     @Override protected void notifyListeners(boolean changed) {
         ITickData latestTick = changed ? m_parent.getLatestTick() : null;
         if (latestTick != null) {
-            addNewestTick(latestTick);
             m_ticksEntered++;
+            addNewestTick(latestTick);
         }
     }
 

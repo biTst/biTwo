@@ -93,7 +93,7 @@ public class FileTradesReader {
                                        boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
-        BufferedReader br = new BufferedReader(reader, 256 * 1024);
+        BufferedReader br = new BufferedReader(reader, 2 * 1024 * 1024);
         try {
             if (resetFirstLine) { // after bytes skipping we may point to the middle of line
                 br.readLine(); // skip to the end of line

@@ -82,7 +82,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        ITimesSeriesData priceTsd = (m_joinTicks>0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
+        ITimesSeriesData priceTsd = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
         createRibbon(priceTsd, collectValues);
 
         setParent(priceTsd);
