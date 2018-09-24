@@ -34,6 +34,7 @@ public enum Vary {
 
     minOrderMul(VaryType.FLOAT),
     joinTicks(VaryType.LONG),
+    commission(VaryType.FLOAT),
     ;
     
     public final VaryType m_varyType;

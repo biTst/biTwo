@@ -1,6 +1,7 @@
 package bi.two.util;
 
 import bi.two.opt.Vary;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileReader;
@@ -236,12 +237,23 @@ console("loading encrypt = " + encryptedFileName);
     }
 
     public Number getNumber(Vary vary) {
+        return getNumber(vary, true);
+    }
+
+    public Number getNumberOrNull(Vary vary) {
+        return getNumber(vary, false);
+    }
+
+    @Nullable private Number getNumber(Vary vary, boolean strict) {
         String name = vary.name();
         String str = getPropertyNoComment(name);
         if (str == null) {
             Object obj = get(name);
             if (obj instanceof Number) {
                 return (Number) obj;
+            }
+            if(strict) {
+                throw new RuntimeException("not found number for vary: " + vary);
             }
             return null;
         }

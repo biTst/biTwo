@@ -33,7 +33,7 @@ public class OptimizeConfig {
         Number start = varyType.fromParser(parser);
         if (start == null) {
             if (parser.read("*")) {
-                start = mapConfig.getNumber(vary);
+                start = mapConfig.getNumberOrNull(vary);
             }
         }
         if (start != null) {
