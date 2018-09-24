@@ -9,6 +9,7 @@ import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final float m_target;
     private final float m_reverse;
     private final float m_reverseMul;
+    private final double m_commission;
 
     private BarsTimesSeriesData m_priceBars;
     private BaseTimesSeriesData[] m_emas;
@@ -76,6 +78,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_target = algoConfig.getNumber(Vary.target).floatValue();
         m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
+
+        m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
@@ -259,16 +263,18 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
 
     @Override public String key(boolean detailed) {
+        detailed = true;
         return  ""
                 + (detailed ? ",start=" : ",") + m_start
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
-                + (detailed ? ",linRegMultiplier=" : ",") + m_linRegMultiplier
+                + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
                 + (detailed ? ",target=" : ",") + m_target
                 + (detailed ? ",reverse=" : ",") + m_reverse
-                + (detailed ? ",reverseMul=" : ",") + m_reverseMul
-                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
+                + (detailed ? ",revMul=" : ",") + m_reverseMul
+                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
+                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
                 ;
