@@ -114,8 +114,9 @@ public class Log {
                 throw new RuntimeException("unable to open log file: " + e, e);
             }
 
-            String consoleName =  name + "-" + "console";
-            String consoleFileName =  consoleName + "-" + ext;
+            // ---------------------
+            String consoleName = name + "-" + "console";
+            String consoleFileName = consoleName + ext;
             File consoleFile = new File(logDir, consoleFileName);
             if (consoleFile.exists()) {
                 String newFileName = consoleName + "-" + System.currentTimeMillis() + ext;
@@ -123,7 +124,7 @@ public class Log {
             }
 
             try {
-                m_consoleFos = new FileOutputStream(logFile);
+                m_consoleFos = new FileOutputStream(consoleFile);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open console log file: " + e, e);
             }
