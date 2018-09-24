@@ -80,7 +80,11 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 long sleep;
                 if (maxSize > 80000) {
                     if (maxSize > 160000) {
-                        sleep = 250;
+                        if (maxSize > 320000) {
+                            sleep = 1000;
+                        } else {
+                            sleep = 250;
+                        }
                     } else {
                         sleep = 50;
                     }
