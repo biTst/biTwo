@@ -66,11 +66,16 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         m_hasSchedule = m_exch.hasSchedule();
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
-        double commission = config.getDoubleOrDefault(BaseAlgo.COMMISSION_KEY, Double.POSITIVE_INFINITY);
-        if (Double.isInfinite(commission)) {
+        Number theCommission = algoConfig.getNumberOrNull(Vary.commission);
+        if (theCommission != null) {
+            double commission = theCommission.doubleValue();
+            if (!Double.isInfinite(commission)) { // override from local config
+                m_commission = commission;
+            } else {
+                m_commission = m_exchPairData.m_commission;
+            }
+        } else {
             m_commission = m_exchPairData.m_commission;
-        } else { // override from local config
-            m_commission = commission;
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
