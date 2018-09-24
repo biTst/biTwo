@@ -76,10 +76,10 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                         err("InterruptedException: " + e, e);
                     }
                     m_state = State.optimizerCalculation;
-                }
 
-                sb.append(m_onFinishTotalPriceRatio);
-                console(sb.toString());
+                    sb.append(m_onFinishTotalPriceRatio);
+                    console(sb.toString());
+                }
 
                 if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
                     m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;

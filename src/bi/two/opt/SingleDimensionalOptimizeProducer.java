@@ -17,9 +17,9 @@ import static bi.two.util.Log.console;
 import static bi.two.util.Log.log;
 
 public class SingleDimensionalOptimizeProducer extends OptimizeProducer implements UnivariateFunction {
-    public static final int MAX_EVALS_COUNT = 200;
+    public static final int MAX_EVALS_COUNT = 150;
     public static final double RELATIVE_TOLERANCE = 1e-6;
-    public static final double ABSOLUTE_TOLERANCE = 1e-9;
+    public static final double ABSOLUTE_TOLERANCE = 1e-8;
 
     private final OptimizeConfig m_fieldConfig;
     private final double m_start; // multiplied
@@ -42,18 +42,36 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
 
     @Override public double value(double value) {
 //        console("BrentOptimizer value() value="+value);
-        Vary vary = m_fieldConfig.m_vary;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("function(");
+
+        OptimizeConfig fieldConfig = m_optimizeConfigs.get(0);
+        Vary vary = fieldConfig.m_vary;
         String fieldName = vary.name();
-        double multiplier = m_fieldConfig.m_multiplier;
+        double multiplier = fieldConfig.m_multiplier;
         double val = value * multiplier;
-        if (value < m_min) {
-            val = m_fieldConfig.m_min.doubleValue();
-            console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + val);
+        double min = fieldConfig.m_min.doubleValue();
+        if (val < min) {
+            console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
+            val = min;
         }
-        if (value > m_max) {
-            val = m_fieldConfig.m_max.doubleValue();
-            console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + val);
+        double max = fieldConfig.m_max.doubleValue();
+        if (val > max) {
+            console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
+            val = max;
         }
+
+//        if (value < m_min) {
+//            val = m_fieldConfig.m_min.doubleValue();
+//            console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + val);
+//        }
+//        if (value > m_max) {
+//            val = m_fieldConfig.m_max.doubleValue();
+//            console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + val);
+//        }
+
+        sb.append(fieldName).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ").append(") => ");
 
         m_algoConfig.put(fieldName, val);
 //        console("BrentOptimizer for " + fieldName + "=" + Utils.format5(val) + "(" + Utils.format5(value) + ")");
@@ -70,10 +88,13 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
                 e.printStackTrace();
             }
             m_state = State.optimizerCalculation;
+
+            sb.append(m_onFinishTotalPriceRatio);
+            console(sb.toString());
         }
 
-        console("BrentOptimizer value calculated for " + fieldName + "=" + Utils.format8(val) + "(" + Utils.format8(value)
-                + ") mult=" + multiplier + " => " + m_onFinishTotalPriceRatio);
+        //        console("BrentOptimizer value calculated for " + fieldName + "=" + Utils.format8(val) + "(" + Utils.format8(value)
+//                + ") mult=" + multiplier + " => " + m_onFinishTotalPriceRatio);
 
         if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
             m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;
