@@ -7,6 +7,7 @@ import static bi.two.util.Log.console;
 
 public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
     private final long m_size;
+    private final boolean m_collectTicks;
     private long m_first;
     private long m_last;
     private long m_end;
@@ -20,9 +21,10 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
 
     @Override public ITickData getLatestTick() { return m_latestTick; }
 
-    public AvgTickJoiner(ITimesSeriesData tsd, long size) {
+    public AvgTickJoiner(ITimesSeriesData tsd, long size, boolean collectTicks) {
         super(tsd);
         m_size = size;
+        m_collectTicks = collectTicks;
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -54,11 +56,17 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
             float avgPrice = m_summ / m_count;
             TickData avgTickData = new TickData(avgTimestamp, avgPrice);
             m_latestTick = avgTickData;
+            if(m_collectTicks) {
+                addNewestTick(avgTickData);
+            }
             notifyListeners(true);
             m_joinedCount += m_count;
             m_reportedCount++;
         } else if (m_count == 1) {
             m_latestTick = m_firstTick;
+            if(m_collectTicks) {
+                addNewestTick(m_firstTick);
+            }
             notifyListeners(true);
             m_joinedCount += 1;
             m_reportedCount++;

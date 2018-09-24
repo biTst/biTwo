@@ -93,7 +93,7 @@ public class Main {
                 }
 
                 BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = joinTicks
-                         ? new AvgTickJoiner(ticksTs, joinTicksInReader)
+                         ? new AvgTickJoiner(ticksTs, joinTicksInReader, collectTicks)
 //                        ? new CloseTickJoiner(ticksTs, joinTicksInReader)
                         : ticksTs;
 
@@ -208,7 +208,7 @@ public class Main {
         // read default config
         for (Vary vary : Vary.values()) {
             String name = vary.name();
-            Number number = config.getNumber(vary);
+            Number number = config.getNumberOrNull(vary);
             if (number != null) {
                 algoConfig.put(name, number);
             }
