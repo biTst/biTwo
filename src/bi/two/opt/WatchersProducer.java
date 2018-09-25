@@ -137,10 +137,11 @@ public class WatchersProducer {
 
     public List<Watcher> getWatchers(MapConfig algoConfig, BaseTimesSeriesData tsd, MapConfig config, Exchange exchange, Pair pair) {
         BaseTimesSeriesData ticksTs;
-        if ((m_producers.size() == 1) && m_producers.get(0).isSingle()) {
+
+        int parallel = config.getInt("parallel");
+        if (parallel == 0) { // explicitly requested NO-PARALLEL
             ticksTs = tsd;
-        } else { // not single - use parallel
-            int parallel = config.getInt("parallel");
+        } else { // read and process in different threads even for single producer
             ticksTs = new ParallelTimesSeriesData(tsd, parallel);
         }
 
