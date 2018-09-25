@@ -21,7 +21,6 @@ import static bi.two.util.Log.log;
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
-    private static final boolean LOG_GAPS = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
     private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
@@ -37,6 +36,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private final ITimesSeriesData<TickData> m_priceTs;
     private final CurrencyValue m_exchMinOrderToCreate;
     private final boolean m_priceAtSameTick; // apply price from same tick or from the next
+    private final boolean m_logGaps;
     private final double m_minOrderMul;
     private final boolean m_hasSchedule;
     private AccountData m_initAcctData;
@@ -78,6 +78,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_commission = m_exchPairData.m_commission;
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
+        m_logGaps = config.getBooleanOrDefault("logGaps", Boolean.FALSE); // do not log by def
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
@@ -107,7 +108,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
                 fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
                 m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
-                if (LOG_GAPS) {
+                if (m_logGaps) {
                     log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
                 }
                 m_fadeInRate = 0;
@@ -266,6 +267,10 @@ if (timeToTradeClose < 0) {
         return m_lastMillis - m_startMillis;
     }
 
+    public String getProcessedPeriodStr() {
+        return "[startMillis:" + m_startMillis + " lastMillis:" + m_lastMillis + "]";
+    }
+
     public double totalPriceRatio() {
         return totalPriceRatio(false);
     }
@@ -347,12 +352,17 @@ if (timeToTradeClose < 0) {
 
     public String getGainLogStr(String prefix, double gain) {
         String key = m_algo.key(false);
+
+        long processedPeriod = getProcessedPeriod();
+        String processedPeriodStr = getProcessedPeriodStr();
+
         return prefix + "GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + m_tradesNum
                 + "; avgTrade=" + Utils.format5(this.getAvgTradeSize())
                 + "; turns=" + m_changedDirection
+                + "; processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
+                + "  " + processedPeriodStr
                 + " .....................................";
-
     }
 
 
