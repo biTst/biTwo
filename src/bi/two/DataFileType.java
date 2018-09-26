@@ -176,17 +176,21 @@ public enum DataFileType {
         }
     },
     SIMPLE("forex3") {
-        @Override public TickData parseLine(String line) {
+        @Override public TickData parseLine(String line) throws ParseException {
             // MILLIS,PRICE
             // 1526858169812;8444.0
             int indx1 = line.indexOf(';');
-            String timeStr = line.substring(0, indx1); // "1526858169812"
-            String priceStr = line.substring(indx1 + 1); // "8444.0"
+            if (indx1 != -1) {
+                String timeStr = line.substring(0, indx1); // "1526858169812"
+                String priceStr = line.substring(indx1 + 1); // "8444.0"
 
-            long time = Long.parseLong(timeStr);
-            float price = Float.parseFloat(priceStr);
-            TickData tickData = new TickData(time, price);
-            return tickData;
+                long time = Long.parseLong(timeStr);
+                float price = Float.parseFloat(priceStr);
+                TickData tickData = new TickData(time, price);
+                return tickData;
+            } else {
+                throw new ParseException("Error parsing line: '" + line + "'", -1);
+            }
         }
     },
     ;
@@ -212,5 +216,5 @@ public enum DataFileType {
         return type;
     }
 
-    public TickData parseLine(String line) { throw new RuntimeException("must be overridden"); }
+    public TickData parseLine(String line) throws ParseException { throw new RuntimeException("must be overridden"); }
 }

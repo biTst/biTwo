@@ -5,6 +5,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
 import java.io.*;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +32,12 @@ public class TicksCacheReader {
             List<TickData> ret = new ArrayList<>();
             String line;
             while((line = br.readLine())!=null) {
-                TickData tickData = m_dataFileType.parseLine(line);
+                TickData tickData;
+                try {
+                    tickData = m_dataFileType.parseLine(line);
+                } catch (ParseException e) {
+                    throw new RuntimeException("parse error: " + e, e);
+                }
                 ret.add(tickData);
             }
             return ret;
