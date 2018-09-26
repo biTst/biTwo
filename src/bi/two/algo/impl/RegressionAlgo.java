@@ -678,7 +678,7 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
 
     //=============================================================================================
     private static abstract class BaseVerifier implements ITimesSeriesListener {
-        @Override public void waitWhenFinished() { /* noop */ }
+        @Override public void waitWhenAllFinish() { /* noop */ }
         @Override public void notifyNoMoreTicks() { /* noop */ }
     }
 

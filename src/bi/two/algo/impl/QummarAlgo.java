@@ -339,9 +339,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
 //            int emaAlpha = 20;
 //            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
-//            int size = m_emas.size();
+//            int size = m_emas.length;
 //            for (int i = size - 1; i > 0; i--) { // paint without leadEma
-//                BaseTimesSeriesData ema = m_emas.get(i);
+//                BaseTimesSeriesData ema = m_emas[i];
 //                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, emaColor, TickPainter.LINE);
 //            }
 
@@ -405,7 +405,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             }
         }
 
-        @Override public void waitWhenFinished() { }
+        @Override public void waitWhenAllFinish() { }
         @Override public void notifyNoMoreTicks() {}
     }
 }

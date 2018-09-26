@@ -77,7 +77,7 @@ public class Ummar2Algo extends BaseAlgo<TickData> {
                     m_dirty = true;
                 }
             }
-            @Override public void waitWhenFinished() { }
+            @Override public void waitWhenAllFinish() { }
             @Override public void notifyNoMoreTicks() {}
         };
 

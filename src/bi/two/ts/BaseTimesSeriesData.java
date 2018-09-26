@@ -56,14 +56,11 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
         }
     }
 
-    @Override public void waitWhenFinished() { /* noop */ }
-
-    public void waitAllFinished() {
+    @Override public void waitWhenAllFinish() {
         for (ITimesSeriesListener<T> listener : m_listeners) {
-            listener.waitWhenFinished();
+            listener.waitWhenAllFinish();
         }
     }
-
 
     public TicksTimesSeriesData<TickData> getJoinNonChangedTs() {
         return new JoinNonChangedTimesSeriesData(this);

@@ -93,7 +93,7 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
                 }
             }
 
-            @Override public void waitWhenFinished() { }
+            @Override public void waitWhenAllFinish() { }
             @Override public void notifyNoMoreTicks() {}
         };
 
