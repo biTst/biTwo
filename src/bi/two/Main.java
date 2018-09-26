@@ -121,7 +121,7 @@ public class Main {
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
                 tradesReader.readTicks(config, writerTicksTs, callback, tradesWriter);
-                ticksTs.waitAllFinished();
+                ticksTs.waitWhenAllFinish();
 
                 logResults(watchers, startMillis);
 
@@ -237,8 +237,10 @@ public class Main {
 
             Watcher lastWatcher = watchers.get(watchersNum - 1);
             long processedPeriod = lastWatcher.getProcessedPeriod();
+            String processedPeriodStr = lastWatcher.getProcessedPeriodStr();
             long endMillis = System.currentTimeMillis();
             console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
+                    + "  " + processedPeriodStr
                     + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
 
             double gain = 0;
