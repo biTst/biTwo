@@ -4,6 +4,8 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.util.TimeStamp;
 
+import static bi.two.util.Log.console;
+
 public class ParallelTimesSeriesDataTest {
 
     private static final int TICKS_TO_PASS = 2000000;
@@ -18,27 +20,26 @@ public class ParallelTimesSeriesDataTest {
         };
         ParallelTimesSeriesData parallelTs = new ParallelTimesSeriesData(parent, 7) {
             @Override protected void onInnerFinished(InnerTimesSeriesData inner) {
-                System.out.println("parallel.inner: thread finished " + inner);
+                super.onInnerFinished(inner);
+                console("parallel.inner: thread finished " + inner);
             }
         };
         for (int i = 0; i < 16; i++) {
             final int finalI = i;
             parallelTs.getActive().addListener(new ITimesSeriesListener() {
-                long m_expectedTimestamp = 0;
+                long m_expectedTimestamp = 1;
                 
                 @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
                     ITickData latestTick = ts.getLatestTick();
                     long timestamp = latestTick.getTimestamp();
                     if(m_expectedTimestamp != timestamp) {
-                        throw new RuntimeException("m_expectedTimestamp(" + m_expectedTimestamp + ") != timestamp(" + timestamp + ")");
+                        throw new RuntimeException("expectedTimestamp(" + m_expectedTimestamp + ") != timestamp(" + timestamp + ")");
                     }
 
-                    if(timestamp % 100000 == 0) {
-
+                    if (timestamp % 200000 == 0) {
                         ParallelTimesSeriesData.InnerTimesSeriesData itsd = (ParallelTimesSeriesData.InnerTimesSeriesData) ts;
                         String log = itsd.getLogStr();
-
-                        System.out.println(" child[" + finalI + "] passed:  " + timestamp + "; " + log);
+                        console(" child[" + finalI + "] passed:  " + timestamp + "; " + log);
                     }
 
                     if(timestamp % 100 == 0) {
@@ -51,29 +52,29 @@ public class ParallelTimesSeriesDataTest {
                     m_expectedTimestamp++;
                 }
 
-                @Override public void waitWhenFinished() {
+                @Override public void waitWhenAllFinish() {
 
                 }
 
                 @Override public void notifyNoMoreTicks() {
-                    if (m_expectedTimestamp != TICKS_TO_PASS) {
-                        throw new RuntimeException("m_expectedTimestamp(" + m_expectedTimestamp + ") != TICKS_TO_PASS(" + TICKS_TO_PASS + ")");
+                    if (m_expectedTimestamp != (TICKS_TO_PASS + 1)) {
+                        throw new RuntimeException("expectedTimestamp(" + m_expectedTimestamp + ") != TICKS_TO_PASS(" + TICKS_TO_PASS + ")");
                     }
-                    System.out.println(" child[" + finalI + "] finished: " + m_expectedTimestamp);
+                    console(" child[" + finalI + "] finished: " + m_expectedTimestamp);
                 }
             });
         }
 
 
-        long timestamp = 0;
-        while (timestamp < TICKS_TO_PASS) {
+        long timestamp = 1;
+        while (timestamp <= TICKS_TO_PASS) {
             tickData[0] = new TickData(timestamp, timestamp);
             parent.notifyListeners(true);
             timestamp++;
-            if(timestamp % 100000 == 0) {
-                System.out.println("timestamp = " + timestamp);
+            if(timestamp % 200000 == 0) {
+                console("timestamp = " + timestamp);
             }
-            if(timestamp % 30000 == 0) {
+            if(timestamp % 40000 == 0) {
                 long wait = (long) (Math.random() * 100);
                 try {
                     Thread.sleep(wait);
@@ -82,13 +83,13 @@ public class ParallelTimesSeriesDataTest {
                 }
             }
         }
-        System.out.println("all passed " + timestamp);
+        console("all passed " + timestamp);
 
-        System.out.println("notifyFinished...");
+        console("notifyNoMoreTicks...");
         parallelTs.notifyNoMoreTicks();
 
-        System.out.println("waitWhenFinished...");
-        parallelTs.waitWhenFinished();
-        System.out.println("parallelTs Finished in " + timeStamp.getPassed());
+        console("waitWhenAllFinish...");
+        parallelTs.waitWhenAllFinish();
+        console("parallelTs Finished in " + timeStamp.getPassed());
     }
 }
