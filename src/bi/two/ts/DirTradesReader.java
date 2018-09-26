@@ -53,7 +53,7 @@ public class DirTradesReader {
 
                 log("readFileTicks: " + absolutePath);
                 try {
-                    lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime, 0);
+                    lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime, 0, 0);
                 } catch (Exception e) {
                     throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
                 }
