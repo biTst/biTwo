@@ -105,17 +105,17 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     // no more ticks - call from parent
     @Override public void notifyNoMoreTicks() {
-        log("NoMoreTicks in parallelTS, ticksEntered="+m_ticksEntered);
+        log("NoMoreTicks in parallelTS, ticksEntered=" + m_ticksEntered);
         TickData marker = new TickData(0, 0);
         addNewestTick(marker);
     }
 
-    @Override public void waitWhenFinished() {
-        log("parallel.waitWhenFinished");
+    @Override public void waitWhenAllFinish() {
+        log("parallel.waitWhenAllFinish");
         synchronized (m_runningCount) {
             while (true) {
                 int count = m_runningCount.get();
-                log("parallel.waitWhenFinished count="+count);
+                log("parallel.waitWhenAllFinish count="+count);
                 if (count == 0) {
                     log(" all finished - exit");
                     return; // all finished - exit
@@ -123,6 +123,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 try {
                     log(" wait more");
                     m_runningCount.wait();
+                    count = m_runningCount.get();
+                    log("  count after wait = " + count );
                 } catch (InterruptedException e) {
                     err("InterruptedException: " + e, e);
                     return;
@@ -132,11 +134,12 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     }
 
     protected void onInnerFinished(InnerTimesSeriesData inner) {
+        int remained;
         synchronized (m_runningCount) {
-            m_runningCount.decrementAndGet();
+            remained = m_runningCount.decrementAndGet();
             m_runningCount.notify();
+            log("parallel.inner: thread finished " + inner + "; remained=" + remained);
         }
-        log("parallel.inner: thread finished " + inner);
     }
 
 
@@ -146,6 +149,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         private final int m_innerIndex;
         private ITickData m_currentTickData;
+private int m_passedTicksNum;
 
         @Override public String toString() {
             return "Inner-" + m_innerIndex;
@@ -174,16 +178,15 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     } else {
                         m_currentTickData = tick;
                         notifyListeners(true);
+m_passedTicksNum++;
                     }
                 }
             } catch (InterruptedException e) {
                 err("error: " + e, e);
             }
-            log("finish inner["+m_innerIndex+"]");
+            log("finish inner[" + m_innerIndex + "] passed " + m_passedTicksNum + " ticks");
             onInnerFinished(this);
         }
-
-//        @Override public void notifyNoMoreTicks() { throw new RuntimeException("InnerTimesSeriesData should be used"); }
 
         String getLogStr() {
             return "size=" + m_queue.size();
