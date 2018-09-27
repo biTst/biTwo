@@ -1,5 +1,6 @@
 package bi.two.ts;
 
+import bi.two.Main;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
@@ -61,6 +62,17 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
                 innerTsd.addNewestTick(latestTick);
             }
+
+            long freeMemory1 = Runtime.getRuntime().freeMemory();
+            long totalMemory1 = Runtime.getRuntime().totalMemory();
+            long maxMemory1 = Runtime.getRuntime().maxMemory();
+            long usedMemory1 = totalMemory1 - freeMemory1;
+
+            sb.append("  mem(f/u/t/m): ").append(Main.formatMemory(freeMemory1))
+                    .append("/").append(Main.formatMemory(usedMemory1))
+                    .append("/").append(Main.formatMemory(totalMemory1))
+                    .append("/").append(Main.formatMemory(maxMemory1));
+
             console(sb.toString());
             return;
         }
@@ -76,20 +88,24 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 maxSize = Math.max(maxSize, size);
                 minSize = Math.min(minSize, size);
             }
-            if (maxSize > 40000) {
+            if (maxSize > 2000) {
                 long sleep;
-                if (maxSize > 80000) {
-                    if (maxSize > 160000) {
-                        if (maxSize > 320000) {
-                            sleep = 1000;
+                if (maxSize > 5000) {
+                    if (maxSize > 7000) {
+                        if (maxSize > 10000) {
+                            if (maxSize > 15000) {
+                                sleep = 1000;
+                            } else {
+                                sleep = 500;
+                            }
                         } else {
                             sleep = 250;
                         }
                     } else {
-                        sleep = 50;
+                        sleep = 100;
                     }
                 } else {
-                    sleep = 5;
+                    sleep = 20;
                 }
                 try {
                     Thread.sleep(sleep);
@@ -108,6 +124,13 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         log("NoMoreTicks in parallelTS, ticksEntered=" + m_ticksEntered);
         TickData marker = new TickData(0, 0);
         addNewestTick(marker);
+
+        StringBuilder sb = new StringBuilder("NoMoreTicks: entered=" + m_ticksEntered + "; buffers");
+        for (InnerTimesSeriesData innerTsd : m_array) {
+            int size = innerTsd.m_queue.size();
+            sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
+        }
+        console(sb.toString());
     }
 
     @Override public void waitWhenAllFinish() {
@@ -146,10 +169,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     //=============================================================================================
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
         private LinkedBlockingQueue<ITickData> m_queue = new LinkedBlockingQueue<>();
-
         private final int m_innerIndex;
         private ITickData m_currentTickData;
-private int m_passedTicksNum;
 
         @Override public String toString() {
             return "Inner-" + m_innerIndex;
@@ -178,13 +199,12 @@ private int m_passedTicksNum;
                     } else {
                         m_currentTickData = tick;
                         notifyListeners(true);
-m_passedTicksNum++;
                     }
                 }
             } catch (InterruptedException e) {
                 err("error: " + e, e);
             }
-            log("finish inner[" + m_innerIndex + "] passed " + m_passedTicksNum + " ticks");
+            log("finish inner[" + m_innerIndex + "]");
             onInnerFinished(this);
         }
 
