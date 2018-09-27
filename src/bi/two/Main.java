@@ -164,8 +164,6 @@ public class Main {
     private static long s_maxUsedMemory = 0;
 
     private static void cleanMemory() {
-
-
         long freeMemory1 = Runtime.getRuntime().freeMemory();
         long totalMemory1 = Runtime.getRuntime().totalMemory();
         long maxMemory1 = Runtime.getRuntime().maxMemory();
@@ -186,7 +184,7 @@ public class Main {
         );
     }
 
-    private static String formatMemory(long memory) {
+    public static String formatMemory(long memory) {
         return INTEGER_FORMAT.format(memory);
     }
 
