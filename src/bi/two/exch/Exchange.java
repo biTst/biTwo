@@ -6,7 +6,10 @@ import bi.two.main2.TicksCacheReader;
 import bi.two.util.MapConfig;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import static bi.two.util.Log.console;
@@ -97,11 +100,11 @@ public class Exchange {
         return pairData.getMinOrderToCreate();
     }
 
-    public Date getNextTradeCloseTime(long tickTime) {
+    public long getNextTradeCloseTime(long tickTime) {
         if (m_schedule != null) {
             return m_schedule.getNextTradeCloseTime(tickTime);
         }
-        return null;
+        return 0;
     }
 
     public boolean hasSchedule() {

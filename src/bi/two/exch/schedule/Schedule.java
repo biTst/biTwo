@@ -8,7 +8,7 @@ import static bi.two.util.Log.console;
 public enum Schedule {
     crypto(),
     forex() {
-        @Override public Date getNextTradeCloseTime(long tickTime) {
+        @Override public long getNextTradeCloseTime(long tickTime) {
             Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"), Locale.getDefault());
             calendar.setTimeInMillis(tickTime);
             Date initTime = calendar.getTime();
@@ -29,7 +29,7 @@ public enum Schedule {
                     console("one shift is not enough: init: " + initTime.toGMTString() + "; bounded=" + boundedTime.toGMTString() + "; shifted=" + shiftedTime.toGMTString());
                 }
             }
-            return calendar.getTime();
+            return calendar.getTimeInMillis();
         }
     },
     us_stocks(),
@@ -70,7 +70,7 @@ public enum Schedule {
                 ']';
     }
 
-    public Date getNextTradeCloseTime(long tickTime) { return null; } // todo: remove
+    public long getNextTradeCloseTime(long tickTime) { return 0; }
 
     public TimeZone getTimezone() { return m_timezone; }
     public int getFromHours() { return m_fromHours; }

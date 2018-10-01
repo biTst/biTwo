@@ -50,7 +50,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     public int m_tradesNum;
     public double m_tradesSum;
     private ITickData m_lastAdjusted; // saved direction from last tick processing
-    private Date m_nextTradeCloseTime;
+    private long m_nextTradeCloseTime;
     private float m_lastDirection = 0;
     private Boolean m_isUp;
     private int m_changedDirection; // counter
@@ -173,13 +173,12 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 // todo: check
         if (m_hasSchedule) {
             long tickTime = tickAdjusted.getTimestamp();
-            if ((m_nextTradeCloseTime == null) || (m_nextTradeCloseTime.getTime() < tickTime)) { // todo, remake m_nextTradeCloseTime viwth Long ?
+            if (m_nextTradeCloseTime < tickTime) {
                 m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
             }
-            long tradeCloseTime = m_nextTradeCloseTime.getTime();
-            long timeToTradeClose = tradeCloseTime - tickTime;
+            long timeToTradeClose = m_nextTradeCloseTime - tickTime;
 if (timeToTradeClose < 0) {
-    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; m_nextTradeCloseTime=" + m_nextTradeCloseTime + "; tickTime=" + tickTime);
+    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; nextTradeCloseTime=" + new Date(m_nextTradeCloseTime) + "; tickTime=" + tickTime);
 }
             if (timeToTradeClose < ONE_HOUR_MILLIS) {
                 if (timeToTradeClose < ONE_MIN_MILLIS) {
@@ -354,14 +353,14 @@ if (timeToTradeClose < 0) {
         String key = m_algo.key(false);
 
         long processedPeriod = getProcessedPeriod();
-        String processedPeriodStr = getProcessedPeriodStr();
+//        String processedPeriodStr = getProcessedPeriodStr();
 
         return prefix + "GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + m_tradesNum
                 + "; avgTrade=" + Utils.format5(this.getAvgTradeSize())
                 + "; turns=" + m_changedDirection
                 + "; processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
-                + "  " + processedPeriodStr
+//                + "  " + processedPeriodStr
                 + " .....................................";
     }
 
