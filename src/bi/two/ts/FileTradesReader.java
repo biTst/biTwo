@@ -20,8 +20,8 @@ public class FileTradesReader {
         TimeStamp doneTs = new TimeStamp();
 
         String path = config.getPropertyNoComment("dataFile");
-        long bytesToSkip = config.getLong("skip.bytes");
-        long bytesToProcess = config.getLong("process.bytes");
+        long bytesToSkip = config.getLongOrDefault("skip.bytes", 0l);
+        long bytesToProcess = config.getLongOrDefault("process.bytes", 0l);
 
         File file = new File(path);
 
