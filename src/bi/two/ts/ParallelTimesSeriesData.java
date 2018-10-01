@@ -54,7 +54,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private int m_sleepCounter;
     private void addNewestTick(ITickData latestTick) {
 
-        if ((++m_reportCounter) == 2000000) { // log queue states
+        //                         todo: make configurable
+        if ((++m_reportCounter) == 500000) { // log queue states
             m_reportCounter = 0;
             StringBuilder sb = new StringBuilder("entered=" + m_ticksEntered + "; buffers");
             for (InnerTimesSeriesData innerTsd : m_array) {
@@ -77,7 +78,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             return;
         }
 
-        if ((++m_sleepCounter) == 40000) {
+        if ((++m_sleepCounter) == 40001) {
             m_sleepCounter = 0;
             int maxSize = 0;
             int minSize = Integer.MAX_VALUE;
@@ -90,10 +91,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
             if (maxSize > 2000) {
                 long sleep;
-                if (maxSize > 5000) {
-                    if (maxSize > 7000) {
-                        if (maxSize > 10000) {
-                            if (maxSize > 15000) {
+                if (maxSize > 3000) {
+                    if (maxSize > 5000) {
+                        if (maxSize > 7000) {
+                            if (maxSize > 10000) {
                                 sleep = 1000;
                             } else {
                                 sleep = 500;
@@ -108,6 +109,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     sleep = 20;
                 }
                 try {
+                    log("sleep " + sleep + "ms; maxSize=" + maxSize + "; minSize=" + minSize);
                     Thread.sleep(sleep);
                 } catch (InterruptedException e) { /*noop*/ }
             }
