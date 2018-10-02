@@ -23,7 +23,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
 
-    private static final boolean DO_FADE_IN_OUT = false;
+    private static final boolean DO_FADE_IN_OUT = true;
     private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
@@ -50,9 +50,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private long m_lastMillis;
     public int m_tradesNum;
     public double m_tradesSum;
-    private ITickData m_lastAdjusted; // saved direction from last tick processing
+    private ITickData m_savedAdjusted; // saved direction from last tick processing
     private long m_nextTradeCloseTime;
     private float m_lastDirection = 0;
+    private float m_lastDirectionWithFade = 0;
     private Boolean m_isUp;
     private int m_changedDirection; // counter
     private TickData m_firstTick;
@@ -154,24 +155,36 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                     process(adjusted);
                 }
             } else {
-                if (m_lastAdjusted != null) { // process delayed first
-                    process(m_lastAdjusted);
+                if (m_savedAdjusted != null) { // process delayed first
+                    process(m_savedAdjusted);
                 }
                 ITickData adjusted = m_algo.getAdjusted();
-                m_lastAdjusted = adjusted; // save to process on next tick
+                m_savedAdjusted = adjusted; // save to process on next tick
             }
         }
     }
 
     private void process(ITickData tickAdjusted) {
         float direction = tickAdjusted.getClosePrice(); // UP/DOWN
-        if (m_lastDirection == direction) {
+        m_lastDirection = direction;
+        processWithFade(direction);
+    }
+
+    private void applyFadeOut() {
+        //log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
+        processWithFade(m_lastDirection);
+    }
+
+    private void processWithFade(float directionIn) {
+        float directionWithFade = applyFadeRate(directionIn);
+
+        if (m_lastDirectionWithFade == directionWithFade) {
             return; // todo: do not process same value twice in simulation
         }
-        m_lastDirection = direction;
+        m_lastDirectionWithFade = directionWithFade;
 
-        if ((m_isUp == null) || (m_isUp && (direction == -1)) || (!m_isUp && (direction == 1))) {
-            m_isUp = (direction > 0);
+        if ((m_isUp == null) || (m_isUp && (directionWithFade == -1)) || (!m_isUp && (directionWithFade == 1))) {
+            m_isUp = (directionWithFade > 0);
             m_changedDirection++;
         }
 // todo: recheck - disabled for now
@@ -194,32 +207,33 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 //            }
 //        }
 
-        long timestamp = process(direction);
-        m_lastMillis = timestamp;
+        process(directionWithFade);
     }
 
-    private void applyFadeOut() {
-        //log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
-        process(m_lastDirection);
+    private float applyFadeRate(float directionIn) {
+        float direction;
+        if (DO_FADE_IN_OUT) {
+            float fadeRate = (1 - m_fadeOutRate) + (m_fadeOutRate * m_fadeInRate);
+            direction = directionIn * fadeRate;
+        } else {
+            direction = directionIn;
+        }
+        return direction;
     }
 
-    private long process(float directionIn) {
+    private void process(float directionWithFade) {
         boolean toLog = LOG_ALL;
 
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;
-        String pairToName = currencyTo.m_name;
-
-        float fadeRate = (1 - m_fadeOutRate) + (m_fadeOutRate * m_fadeInRate);
-        float direction = directionIn * fadeRate;
 
         if (toLog) {
-            console("Watcher.process() direction=" + direction);
+            console("Watcher.process() direction=" + directionWithFade);
         }
-        double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, direction);
+        double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, directionWithFade);
 
         if (toLog) {
-            console(" needBuy=" + Utils.format8(needBuyTo) + " " + pairToName);
+            console(" needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name);
         }
 
         needBuyTo *= 0.95; // leave some pennies on account
@@ -243,8 +257,8 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
             boolean toLogMove = LOG_MOVE || toLog;
             if (toLogMove) {
-                console("Watcher.process() direction=" + direction
-                        + "; needBuy=" + Utils.format8(needBuyTo) + " " + pairToName
+                console("Watcher.process() direction=" + directionWithFade
+                        + "; needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name
                         + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
                         + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
             }
@@ -263,7 +277,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 addNewestTick(new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide));
             }
         }
-        return timestamp;
+        m_lastMillis = timestamp;
     }
 
     public long getProcessedPeriod() {
@@ -345,9 +359,9 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 + "\n]";
     }
 
-    public TicksTimesSeriesData<TickData> getGainTs() {
-        return new GainTimesSeriesData(this);
-    }
+    public TicksTimesSeriesData<TickData> getGainTs() { return new GainTimesSeriesData(this); }
+    public TicksTimesSeriesData<TickData> getFadeOutTs() { return new FadeOutTimesSeriesData(m_priceTs); }
+    public TicksTimesSeriesData<TickData> getFadeInTs() { return new FadeInTimesSeriesData(m_priceTs); }
 
     public double getAvgTradeSize() {
         return (m_tradesNum == 0) ? 0 : m_tradesSum / m_tradesNum;
@@ -381,6 +395,40 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 long timestamp = latestTick.getTimestamp();
                 double ratio = totalPriceRatio();
                 return new TickData(timestamp, (float) ratio);
+            }
+            return null;
+        }
+    }
+
+
+    //----------------------------------------------------------
+    public class FadeOutTimesSeriesData extends JoinNonChangedTimesSeriesData {
+        FadeOutTimesSeriesData(ITimesSeriesData parent) {
+            super(parent);
+        }
+
+        @Override protected ITickData getTickValue() {
+            TradeData latestTick = Watcher.this.getLatestTick();
+            if (latestTick != null) {
+                long timestamp = latestTick.getTimestamp();
+                return new TickData(timestamp, m_fadeOutRate);
+            }
+            return null;
+        }
+    }
+
+
+    //----------------------------------------------------------
+    public class FadeInTimesSeriesData extends JoinNonChangedTimesSeriesData {
+        FadeInTimesSeriesData(ITimesSeriesData parent) {
+            super(parent);
+        }
+
+        @Override protected ITickData getTickValue() {
+            TradeData latestTick = Watcher.this.getLatestTick();
+            if (latestTick != null) {
+                long timestamp = latestTick.getTimestamp();
+                return new TickData(timestamp, m_fadeInRate);
             }
             return null;
         }
