@@ -22,6 +22,8 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
+
+    private static final boolean DO_FADE_IN_OUT = false;
     private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
@@ -55,7 +57,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private int m_changedDirection; // counter
     private TickData m_firstTick;
     private TickData m_lastTick;
-    private float m_fadeOutRate = 1f; // fully faded out at start
+    private float m_fadeOutRate = DO_FADE_IN_OUT ? 1f : 0f; // fully faded out at start
     private float m_fadeInRate = 0; // fade in as trades comes
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
@@ -99,38 +101,41 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         }
 
         long currTimestamp = latestPriceTick.getTimestamp();
-        if (m_lastTick != null) {
-            long lastTimestamp = m_lastTick.getTimestamp();
-            long gap = currTimestamp - lastTimestamp;
 
-            if (gap > MIN_GAP_TO_FADE_OUT) { // we had no ticks some dangerous amount of time. start fading out
-                float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
-                fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
-                m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
-                if (m_logGaps) {
-                    log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
-                }
-                m_fadeInRate = 0;
-                applyFadeOut();
-                m_firstTick = null; // reset first tick
+        if (DO_FADE_IN_OUT) {
+            if (m_lastTick != null) {
+                long lastTimestamp = m_lastTick.getTimestamp();
+                long gap = currTimestamp - lastTimestamp;
 
-                if (m_fadeOutRate == 1) { // full fade out
-                    m_algo.reset();
+                if (gap > MIN_GAP_TO_FADE_OUT) { // we had no ticks some dangerous amount of time. start fading out
+                    float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
+                    fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
+                    m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
+                    if (m_logGaps) {
+                        log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                    }
+                    m_fadeInRate = 0;
+                    applyFadeOut();
+                    m_firstTick = null; // reset first tick
+
+                    if (m_fadeOutRate == 1) { // full fade out
+                        m_algo.reset();
+                    }
                 }
             }
-        }
 
-        if (m_firstTick != null) {
-            long firstTimestamp = m_firstTick.getTimestamp();
-            long gap = currTimestamp - firstTimestamp;
-            float fadeInRate = ((float) gap) / FADE_IN_TIME;
-            fadeInRate = Math.min(1, fadeInRate); // [0 -> 1]
-            m_fadeInRate = fadeInRate;
-            if (fadeInRate == 1) {
-                m_fadeOutRate = 0; // no fade out - trades are flowing fine
+            if (m_firstTick != null) {
+                long firstTimestamp = m_firstTick.getTimestamp();
+                long gap = currTimestamp - firstTimestamp;
+                float fadeInRate = ((float) gap) / FADE_IN_TIME;
+                fadeInRate = Math.min(1, fadeInRate); // [0 -> 1]
+                m_fadeInRate = fadeInRate;
+                if (fadeInRate == 1) {
+                    m_fadeOutRate = 0; // no fade out - trades are flowing fine
+                }
+            } else {
+                m_firstTick = latestPriceTick;
             }
-        } else {
-            m_firstTick = latestPriceTick;
         }
 
         m_lastTick = latestPriceTick;
