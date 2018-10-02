@@ -1,11 +1,9 @@
-package bi.two.algo.impl;
+package bi.two.ts;
 
 import bi.two.chart.ITickData;
 import bi.two.exch.schedule.Schedule;
 import bi.two.exch.schedule.TradeHours;
 import bi.two.exch.schedule.TradeSchedule;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
 
 public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
     private final TradeSchedule m_tradeSchedule;
