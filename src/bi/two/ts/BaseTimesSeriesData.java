@@ -60,7 +60,7 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
         throw new RuntimeException("not implemented");
     }
 
-    public void notifyOnTimeShift(long shift) {
+    protected void notifyOnTimeShift(long shift) {
         for (ITimesSeriesListener<T> listener : m_listeners) {
             listener.onTimeShift(shift);
         }

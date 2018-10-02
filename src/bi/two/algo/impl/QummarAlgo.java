@@ -88,7 +88,6 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
 
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-
         ITimesSeriesData ts2 = exchange.hasSchedule() ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
 
         createRibbon(ts2, collectValues);

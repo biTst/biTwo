@@ -10,7 +10,7 @@ import bi.two.ts.TicksTimesSeriesData;
 import java.util.ArrayList;
 import java.util.List;
 
-// EMA
+// EMA - with fading bars sizes
 // todo - switch to 'extends BarsBasedCalculator'
 public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     private static final double DEF_THRESHOLD = 0.995;
@@ -18,7 +18,7 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
 
     private final BarSplitter m_barSplitter;
     private final BarsProcessor m_barsProcessor = new BarsProcessor();
-    private final double[] m_multipliers;
+    private final double[] m_fadingRate;
     private boolean m_dirty;
     private boolean m_filled;
     private boolean m_initialized;
@@ -46,10 +46,10 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
         }
         double rest = 1.0d - sum;
         int size = multipliers.size();
-        m_multipliers = new double[size];
+        m_fadingRate = new double[size];
         for (int i = 0; i < size; i++) {
             Double multiplier = multipliers.get(i);
-            m_multipliers[i] = multiplier + rest * multiplier;
+            m_fadingRate[i] = multiplier + rest * multiplier;
         }
         m_barSplitter = new BarSplitter(tsd, barsNum, barSize);
         setParent(m_barSplitter);
@@ -104,6 +104,13 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
                 + "\n]";
     }
 
+    @Override public void onTimeShift(long shift) {
+        m_dirty = true;
+        // todo: call super
+        notifyOnTimeShift(shift);
+        //super.onTimeShift(shift);
+    }
+
     //-------------------------------------------------------------------------------------
     private class BarsProcessor implements TicksTimesSeriesData.ITicksProcessor<BarSplitter.BarHolder, Double> {
         private int index = 0;
@@ -121,10 +128,10 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
             if (latestNode != null) { // sometimes bars may have no ticks inside
                 ITickData latestTick = latestNode.m_param;
                 float closePrice = latestTick.getClosePrice();
-                double multiplier = m_multipliers[index];
-                double val = closePrice * multiplier;
+                double rate = m_fadingRate[index];
+                double val = closePrice * rate;
                 ret += val;
-                weight += multiplier;
+                weight += rate;
             }
             index++;
         }

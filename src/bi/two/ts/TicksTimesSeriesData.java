@@ -8,7 +8,7 @@ import java.util.*;
 // will hold ALL ticks
 public class TicksTimesSeriesData<T extends ITickData>
         extends BaseTicksTimesSeriesData<T> {
-    // [0] - oldest tick;  newest ticks at the end
+    // [0] - oldest tick;  newest ticks at the end [N]
     protected List<T> m_reverseTicks = Collections.synchronizedList(new ArrayList<T>());
 // todo: test/verify for CopyOnWriteArrayList<T>();
 
@@ -44,10 +44,11 @@ public class TicksTimesSeriesData<T extends ITickData>
     }
 
     public void addOlderTick(T t) { // older tick at the beginning
+        // [0] - oldest tick;  newest ticks at the end [N]
         int size = m_reverseTicks.size();
         if (size > 0) {
-            T last = m_reverseTicks.get(0);
-            t.setOlderTick(last);
+            T oldest = m_reverseTicks.get(0);
+            oldest.setOlderTick(t);
         } else{
             m_newestTick = t;
         }

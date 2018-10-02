@@ -66,17 +66,12 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
             long timestamp = tick.getTimestamp();
             if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
-                BarHolder prevBar = null;
 
                 m_muteListeners = true; // do not notify listeners on first bars creation
                 for (int i = 0; i < m_barsNum; ++i) {
                     BarHolder bar = new BarHolder(timeShift, m_period);
                     addOlderTick(bar);
                     timeShift -= m_period;
-                    if (prevBar != null) {
-                        prevBar.setOlderBar(bar);
-                    }
-                    prevBar = bar;
                 }
                 m_muteListeners = false;
 
@@ -109,7 +104,18 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 
     @Override public void onTimeShift(long shift) {
         m_lastTickTime += shift;
-        m_newestBar.onTimeShift(shift);
+
+        BarHolder bar = m_newestBar;
+        while (bar != null) {
+            bar.onTimeShift(shift);
+            bar = bar.m_olderBar;
+        }
+
+        TickNode node = m_newestBar.m_latestTick;
+        while (node != null) {
+            node.onTimeShift(shift);
+            node = node.m_prev; // older
+        }
 
         // todo: remove - just call super
         notifyOnTimeShift(shift);
@@ -118,16 +124,15 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 
     //---------------------------------------------------------------
     public static class TickNode extends Node<ITickData,TickNode> {
-        public TickNode(TickNode prev, ITickData tick, TickNode next) {
+        TickNode(TickNode prev, ITickData tick, TickNode next) {
             super(prev, tick, next);
         }
 
         public void onTimeShift(long shift) {
             m_param.onTimeShift(shift);
-            if (m_next != null) {
-                m_next.onTimeShift(shift);
-            }
         }
+
+        @Override public String toString() { return "TickNode[" + "param=" + m_param + ']'; }
     }
 
     //---------------------------------------------------------------
@@ -163,14 +168,14 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         public void setOlderTick(ITickData older) { m_olderBar = (BarHolder)older; }
 
         public float getMinPrice() {
-            if(m_dirty) {
+            if (m_dirty) {
                 recalcMinMax();
             }
             return m_minPrice;
         }
 
         public float getMaxPrice() {
-            if(m_dirty) {
+            if (m_dirty) {
                 recalcMinMax();
             }
             return m_maxPrice;
@@ -190,7 +195,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
             TickNode lastTick = m_latestTick;
             TickNode oldestTick = m_oldestTick;
 
-            for (TickNode tickNode = lastTick; tickNode != null; tickNode = (TickNode) tickNode.m_prev) {
+            for (TickNode tickNode = lastTick; tickNode != null; tickNode = tickNode.m_prev) {
                 ITickData tick = tickNode.m_param;
                 float min = tick.getMinPrice();
                 float max = tick.getMaxPrice();
@@ -257,7 +262,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                     m_oldestTick = null; // now no ticks in bar
                     m_latestTick = null;
                 } else { // update bar oldest tick
-                    m_oldestTick = (TickNode) m_oldestTick.m_next;
+                    m_oldestTick = m_oldestTick.m_next;
                 }
 
                 if (olderBarHolder == null) { // tick leaves all holders - destroy cross links
@@ -302,7 +307,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 
         public void addBarHolderListener(IBarHolderListener listener) {
             if (m_listeners == null) {
-                m_listeners = new CopyOnWriteArrayList<IBarHolderListener>();
+                m_listeners = new CopyOnWriteArrayList<>();
             }
             m_listeners.add(listener);
         }
@@ -322,13 +327,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         public void onTimeShift(long shift) {
             m_time += shift;
             m_oldestTime += shift;
-
-            m_latestTick.onTimeShift(shift);
-
             m_dirty = true;
-            if (m_olderBar != null) {
-                m_olderBar.onTimeShift(shift);
-            }
         }
 
         //----------------------------------------------------------------------
