@@ -4,19 +4,16 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.BarsEMA;
+import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
-import bi.two.ts.BaseTicksTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.ScheduleTimesSeriesData;
-import bi.two.ts.TickJoinerTimesSeriesData;
+import bi.two.ts.*;
 
 import java.awt.*;
 import java.util.List;
 
 public class TestAlgo extends BaseAlgo<TickData> {
-    private final BarsEMA m_ema;
+    private final BaseTimesSeriesData<ITickData> m_ema[] = new BaseTimesSeriesData[2];
 
     public TestAlgo(ITimesSeriesData tsd, Exchange exchange) {
         super(tsd);
@@ -25,7 +22,9 @@ public class TestAlgo extends BaseAlgo<TickData> {
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
         ITimesSeriesData ts2 = exchange.hasSchedule() ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
 
-        m_ema = new BarsEMA(ts2, 5, 60000);
+//        m_ema = new BarsEMA(ts2, 5, 60000);
+        m_ema[0] = new SlidingTicksRegressor(ts2, 60000 * 5 * 2, false, true);
+        m_ema[1] = new SlidingTicksRegressor(ts2, 60000 * 10 * 2, false, true);
 
         setParent(ts2);
     }
@@ -48,13 +47,14 @@ public class TestAlgo extends BaseAlgo<TickData> {
         java.util.List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
             int priceAlpha = 255; //70;
-            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, priceAlpha), TickPainter.TICK /*TICK_JOIN*/ );
+            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, priceAlpha), TickPainter.TICK_JOIN );
 
 //            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Colors.DARK_RED, 80), TickPainter.BAR);
 
             int emaAlpha = 255; //20;
-            Color emaColor = Colors.alpha(Color.BLUE, emaAlpha);
-            addChart(chartData, m_ema.getJoinNonChangedTs(), topLayers, "ema", emaColor, TickPainter.LINE);
+            Color emaColor = Colors.alpha(Color.ORANGE, emaAlpha);
+            addChart(chartData, m_ema[0].getJoinNonChangedTs(), topLayers, "ema-0", emaColor, TickPainter.LINE);
+            addChart(chartData, m_ema[1].getJoinNonChangedTs(), topLayers, "ema-1", emaColor, TickPainter.LINE);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);

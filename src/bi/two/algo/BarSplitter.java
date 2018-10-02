@@ -14,8 +14,9 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     public static final int BARS_NUM = 20;
     private static final long DEF_PERIOD = 60000L;
 
-    public int m_barsNum;
     public final long m_period;
+    private final boolean m_cloneTicks;
+    public int m_barsNum;
     public long m_lastTickTime;
     public BarSplitter.BarHolder m_newestBar;
     private boolean m_muteListeners;
@@ -25,9 +26,14 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     }
 
     public BarSplitter(ITimesSeriesData<ITickData> iTicksData, int barsNum, long period) {
+        this(iTicksData, barsNum, period, true);
+    }
+
+    public BarSplitter(ITimesSeriesData<ITickData> iTicksData, int barsNum, long period, boolean cloneTicks) {
         super(iTicksData);
         m_barsNum = barsNum;
         m_period = period;
+        m_cloneTicks = cloneTicks;
     }
 
     public Iterable<BarHolder> getBarsIterable() { return getTicksIterable(); }
@@ -65,7 +71,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     private void onTick(boolean changed, ITickData tick) {
         if (changed) {
             long timestamp = tick.getTimestamp();
-            BaseTickData tickClone = new BaseTickData(tick);
+            ITickData tickClone = m_cloneTicks ? new BaseTickData(tick) : tick;
             if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
 

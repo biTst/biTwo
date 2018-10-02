@@ -26,8 +26,12 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
     }
 
     public SlidingTicksRegressor(ITimesSeriesData tsd, long period, boolean collectValues) {
+        this(tsd, period, collectValues, true);
+    }
+
+    public SlidingTicksRegressor(ITimesSeriesData tsd, long period, boolean collectValues, boolean cloneTicks) {
         m_collectValues = collectValues;
-        m_splitter = new BarSplitter(tsd, 1, period);
+        m_splitter = new BarSplitter(tsd, 1, period, cloneTicks);
         setParent(m_splitter);
     }
 

@@ -88,14 +88,15 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
 
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        ITimesSeriesData ts2 = exchange.hasSchedule() ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
+        boolean hasSchedule = exchange.hasSchedule();
+        ITimesSeriesData ts2 = hasSchedule ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
 
-        createRibbon(ts2, collectValues);
+        createRibbon(ts2, collectValues, hasSchedule);
 
         setParent(ts2);
     }
 
-    private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
+    private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
         ITimesSeriesListener listener = new RibbonTsListener();
 
 //        long period = (long) (m_start * m_barSize * m_linRegMultiplier);
@@ -106,7 +107,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         float length = m_start;
         int len = (int) m_count;
         for (int i = 0; i < len; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues, hasSchedule);
             ema.getActive().addListener(listener);
             list.add(ema);
             length += m_step;
@@ -114,7 +115,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         if (m_count != len) {
             float fraction = m_count - len;
             float fractionLength = length - m_step + (m_step * fraction);
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues, hasSchedule);
             ema.getActive().addListener(listener);
             list.add(ema);
             len++;
@@ -124,9 +125,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_emas = list.toArray(new BaseTimesSeriesData[len]);
     }
 
-    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
+    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues, boolean hasSchedule) {
         long period = (long) (length * barSize * m_linRegMultiplier);
-        return new SlidingTicksRegressor(tsd, period, false);
+        return new SlidingTicksRegressor(tsd, period, false, hasSchedule);
 
 //        return new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier*5);
 
@@ -333,7 +334,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         ChartAreaSettings top = chartSetting.addChartAreaSettings("top", 0, 0, 1, 0.6f, Color.RED);
         List<ChartAreaLayerSettings> topLayers = top.getLayers();
         {
-            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 70), TickPainter.TICK_JOIN);
+            addChart(chartData, ticksTs, topLayers, "price", Colors.alpha(Colors.DARK_RED, 100), TickPainter.TICK_JOIN);
 //            addChart(chartData, m_priceBars, topLayers, "priceBars", Colors.alpha(Colors.DARK_RED, 80), TickPainter.BAR);
 
 //            chartData.setTicksData("spline", new NoTicksData());
