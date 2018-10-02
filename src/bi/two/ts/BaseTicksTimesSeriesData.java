@@ -17,8 +17,4 @@ public abstract class BaseTicksTimesSeriesData<T extends ITickData>
     abstract public void addOlderTick(T tickData);
 
     @Override public T getLatestTick() { return m_newestTick; }
-
-    public void shiftTime(long millis) {
-        throw new RuntimeException("not implemented");
-    }
 }
