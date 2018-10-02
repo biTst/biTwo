@@ -117,7 +117,7 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
             while(node != null) {
                 ITickData olderTick = node.m_param;
                 addTick(olderTick);
-                node = node.m_prev;
+                node = node.m_next;
             }
         }
         m_lastTick = null; // mark as dirty

@@ -1,5 +1,6 @@
 package bi.two.algo;
 
+import bi.two.chart.BaseTickData;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickPainter;
 import bi.two.ts.ITimesSeriesData;
@@ -64,6 +65,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     private void onTick(boolean changed, ITickData tick) {
         if (changed) {
             long timestamp = tick.getTimestamp();
+            BaseTickData tickClone = new BaseTickData(tick);
             if (m_lastTickTime == 0L) { // init on first tick
                 long timeShift = timestamp;
 
@@ -76,10 +78,10 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                 m_muteListeners = false;
 
                 m_newestBar = getLatestTick();
-                m_newestBar.put(tick);
+                m_newestBar.put(tickClone);
             } else {
                 long timeShift = timestamp - m_newestBar.m_time;
-                m_newestBar.put(tick);
+                m_newestBar.put(tickClone);
                 if (timeShift > 0L) {
                     for (int index = 0; index < m_barsNum; ++index) {
                         BarHolder newerBar = getTick(index);
