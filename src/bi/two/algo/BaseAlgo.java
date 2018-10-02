@@ -100,7 +100,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
         }
 
         @Override protected ITickData getTickValue() {
-            ITickData latestTick = getParent().getLatestTick();
+            ITickData latestTick = m_parent.getLatestTick();
             if (latestTick != null) {
                 Float value = getValue();
                 if (value != null) {

@@ -11,7 +11,6 @@ import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
-import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
@@ -27,7 +26,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
 
-    private final Exchange m_exch;
+    protected final Exchange m_exch;
     private final Pair m_pair;
     private final ExchPairData m_exchPairData;
     private final double m_commission;
@@ -95,7 +94,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         // note, here changed are not checked = run on ever tick, to recheck int state often
 
         TickData latestPriceTick = m_priceTs.getLatestTick();
-        if (latestPriceTick == null) {
+        if (latestPriceTick == null) { // todo: check, do we really have such case ?
             return; // skip
         }
 
@@ -170,25 +169,25 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_isUp = (direction > 0);
             m_changedDirection++;
         }
-// todo: check
-        if (m_hasSchedule) {
-            long tickTime = tickAdjusted.getTimestamp();
-            if (m_nextTradeCloseTime < tickTime) {
-                m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
-            }
-            long timeToTradeClose = m_nextTradeCloseTime - tickTime;
-if (timeToTradeClose < 0) {
-    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; nextTradeCloseTime=" + new Date(m_nextTradeCloseTime) + "; tickTime=" + tickTime);
-}
-            if (timeToTradeClose < ONE_HOUR_MILLIS) {
-                if (timeToTradeClose < ONE_MIN_MILLIS) {
-                    direction = 0; // do not trade last minute
-                } else {
-                    float rate = ((float) timeToTradeClose) / ONE_HOUR_MILLIS;
-                    direction *= rate;
-                }
-            }
-        }
+// todo: recheck - disabled for now
+//        if (m_hasSchedule) {
+//            long tickTime = tickAdjusted.getTimestamp();
+//            if (m_nextTradeCloseTime < tickTime) {
+//                m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
+//            }
+//            long timeToTradeClose = m_nextTradeCloseTime - tickTime;
+//if (timeToTradeClose < 0) {
+//    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; nextTradeCloseTime=" + new Date(m_nextTradeCloseTime) + "; tickTime=" + tickTime);
+//}
+//            if (timeToTradeClose < ONE_HOUR_MILLIS) {
+//                if (timeToTradeClose < ONE_MIN_MILLIS) {
+//                    direction = 0; // do not trade last minute
+//                } else {
+//                    float rate = ((float) timeToTradeClose) / ONE_HOUR_MILLIS;
+//                    direction *= rate;
+//                }
+//            }
+//        }
 
         long timestamp = process(direction);
         m_lastMillis = timestamp;

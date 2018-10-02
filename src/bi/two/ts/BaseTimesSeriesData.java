@@ -10,7 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public abstract class BaseTimesSeriesData<T extends ITickData>
         implements ITimesSeriesData<T>, ITimesSeriesListener<T> {
     public ITimesSeriesData m_parent;
-    private List<ITimesSeriesListener<T>> m_listeners = new CopyOnWriteArrayList<>();
+    protected List<ITimesSeriesListener<T>> m_listeners = new CopyOnWriteArrayList<>();
 
     public ITimesSeriesData<T> getActive() { return this; }
     public ITimesSeriesData getParent() { return m_parent; }
@@ -43,7 +43,7 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     }
 
     protected void notifyListeners(boolean changed) {
-        for (int i = 0, size = m_listeners.size(); i < size; i++) {
+        for (int i = 0, size = m_listeners.size(); i < size; i++) { // todo: optimize via single/multiple listenerNotifier
             ITimesSeriesListener<T> listener = m_listeners.get(i);
             listener.onChanged(this, changed);
         }
@@ -53,6 +53,16 @@ public abstract class BaseTimesSeriesData<T extends ITickData>
     @Override public void notifyNoMoreTicks() {
         for (ITimesSeriesListener<T> listener : m_listeners) {
             listener.notifyNoMoreTicks();
+        }
+    }
+
+    @Override public void onTimeShift(long shift) {
+        throw new RuntimeException("not implemented");
+    }
+
+    public void notifyOnTimeShift(long shift) {
+        for (ITimesSeriesListener<T> listener : m_listeners) {
+            listener.onTimeShift(shift);
         }
     }
 

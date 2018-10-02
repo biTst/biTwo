@@ -52,9 +52,8 @@ public class ParallelTimesSeriesDataTest {
                     m_expectedTimestamp++;
                 }
 
-                @Override public void waitWhenAllFinish() {
-
-                }
+                @Override public void waitWhenAllFinish() { /*noop*/ }
+                @Override public void onTimeShift(long shift) { /*noop*/ }
 
                 @Override public void notifyNoMoreTicks() {
                     if (m_expectedTimestamp != (TICKS_TO_PASS + 1)) {

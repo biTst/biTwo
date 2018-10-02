@@ -5,14 +5,14 @@ import bi.two.chart.TickData;
 import bi.two.util.Log;
 
 /** join ticks; provides average price (do not count tick volume) */
-public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
+public class TickJoinerTimesSeriesData extends BaseTimesSeriesData<ITickData> {
     private ITickData m_lastTick;
 
     private final long m_size;
-    private long m_first;
-    private long m_last;
+//    private long m_first;
+//    private long m_last;
     private long m_end;
-    private float m_summ;
+//    private float m_summ;
     private int m_count;
     private ITickData m_firstTick;
     private int m_joinedCount;
@@ -28,7 +28,7 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
         if (changed) {
-            ITimesSeriesData parent = getParent();
+            ITimesSeriesData parent = m_parent; // todo: inline
             ITickData latestTick = parent.getLatestTick();
 
             float price = latestTick.getClosePrice();
@@ -36,8 +36,8 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
             long timestamp = latestTick.getTimestamp();
 
             if (timestamp < m_end) {
-                m_last = timestamp;
-                m_summ += price;
+//                m_last = timestamp;
+//                m_summ += price;
                 m_count++;
             } else {
                 if (m_count > 1) { // reportTick
@@ -47,11 +47,11 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
 //                    float tickPrice = m_summ / m_count;
 
                     // report last price and time
-                    long tickTimestamp = m_end;      // (m_first + m_last) / 2; // mid time
-                    float tickPrice = m_lastPrice;    // m_summ / m_count;
+                    long tickTimestamp = m_end; // todo: better to report last known tick time here
+                    float tickPrice = m_lastPrice;
 
-                    TickData avgTickData = new TickData(tickTimestamp, tickPrice);
-                    m_lastTick = avgTickData;
+                    TickData tickData = new TickData(tickTimestamp, tickPrice);
+                    m_lastTick = tickData;
                     notifyListeners(true);
                     m_joinedCount += m_count;
                     m_reportedCount++;
@@ -63,9 +63,9 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData {
                 }
 
                 m_firstTick = latestTick;
-                m_first = timestamp;
-                m_last = timestamp;
-                m_summ = price;
+//                m_first = timestamp;
+//                m_last = timestamp;
+//                m_summ = price;
                 m_count = 1;
                 m_end = timestamp + m_size;
             }

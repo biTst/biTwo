@@ -2,8 +2,6 @@ package bi.two.ts;
 
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
-import bi.two.exch.schedule.TradeHours;
-import bi.two.exch.schedule.TradeSchedule;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 
@@ -22,13 +20,13 @@ public class FileTradesReader {
         String path = config.getPropertyNoComment("dataFile");
         long bytesToSkip = config.getLongOrDefault("skip.bytes", 0l);
         long bytesToProcess = config.getLongOrDefault("process.bytes", 0l);
+        long ticksToProcess = config.getLongOrDefault("process.ticks", Long.MAX_VALUE);
 
         File file = new File(path);
 
         DataFileType type = DataFileType.obtain(config);
-        TradeSchedule tradeSchedule = TradeSchedule.obtain(config);
 
-        readFileTrades(tradesTs, callback, file, type, tradeSchedule, 0, bytesToSkip, bytesToProcess);
+        readFileTrades(tradesTs, callback, file, type, 0, bytesToSkip, bytesToProcess, ticksToProcess);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
@@ -36,10 +34,10 @@ public class FileTradesReader {
     }
 
     public static long readFileTrades(BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback, File file, DataFileType type,
-                                      TradeSchedule tradeSchedule, long lastProcessedTickTime, long bytesToSkip, long bytesToProcess) throws IOException {
+                                      long lastProcessedTickTime, long bytesToSkip, long bytesToProcess, long ticksToProcess) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
-        log("fileLength = " + fileLength + "; bytesToSkip=" + bytesToSkip + "; bytesToProcess=" + bytesToProcess);
+        log("fileLength = " + fileLength + "; bytesToSkip=" + bytesToSkip + "; bytesToProcess=" + bytesToProcess + "; ticksToProcess=" + ticksToProcess);
 
         long seekPosition;
         final long maxReadBytes;
@@ -118,11 +116,11 @@ public class FileTradesReader {
 //            }
 //        };
 
-        return readFileTrades(reader, tradesTs, callback, resetLine, type, tradeSchedule, lastProcessedTickTime); // reader closed inside
+        return readFileTrades(reader, tradesTs, callback, resetLine, type, lastProcessedTickTime, ticksToProcess); // reader closed inside
     }
 
     private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                       boolean resetFirstLine, DataFileType type, TradeSchedule tradeSchedule, long lastProcessedTickTime) throws IOException {
+                                       boolean resetFirstLine, DataFileType type, long lastProcessedTickTime, long ticksToProcess) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 2 * 1024 * 1024); // 2 MB
@@ -130,9 +128,6 @@ public class FileTradesReader {
             if (resetFirstLine) { // after bytes skipping we may point to the middle of line
                 br.readLine(); // skip to the end of line
             }
-
-            TradeHours currTradeHours = null;
-            long eotdMillis = (tradeSchedule == null) ? Long.MAX_VALUE : 0; // pre-calculated End Of Trading Day
 
             float lastClosePrice = 0;
             String line;
@@ -162,29 +157,6 @@ public class FileTradesReader {
                                 }
                             }
 
-                            if (eotdMillis <= timestamp) { // tick is after current trade day
-                                TradeHours nextTradeHours = tradeSchedule.getTradeHours(timestamp);
-                                boolean inside = nextTradeHours.isInsideOfTradingHours(timestamp);
-                                if (!inside) {
-                                    String dateTime = tradeSchedule.formatLongDateTime(timestamp);
-                                    throw new RuntimeException("next trade is not inside of trading day: dateTime=" + dateTime + "; nextTradeHours=" + nextTradeHours);
-                                }
-                                if (currTradeHours != null) {
-                                    long tradePause = nextTradeHours.m_tradeStartMillis - currTradeHours.m_tradeEndMillis;
-                                    if (tradePause < 0) {
-                                        String dateTime = tradeSchedule.formatLongDateTime(timestamp);
-                                        throw new RuntimeException("negative tradePause=" + tradePause + "; dateTime=" + dateTime + "; currTradeHours=" + currTradeHours + "; nextTradeHours=" + nextTradeHours);
-                                    }
-
-                                    TradeHours nextDayTradeHours = currTradeHours.getNextDayTradeHours();
-                                    if (nextDayTradeHours.equals(nextTradeHours)) { // expected next trade day
-                                        ticksTs.shiftTime(tradePause);
-                                    }
-                                }
-                                currTradeHours = nextTradeHours;
-                                eotdMillis = currTradeHours.m_tradeEndMillis;
-                            }
-
                             lastClosePrice = closePrice;
 
                             ticksTs.addNewestTick(tickData);
@@ -192,14 +164,18 @@ public class FileTradesReader {
     //                            callback.run();
     //                        }
                             processCounter++;
+                            if (processCounter == ticksToProcess) {
+                                log("processed all requested " + ticksToProcess + " ticks - exit");
+                                break;
+                            }
                             lastTickTime = timestamp;
                         } else {
                             skipCounter++;
                         }
                     }
                 } catch (Exception e) {
-                    // just save error for now. rethrow if nez line ok. if latest line is partial - ok - will have no more lines and exit loop
-                    lastLineError = new RuntimeException("Error processing line: '" + line + "' : " + lastLineError, lastLineError);
+                    // just save error for now. rethrow if next line is ok. if latest line is partial - ok - will have no more lines and exit loop
+                    lastLineError = new RuntimeException("Error processing line: '" + line + "' : " + e, e);
                 }
             }
             console("ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());

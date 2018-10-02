@@ -8,4 +8,5 @@ public interface ITimesSeriesListener<T extends ITickData> {
     void waitWhenAllFinish();
     // no more ticks - call from parent
     void notifyNoMoreTicks();
+    void onTimeShift(long shift);
 }

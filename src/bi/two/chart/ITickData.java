@@ -14,4 +14,6 @@ public interface ITickData {
     void setOlderTick(ITickData last);
 
     boolean isValid();
+
+    void onTimeShift(long shift);
 }

@@ -2,7 +2,6 @@ package bi.two.ts;
 
 import bi.two.DataFileType;
 import bi.two.chart.TickData;
-import bi.two.exch.schedule.TradeSchedule;
 import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 
@@ -29,7 +28,6 @@ public class DirTradesReader {
         String filePattern = config.getPropertyNoComment("filePattern");
 
         DataFileType type = DataFileType.obtain(config);
-        TradeSchedule tradeSchedule = TradeSchedule.obtain(config);
 
         long lastProcessedTickTime = 0;
         int filesProcessed = 0;
@@ -53,7 +51,7 @@ public class DirTradesReader {
 
                 log("readFileTicks: " + absolutePath);
                 try {
-                    lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, tradeSchedule, lastProcessedTickTime, 0, 0);
+                    lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, lastProcessedTickTime, 0, 0, Long.MAX_VALUE);
                 } catch (Exception e) {
                     throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
                 }

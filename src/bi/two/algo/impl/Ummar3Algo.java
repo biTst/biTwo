@@ -92,9 +92,9 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
                     m_dirty = true;
                 }
             }
-
             @Override public void waitWhenAllFinish() { }
             @Override public void notifyNoMoreTicks() {}
+            @Override public void onTimeShift(long shift) { /*noop*/ }
         };
 
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData

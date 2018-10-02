@@ -104,4 +104,26 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
 //                + "\nsplitter=" + m_splitter.log()
                 + "\n]";
     }
+
+    @Override public void onTimeShift(long shift) {
+        m_simpleRegression.clear();
+
+        m_firstTimestamp = 0;
+        m_lastTimestamp = 0;
+
+        BarSplitter.BarHolder newestBar = m_splitter.m_newestBar;
+        if (newestBar != null) {
+            BarSplitter.TickNode node = newestBar.getOldestTick(); // re-add ticks from last known
+            while(node != null) {
+                ITickData olderTick = node.m_param;
+                addTick(olderTick);
+                node = node.m_prev;
+            }
+        }
+        m_lastTick = null; // mark as dirty
+
+        // todo: replace with super
+        notifyOnTimeShift(shift);
+//        super.onTimeShift(shift);
+    }
 }

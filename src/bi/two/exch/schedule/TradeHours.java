@@ -8,7 +8,7 @@ import java.util.*;
 
 import static bi.two.util.Log.log;
 
-//--------------------------------------------------------------------------------------
+// precalculated trading hours for particular day
 public class TradeHours {
     private final TradeSchedule m_tradeSchedule;
 

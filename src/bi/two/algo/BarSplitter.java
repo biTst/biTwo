@@ -107,10 +107,26 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         super.notifyListeners(changed);
     }
 
+    @Override public void onTimeShift(long shift) {
+        m_lastTickTime += shift;
+        m_newestBar.onTimeShift(shift);
+
+        // todo: remove - just call super
+        notifyOnTimeShift(shift);
+//        super.onTimeShift(shift);
+    }
+
     //---------------------------------------------------------------
-    public static class TickNode extends Node<ITickData> {
+    public static class TickNode extends Node<ITickData,TickNode> {
         public TickNode(TickNode prev, ITickData tick, TickNode next) {
             super(prev, tick, next);
+        }
+
+        public void onTimeShift(long shift) {
+            m_param.onTimeShift(shift);
+            if (m_next != null) {
+                m_next.onTimeShift(shift);
+            }
         }
     }
 
@@ -245,7 +261,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                 }
 
                 if (olderBarHolder == null) { // tick leaves all holders - destroy cross links
-                    Node<ITickData> next = tickToLeave.m_next;
+                    TickNode next = tickToLeave.m_next;
                     if (next != null) {
                         next.m_prev = null;
                         tickToLeave.m_next = null;
@@ -301,6 +317,18 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 
         public String log() {
             return "BarHolder[ticksCount=" + m_ticksCount + "]";
+        }
+
+        public void onTimeShift(long shift) {
+            m_time += shift;
+            m_oldestTime += shift;
+
+            m_latestTick.onTimeShift(shift);
+
+            m_dirty = true;
+            if (m_olderBar != null) {
+                m_olderBar.onTimeShift(shift);
+            }
         }
 
         //----------------------------------------------------------------------

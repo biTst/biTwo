@@ -50,4 +50,10 @@ public class JoinNonChangedTimesSeriesData extends TicksTimesSeriesData<TickData
         }
         notifyListeners(false);
     }
+
+    @Override public void onTimeShift(long shift) {
+        // todo: recheck
+        notifyOnTimeShift(shift);
+//        super.onTimeShift(shift);
+    }
 }

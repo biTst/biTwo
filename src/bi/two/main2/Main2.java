@@ -86,7 +86,7 @@ public class Main2 extends Thread {
                 throw new RuntimeException("no '" + BaseAlgo.ALGO_NAME_KEY + "' param");
             }
             Algo algo = Algo.valueOf(algoName);
-            m_algoImpl = algo.createAlgo(m_config, m_ticksTs);
+            m_algoImpl = algo.createAlgo(m_config, m_ticksTs, m_exchange);
 
             m_exchange.connect(new Exchange.IExchangeConnectListener() {
                 @Override public void onConnected() {}

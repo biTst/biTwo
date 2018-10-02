@@ -60,6 +60,8 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
                     m_sync.notify();
                 }
             }
+
+            @Override public void onTimeShift(long shift) { /*noop*/ }
         });
         watchers.add(m_lastWatcher);
     }

@@ -6,6 +6,7 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
+import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
 import bi.two.util.MapConfig;
@@ -62,7 +63,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
     private BaseTimesSeriesData m_sliding;
 
-    public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+    public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
         super(null);
 
         reset();
@@ -86,10 +87,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
-        ITimesSeriesData priceTsd = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        createRibbon(priceTsd, collectValues);
+        ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
 
-        setParent(priceTsd);
+        ITimesSeriesData ts2 = exchange.hasSchedule() ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
+
+        createRibbon(ts2, collectValues);
+
+        setParent(ts2);
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
@@ -397,6 +401,12 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         }
     }
 
+    @Override public void onTimeShift(long shift) {
+        // todo: call super
+        notifyOnTimeShift(shift);
+//        super.onTimeShift(shift);
+    }
+
     //-------------------------------------------------------------------------------------------
     private class RibbonTsListener implements ITimesSeriesListener {
         @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
@@ -407,5 +417,6 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
         @Override public void waitWhenAllFinish() { }
         @Override public void notifyNoMoreTicks() {}
+        @Override public void onTimeShift(long shift) { /*noop*/ }
     }
 }

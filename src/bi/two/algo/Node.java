@@ -1,12 +1,12 @@
 package bi.two.algo;
 
 //---------------------------------------------------------------
-public class Node<T> {
+public class Node<T, X extends Node> {
     public T m_param;
-    protected Node<T> m_next;
-    protected Node<T> m_prev;
+    public X m_next;
+    public X m_prev;
 
-    public Node(Node<T> prev, T param, Node<T> next) {
+    public Node(X prev, T param, X next) {
         m_param = param;
         m_next = next;
         m_prev = prev;

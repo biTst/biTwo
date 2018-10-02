@@ -44,6 +44,10 @@ public class BaseTickData implements ITickData {
 
     @Override public boolean isValid() { return (m_price != Utils.INVALID_PRICE) && (m_price > 0); }
 
+    @Override public void onTimeShift(long shift) {
+        m_timestamp += shift;
+    }
+
     @Override public String toString() { return getName() + "[" + getParams() + "]"; }
 
     protected String getParams() {

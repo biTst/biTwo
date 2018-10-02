@@ -14,7 +14,7 @@ import static bi.two.util.Log.*;
 public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final int m_maxParallelSize;
     private int m_activeIndex;
-    private final List<InnerTimesSeriesData> m_array = new ArrayList<>();
+    private final List<InnerTimesSeriesData> m_array = new ArrayList<>(); // todo: optimize - remake via array
     private final AtomicInteger m_runningCount = new AtomicInteger();
     private int m_ticksEntered = 0;
 

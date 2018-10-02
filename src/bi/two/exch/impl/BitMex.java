@@ -1811,6 +1811,10 @@ console("    after update: orderData=" + orderData);
         @Override public void setOlderTick(ITickData last) { /*noop*/ }
         @Override public boolean isValid() { return Utils.isInvalidPriceDouble(m_price); }
 
+        @Override public void onTimeShift(long shift) {
+            m_timestamp += shift;
+        }
+
         public static Tr createFrom(JsonObject json) {
             Tr ret = new Tr();
 
