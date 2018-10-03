@@ -43,7 +43,7 @@ public class Main {
 
         new Thread("MAIN") {
             @Override public void run() {
-                setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+                setPriority(Thread.NORM_PRIORITY - 1); // smaller prio - do not bother host
                 loadData(args);
             }
         }.start();
@@ -116,7 +116,9 @@ public class Main {
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
 
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
-                TradesWriter tradesWriter = (tickWriterName != null) ? TradesWriter.get(tickWriterName) : null;
+                TradesWriter tradesWriter = ((tickWriterName != null) && (i == 1)) // write on first iteration only
+                                                ? TradesWriter.get(tickWriterName)
+                                                : null;
 
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
