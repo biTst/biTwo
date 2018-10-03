@@ -1,12 +1,12 @@
 package bi.two.ts;
 
 import bi.two.Main;
+import bi.two.algo.Node;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static bi.two.util.Log.*;
@@ -17,6 +17,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final List<InnerTimesSeriesData> m_array = new ArrayList<>(); // todo: optimize - remake via array
     private final AtomicInteger m_runningCount = new AtomicInteger();
     private int m_ticksEntered = 0;
+    private long m_reportCounter;
+    private long m_sleepCounter;
+    private long m_nanoSumm;
+    private long m_nanoCount;
 
     public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size) {
         super(ticksTs);
@@ -49,9 +53,6 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
     }
 
-
-    private int m_reportCounter;
-    private int m_sleepCounter;
     private void addNewestTick(ITickData latestTick) {
 
         //                         todo: make configurable
@@ -63,6 +64,11 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
                 innerTsd.addNewestTick(latestTick);
             }
+
+            double nanoAvg = ((double) m_nanoSumm) / m_nanoCount;
+            m_nanoSumm = 0;
+            m_nanoCount = 0;
+            sb.append(" avg=").append(nanoAvg).append(";");
 
             long freeMemory1 = Runtime.getRuntime().freeMemory();
             long totalMemory1 = Runtime.getRuntime().totalMemory();
@@ -114,10 +120,15 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 } catch (InterruptedException e) { /*noop*/ }
             }
         } else {
+            long nanoTime1 = System.nanoTime();
             for (int i = 0, arraySize = m_array.size(); i < arraySize; i++) {
                 InnerTimesSeriesData innerTsd = m_array.get(i);
                 innerTsd.addNewestTick(latestTick);
             }
+            long nanoTime2 = System.nanoTime();
+            long nanoDiff = nanoTime2-nanoTime1;
+            m_nanoSumm += nanoDiff;
+            m_nanoCount++;
         }
     }
 
@@ -129,6 +140,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         StringBuilder sb = new StringBuilder("NoMoreTicks: entered=" + m_ticksEntered + "; buffers");
         for (InnerTimesSeriesData innerTsd : m_array) {
+            innerTsd.m_queue.flush(); // ticks are reported in blocks from innerTs, flush remained/collected
             int size = innerTsd.m_queue.size();
             sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
         }
@@ -170,7 +182,9 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     //=============================================================================================
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
-        private LinkedBlockingQueue<ITickData> m_queue = new LinkedBlockingQueue<>();
+//        private LinkedBlockingQueue<ITickData> m_queue = new LinkedBlockingQueue<>();
+//        private ConcurrentLinkedQueue<ITickData> m_queue = new ConcurrentLinkedQueue<>();
+        private LightQueue<ITickData> m_queue = new LightQueue<>();
         private final int m_innerIndex;
         private ITickData m_currentTickData;
 
@@ -182,7 +196,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_innerIndex = index;
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
-//            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
+            thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
             thread.start();
         }
 
@@ -193,7 +207,16 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         @Override public void run() {
             try {
                 while (true) {
-                    ITickData tick = m_queue.take(); // waiting if necessary until an element becomes available.
+//                    ITickData tick = m_queue.take(); // waiting if necessary until an element becomes available.
+
+//                    ITickData tick = m_queue.poll();
+//                    if (tick == null) {
+//                        Thread.sleep(100);
+//                        continue;
+//                    }
+
+                    ITickData tick = m_queue.getFromHead();
+
                     long timestamp = tick.getTimestamp();
                     if (timestamp == 0) { // special marker
                         notifyNoMoreTicks();
@@ -215,10 +238,87 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
 
         public void addNewestTick(ITickData latestTick) {
-            try {
-                m_queue.put(latestTick);
-            } catch (InterruptedException e) {
-                err("error: " + e, e);
+            m_queue.addToTail(latestTick);
+
+//            m_queue.add(latestTick);
+
+//            try {
+//                m_queue.put(latestTick);
+//            } catch (InterruptedException e) {
+//                err("error: " + e, e);
+//            }
+        }
+    }
+
+
+    //=============================================================================================
+    private static class LightQueue <X extends ITickData> {
+        private volatile Node<X ,Node> m_head;
+        private volatile Node<X ,Node> m_tail;
+        private volatile Node<X ,Node> m_pool;
+        private int m_size;
+        private int m_count;
+
+        public int size() { return m_size; }
+
+        void addToTail(X x) {
+            synchronized (this) {
+                Node<X, Node> node;
+                if (m_pool == null) {
+                    node = new Node<>(null, x, null); // unlinked
+                } else {
+                    node = m_pool;
+                    node.m_param = x;
+                    m_pool = m_pool.m_next;
+                    node.m_prev=null;
+                }
+
+                node.m_next = m_tail;
+                if (m_tail != null) {
+                    m_tail.m_prev = node;
+                } else {
+                    m_head = node;
+                }
+                m_tail = node;
+                m_size++;
+
+                if (m_count == 0) {
+                    notify();
+                    m_count = 5;
+                } else {
+                    m_count--;
+                }
+            }
+        }
+
+        void flush() {
+            synchronized (this) {
+                notify();
+            }
+        }
+
+        X getFromHead() throws InterruptedException {
+            synchronized (this) {
+                while (true) {
+                    if (m_head != null) {
+                        X ret = m_head.m_param;
+
+                        m_head.m_next = m_pool;
+                        m_pool = m_head;
+
+                        Node prev = m_head.m_prev;
+                        if (prev == null) { // no more elements
+                            m_head = null;
+                            m_tail = null;
+                        } else {
+                            m_head = prev;
+                            prev.m_next = null;
+                        }
+                        m_size--;
+                        return ret;
+                    }
+                    wait();
+                }
             }
         }
     }
