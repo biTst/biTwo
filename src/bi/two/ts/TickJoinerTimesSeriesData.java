@@ -75,6 +75,7 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData<ITickData> {
     }
 
     @Override public void notifyNoMoreTicks() {
+        // todo: notify last not reported tick here
         super.notifyNoMoreTicks();
         log("TickJoinerTs[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
     }
