@@ -184,8 +184,6 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     //=============================================================================================
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
-//        private LinkedBlockingQueue<ITickData> m_queue = new LinkedBlockingQueue<>();
-//        private ConcurrentLinkedQueue<ITickData> m_queue = new ConcurrentLinkedQueue<>();
         private final LightQueue<ITickData> m_queue;
         private final int m_innerIndex;
         private ITickData m_currentTickData;
@@ -210,18 +208,11 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         @Override public void run() {
             try {
                 while (true) {
-//                    ITickData tick = m_queue.take(); // waiting if necessary until an element becomes available.
-
-//                    ITickData tick = m_queue.poll();
-//                    if (tick == null) {
-//                        Thread.sleep(100);
-//                        continue;
-//                    }
-
                     ITickData tick = m_queue.getFromHead();
 
                     long timestamp = tick.getTimestamp();
                     if (timestamp == 0) { // special marker
+                        m_queue.clean();
                         notifyNoMoreTicks();
                         break;
                     } else {
@@ -242,20 +233,14 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         public void addNewestTick(ITickData latestTick) {
             m_queue.addToTail(latestTick);
-
-//            m_queue.add(latestTick);
-
-//            try {
-//                m_queue.put(latestTick);
-//            } catch (InterruptedException e) {
-//                err("error: " + e, e);
-//            }
         }
     }
 
 
+    private static boolean DO_POOL = true;
     //=============================================================================================
     private class LightQueue <X extends ITickData> {
+
         private volatile Node<X ,Node> m_head;
         private volatile Node<X ,Node> m_tail;
         private volatile Node<X ,Node> m_pool;
@@ -267,13 +252,17 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         void addToTail(X x) {
             synchronized (this) {
                 Node<X, Node> node;
-                if (m_pool == null) {
-                    node = new Node<>(null, x, null); // unlinked
+                if (DO_POOL) {
+                    if (m_pool == null) {
+                        node = new Node<>(null, x, null); // unlinked
+                    } else {
+                        node = m_pool;
+                        node.m_param = x;
+                        m_pool = m_pool.m_next;
+                        node.m_prev = null;
+                    }
                 } else {
-                    node = m_pool;
-                    node.m_param = x;
-                    m_pool = m_pool.m_next;
-                    node.m_prev=null;
+                    node = new Node<>(null, x, null); // unlinked
                 }
 
                 node.m_next = m_tail;
@@ -294,22 +283,19 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        void flush() {
-            synchronized (this) {
-                notify();
-            }
-        }
-
         X getFromHead() throws InterruptedException {
             synchronized (this) {
                 while (true) {
                     if (m_head != null) {
                         X ret = m_head.m_param;
 
-                        m_head.m_next = m_pool;
-                        m_pool = m_head;
+                        if (DO_POOL) {
+                            m_head.m_next = m_pool;
+                            m_pool = m_head;
+                        }
 
                         Node prev = m_head.m_prev;
+                        m_head.m_prev = null;
                         if (prev == null) { // no more elements
                             m_head = null;
                             m_tail = null;
@@ -323,6 +309,31 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     wait();
                 }
             }
+        }
+
+        void flush() {
+            synchronized (this) {
+                if (DO_POOL) {
+                    cleanupPool();
+                }
+                notify();
+            }
+        }
+
+        void clean() {
+            if (DO_POOL) {
+                cleanupPool();
+            }
+        }
+
+        private void cleanupPool() {
+            Node nod = m_pool;
+            while (nod != null) {
+                Node next = nod.m_next;
+                nod.m_next = null;
+                nod = next;
+            }
+            m_pool = null;
         }
     }
 }
