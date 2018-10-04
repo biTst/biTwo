@@ -11,10 +11,7 @@ import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.ParallelTimesSeriesData;
 import bi.two.util.MapConfig;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static bi.two.util.Log.console;
 
@@ -27,6 +24,7 @@ public class WatchersProducer {
     public WatchersProducer(MapConfig config, MapConfig algoConfig) {
         String optimizeCfgStr = config.getPropertyNoComment(OPT_KEY);
         if (optimizeCfgStr != null) {
+            // opt=multiplier2|count2&step2|multiplier=*[1,15]
             List<List<OptimizeConfig>> optimizeConfigs = parseOptimizeConfigs(optimizeCfgStr, config);
             for (List<OptimizeConfig> optimizeConfig : optimizeConfigs) {
                 BaseProducer optimizeProducer = (optimizeConfig.size() > 1)
@@ -48,11 +46,28 @@ public class WatchersProducer {
 
     private static List<List<OptimizeConfig>> parseOptimizeConfigs(String optimizeCfgStr, MapConfig config) {
         List<List<OptimizeConfig>> optimizeConfigs = new ArrayList<>();
+        // multiplier2|count2&step2|multiplier=*[1,15]
         String[] split = optimizeCfgStr.split("\\|");
+        List<String> list = new ArrayList<>();
         for (String s : split) {
+            // check for special cases
+            if (s.startsWith("!")) {
+                // !2!count2&step2&multiplier2
+                List<String> permutations = parsePermutations(s);
+                console("permutations[" + permutations.size() + "]: " + permutations);
+                list.addAll(permutations);
+            } else {
+                list.add(s);
+            }
+        }
+
+        for (String s : list) {
+            // multiplier2
+            // count2&step2
+            // multiplier=*[1,15]
             String namedOptimizeCfgStr = config.getPropertyNoComment(s);
             if (namedOptimizeCfgStr != null) {
-                s = namedOptimizeCfgStr;
+                s = namedOptimizeCfgStr; // substitute
             }
             List<OptimizeConfig> oc = parseOptimizeConfig(s, config);
             if (!oc.isEmpty()) {
@@ -62,12 +77,87 @@ public class WatchersProducer {
         return optimizeConfigs;
     }
 
+    public static void main(String[] args) {
+//        List<String> permutations = parsePermutations("!3!1&2&3&4&5");
+//        List<String> permutations = parsePermutations("!3!1|2|3|4|5");
+        List<String> permutations = parsePermutations("!2!multiplier2|minOrderMul2|start2|step2|count2|target2|reverse2|reverseMul2|period2");
+        System.out.println("permutations: " + permutations);
+    }
+
+    private static List<String> parsePermutations(String in) {
+        // !2!1&2&3&4
+        String[] split = in.split("\\!");
+        if (split.length == 3) {
+            String countStr = split[1];
+            int count = Integer.parseInt(countStr);
+            String src = split[2];
+            String[] objects = src.split("\\&");
+            if (objects.length == 1) {
+                throw new RuntimeException("invalid array definition in Permutation config '" + in + "'");
+            }
+            List<String> list = Arrays.asList(objects);
+            List<List<String>> permutated = permutate(count, list);
+            List<String> ret = new ArrayList<>();
+            for (List<String> stringList : permutated) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < stringList.size(); i++) {
+                    String str = stringList.get(i);
+                    if(i > 0) {
+                        sb.append('&');
+                    }
+                    sb.append(str);
+                }
+                String joined = sb.toString();
+                ret.add(joined);
+            }
+            return ret;
+        } else {
+            throw new RuntimeException("invalid Permutation config '" + in + "'");
+        }
+    }
+
+    private static List<List<String>> permutate(int count, List<String> objects) {
+//        System.out.println("permutate: count=" + count + "; objects=" + objects);
+        List<List<String>> res = new ArrayList<>();
+        if (count == 1) {
+//            System.out.println(" single");
+            for (String str : objects) {
+                List<String> permutation = new ArrayList<>();
+                permutation.add(str);
+                res.add(permutation);
+            }
+        } else {
+            int len = objects.size();
+            int starts = len - count;
+//            System.out.println(" multiple len=" + len + "; starts=" + starts);
+            for (int i = 0; i <= starts; i++) {
+                List<List<String>> permutated = permutate(count - 1, objects.subList(i + 1, len));
+                String first = objects.get(i);
+//                System.out.println("  [" + i + "] first=" + first + "; permutated=" + permutated);
+                List<List<String>> tmp = new ArrayList<>();
+                for (List<String> permutation : permutated) {
+                    List<String> var = new ArrayList<>();
+                    var.add(first);
+                    var.addAll(permutation);
+                    tmp.add(var);
+                }
+//                System.out.println("   tmp=" + tmp);
+                res.addAll(tmp);
+            }
+        }
+//        System.out.println("  res=" + res);
+        return res;
+    }
+
     private static List<OptimizeConfig> parseOptimizeConfig(String optimizeCfgStr, MapConfig config) { // smooth=2.158+-5*0.01&threshold=0.158+-5*0.001
         List<OptimizeConfig> ret = new ArrayList<>();
+        // multiplier2
+        // count2&step2
+        // multiplier=*[1,15]
         String[] split = optimizeCfgStr.split("\\&"); // [ "divider=26.985[3,40]", "reverse=0.0597[0.01,1.0]" ]
         for (String s : split) { // "reverse=0.0597[0.01,1.0]"
             String namedOptimizeCfgStr = config.getPropertyNoComment(s);
-            if (namedOptimizeCfgStr != null) {
+            if (namedOptimizeCfgStr != null) { // do substitution
                 s = namedOptimizeCfgStr;
             }
             String[] split2 = s.split("\\=");
@@ -142,7 +232,9 @@ public class WatchersProducer {
         if (parallel == 0) { // explicitly requested NO-PARALLEL
             ticksTs = tsd;
         } else { // read and process in different threads even for single producer
-            ticksTs = new ParallelTimesSeriesData(tsd, parallel);
+            int groupTicks = config.getIntOrDefault("groupTicks", 2);
+            console("parallel=" + parallel + "; groupTicks=" + groupTicks);
+            ticksTs = new ParallelTimesSeriesData(tsd, parallel, groupTicks);
         }
 
         List<Watcher> watchers = new ArrayList<>();

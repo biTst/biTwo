@@ -13,6 +13,7 @@ import static bi.two.util.Log.*;
 
 public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final int m_maxParallelSize;
+    private final int m_groupTicks;
     private int m_activeIndex;
     private final List<InnerTimesSeriesData> m_array = new ArrayList<>(); // todo: optimize - remake via array
     private final AtomicInteger m_runningCount = new AtomicInteger();
@@ -22,10 +23,11 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private long m_nanoSumm;
     private long m_nanoCount;
 
-    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size) {
+    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size, int groupTicks) {
         super(ticksTs);
         m_activeIndex = 0;
         m_maxParallelSize = size;
+        m_groupTicks = groupTicks;
     }
 
     @Override public ITimesSeriesData getActive() {
@@ -61,7 +63,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             StringBuilder sb = new StringBuilder("entered=" + m_ticksEntered + "; buffers");
             for (InnerTimesSeriesData innerTsd : m_array) {
                 int size = innerTsd.m_queue.size();
-                sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
+                sb.append(" ").append(innerTsd.m_innerIndex).append("=").append(size).append(";");
                 innerTsd.addNewestTick(latestTick);
             }
 
@@ -184,7 +186,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
 //        private LinkedBlockingQueue<ITickData> m_queue = new LinkedBlockingQueue<>();
 //        private ConcurrentLinkedQueue<ITickData> m_queue = new ConcurrentLinkedQueue<>();
-        private LightQueue<ITickData> m_queue = new LightQueue<>();
+        private final LightQueue<ITickData> m_queue;
         private final int m_innerIndex;
         private ITickData m_currentTickData;
 
@@ -194,6 +196,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         InnerTimesSeriesData(int index) {
             m_innerIndex = index;
+            m_queue = new LightQueue<>();
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
             thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
@@ -252,7 +255,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
 
     //=============================================================================================
-    private static class LightQueue <X extends ITickData> {
+    private class LightQueue <X extends ITickData> {
         private volatile Node<X ,Node> m_head;
         private volatile Node<X ,Node> m_tail;
         private volatile Node<X ,Node> m_pool;
@@ -284,7 +287,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
                 if (m_count == 0) {
                     notify();
-                    m_count = 5;
+                    m_count = m_groupTicks;
                 } else {
                     m_count--;
                 }
