@@ -130,8 +130,9 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
     @Override public double logResults() {
         console("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.name()
                 + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
-                + "; iterations=" + m_optimizer.getIterations()
-                + "; totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio));
+                + ";  totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio)
+                + ";  iterations=" + m_optimizer.getIterations()
+        );
         return m_maxTotalPriceRatio;
     }
 

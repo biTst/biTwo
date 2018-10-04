@@ -237,11 +237,9 @@ public class Main {
 
             Watcher lastWatcher = watchers.get(watchersNum - 1);
             long processedPeriod = lastWatcher.getProcessedPeriod();
-            String processedPeriodStr = lastWatcher.getProcessedPeriodStr();
             long endMillis = System.currentTimeMillis();
             console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
-                    + "  " + processedPeriodStr
-                    + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis) + " .....................................");
+                    + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis));
 
             double gain = 0;
             if (maxWatcher != null) {
@@ -252,7 +250,7 @@ public class Main {
             double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
             console(" processedDays=" + processedDays
                     + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
-                    + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+                    + ";   *** inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays)) + " *** ....................................."
             );
         }
 

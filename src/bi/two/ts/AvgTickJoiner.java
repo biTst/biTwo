@@ -57,7 +57,7 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
             TickData avgTickData = new TickData(avgTimestamp, avgPrice);
             m_latestTick = avgTickData;
             if(m_collectTicks) {
-                addNewestTick(avgTickData);
+                addNewestTick(avgTickData); // todo: notifyListeners is called inside and 2 lines below
             }
             notifyListeners(true);
             m_joinedCount += m_count;
@@ -67,7 +67,7 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
             if(m_collectTicks) {
                 addNewestTick(m_firstTick);
             }
-            notifyListeners(true);
+            notifyListeners(true); // todo: notifyListeners is called inside and 2 lines below
             m_joinedCount += 1;
             m_reportedCount++;
         }
