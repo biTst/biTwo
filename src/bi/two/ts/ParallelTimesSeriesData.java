@@ -184,7 +184,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     //=============================================================================================
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
-        private final LightQueue<ITickData> m_queue;
+        private final IQueue<ITickData> m_queue;
         private final int m_innerIndex;
         private ITickData m_currentTickData;
 
@@ -195,6 +195,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         InnerTimesSeriesData(int index) {
             m_innerIndex = index;
             m_queue = new LightQueue<>();
+//            m_queue = new ArrayQueue<>();
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
             thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
@@ -237,9 +238,77 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     }
 
 
+    //=============================================================================================
+    interface IQueue <X> {
+        void addToTail(X x);
+        X getFromHead() throws InterruptedException;
+        void clean();
+        void flush();
+        int size();
+    }
+
+
+    //=============================================================================================
+    private class ArrayQueue<X extends ITickData> implements IQueue<X> {
+        private List<X> m_in = new ArrayList<>();
+        private List<X> m_shared = new ArrayList<>();
+        private List<X> m_out = new ArrayList<>();
+        private int m_outPosition;
+        private volatile int m_size;
+
+        @Override public int size() { return m_size; }
+
+        @Override public void addToTail(X x) {
+            m_in.add(x);
+            m_size++;
+            if (m_in.size() > m_groupTicks) {
+                synchronized (this) {
+                    m_shared.addAll(m_in);
+                    m_in.clear();
+                    notify();
+                }
+            }
+        }
+
+        @Override public X getFromHead() throws InterruptedException {
+            int size = m_out.size();
+            if (size <= m_outPosition) { // all out was read
+                synchronized (this) {
+                    while (true) {
+                        if (!m_shared.isEmpty()) {
+                            m_out.clear();
+                            m_outPosition = 0;
+                            m_out.addAll(m_shared);
+                            m_shared.clear();
+                            break;
+                        }
+                        wait();
+                    }
+                }
+            }
+            X ret = m_out.get(m_outPosition++);
+            m_size--;
+            return ret;
+        }
+
+        @Override public void flush() {
+            synchronized (this) {
+                m_shared.addAll(m_in);
+                m_in.clear();
+                notify();
+            }
+        }
+
+        @Override public void clean() {
+            // no object pool
+        }
+
+    }
+
+
     private static boolean DO_POOL = true;
     //=============================================================================================
-    private class LightQueue <X extends ITickData> {
+    private class LightQueue <X extends ITickData> implements IQueue<X> {
 
         private volatile Node<X ,Node> m_head;
         private volatile Node<X ,Node> m_tail;
@@ -249,7 +318,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         public int size() { return m_size; }
 
-        void addToTail(X x) {
+        public void addToTail(X x) {
             synchronized (this) {
                 Node<X, Node> node;
                 if (DO_POOL) {
@@ -283,7 +352,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        X getFromHead() throws InterruptedException {
+        public X getFromHead() throws InterruptedException {
             synchronized (this) {
                 while (true) {
                     if (m_head != null) {
@@ -311,7 +380,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        void flush() {
+        public void flush() {
             synchronized (this) {
                 if (DO_POOL) {
                     cleanupPool();
@@ -320,7 +389,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         }
 
-        void clean() {
+        public void clean() {
             if (DO_POOL) {
                 cleanupPool();
             }
