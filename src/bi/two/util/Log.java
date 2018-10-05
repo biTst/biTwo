@@ -23,12 +23,14 @@ public class Log {
         void log(String s);
         void console(String s);
         void err(String s, Throwable t);
+        void flush();
     }
 
     public static class NoLog implements ILog {
         @Override public void log(String s) { }
         @Override public void console(String s) {}
         @Override public void err(String s, Throwable t) { }
+        @Override public void flush() { }
     }
 
 
@@ -46,6 +48,8 @@ public class Log {
             System.out.println(s);
             t.printStackTrace();
         }
+
+        @Override public void flush() { }
     }
 
 
@@ -66,6 +70,8 @@ public class Log {
             t.printStackTrace();
         }
 
+        @Override public void flush() { }
+
         private void logInt(String s) {
             System.out.println(System.currentTimeMillis() + ": " + s);
         }
@@ -79,8 +85,8 @@ public class Log {
         public static final String DEF_LOG_FILE_LOCATION = LOG_DIR + File.separator + DEF_LOG_FILE;
 
         private final ExecutorService m_threadPool;
-        private final FileOutputStream m_fos;
-        private final FileOutputStream m_consoleFos;
+        private final OutputStream m_logStream;
+        private final OutputStream m_consoleStream;
 
         public FileLog() {
             this(DEF_LOG_FILE_LOCATION);
@@ -109,7 +115,7 @@ public class Log {
                 logFile.renameTo(new File(logDir, newFileName));
             }
             try {
-                m_fos = new FileOutputStream(logFile);
+                m_logStream = new BufferedOutputStream(new FileOutputStream(logFile));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open log file: " + e, e);
             }
@@ -124,7 +130,7 @@ public class Log {
             }
 
             try {
-                m_consoleFos = new FileOutputStream(consoleFile);
+                m_consoleStream = new BufferedOutputStream(new FileOutputStream(consoleFile));
             } catch (FileNotFoundException e) {
                 throw new RuntimeException("unable to open console log file: " + e, e);
             }
@@ -134,7 +140,7 @@ public class Log {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     String str = System.currentTimeMillis() + ": " + s + "\n";
-                    logInt(str, m_fos);
+                    logInt(str, m_logStream);
                 }
             });
         }
@@ -143,14 +149,14 @@ public class Log {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
                     String str = System.currentTimeMillis() + ": " + s + "\n";
-                    logInt(str, m_fos);
-                    logInt(str, m_consoleFos);
+                    logInt(str, m_logStream);
+                    logInt(str, m_consoleStream);
                     System.out.print(str);
                 }
             });
         }
 
-        private void logInt(String str, FileOutputStream stream) {
+        private void logInt(String str, OutputStream stream) {
             try {
                 stream.write(str.getBytes());
             } catch (IOException e) {
@@ -177,10 +183,24 @@ public class Log {
                         ps.close();
                     }
                     try {
-                        bos.writeTo(m_fos);
-                        bos.writeTo(m_consoleFos);
+                        bos.writeTo(m_logStream);
+                        bos.writeTo(m_consoleStream);
                     } catch (IOException e) {
                         System.out.println("log error: " + e);
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+
+        @Override public void flush() {
+            m_threadPool.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        m_logStream.flush();
+                        m_consoleStream.flush();
+                    } catch (IOException e) {
+                        System.out.println("flush error: " + e);
                         e.printStackTrace();
                     }
                 }

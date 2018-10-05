@@ -83,7 +83,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
             try {
                 log("BrentOptimizer start waiting for result " + this);
                 m_sync.wait();
-                log("BrentOptimizer waiting for done" + this);
+                log("BrentOptimizer waiting for done " + this);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

@@ -140,6 +140,7 @@ public class Main {
 
             long allEndMillis = System.currentTimeMillis();
             console("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
+            Log.s_impl.flush();
         } catch (Exception e) {
             err("load data error: " + e, e);
         }
