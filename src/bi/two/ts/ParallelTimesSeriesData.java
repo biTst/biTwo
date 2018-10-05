@@ -6,6 +6,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -194,8 +195,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         InnerTimesSeriesData(int index) {
             m_innerIndex = index;
-            m_queue = new LightQueue<>();
-//            m_queue = new ArrayQueue<>();
+//            m_queue = new LightQueue<>();    // seems uses 10% less memory
+            m_queue = new ArrayQueue<>();   // 1% faster
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
             thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
@@ -250,51 +251,53 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     //=============================================================================================
     private class ArrayQueue<X extends ITickData> implements IQueue<X> {
-        private List<X> m_in = new ArrayList<>();
-        private List<X> m_shared = new ArrayList<>();
-        private List<X> m_out = new ArrayList<>();
+        private ITickData[] m_in = new ITickData[m_groupTicks];
+        private int m_inPosition;
+        private ITickData[] m_shared = new ITickData[m_groupTicks];
+        private int m_sharedSize;
+        private ITickData[] m_out = new ITickData[0];
         private int m_outPosition;
         private volatile int m_size;
 
         @Override public int size() { return m_size; }
 
         @Override public void addToTail(X x) {
-            m_in.add(x);
+            m_in[m_inPosition++] = x;
             m_size++;
-            if (m_in.size() > m_groupTicks) {
+            if (m_inPosition >= m_groupTicks) {
                 synchronized (this) {
-                    m_shared.addAll(m_in);
-                    m_in.clear();
+                    moveInToShared();
                     notify();
                 }
             }
         }
 
         @Override public X getFromHead() throws InterruptedException {
-            int size = m_out.size();
+            int size = m_out.length;
             if (size <= m_outPosition) { // all out was read
                 synchronized (this) {
                     while (true) {
-                        if (!m_shared.isEmpty()) {
-                            m_out.clear();
+                        if (m_sharedSize > 0) {
+                            m_out = m_shared;
                             m_outPosition = 0;
-                            m_out.addAll(m_shared);
-                            m_shared.clear();
+                            m_shared = new ITickData[m_groupTicks];
+                            m_sharedSize = 0;
                             break;
                         }
                         wait();
                     }
                 }
             }
-            X ret = m_out.get(m_outPosition++);
+            X ret = (X) m_out[m_outPosition++];
             m_size--;
             return ret;
         }
 
         @Override public void flush() {
             synchronized (this) {
-                m_shared.addAll(m_in);
-                m_in.clear();
+                if (m_inPosition > 0) {
+                    moveInToShared();
+                }
                 notify();
             }
         }
@@ -303,6 +306,18 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             // no object pool
         }
 
+        private void moveInToShared() {
+            int addCount = m_inPosition;
+            int newSize = m_sharedSize + addCount;
+            int currentLen = m_shared.length;
+            if (currentLen < newSize) { // grow
+                ITickData[] newShared = Arrays.copyOf(m_shared, newSize, m_shared.getClass());
+                m_shared = newShared;
+            }
+            System.arraycopy(m_in, 0, m_shared, m_sharedSize, addCount);
+            m_sharedSize += addCount;
+            m_inPosition = 0;
+        }
     }
 
 
