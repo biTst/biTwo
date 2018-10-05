@@ -149,4 +149,12 @@ public class Utils {
                // INVALID_PRICE_DOUBLE
         return !Double.isNaN(price) && (price > 0);
     }
+
+    public static String pad(int n) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            sb.append(' ');
+        }
+        return sb.toString();
+    }
 }

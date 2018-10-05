@@ -127,10 +127,11 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         }
     }
 
-    @Override public double logResults() {
+    @Override public double logResults(int pad) {
         console("SingleDimensionalOptimizeProducer result: " + m_fieldConfig.m_vary.name()
                 + "=" + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier)
-                + ";  totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio)
+                + ";  " + Utils.pad(pad)
+                + "totalPriceRatio=" + Utils.format8(m_maxTotalPriceRatio)
                 + ";  iterations=" + m_optimizer.getIterations()
         );
         return m_maxTotalPriceRatio;
@@ -148,5 +149,9 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
                 + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
                 + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
         );
+    }
+
+    @Override public int logKeyWidth() {
+        return m_fieldConfig.m_vary.name().length() + Utils.format8(m_optimizePoint.getPoint() * m_fieldConfig.m_multiplier).length();
     }
 }

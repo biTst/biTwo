@@ -190,11 +190,12 @@ public class FileTradesReader {
 //            }
 //        };
 
-        return readFileTrades(reader, tradesTs, callback, resetLine, type, lastProcessedTickTime, ticksToProcess); // reader closed inside
+        String name = file.getName();
+        return readFileTrades(reader, tradesTs, callback, resetLine, type, lastProcessedTickTime, ticksToProcess, name); // reader closed inside
     }
 
     private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                       boolean resetFirstLine, DataFileType type, long lastProcessedTickTime, long ticksToProcess) throws IOException {
+                                       boolean resetFirstLine, DataFileType type, long lastProcessedTickTime, long ticksToProcess, String perfix) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 2 * 1024 * 1024); // 2 MB
@@ -252,7 +253,7 @@ public class FileTradesReader {
                     lastLineError = new RuntimeException("Error processing line: '" + line + "' : " + e, e);
                 }
             }
-            console("ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());
+            console(perfix + " ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());
         } finally {
             br.close();
         }

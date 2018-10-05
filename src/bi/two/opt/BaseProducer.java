@@ -15,11 +15,13 @@ public abstract class BaseProducer {
 
     abstract void getWatchers(MapConfig config, MapConfig algoConfig, BaseTimesSeriesData ticksTs, Exchange exchange, Pair pair, List<Watcher> watchers);
 
-    public abstract double logResults();
+    public abstract double logResults(int pad);
 
     public void logResultsEx() { }
 
     public abstract boolean isSingle();
 
     public double maxTotalPriceRatio() { throw new RuntimeException("not implemented"); }
+
+    public int logKeyWidth() { return 0; }
 }

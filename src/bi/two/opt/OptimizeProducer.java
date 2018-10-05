@@ -66,7 +66,7 @@ public abstract class OptimizeProducer extends BaseProducer implements Runnable 
         watchers.add(m_lastWatcher);
     }
 
-    @Override public double logResults() {
+    @Override public double logResults(int pad) {
         console("OptimizeProducer result: " + m_lastWatcher + "; m_totalPriceRatio=" + m_onFinishTotalPriceRatio);
         return m_onFinishTotalPriceRatio;
     }

@@ -28,7 +28,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
 
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
-     private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
+    private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
 
     public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
@@ -238,7 +238,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         return startPoint;
     }
 
-    @Override public double logResults() {
+    @Override public double logResults(int pad) {
         console("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio);
         return m_maxTotalPriceRatio;
     }

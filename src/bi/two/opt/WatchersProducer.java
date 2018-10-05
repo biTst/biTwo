@@ -253,11 +253,18 @@ public class WatchersProducer {
         List<BaseProducer> producers = new ArrayList<>(m_producers);
         Collections.sort(producers, new Comparator<BaseProducer>() {
             @Override public int compare(BaseProducer p1, BaseProducer p2) {
-                return Double.compare(p1.maxTotalPriceRatio(), p2.maxTotalPriceRatio());
+                return Double.compare(p2.maxTotalPriceRatio(), p1.maxTotalPriceRatio());
             }
         });
-        for (BaseProducer producer : m_producers) {
-            double totalPriceRatio = producer.logResults();
+        int maxNameLen = 0;
+        for (BaseProducer producer : producers) {
+            int len = producer.logKeyWidth();
+            maxNameLen = Math.max(maxNameLen, len);
+        }
+        for (BaseProducer producer : producers) {
+            int len = producer.logKeyWidth();
+            int pad = maxNameLen - len;
+            double totalPriceRatio = producer.logResults(pad);
             if(totalPriceRatio > bestTotalPriceRatio) {
                 bestTotalPriceRatio = totalPriceRatio;
                 bestProducer = producer;
@@ -304,7 +311,7 @@ public class WatchersProducer {
             });
         }
 
-        @Override public double logResults() {
+        @Override public double logResults(int pad) {
             AlgoWatcher bestWatcher = findBestWatcher();
             console("IterateProducer result: " + bestWatcher);
             return bestWatcher.totalPriceRatio();
@@ -337,7 +344,7 @@ public class WatchersProducer {
             m_active = false;
         }
 
-        @Override public double logResults() {
+        @Override public double logResults(int pad) {
             console("SingleProducer result: " + m_watcher);
             return m_watcher.totalPriceRatio();
         }
