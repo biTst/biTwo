@@ -35,6 +35,80 @@ public class FileTradesReader {
 
     public static long readFileTrades(BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback, File file, DataFileType type,
                                       long lastProcessedTickTime, long bytesToSkip, long bytesToProcess, long ticksToProcess) throws IOException {
+
+
+//        FileInputStream fis = new FileInputStream(new File("ip.bin"));
+//        FileChannel channel = fis.getChannel();
+//        ByteBuffer bb = ByteBuffer.allocateDirect(64*1024);
+//        bb.clear();
+//        int[] ipArr = new int [(int)channel.size()/4];
+//        System.out.println("File size: "+channel.size()/4);
+//        long len = 0;
+//        int offset = 0;
+//        while ((len = channel.read(bb))!= -1){
+//            bb.flip();
+//            //System.out.println("Offset: "+offset+"\tlen: "+len+"\tremaining:"+bb.hasRemaining());
+//            bb.asIntBuffer().get(ipArr,offset,(int)len/4);
+//            offset += (int)len/4;
+//            bb.clear();
+//        }
+
+//        Path path = Paths.get("src/main/resources/shakespeare.txt");
+//        try (BufferedReader reader = Files.newBufferedReader(path, Charset.forName("UTF-8"))) {
+//            reader.skip(123123);
+//            String currentLine;
+//            while ((currentLine = reader.readLine()) != null) {//while there is content on the current line
+//                System.out.println(currentLine); // print the current line
+//            }
+//        } catch (IOException ex) {
+//            ex.printStackTrace(); //handle an exception here
+//        }
+
+//        Path path = Paths.get("src/main/resources/shakespeare.txt");
+//        try {
+//            Files.lines(path)
+//                    .filter(line -> line.startsWith("Love"))
+//                    .forEach(System.out::println);//print each line
+//        } catch (IOException ex) {
+//            ex.printStackTrace();//handle exception here
+//        }
+
+//        RandomAccessFile aFile = new RandomAccessFile("test.txt","r");
+//        FileChannel inChannel = aFile.getChannel();
+//        long fileSize = inChannel.size();
+//        ByteBuffer buffer = ByteBuffer.allocate((int) fileSize);
+//        inChannel.read(buffer);
+//        buffer.flip();
+//        for (int i = 0; i < fileSize; i++){
+//            System.out.print((char) buffer.get());
+//        }
+//        inChannel.close();
+//        aFile.close();
+
+//        RandomAccessFile aFile = new RandomAccessFile("test.txt", "r");
+//        FileChannel inChannel = aFile.getChannel();
+//        ByteBuffer buffer = ByteBuffer.allocate(1024);
+//        while(inChannel.read(buffer) > 0){
+//            buffer.flip();
+//            for (int i = 0; i < buffer.limit(); i++){
+//                System.out.print((char) buffer.get());
+//            }
+//            buffer.clear(); // do something with the data and clear/compact it.
+//        }
+//        inChannel.close();
+//        aFile.close();
+
+//        RandomAccessFile aFile = new RandomAccessFile("test.txt", "r");
+//        FileChannel inChannel = aFile.getChannel();
+//        MappedByteBuffer buffer = inChannel.map(FileChannel.MapMode.READ_ONLY, 0, inChannel.size());
+//        buffer.load();
+//        for (int i = 0; i < buffer.limit(); i++){
+//            System.out.print((char) buffer.get());
+//        }
+//        buffer.clear(); // do something with the data and clear/compact it.
+//        inChannel.close();
+//        aFile.close();
+
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
         long fileLength = file.length();
         log("fileLength = " + fileLength + "; bytesToSkip=" + bytesToSkip + "; bytesToProcess=" + bytesToProcess + "; ticksToProcess=" + ticksToProcess);
