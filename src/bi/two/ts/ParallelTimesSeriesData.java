@@ -253,10 +253,14 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private class ArrayQueue<X extends ITickData> implements IQueue<X> {
         private ITickData[] m_in = new ITickData[m_groupTicks];
         private int m_inPosition;
+
         private ITickData[] m_shared = new ITickData[m_groupTicks];
         private int m_sharedSize;
+        private Class<? extends ITickData[]> m_sharedClass = m_shared.getClass();
+
         private ITickData[] m_out = new ITickData[0];
         private int m_outPosition;
+        private int m_outLength;
         private volatile int m_size;
 
         @Override public int size() { return m_size; }
@@ -273,13 +277,17 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
 
         @Override public X getFromHead() throws InterruptedException {
-            int size = m_out.length;
-            if (size <= m_outPosition) { // all out was read
+            if (m_outLength <= m_outPosition) { // all out was read
                 synchronized (this) {
                     while (true) {
                         if (m_sharedSize > 0) {
+//                            ITickData[] out = m_out;
                             m_out = m_shared;
+                            m_outLength = m_out.length;
                             m_outPosition = 0;
+
+//                            m_shared = out; // todo: reuse buffer - breaks test for now.
+//                            m_sharedSize = 0;
                             m_shared = new ITickData[m_groupTicks];
                             m_sharedSize = 0;
                             break;
@@ -304,18 +312,27 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         @Override public void clean() {
             // no object pool
+            m_in = null;
+            m_inPosition = -1;
+            m_shared = null;
+            m_sharedSize = -1;
+            m_out = null;
+            m_outPosition = -1;
+            m_outLength = -1;
         }
 
         private void moveInToShared() {
+            ITickData[] shared = m_shared;
             int addCount = m_inPosition;
-            int newSize = m_sharedSize + addCount;
-            int currentLen = m_shared.length;
-            if (currentLen < newSize) { // grow
-                ITickData[] newShared = Arrays.copyOf(m_shared, newSize, m_shared.getClass());
-                m_shared = newShared;
+            int sharedSize = m_sharedSize;
+            int newSharedSize = sharedSize + addCount;
+            int currentSharedLen = shared.length;
+            if (currentSharedLen < newSharedSize) { // grow
+                shared = Arrays.copyOf(shared, newSharedSize, m_sharedClass);
+                m_shared = shared;
             }
-            System.arraycopy(m_in, 0, m_shared, m_sharedSize, addCount);
-            m_sharedSize += addCount;
+            System.arraycopy(m_in, 0, shared, sharedSize, addCount);
+            m_sharedSize = newSharedSize;
             m_inPosition = 0;
         }
     }
