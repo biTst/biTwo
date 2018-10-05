@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.chart.TickData;
 import bi.two.chart.TickVolumeData;
 import bi.two.util.MapConfig;
+import bi.two.util.Utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -39,12 +40,17 @@ public enum DataFileType {
     },
     CSV2("csv2") { // csv-like
         private SimpleDateFormat m_fmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
+        private float m_prevPrice;
+        private String m_prevPriceStr;
+        private long m_prevMillis;
+        private String m_prevDateTimeStr;
 //        private SimpleDateFormat m_fmtGmt = new SimpleDateFormat("yyyyMMdd,HHmmss");
         {
             m_fmt.setTimeZone(TimeZone.getTimeZone("GMT+3"));
 //            m_fmtGmt.setTimeZone(TimeZone.getTimeZone("GMT"));
         }
 
+        // note: single threaded
         @Override public TickData parseLine(String line) {
             // DATE,TIME,LAST,VOL
             // 20180820,100000,67289.000000000,1
@@ -62,9 +68,26 @@ public enum DataFileType {
                         String priceStr = line.substring(priceIndex, indx3);
 
                         try {
-                            Date date = m_fmt.parse(dateTimeStr);
-                            long millis = date.getTime();
-                            float price = Float.parseFloat(priceStr);
+                            long millis;
+                            if (Utils.equals(dateTimeStr, m_prevDateTimeStr)) {
+                                millis = m_prevMillis;
+                            } else {
+                                Date date = m_fmt.parse(dateTimeStr);
+                                millis = date.getTime();
+                                // cache last parsing
+                                m_prevDateTimeStr = dateTimeStr;
+                                m_prevMillis = millis;
+                            }
+
+                            float price;
+                            if (Utils.equals(priceStr, m_prevPriceStr)) {
+                                price = m_prevPrice;
+                            } else {
+                                price = Float.parseFloat(priceStr);
+                                m_prevPriceStr = priceStr;
+                                m_prevPrice = price;
+                            }
+
                             TickData tickData = new TickData(millis, price);
                             return tickData;
                         } catch (ParseException e) {
