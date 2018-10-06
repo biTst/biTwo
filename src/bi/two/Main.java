@@ -3,6 +3,7 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
+import bi.two.algo.impl.QummarAlgo;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
@@ -35,9 +36,13 @@ public class Main {
     }
 
     public static void main(final String[] args) {
+        // cfg\vary.properties logs\log.log
+
         String logFileLocation = (args.length) > 1 ? args[1] : Log.FileLog.DEF_LOG_FILE_LOCATION;
         System.out.println("Started: " + (new Date()) + "; logFileLocation = " + logFileLocation);
         Log.s_impl = new Log.FileLog(logFileLocation);
+
+console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
 
         MarketConfig.initMarkets(false);
 
@@ -152,10 +157,7 @@ public class Main {
     }
 
     private static MapConfig initConfig(String[] args) throws IOException {
-        String file = DEF_CONFIG_FILE;
-        if (args.length > 0) {
-            file = args[0];
-        }
+        String file = (args.length > 0) ? args[0] : DEF_CONFIG_FILE;
         MapConfig config = new MapConfig();
 //            config.loadAndEncrypted(file);
         console("use config file: " + file);
@@ -286,7 +288,7 @@ public class Main {
         private int m_counter = 0;
         private long lastTime = 0;
 
-        public ReadProgressCallback(ChartFrame frame, int prefillTicks) {
+        ReadProgressCallback(ChartFrame frame, int prefillTicks) {
             m_frame = frame;
             m_prefillTicks = prefillTicks;
         }

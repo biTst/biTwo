@@ -22,6 +22,7 @@ import static bi.two.util.Log.console;
 public class QummarAlgo extends BaseAlgo<TickData> {
     private static final boolean APPLY_REVERSE = true;
     private static final boolean LIMIT_BY_PRICE = true;
+    public static final boolean ADJUST_TAIL = false;
 
     private final float m_start;
     private final float m_step;
@@ -35,7 +36,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private final float m_reverseMul;
     private final double m_commission;
 
-    private BarsTimesSeriesData m_priceBars;
+//    private BarsTimesSeriesData m_priceBars;
     private BaseTimesSeriesData[] m_emas;
     private int m_emasNum;
     private boolean m_dirty; // when emas are changed
@@ -45,6 +46,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_zigZag;
     private Float m_zerro;
     private Float m_turn;
+    private Float m_half;
+    private Float m_one;
+    private Float m_onePaint;
     private Float m_targetLevel;
     private Float m_power;
     private Float m_value;
@@ -84,7 +88,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         if (collectValues) {
-            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
+//            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
 
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
@@ -200,21 +204,52 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
 
             float ribbonSpread = emasMax - emasMin;
-            m_maxRibbonSpread = directionChanged
+            float maxRibbonSpread = directionChanged
                     ? ribbonSpread //reset
                     : Math.max(ribbonSpread, m_maxRibbonSpread);
-            m_ribbonSpreadTop = goUp ? emasMin + m_maxRibbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_maxRibbonSpread;
+            m_maxRibbonSpread = maxRibbonSpread;
+            m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+
+            float head = goUp ? emasMax : emasMin;
+            float tail = goUp ? emasMin : emasMax;
 
             if (directionChanged) {
-                m_zerro = Float.valueOf(goUp ? emasMax : emasMin);
-                m_turn = Float.valueOf(goUp ? emasMin : emasMax);
+                m_zerro = Float.valueOf(head); // pink
+                m_turn = Float.valueOf(tail);  // dark green
+                m_one = m_zerro + (m_zerro - m_turn) / 2;
+                m_onePaint = m_zerro;
+                m_half = (m_zerro + m_turn) / 2;
                 m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+            } else {
+                if (m_one != null) {
+                    if (goUp) {
+                        if (tail >= m_one) {
+                            m_onePaint = m_one;
+                        }
+                        if (ADJUST_TAIL) {
+                            if (tail < m_turn) {
+                                m_turn = tail;
+                                m_half = (m_zerro + m_turn) / 2;
+                                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+                            }
+                        }
+                    } else {
+                        if (tail <= m_one) {
+                            m_onePaint = m_one;
+                        }
+                        if (ADJUST_TAIL) {
+                            if (tail > m_turn) {
+                                m_turn = tail;
+                                m_half = (m_zerro + m_turn) / 2;
+                                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+                            }
+                        }
+                    }
+                }
             }
 
             if (m_zerro != null) { // directionChanged once observed
-                float head = goUp ? emasMax : emasMin;
-                float tail = goUp ? emasMin : emasMax;
 
                 float diff = m_targetLevel - m_turn;
                 float power = (diff == 0)
@@ -222,9 +257,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                                 : (tail - m_turn) / diff;
                 m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
 
-                m_value = (m_maxRibbonSpread == 0)
+                m_value = (maxRibbonSpread == 0)
                         ? 0
-                        : ((head - m_ribbonSpreadBottom) / m_maxRibbonSpread) * 2 - 1;
+                        : ((head - m_ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
 
                 m_mul = m_power * m_value;
                 m_mulAndPrev = m_mul + m_prevAdj * (1 - m_power);
@@ -294,6 +329,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_max = null;
         m_zigZag = null;
         m_zerro = null;
+        m_half = null;
+        m_one = null;
+        m_onePaint = null;
         m_turn = null;
         m_targetLevel = null;
         m_power = null;
@@ -317,6 +355,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
+    TicksTimesSeriesData<TickData> getHalfTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_half; } }; }
+    TicksTimesSeriesData<TickData> getOneTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_onePaint; } }; }
     TicksTimesSeriesData<TickData> getTargetTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_targetLevel; } }; }
     TicksTimesSeriesData<TickData> getPowerTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_power; } }; }
     TicksTimesSeriesData<TickData> getValueTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_value; } }; }
@@ -357,8 +397,11 @@ public class QummarAlgo extends BaseAlgo<TickData> {
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
+            addChart(chartData, getOneTs(), topLayers, "one", Colors.LEMONADE, TickPainter.LINE_JOIN);
             addChart(chartData, getZerroTs(), topLayers, "zerro", Color.PINK, TickPainter.LINE_JOIN);
             addChart(chartData, getTurnTs(), topLayers, "turn", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+            addChart(chartData, getHalfTs(), topLayers, "half", Colors.PURPLE, TickPainter.LINE_JOIN);
+
             addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 
             addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
