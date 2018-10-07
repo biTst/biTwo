@@ -104,8 +104,8 @@ public class ChartPainter {
                                     float max = tick.getMaxPrice();
 
                                     if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max) && !Float.isNaN(min) && !Float.isNaN(max)) {
-                                        maxPrice = Math.max(maxPrice, max);
-                                        minPrice = Math.min(minPrice, min);
+                                        maxPrice = (maxPrice >= max) ? maxPrice : max;  //  Math.max(maxPrice, max);
+                                        minPrice = (minPrice <= min) ? minPrice : min;  //  Math.min(minPrice, min);
                                     }
                                 }
                             }
