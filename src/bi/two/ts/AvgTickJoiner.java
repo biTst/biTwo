@@ -76,6 +76,13 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
     @Override public void notifyNoMoreTicks() {
         reportTick();
         console("AvgTickJoiner[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
+        // cleanup
+        m_firstTick = null;
+        m_first = 0;
+        m_last = 0;
+        m_summ = 0;
+        m_count = 0;
+        m_end = 0;
         super.notifyNoMoreTicks();
     }
 }

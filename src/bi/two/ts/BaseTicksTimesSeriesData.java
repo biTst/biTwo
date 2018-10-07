@@ -17,4 +17,8 @@ public abstract class BaseTicksTimesSeriesData<T extends ITickData>
     abstract public void addOlderTick(T tickData);
 
     @Override public T getLatestTick() { return m_newestTick; }
+
+    protected void cleanup() {
+        m_newestTick = null;
+    }
 }

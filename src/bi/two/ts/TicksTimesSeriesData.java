@@ -69,6 +69,11 @@ public class TicksTimesSeriesData<T extends ITickData>
         return Collections.binarySearch(m_reverseTicks, key, comparator);
     }
 
+    protected void cleanup() {
+        super.cleanup();
+        m_reverseTicks.clear();
+    }
+
     //----------------------------------------------------------------------
     public interface ITicksProcessor<T extends ITickData, Ret> {
         void init();

@@ -148,6 +148,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             sb.append(" [").append(innerTsd.m_innerIndex).append("]=").append(size).append(";");
         }
         console(sb.toString());
+
+        super.notifyNoMoreTicks();
     }
 
     @Override public void waitWhenAllFinish() {
@@ -155,7 +157,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         synchronized (m_runningCount) {
             while (true) {
                 int count = m_runningCount.get();
-                log("parallel.waitWhenAllFinish count="+count);
+                log("parallel.waitWhenAllFinish count=" + count);
                 if (count == 0) {
                     log(" all finished - exit");
                     return; // all finished - exit
@@ -164,7 +166,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                     log(" wait more");
                     m_runningCount.wait();
                     count = m_runningCount.get();
-                    log("  count after wait = " + count );
+                    log("  count after wait = " + count);
                 } catch (InterruptedException e) {
                     err("InterruptedException: " + e, e);
                     return;
@@ -174,9 +176,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     }
 
     protected void onInnerFinished(InnerTimesSeriesData inner) {
-        int remained;
         synchronized (m_runningCount) {
-            remained = m_runningCount.decrementAndGet();
+            int remained = m_runningCount.decrementAndGet();
             m_runningCount.notify();
             log("parallel.inner: thread finished " + inner + "; remained=" + remained);
         }
