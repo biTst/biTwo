@@ -87,9 +87,9 @@ public class QummarAlgo extends BaseAlgo<TickData> {
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        if (collectValues) {
+//        if (collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
-        }
+//        }
 
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
         boolean hasSchedule = exchange.hasSchedule();
@@ -174,8 +174,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             ITickData lastTick = ema.getLatestTick();
             if (lastTick != null) {
                 float value = lastTick.getClosePrice();
-                emasMin = Math.min(emasMin, value);
-                emasMax = Math.max(emasMax, value);
+                emasMin = (emasMin <= value) ? emasMin : value;  // Math.min(emasMin, value);
+                emasMax = (emasMax >= value) ? emasMax : value;  // Math.max(emasMax, value);
                 if (i == 0) {
                     leadEmaValue = value;
                 }
@@ -206,7 +206,7 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             float ribbonSpread = emasMax - emasMin;
             float maxRibbonSpread = directionChanged
                     ? ribbonSpread //reset
-                    : Math.max(ribbonSpread, m_maxRibbonSpread);
+                    : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
             m_maxRibbonSpread = maxRibbonSpread;
             m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
             m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
@@ -215,12 +215,13 @@ public class QummarAlgo extends BaseAlgo<TickData> {
             float tail = goUp ? emasMin : emasMax;
 
             if (directionChanged) {
-                m_zerro = Float.valueOf(head); // pink
-                m_turn = Float.valueOf(tail);  // dark green
-                m_one = m_zerro + (m_zerro - m_turn) / 2;
-                m_onePaint = m_zerro;
-                m_half = (m_zerro + m_turn) / 2;
-                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+                m_zerro = head; // pink
+                m_turn = tail;  // dark green
+                float diff = head - tail;
+                m_one = head + diff / 2;
+                m_onePaint = head;
+                m_half = (head + tail) / 2;
+                m_targetLevel = tail + m_target * diff;
             } else {
                 if (m_one != null) {
                     if (goUp) {
@@ -230,8 +231,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                         if (ADJUST_TAIL) {
                             if (tail < m_turn) {
                                 m_turn = tail;
-                                m_half = (m_zerro + m_turn) / 2;
-                                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+                                m_half = (m_zerro + tail) / 2;
+                                m_targetLevel = tail + m_target * (m_zerro - tail);
                             }
                         }
                     } else {
@@ -241,8 +242,8 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                         if (ADJUST_TAIL) {
                             if (tail > m_turn) {
                                 m_turn = tail;
-                                m_half = (m_zerro + m_turn) / 2;
-                                m_targetLevel = m_turn + m_target * (m_zerro - m_turn);
+                                m_half = (m_zerro + tail) / 2;
+                                m_targetLevel = tail + m_target * (m_zerro - tail);
                             }
                         }
                     }
@@ -255,23 +256,27 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 float power = (diff == 0)
                                 ? 0 // avoid NaN value
                                 : (tail - m_turn) / diff;
-                m_power = Math.max(0.0f, Math.min(1.0f, power)); // bounds
+                power = (1.0f <= power) ? 1.0f : power;  //  Math.min(1.0f, power);
+                power = (0.0f >= power) ? 0.0f : power;  //  Math.max(0.0f, power); // bounds
+                m_power = power;
 
                 m_value = (maxRibbonSpread == 0)
                         ? 0
                         : ((head - m_ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
 
-                m_mul = m_power * m_value;
-                m_mulAndPrev = m_mul + m_prevAdj * (1 - m_power);
+                m_mul = power * m_value;
+                m_mulAndPrev = m_mul + m_prevAdj * (1 - power);
 
                 Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
-                m_reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
+                float reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
+                m_reverseLevel = reverseLevel;
 
                 float reversePower;
-                boolean checkReverse = (goUp && (head < m_reverseLevel)) || (!goUp && (head > m_reverseLevel));
+                boolean checkReverse = (goUp && (head < reverseLevel)) || (!goUp && (head > reverseLevel));
                 if (checkReverse) {
-                    float rp = (head - m_reverseLevel) / (tail - m_reverseLevel) * m_reverseMul;
-                    reversePower = Math.max(0.0f, Math.min(1.0f, rp)); // bounds
+                    float rp = (head - reverseLevel) / (tail - reverseLevel) * m_reverseMul;
+                    reversePower = (1.0f <= rp) ? 1.0f : rp;                      // Math.min(1.0f, rp);
+                    reversePower = (0.0f >= reversePower) ? 0.0f : reversePower;  //  Math.max(0.0f, reversePower); // bounds
                 } else {
                     reversePower = 0;
                 }

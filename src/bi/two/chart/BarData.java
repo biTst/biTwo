@@ -22,8 +22,8 @@ public class BarData extends TickData {
     }
 
     public void update(float price) {
-        m_high = Math.max(m_high, price);
-        m_low = Math.min(m_low, price);
+        m_high = (m_high >= price) ? m_high : price;  //  Math.max(m_high, price);
+        m_low = (m_low <= price) ? m_low : price;     //  Math.min(m_low, price);
         m_close = price;
         m_price = price;
     }

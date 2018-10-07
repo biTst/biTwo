@@ -110,7 +110,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
                 if (gap > MIN_GAP_TO_FADE_OUT) { // we had no ticks some dangerous amount of time. start fading out
                     float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
-                    fadeOutRate = Math.min(1, fadeOutRate); // [0->1]
+                    fadeOutRate = (1 <= fadeOutRate) ? 1 : fadeOutRate;  //  Math.min(1, fadeOutRate); // [0->1]
                     m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
                     if (m_logGaps) {
                         log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
@@ -129,7 +129,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 long firstTimestamp = m_firstTick.getTimestamp();
                 long gap = currTimestamp - firstTimestamp;
                 float fadeInRate = ((float) gap) / FADE_IN_TIME;
-                fadeInRate = Math.min(1, fadeInRate); // [0 -> 1]
+                fadeInRate = (1 <= fadeInRate) ? 1 : fadeInRate;  // Math.min(1, fadeInRate); // [0 -> 1]
                 m_fadeInRate = fadeInRate;
                 if (fadeInRate == 1) {
                     m_fadeOutRate = 0; // no fade out - trades are flowing fine
