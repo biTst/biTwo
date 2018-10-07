@@ -85,10 +85,11 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
             long allStartMillis = System.currentTimeMillis();
+            boolean stopOnLowMemory = config.getBooleanOrDefault("stopOnLowMemory", false);
 
             boolean chartNotLoaded = true;
             for (int i = 1; producer.isActive(); i++) {
-                cleanMemory();
+                cleanMemory(stopOnLowMemory); // clean in every iteration
 
                 BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
                         ? new TicksTimesSeriesData<TickData>(null)
@@ -136,7 +137,7 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
                     frame.repaint();
                 }
             }
-            cleanMemory();
+            cleanMemory(stopOnLowMemory); // clean at the end
 
             BaseProducer bestProducer = producer.logResults();
             if (bestProducer != null) {
@@ -168,7 +169,7 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
 
     private static long s_maxUsedMemory = 0;
 
-    private static void cleanMemory() {
+    private static void cleanMemory(boolean stopOnLowMemory) throws InterruptedException {
         long freeMemory1 = Runtime.getRuntime().freeMemory();
         long totalMemory1 = Runtime.getRuntime().totalMemory();
         long maxMemory1 = Runtime.getRuntime().maxMemory();
@@ -187,6 +188,18 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
                 + formatMemory(freeMemory2) + "/" + formatMemory(usedMemory2) + "/" + formatMemory(totalMemory2) + "/" + formatMemory(maxMemory2)
                 + "; maxUsed=" + formatMemory(s_maxUsedMemory)
         );
+
+        if(stopOnLowMemory) {
+            double freeRate = ((double)freeMemory2) / maxMemory2;
+            if (freeRate < 0.2) {
+                console("*****************************************************************************");
+                console("*****************************************************************************");
+                console("**********         MEMORY STOP freeRate=" + freeRate);
+                console("*****************************************************************************");
+                console("*****************************************************************************");
+                TimeUnit.DAYS.sleep(3);
+            }
+        }
     }
 
     public static String formatMemory(long memory) {
