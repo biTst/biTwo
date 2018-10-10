@@ -66,7 +66,12 @@ public class TicksTimesSeriesData<T extends ITickData>
     }
 
     @Override public int binarySearch(T key, Comparator<ITickData> comparator) {
-        return Collections.binarySearch(m_reverseTicks, key, comparator);
+        int reverseIndex = Collections.binarySearch(m_reverseTicks, key, comparator);
+        if (reverseIndex >= 0) { // found tick
+            return m_reverseTicks.size() - 1 - reverseIndex;
+        } else {
+            return - m_reverseTicks.size() - 2 - reverseIndex;
+        }
     }
 
     protected void cleanup() {
