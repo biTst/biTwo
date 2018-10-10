@@ -36,10 +36,19 @@ public class JoinNonChangedTimesSeriesData extends TicksTimesSeriesData<TickData
                             if (secondNewestTickPrice == nowPrice) {
                                 newestTick.init(value); // just update newest added tick
                                 notifyListeners(false);
-                            }
+                                return;
+                            } // else - will add one more tick with the same price
                         } else {
                             return; // just ignore same value tick
                         }
+                    }
+
+                    long newestTickTimestamp = newestTick.getTimestamp();
+                    long nowTimestamp = value.getTimestamp();
+                    if (newestTickTimestamp == nowTimestamp) {
+                        newestTick.init(value); // just update newest added tick
+                        notifyListeners(true);
+                        return;
                     }
                 }
 
