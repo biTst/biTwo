@@ -50,25 +50,23 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
     }
 
     private void reportTick() {
-        if (m_count > 1) {
-            // average time and price
-            long avgTimestamp = (m_first + m_last) / 2;
-            float avgPrice = m_summ / m_count;
-            TickData avgTickData = new TickData(avgTimestamp, avgPrice);
-            m_latestTick = avgTickData;
-            if(m_collectTicks) {
-                addNewestTick(avgTickData); // todo: notifyListeners is called inside and 2 lines below
+        if (m_count > 0) {
+            ITickData reportTick;
+            if (m_count > 1) {
+                // average time and price
+                long avgTimestamp = (m_first + m_last) / 2;
+                float avgPrice = m_summ / m_count;
+                reportTick = new TickData(avgTimestamp, avgPrice);
+            } else {
+                reportTick = m_firstTick;
             }
-            notifyListeners(true);
+            m_latestTick = reportTick;
+            if (m_collectTicks) {
+                addNewestTick(reportTick);
+            } else {
+                notifyListeners(true); // notifyListeners is called inside
+            }
             m_joinedCount += m_count;
-            m_reportedCount++;
-        } else if (m_count == 1) {
-            m_latestTick = m_firstTick;
-            if(m_collectTicks) {
-                addNewestTick(m_firstTick);
-            }
-            notifyListeners(true); // todo: notifyListeners is called inside and 2 lines below
-            m_joinedCount += 1;
             m_reportedCount++;
         }
     }
