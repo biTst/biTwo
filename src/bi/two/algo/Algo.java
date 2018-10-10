@@ -18,6 +18,7 @@ public enum Algo {
     ummar2 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new Ummar2Algo(algoConfig, parent); } },
     ummar3 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new Ummar3Algo(algoConfig, parent); } },
     qummar { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new QummarAlgo(algoConfig, parent, exchange); } },
+    fast { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new FastAlgo(algoConfig, parent, exchange); } },
     test { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new TestAlgo(parent, exchange); } },
     ;
 
