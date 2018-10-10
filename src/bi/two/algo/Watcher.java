@@ -25,8 +25,8 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
     private static final boolean DO_FADE_IN_OUT = true;
     private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
-    private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(10); // fade-out time
-    private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(4); // fade-in algo time
+    private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(20); // fade-out time
+    private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(5); // fade-in algo time
 
     protected final Exchange m_exch;
     private final Pair m_pair;
