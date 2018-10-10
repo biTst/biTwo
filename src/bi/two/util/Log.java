@@ -87,6 +87,7 @@ public class Log {
         private final ExecutorService m_threadPool;
         private final OutputStream m_logStream;
         private final OutputStream m_consoleStream;
+        private long m_lastFlushTime;
 
         public FileLog() {
             this(DEF_LOG_FILE_LOCATION);
@@ -139,8 +140,10 @@ public class Log {
         @Override public void log(final String s) {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
-                    String str = System.currentTimeMillis() + ": " + s + "\n";
+                    long millis = System.currentTimeMillis();
+                    String str = millis + ": " + s + "\n";
                     logInt(str, m_logStream);
+                    flushIfNeeded(millis);
                 }
             });
         }
@@ -148,10 +151,12 @@ public class Log {
         @Override public void console(final String s) {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
-                    String str = System.currentTimeMillis() + ": " + s + "\n";
+                    long millis = System.currentTimeMillis();
+                    String str = millis + ": " + s + "\n";
                     logInt(str, m_logStream);
                     logInt(str, m_consoleStream);
                     System.out.print(str);
+                    flushIfNeeded(millis);
                 }
             });
         }
@@ -168,13 +173,15 @@ public class Log {
         @Override public void err(final String s, final Throwable t) {
             m_threadPool.execute(new Runnable() {
                 @Override public void run() {
+                    long millis = System.currentTimeMillis();
+
                     System.out.println(s);
                     t.printStackTrace();
 
                     ByteArrayOutputStream bos = new ByteArrayOutputStream();
                     PrintStream ps = new PrintStream(bos);
                     try {
-                        ps.print(System.currentTimeMillis());
+                        ps.print(millis);
                         ps.print(": ");
                         ps.println(s);
                         t.printStackTrace(ps);
@@ -189,8 +196,22 @@ public class Log {
                         System.out.println("log error: " + e);
                         e.printStackTrace();
                     }
+                    flushIfNeeded(millis);
                 }
             });
+        }
+
+        private void flushIfNeeded(long millis) {
+            if (millis - m_lastFlushTime > 2000) {
+                try {
+                    m_lastFlushTime = millis;
+                    m_logStream.flush();
+                    m_consoleStream.flush();
+                } catch (IOException e) {
+                    System.out.println("log error: " + e);
+                    e.printStackTrace();
+                }
+            }
         }
 
         @Override public void flush() {
