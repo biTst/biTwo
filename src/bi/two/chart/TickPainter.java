@@ -175,11 +175,21 @@ public enum TickPainter {
                     g2.drawLine(x + X_RADIUS, y - X_RADIUS, x, y + X_RADIUS);
                     g2.drawLine(x - X_RADIUS, y - X_RADIUS, x + X_RADIUS, y - X_RADIUS);
                 }
+
+                if (highlightTick) {
+                    Color save = g2.getColor();
+                    g2.setColor(Color.RED);
+                    g2.drawOval(x - R_RADIUS, y - R_RADIUS, R_RADIUS * 2, R_RADIUS * 2);
+                    g2.setColor(save);
+
+                    trade.paintBubble(g2, x, y);
+                }
             }
         }
     };
 
     public static final int X_RADIUS = 4;
+    public static final int R_RADIUS = 6;
 
     public void startPaintTicks(int xMin, int xMax) {}
     public abstract void paintTick(Graphics2D g2, ITickData tick, ITickData prevTick, Axe xAxe, Axe yAxe, boolean highlightTick);
