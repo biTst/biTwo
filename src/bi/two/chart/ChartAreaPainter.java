@@ -336,9 +336,9 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                 long millis = td1.getTimestamp();
                 double tickX = xAxe.translateDouble(millis);
                 return tickX > crossX
-                        ? -1
-                        : tickX < crossX
                         ? 1
+                        : tickX < crossX
+                        ? -1
                         : 0;
             }
         };
