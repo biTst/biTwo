@@ -28,6 +28,8 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(20); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(5); // fade-in algo time
 
+    private static int s_orderCounter;
+
     protected final Exchange m_exch;
     private final Pair m_pair;
     private final ExchPairData m_exchPairData;
@@ -231,12 +233,13 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             console("Watcher.process() direction=" + directionWithFade);
         }
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, directionWithFade);
+        double needSellFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
         if (toLog) {
-            console(" needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name);
+            console(" needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name + "; needSell=" + Utils.format8(needSellFrom) + " " + currencyFrom.m_name);
         }
 
-        needBuyTo *= 0.95; // leave some pennies on account
+        needBuyTo *= 0.97; // leave some pennies on account
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
@@ -253,13 +256,12 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         TickData latestPriceTick = m_priceTs.getLatestTick();
         long timestamp = latestPriceTick.getTimestamp();
         if (absOrderSize >= exchMinOrderToCreateValue) {
-            double amountFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
             boolean toLogMove = LOG_MOVE || toLog;
             if (toLogMove) {
-                console("Watcher.process() direction=" + directionWithFade
+                console("Watcher.process(" + s_orderCounter + ") direction=" + Utils.format8((double) directionWithFade)
                         + "; needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name
-                        + "; needSell=" + Utils.format8(amountFrom) + " " + currencyFrom.m_name
+                        + "; needSell=" + Utils.format8(needSellFrom) + " " + currencyFrom.m_name
                         + "; needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
             }
 
@@ -274,8 +276,11 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
             if (m_collectValues) {
                 double price = latestPriceTick.getClosePrice();
+//                String debug = "o" + s_orderCounter + " d" + Utils.format8((double)directionWithFade) + " n" + Utils.format8(needBuyTo);
+//                addNewestTick(new TradeData.DebugTradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide, debug));
                 addNewestTick(new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide));
             }
+            s_orderCounter++;
         }
         m_lastMillis = timestamp;
     }
