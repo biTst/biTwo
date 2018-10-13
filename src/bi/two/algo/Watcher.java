@@ -18,7 +18,6 @@ import static bi.two.util.Log.console;
 import static bi.two.util.Log.log;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
-    private static final boolean LOG_ALL = false;
     private static final boolean LOG_MOVE = false;
     private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
@@ -39,6 +38,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private final ITimesSeriesData<TickData> m_priceTs;
     private final CurrencyValue m_exchMinOrderToCreate;
     private final boolean m_priceAtSameTick; // apply price from same tick or from the next
+    private final boolean m_debugTrades; // paint debug info about trades on chart
     private final boolean m_logGaps;
     private final double m_minOrderMul;
     private final boolean m_hasSchedule;
@@ -63,9 +63,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private float m_fadeOutRate = DO_FADE_IN_OUT ? 1f : 0f; // fully faded out at start
     private float m_fadeInRate = 0; // fade in as trades comes
 
-    public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> ts) {
+    public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> priceTs) {
         super(null);
-        m_priceTs = ts;
+
+        m_priceTs = priceTs;
         m_exch = exch;
         m_hasSchedule = m_exch.hasSchedule();
         m_pair = pair;
@@ -82,12 +83,13 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_commission = m_exchPairData.m_commission;
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
+        m_debugTrades = config.getBooleanOrDefault("debugTrades", Boolean.FALSE);
         m_logGaps = config.getBooleanOrDefault("logGaps", Boolean.FALSE); // do not log by def
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
         m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
-        m_algo = createAlgo(ts, algoConfig);
+        m_algo = createAlgo(priceTs, algoConfig);
         setParent(m_algo);
     }
 
@@ -102,7 +104,6 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         if (latestPriceTick == null) { // todo: check, do we really have such case ?
             return; // skip
         }
-
         long currTimestamp = latestPriceTick.getTimestamp();
 
         if (DO_FADE_IN_OUT) {
@@ -224,28 +225,25 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     }
 
     private void process(float directionWithFade) {
-        boolean toLog = LOG_ALL;
+        boolean toLog = m_debugTrades;
 
         Currency currencyFrom = m_pair.m_from;
         Currency currencyTo = m_pair.m_to;
 
         if (toLog) {
-            console("Watcher.process() direction=" + directionWithFade);
+            double acctDirection = m_accountData.calcDirection(m_pair);
+            console("Watcher.process() direction=" + Utils.format8((double) directionWithFade) + "; acctDirection=" + Utils.format8(acctDirection));
         }
         double needBuyTo = m_accountData.calcNeedBuyTo(m_pair, directionWithFade);
         double needSellFrom = m_accountData.convert(currencyTo, currencyFrom, needBuyTo);
 
-        if (toLog) {
-            console(" needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name + "; needSell=" + Utils.format8(needSellFrom) + " " + currencyFrom.m_name);
-        }
+        if (toLog) { console(" needBuy=" + Utils.format8(needBuyTo) + " " + currencyTo.m_name + "; needSell=" + Utils.format8(needSellFrom) + " " + currencyFrom.m_name); }
 
-        needBuyTo *= 0.97; // leave some pennies on account
+        needBuyTo *= 0.98; // leave some pennies on account
 
         double absOrderSize = Math.abs(needBuyTo);
         OrderSide needOrderSide = (needBuyTo >= 0) ? OrderSide.SELL : OrderSide.BUY;
-        if (toLog) {
-            console("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize));
-        }
+        if (toLog) { console("   needOrderSide=" + needOrderSide + "; absOrderSize=" + Utils.format8(absOrderSize)); }
 
         double exchMinOrderToCreateValue = m_exchMinOrderToCreate.m_value;
         if (m_exchMinOrderToCreate.m_currency != currencyTo) {
@@ -270,15 +268,19 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_tradesSum += Math.abs(needBuyTo);
 
             if (toLogMove) {
+                double acctDirection = m_accountData.calcDirection(m_pair);
                 double gain = totalPriceRatio(true);
-                console("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + " .....................................");
+                console("    trade[" + m_tradesNum + "]: gain: " + Utils.format8(gain) + "; acctDirection=" + Utils.format8(acctDirection) + " .....................................");
             }
 
             if (m_collectValues) {
                 double price = latestPriceTick.getClosePrice();
-//                String debug = "o" + s_orderCounter + " d" + Utils.format8((double)directionWithFade) + " n" + Utils.format8(needBuyTo);
-//                addNewestTick(new TradeData.DebugTradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide, debug));
-                addNewestTick(new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide));
+                TradeData tradeData = m_debugTrades
+                        ? new TradeData.DebugTradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide,
+                            "o" + s_orderCounter + " d" + Utils.format8((double)directionWithFade) + " n" + Utils.format8(needBuyTo)
+                            )
+                        : new TradeData(timestamp, (float) price, (float) needBuyTo, needOrderSide);
+                addNewestTick(tradeData);
             }
             s_orderCounter++;
         }
@@ -312,7 +314,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         double gainAvg = (gainTo + gainFrom) / 2;
 
         if (toLog) {
-            if (LOG_MOVE || LOG_ALL) {
+            if (LOG_MOVE || m_debugTrades) {
                 console("totalPriceRatio() accountData=" + m_accountData
                         + "; from=" + currencyFrom.m_name
                         + ": valuateInit=" + m_valuateFromInit
@@ -331,7 +333,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
     private void init(long currTimestamp) {
         m_startMillis = currTimestamp;
-        if (LOG_ALL) {
+        if (m_debugTrades) {
             console("init() topData = " + m_topData);
         }
 
@@ -353,9 +355,23 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
         m_valuateToInit = m_initAcctData.evaluateAll(currencyTo);
         m_valuateFromInit = m_initAcctData.evaluateAll(currencyFrom);
-        if (LOG_ALL) {
+        if (m_debugTrades) {
             console(" valuate[" + currencyTo.m_name + "]=" + m_valuateToInit + "; valuate[" + currencyFrom.name() + "]=" + m_valuateFromInit);
         }
+    }
+
+    @Override public void onTimeShift(long shift) {
+        super.onTimeShift(shift);
+        // m_lastTick
+    }
+
+    @Override protected void notifyOnTimeShift(long shift) {
+        m_lastTick.onTimeShift(shift);
+        m_firstTick.onTimeShift(shift);
+        if (m_savedAdjusted != null) {
+            m_savedAdjusted.onTimeShift(shift);
+        }
+        super.notifyOnTimeShift(shift);
     }
 
     public String toLog() {
