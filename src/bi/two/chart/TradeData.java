@@ -30,7 +30,13 @@ public class TradeData extends TickVolumeData {
         }
 
         public void paintBubble(Graphics2D g2, int x, int y) {
+            Color save = g2.getColor();
+            g2.setColor(Color.BLACK);
+            g2.drawString(m_debug, x + 1, y + 1);
+            g2.drawString(m_debug, x - 1, y - 1);
+            g2.setColor(Color.WHITE);
             g2.drawString(m_debug, x, y);
+            g2.setColor(save);
         }
     }
 }
