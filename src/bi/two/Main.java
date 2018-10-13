@@ -30,7 +30,9 @@ import static bi.two.util.Log.err;
 public class Main {
     private static final String DEF_CONFIG_FILE = "cfg" + File.separator + "vary.properties";
 
-    private static NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
+    private static long s_maxUsedMemory = 0;
+
+    private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
     static {
         INTEGER_FORMAT.setGroupingUsed(true);
     }
@@ -42,16 +44,13 @@ public class Main {
         System.out.println("Started: " + (new Date()) + "; logFileLocation = " + logFileLocation);
         Log.s_impl = new Log.FileLog(logFileLocation);
 
-console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
+console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
 
         MarketConfig.initMarkets(false);
 
-        new Thread("MAIN") {
-            @Override public void run() {
-                setPriority(Thread.NORM_PRIORITY - 1); // smaller prio - do not bother host
-                loadData(args);
-            }
-        }.start();
+        Thread thread = new Thread("MAIN") { @Override public void run() { loadData(args); } };
+        thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio - do not bother host
+        thread.start();
     }
 
     private static void loadData(String[] args) {
@@ -165,9 +164,6 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL);
         config.load(file);
         return config;
     }
-
-
-    private static long s_maxUsedMemory = 0;
 
     private static void cleanMemory(boolean stopOnLowMemory) throws InterruptedException {
         long freeMemory1 = Runtime.getRuntime().freeMemory();

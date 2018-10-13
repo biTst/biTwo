@@ -4,6 +4,7 @@ import bi.two.Main;
 import bi.two.algo.Node;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
+import bi.two.exch.Exchange;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,20 +16,22 @@ import static bi.two.util.Log.*;
 public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private final int m_maxParallelSize;
     private final int m_groupTicks;
-    private int m_activeIndex;
+    private final Exchange m_exchange;
     private final List<InnerTimesSeriesData> m_array = new ArrayList<>(); // todo: optimize - remake via array
     private final AtomicInteger m_runningCount = new AtomicInteger();
+    private int m_activeIndex;
     private int m_ticksEntered = 0;
     private long m_reportCounter;
     private long m_sleepCounter;
     private long m_nanoSumm;
     private long m_nanoCount;
 
-    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size, int groupTicks) {
+    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size, int groupTicks, Exchange exchange) {
         super(ticksTs);
         m_activeIndex = 0;
         m_maxParallelSize = size;
         m_groupTicks = groupTicks;
+        m_exchange = exchange;
     }
 
     @Override public ITimesSeriesData getActive() {
@@ -41,7 +44,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
         InnerTimesSeriesData ret = m_array.get(m_activeIndex);
         m_activeIndex = (m_activeIndex + 1) % m_maxParallelSize;
-        return ret;
+        return ret.getScheduledTs();
     }
 
     @Override public ITickData getLatestTick() { throw new RuntimeException("InnerTimesSeriesData should be used"); }
@@ -57,7 +60,6 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     }
 
     private void addNewestTick(ITickData latestTick) {
-
         //                         todo: make configurable
         if ((++m_reportCounter) == 500000) { // log queue states
             m_reportCounter = 0;
@@ -188,7 +190,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
         private final IQueue<ITickData> m_queue;
         private final int m_innerIndex;
+        private final BaseTimesSeriesData m_scheduledTs;
         private ITickData m_currentTickData;
+
+        public BaseTimesSeriesData getScheduledTs() { return m_scheduledTs; }
 
         @Override public String toString() {
             return "Inner-" + m_innerIndex;
@@ -198,6 +203,13 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_innerIndex = index;
 //            m_queue = new LightQueue<>();    // seems uses 10% less memory
             m_queue = new ArrayQueue<>();   // 1% faster
+
+            if ((m_exchange != null) && m_exchange.hasSchedule()) {
+                m_scheduledTs = new ScheduleTimesSeriesData(this, m_exchange.m_schedule);
+            } else {
+                m_scheduledTs = this;
+            }
+
             String name = "parallel-" + index;
             Thread thread = new Thread(this, name);
             thread.setPriority(Thread.NORM_PRIORITY - 1); // smaller prio
@@ -236,6 +248,15 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
         public void addNewestTick(ITickData latestTick) {
             m_queue.addToTail(latestTick);
+        }
+
+        @Override public void onTimeShift(long shift) {
+            super.onTimeShift(shift);
+        }
+
+        @Override protected void notifyOnTimeShift(long shift) {
+            m_currentTickData.onTimeShift(shift);
+            super.notifyOnTimeShift(shift);
         }
     }
 

@@ -39,7 +39,7 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
                     }
                     TradeHours nextDayTradeHours = m_currTradeHours.getNextDayTradeHours();
                     if (nextDayTradeHours == nextTradeHours) { // expected next trade day
-                        onTimeShift(tradePause); // report valid shift if next day
+                        onTimeShift(tradePause); // report valid shift if next trade day
                     }
                 }
                 m_currTradeHours = nextTradeHours;

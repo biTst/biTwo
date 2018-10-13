@@ -18,7 +18,7 @@ public class ParallelTimesSeriesDataTest {
                 return tickData[0];
             }
         };
-        ParallelTimesSeriesData parallelTs = new ParallelTimesSeriesData(parent, 7, 5) {
+        ParallelTimesSeriesData parallelTs = new ParallelTimesSeriesData(parent, 7, 5, null) {
             @Override protected void onInnerFinished(InnerTimesSeriesData inner) {
                 super.onInnerFinished(inner);
                 console("parallel.inner: thread finished " + inner);
