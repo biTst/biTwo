@@ -4,6 +4,7 @@ import bi.two.util.Utils;
 
 import java.util.*;
 
+import static bi.two.util.Log.console;
 import static bi.two.util.Log.log;
 
 public class AccountData {
@@ -108,6 +109,26 @@ public class AccountData {
         ret.m_funds.putAll(m_funds);
         ret.m_allocatedFunds.putAll(m_allocatedFunds);
         return ret;
+    }
+
+    public double calcDirection(Pair pair) {
+        Currency currencyFrom = pair.m_from; // cnh=from
+        Currency currencyTo = pair.m_to;     // btc=to
+
+        double valuateTo = evaluateAll(currencyTo);
+        double valuateFrom = evaluateAll(currencyFrom);
+        double haveTo = getValueForCurrency(currencyTo, currencyFrom);
+        double haveFrom = getValueForCurrency(currencyFrom, currencyTo);
+
+        double directionFrom = (haveFrom / valuateFrom) * 2 - 1;
+        double directionTo = (1 - (haveTo / valuateTo)) * 2 - 1;
+
+        double diff = directionFrom - directionTo;
+        if (Math.abs(diff) > 0.01) {
+            console("calcDirection: diff=" + diff);
+        }
+
+        return (directionFrom + directionTo) / 2;
     }
 
     public double calcNeedBuyTo(Pair pair, float direction) {
