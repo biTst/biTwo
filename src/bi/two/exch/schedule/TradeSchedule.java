@@ -13,7 +13,7 @@ import java.util.TimeZone;
 // ticks following schedule
 public class TradeSchedule {
     protected final Schedule m_schedule;
-    private final Map<String, TradeHours> m_tradeHours = new HashMap<>();
+    private final Map<String, TradeHours> m_tradeHoursMap = new HashMap<>();
     private final Map<Long, TradeHours> m_fastTradeHours = new HashMap<>();
 //    private TradeHours m_currentTradeHours;
 //    private long m_currentTimeJoin;
@@ -72,10 +72,10 @@ public class TradeSchedule {
         TradeHours tradeHours = m_fastTradeHours.get(timestamp);
         if (tradeHours == null) {
             String dateStr = formatYyyyMmDd(timestamp);
-            tradeHours = m_tradeHours.get(dateStr);
+            tradeHours = m_tradeHoursMap.get(dateStr);
             if (tradeHours == null) {
                 tradeHours = new TradeHours(this, timestamp);
-                m_tradeHours.put(dateStr, tradeHours);
+                m_tradeHoursMap.put(dateStr, tradeHours);
             }
             m_fastTradeHours.put(timestamp, tradeHours);
         }

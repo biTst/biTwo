@@ -5,6 +5,8 @@ import bi.two.chart.JoinNonChangedTimesSeriesData;
 import bi.two.chart.TickData;
 import bi.two.chart.TradeData;
 import bi.two.exch.*;
+import bi.two.exch.schedule.TradeHours;
+import bi.two.exch.schedule.TradeSchedule;
 import bi.two.opt.Vary;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
@@ -19,10 +21,11 @@ import static bi.two.util.Log.log;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
-    private static final long ONE_MIN_MILLIS = TimeUnit.MINUTES.toMillis(1);
-    private static final long ONE_HOUR_MILLIS = TimeUnit.HOURS.toMillis(1);
 
-    private static final boolean DO_FADE_IN_OUT = true;
+    private static final long FADE_OUT_EOD_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    private static final long FADE_IN_BOD_MILLIS = TimeUnit.MINUTES.toMillis(5);
+
+    private static final boolean DO_FADE_IN_OUT = true; // this is fr data gaps (no ticks available)
     private static final long MIN_GAP_TO_FADE_OUT = TimeUnit.MINUTES.toMillis(1); // start fade out after 1 min
     private static final long FADE_OUT_TIME = TimeUnit.MINUTES.toMillis(20); // fade-out time
     private static final long FADE_IN_TIME = TimeUnit.MINUTES.toMillis(5); // fade-in algo time
@@ -58,10 +61,16 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private float m_lastDirectionWithFade = 0;
     private Boolean m_isUp;
     private int m_changedDirection; // counter
+
     private TickData m_firstTick;
     private TickData m_lastTick;
     private float m_fadeOutRate = DO_FADE_IN_OUT ? 1f : 0f; // fully faded out at start
     private float m_fadeInRate = 0; // fade in as trades comes
+
+    private TradeHours m_currTradeHours;
+    private long m_tradeEndMillis;
+    private final TradeSchedule m_tradeSchedule;
+    private float m_scheduleFadeOutRate = 1.0f;
 
     public Watcher(MapConfig config, MapConfig algoConfig, Exchange exch, Pair pair, ITimesSeriesData<TickData> priceTs) {
         super(null);
@@ -69,6 +78,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         m_priceTs = priceTs;
         m_exch = exch;
         m_hasSchedule = m_exch.hasSchedule();
+        m_tradeSchedule = new TradeSchedule(exch.m_schedule);
         m_pair = pair;
         m_exchPairData = exch.getPairData(pair);
         Number theCommission = algoConfig.getNumberOrNull(Vary.commission);
@@ -106,7 +116,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         }
         long currTimestamp = latestPriceTick.getTimestamp();
 
-        if (DO_FADE_IN_OUT) {
+        if (DO_FADE_IN_OUT) { // fade out if no ticks for long time
             if (m_lastTick != null) {
                 long lastTimestamp = m_lastTick.getTimestamp();
                 long gap = currTimestamp - lastTimestamp;
@@ -119,7 +129,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                         log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
                     }
                     m_fadeInRate = 0;
-                    applyFadeOut();
+                    processWithFade(m_lastDirection);
                     m_firstTick = null; // reset first tick
 
                     if (m_fadeOutRate == 1) { // full fade out
@@ -139,6 +149,48 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 }
             } else {
                 m_firstTick = latestPriceTick;
+            }
+        }
+
+        if (m_hasSchedule) {
+            if (m_tradeEndMillis <= currTimestamp) {
+                TradeHours nextTradeHours = m_tradeSchedule.getTradeHours(currTimestamp);
+                boolean inside = nextTradeHours.isInsideOfTradingHours(currTimestamp);
+                if (!inside) {
+                    String dateTime = m_tradeSchedule.formatLongDateTime(currTimestamp);
+                    throw new RuntimeException("next trade is not inside of trading day: dateTime=" + dateTime + "; nextTradeHours=" + nextTradeHours);
+                }
+                if (m_currTradeHours != null) {
+                    long tradePause = nextTradeHours.m_tradeStartMillis - m_tradeEndMillis;
+                    if (tradePause < 0) {
+                        String dateTime = m_tradeSchedule.formatLongDateTime(currTimestamp);
+                        throw new RuntimeException("negative tradePause=" + tradePause + "; dateTime=" + dateTime + "; currTradeHours=" + m_currTradeHours + "; nextTradeHours=" + nextTradeHours);
+                    }
+                }
+                m_currTradeHours = nextTradeHours;
+                m_tradeEndMillis = nextTradeHours.m_tradeEndMillis;
+            }
+
+            long tradeStartMillis = m_currTradeHours.m_tradeStartMillis;
+            long passedFromStart = currTimestamp - tradeStartMillis;
+            if (passedFromStart < FADE_IN_BOD_MILLIS) {
+                float rate = ((float) passedFromStart) / FADE_OUT_EOD_MILLIS;
+                if (rate < 0) {
+                    rate = 0;
+                }
+                m_scheduleFadeOutRate = rate;
+            } else {
+                long tradeEndMillis = m_currTradeHours.m_tradeEndMillis;
+                long missedTillEnd = tradeEndMillis - currTimestamp;
+                if (missedTillEnd < FADE_OUT_EOD_MILLIS) {
+                    float rate = ((float) missedTillEnd) / FADE_OUT_EOD_MILLIS;
+                    if (rate < 0) {
+                        rate = 0;
+                    }
+                    m_scheduleFadeOutRate = rate;
+                } else {
+                    m_scheduleFadeOutRate = 1.0f;
+                }
             }
         }
 
@@ -173,11 +225,6 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         processWithFade(direction);
     }
 
-    private void applyFadeOut() {
-        //log("Watcher.applyFadeOut() lastDirection=" + m_lastDirection);
-        processWithFade(m_lastDirection);
-    }
-
     private void processWithFade(float directionIn) {
         float directionWithFade = applyFadeRate(directionIn);
 
@@ -190,25 +237,6 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             m_isUp = (directionWithFade > 0);
             m_changedDirection++;
         }
-// todo: recheck - disabled for now
-//        if (m_hasSchedule) {
-//            long tickTime = tickAdjusted.getTimestamp();
-//            if (m_nextTradeCloseTime < tickTime) {
-//                m_nextTradeCloseTime = m_exch.getNextTradeCloseTime(tickTime);
-//            }
-//            long timeToTradeClose = m_nextTradeCloseTime - tickTime;
-//if (timeToTradeClose < 0) {
-//    throw new RuntimeException("timeToTradeClose<0: =" + timeToTradeClose + "; nextTradeCloseTime=" + new Date(m_nextTradeCloseTime) + "; tickTime=" + tickTime);
-//}
-//            if (timeToTradeClose < ONE_HOUR_MILLIS) {
-//                if (timeToTradeClose < ONE_MIN_MILLIS) {
-//                    direction = 0; // do not trade last minute
-//                } else {
-//                    float rate = ((float) timeToTradeClose) / ONE_HOUR_MILLIS;
-//                    direction *= rate;
-//                }
-//            }
-//        }
 
         process(directionWithFade);
     }
@@ -221,6 +249,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         } else {
             direction = directionIn;
         }
+        direction *= m_scheduleFadeOutRate;
         return direction;
     }
 
