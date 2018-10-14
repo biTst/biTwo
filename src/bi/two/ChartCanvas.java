@@ -44,9 +44,9 @@ public class ChartCanvas extends JComponent {
                 console("keyTyped: keyCode=" + keyCode + "; keyChar='" + keyChar + "'");
                 super.keyTyped(e);
                 if(keyChar == '+') {
-                    m_cps.zoom(false);
+                    m_cps.zoom(false, getWidth()/2);
                 } else if(keyChar == '-') {
-                    m_cps.zoom(true);
+                    m_cps.zoom(true, getWidth()/2);
                 }
                 repaint(150);
             }
@@ -163,8 +163,9 @@ public class ChartCanvas extends JComponent {
         }
 
         private void onMouseWheelMoved(MouseWheelEvent e) {
+            int x = e.getX();
             int notches = e.getWheelRotation();
-            m_cps.zoom(notches > 0);
+            m_cps.zoom(notches > 0, x);
             repaint(150);
         }
     }

@@ -63,10 +63,17 @@ public abstract class Axe<Src extends Number> {
         updateInt();
     }
 
-    public void zoom(boolean in) {
-        double newDiff = m_srcDiff.doubleValue() * (in ? 1.1f : 0.9f);
-        double newSrcMin = m_srcMax.doubleValue() - newDiff;
+    public void zoom(boolean in, int destZoomPoint) {
+        double srcZoomPoint = translateReverse(destZoomPoint);
+        float rate = in ? 1.1f : 0.9f;
+        double newSrcMin = srcZoomPoint - (srcZoomPoint - m_srcMin.doubleValue()) * rate;
         m_srcMin = newSrc(newSrcMin);
+
+        double newSrcMax = srcZoomPoint + (m_srcMax.doubleValue() - srcZoomPoint) * rate;
+        m_srcMax = newSrc(newSrcMax);
+
+        double newSrcDiff = newSrcMax - newSrcMin;
+        m_srcDiff = newSrc(newSrcDiff);
         updateInt();
     }
 

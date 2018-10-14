@@ -1,5 +1,6 @@
 package bi.two.chart;
 
+import bi.two.Colors;
 import bi.two.util.Utils;
 
 import java.awt.*;
@@ -181,7 +182,7 @@ public class ChartPainter {
     }
 
     private void drawShadowLabel(Graphics2D g2, String string, float x, float y) {
-        g2.setColor(Color.BLACK);
+        g2.setColor(Colors.HAZELNUT);
         g2.drawString(string, x + 1, y + 1);
         g2.drawString(string, x + 1, y - 1);
         g2.drawString(string, x - 1, y + 1);

@@ -5,7 +5,7 @@ public class ChartPaintSetting {
     private int m_width;
     private int m_height;
     private final Axe.AxeLong m_xAxe = new Axe.AxeLong(); // time axe
-    private int m_priceAxeWidth;
+    private int m_priceAxeWidth; // Y-axe width
 
     public ChartPaintSetting() {
     }
@@ -42,9 +42,9 @@ public class ChartPaintSetting {
         shiftXAxe(drag);
     }
 
-    public void zoom(boolean in) {
+    public void zoom(boolean in, int x) {
         if (m_xAxe.isInitialized()) {
-            m_xAxe.zoom(in);
+            m_xAxe.zoom(in, x);
         }
     }
 }
