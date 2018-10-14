@@ -50,8 +50,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private Float m_reversePower;
     private Float m_mulAndPrev;
     private Float m_revMulAndPrev;
-    private Float m_prevAdj;
-    private Float m_adj;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
@@ -211,9 +209,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
                     ? false // go down
                     : m_goUp); // do not change
             boolean directionChanged = (goUp != m_goUp);
-            if (directionChanged) {
-                m_prevAdj = m_adj; // save prev
-            }
             m_goUp = goUp;
 
             m_min = emasMin;
@@ -233,10 +228,10 @@ public class FastAlgo extends BaseAlgo<TickData> {
             float head = goUp ? emasMax : emasMin;
             float tail = goUp ? emasMin : emasMax;
 
-//            m_reverseLevel = tail + (head - tail) * 0.5f;
             float mid = (head + tail) / 2;
             m_mid = mid;
 
+            // common ribbon lines
             if (directionChanged) {
                 m_headStart = head; // pink
                 m_tailStart = tail;  // dark green
@@ -252,10 +247,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 m_fiveQuarterPaint = head;
                 m_one = head + spread / 2;
                 m_onePaint = head;
-
-                m_directionIn = (m_direction == null) ?  0 : m_direction;
-                m_beginRate = goUp ? 1 - m_directionIn : 1 + m_directionIn;
-//                m_directionIn = goUp ? 1f : -1f;
             } else {
                 if (m_one != null) {
                     if (ADJUST_TAIL) {
@@ -274,7 +265,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
                             m_one = m_headStart + half;
                         }
                     }
-                    if (goUp) {
+                    if (goUp) { // todo: this only for painting
                         if (tail > m_oneQuarter) {
                             m_oneQuarterPaint = m_midStart;
                         }
@@ -302,6 +293,13 @@ public class FastAlgo extends BaseAlgo<TickData> {
                         }
                     }
                 }
+            }
+
+            if (directionChanged) {
+                m_directionIn = (m_direction == null) ?  0 : m_direction;
+                m_beginRate = goUp ? 1 - m_directionIn : 1 + m_directionIn;
+//                m_directionIn = goUp ? 1f : -1f;
+            } else {
             }
 
             if (m_headStart != null) { // directionChanged once observed
@@ -352,8 +350,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
         m_reversePower = null;
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
-        m_prevAdj = 0F;
-        m_adj = 0F;
         m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
