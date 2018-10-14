@@ -65,6 +65,12 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private Float m_mid;
     private Float m_tailPower2;
     private Float m_spreadClosePowerAdjusted;
+    private Float m_oneQuarter;
+    private Float m_oneQuarterPaint;
+    private Float m_threeQuarter;
+    private Float m_threeQuarterPaint;
+    private Float m_fiveQuarter;
+    private Float m_fiveQuarterPaint;
 
     public FastAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
         super(null);
@@ -235,36 +241,64 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 m_headStart = head; // pink
                 m_tailStart = tail;  // dark green
                 m_midStart = mid;
-                m_one = head + (head - tail) / 2;
+
+                float spread = head - tail;
+                float quarter = spread / 4;
+                m_oneQuarter = tail + quarter;
+                m_oneQuarterPaint = m_oneQuarter;
+                m_threeQuarter = mid + quarter;
+                m_threeQuarterPaint = m_threeQuarter;
+                m_fiveQuarter = head + quarter;
+                m_fiveQuarterPaint = head;
+                m_one = head + spread / 2;
                 m_onePaint = head;
-//                m_targetLevel = tail + m_target * diff;
+
                 m_directionIn = (m_direction == null) ?  0 : m_direction;
                 m_beginRate = goUp ? 1 - m_directionIn : 1 + m_directionIn;
+//                m_directionIn = goUp ? 1f : -1f;
             } else {
                 if (m_one != null) {
-                    if (goUp) {
-                        if (tail >= m_one) {
-                            m_onePaint = m_one;
+                    if (ADJUST_TAIL) {
+                        if ((goUp && (tail < m_tailStart)) || (!goUp && (tail > m_tailStart))) {
+                            m_tailStart = tail;
+                            float spread = m_headStart - tail;
+                            float half = spread / 2;
+                            float quarter = spread / 4;
+                            m_midStart = tail + half;
+                            m_oneQuarter = tail + quarter;
+                            m_oneQuarterPaint = m_oneQuarter;
+                            m_threeQuarter = m_headStart - quarter;
+                            m_threeQuarterPaint = m_threeQuarter;
+                            m_fiveQuarter = m_headStart + quarter;
+                            m_fiveQuarterPaint = m_headStart;
+                            m_one = m_headStart + half;
                         }
-                        if (ADJUST_TAIL) {
-                            if (tail < m_tailStart) {
-                                m_tailStart = tail;
-                                m_midStart = (m_headStart + tail) / 2;
-                                m_one = m_headStart + (m_headStart - tail) / 2;
-//                                m_targetLevel = tail + m_target * (m_headStart - tail);
-                            }
+                    }
+                    if (goUp) {
+                        if (tail > m_oneQuarter) {
+                            m_oneQuarterPaint = m_midStart;
+                        }
+                        if (tail > m_threeQuarter) {
+                            m_threeQuarterPaint = m_headStart;
+                        }
+                        if (tail > m_fiveQuarter) {
+                            m_fiveQuarterPaint = m_fiveQuarter;
+                        }
+                        if (tail > m_one) {
+                            m_onePaint = m_one;
                         }
                     } else {
-                        if (tail <= m_one) {
-                            m_onePaint = m_one;
+                        if (tail < m_oneQuarter) {
+                            m_oneQuarterPaint = m_midStart;
                         }
-                        if (ADJUST_TAIL) {
-                            if (tail > m_tailStart) {
-                                m_tailStart = tail;
-                                m_midStart = (m_headStart + tail) / 2;
-                                m_one = m_headStart + (m_headStart - tail) / 2;
-//                                m_targetLevel = tail + m_target * (m_headStart - tail);
-                            }
+                        if (tail < m_threeQuarter) {
+                            m_threeQuarterPaint = m_headStart;
+                        }
+                        if (tail < m_fiveQuarter) {
+                            m_fiveQuarterPaint = m_fiveQuarter;
+                        }
+                        if (tail < m_one) {
+                            m_onePaint = m_one;
                         }
                     }
                 }
@@ -333,22 +367,29 @@ public class FastAlgo extends BaseAlgo<TickData> {
         m_mid = null;
         m_tailPower2 = null;
         m_spreadClosePowerAdjusted = null;
+        m_oneQuarter = null;
+        m_threeQuarter = null;
+        m_fiveQuarter = null;
     }
 
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_max; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(getParent(), false) { @Override protected Float getValue() { return m_zigZag; } }; }
 
-    TicksTimesSeriesData<TickData> getOneTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_onePaint; } }; }
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headStart; } }; }
     TicksTimesSeriesData<TickData> getTailStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailStart; } }; }
     TicksTimesSeriesData<TickData> getMidStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midStart; } }; }
     TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_mid; } }; }
-
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
+
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
 
-//    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
+    TicksTimesSeriesData<TickData> getOneQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_oneQuarterPaint; } }; }
+    TicksTimesSeriesData<TickData> getThreeQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_threeQuarterPaint; } }; }
+    TicksTimesSeriesData<TickData> getOneTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_onePaint; } }; }
+    TicksTimesSeriesData<TickData> getfiveQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_fiveQuarterPaint; } }; }
+
+    //    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePower; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerAdjustedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePowerAdjusted; } }; }
     TicksTimesSeriesData<TickData> getMidPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midPower; } }; }
@@ -390,11 +431,16 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getOneTs(), topLayers, "one", Colors.LEMONADE, TickPainter.LINE_JOIN);
             addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
             addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
             addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
+
+            Color halfGray = Colors.alpha(Color.GRAY, 128);
+            addChart(chartData, getOneQuarterTs(), topLayers, "oneQuarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, getThreeQuarterTs(), topLayers, "threeQuarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, getOneTs(), topLayers, "one", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            addChart(chartData, getfiveQuarterTs(), topLayers, "fiveQuarter", halfGray, TickPainter.LINE_JOIN);
 
 //            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //
