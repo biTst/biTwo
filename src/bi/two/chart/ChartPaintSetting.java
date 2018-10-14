@@ -4,7 +4,7 @@ package bi.two.chart;
 public class ChartPaintSetting {
     private int m_width;
     private int m_height;
-    private final Axe.AxeLong m_xAxe = new Axe.AxeLong();
+    private final Axe.AxeLong m_xAxe = new Axe.AxeLong(); // time axe
     private int m_priceAxeWidth;
 
     public ChartPaintSetting() {

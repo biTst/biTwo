@@ -3,6 +3,7 @@ package bi.two.chart;
 import bi.two.util.Utils;
 
 import java.awt.*;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -122,14 +123,71 @@ public class ChartPainter {
             caps.initYAxe(minPrice, maxPrice);
 
             paintChartArea(g2, cas, cps, caps, chartData, crossPoint);
-        }
 
-        if (crossPoint != null) {
-            if (selectPoint != null) {
-                paintLine(g2, selectPoint, crossPoint);
-            }
-            paintCross(g2, crossPoint, width, height);
+            paintCrossPoint(g2, crossPoint, selectPoint, xAxe, width, height, paintTop, paintHeight, caps);
         }
+    }
+
+    private void paintCrossPoint(Graphics2D g2, Point crossPoint, Point selectPoint, Axe.AxeLong xAxe, int width, int height,
+                                 int paintTop, int paintHeight, ChartAreaPaintSetting caps) {
+        if (crossPoint != null) {
+            double crossY = crossPoint.getY();
+            if ((paintTop <= crossY) && (crossY < (paintTop + paintHeight))) {
+                if (selectPoint != null) {
+                    int fontHeight = g2.getFontMetrics().getHeight();
+                    double crossX = crossPoint.getX();
+                    float stringX = (float) crossX;
+
+                    Axe yAxe = caps.getYAxe();
+                    NumberFormat formatter = yAxe.getFormatter();
+
+                    double crossPrice = yAxe.translateReverse(crossY);
+                    String crossPriceFormatted = formatter.format(crossPrice);
+
+                    double selectY = selectPoint.getY();
+                    double selectPrice = yAxe.translateReverse(selectY);
+                    String selectPriceFormatted = formatter.format(selectPrice);
+
+                    if (crossPrice > selectPrice) {
+                        selectY += fontHeight;
+                    } else {
+                        crossY += fontHeight;
+                    }
+                    drawShadowLabel(g2, crossPriceFormatted, stringX, (float) crossY);
+                    drawShadowLabel(g2, selectPriceFormatted, stringX, (float) selectY);
+
+                    double priceDelta = crossPrice - selectPrice;
+                    double rate = priceDelta/selectPrice;
+                    String priceDeltaFormatted = formatter.format(priceDelta);
+                    String rateFormatted = Utils.format5(rate);
+                    String midStr = priceDeltaFormatted + " (" + rateFormatted + ")";
+                    drawShadowLabel(g2, midStr, stringX, (float) (selectY + crossY) / 2);
+
+                    double selectX = selectPoint.getX();
+
+                    long selectTime = (long) xAxe.translateReverse(selectX);
+                    long crossTime = (long) xAxe.translateReverse(crossX);
+                    long timeDiff = crossTime - selectTime;
+                    String timeDiffStr = Utils.millisToYDHMSStr(timeDiff);
+                    int timeDiffStrWidth = g2.getFontMetrics().stringWidth(timeDiffStr);
+                    double timeDiffY = (crossPrice > selectPrice) ? selectY : crossY;
+                    drawShadowLabel(g2, timeDiffStr, (float) (crossX - timeDiffStrWidth - 10), (float) timeDiffY);
+
+                    paintLine(g2, selectPoint, crossPoint);
+                }
+                paintCross(g2, crossPoint, width, height);
+            }
+        }
+    }
+
+    private void drawShadowLabel(Graphics2D g2, String string, float x, float y) {
+        g2.setColor(Color.BLACK);
+        g2.drawString(string, x + 1, y + 1);
+        g2.drawString(string, x + 1, y - 1);
+        g2.drawString(string, x - 1, y + 1);
+        g2.drawString(string, x - 1, y - 1);
+        g2.setColor(Color.WHITE);
+        g2.drawString(string, x, y);
     }
 
     private void paintLine(Graphics2D g2, Point selectPoint, Point crossPoint) {

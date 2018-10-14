@@ -17,6 +17,7 @@ public abstract class Axe<Src extends Number> {
     private int m_dstDiff;
 
     private double m_scale;
+    private NumberFormat m_formatter;
 
     protected abstract Src newSrc(double value);
 
@@ -32,6 +33,7 @@ public abstract class Axe<Src extends Number> {
     public double getScale() { return m_scale; }
     public Src getSrcMin() { return m_srcMin; }
     public int getDstMin() { return m_dstMin; }
+    public NumberFormat getFormatter() { return m_formatter; }
 
     public void init(Src srcMin, Src srcMax, int dstMin, int dstMax) {
         m_srcMin = srcMin;
@@ -85,13 +87,13 @@ public abstract class Axe<Src extends Number> {
         return ret;
     }
 
-    public double translateReverse(int dest) {
-        int dstOffset = dest - m_dstMin;
+    public double translateReverse(double dest) {
+        double dstOffset = dest - m_dstMin;
         double value = getValue(dstOffset);
         return value;
     }
 
-    private double getValue(int dstOffset) {
+    private double getValue(double dstOffset) {
         double offset = dstOffset * m_scale;
         double value = offset + m_srcMin.doubleValue();
         return value;
@@ -128,14 +130,14 @@ public abstract class Axe<Src extends Number> {
         double minLabel = Math.floor(m_srcMin.doubleValue() / step) * step;
         double maxLabel = Math.ceil(m_srcMax.doubleValue() / step) * step;
 
-        NumberFormat nf = NumberFormat.getInstance();
-        nf.setMaximumFractionDigits(points);
-        nf.setMinimumFractionDigits(points);
+        m_formatter = NumberFormat.getInstance();
+        m_formatter.setMaximumFractionDigits(points);
+        m_formatter.setMinimumFractionDigits(points);
 
         FontMetrics fontMetrics = g.getFontMetrics();
         int maxWidth = 10;
         for (double y = minLabel; y <= maxLabel; y += step) {
-            String str = nf.format(y);
+            String str = m_formatter.format(y);
             Rectangle2D bounds = fontMetrics.getStringBounds(str, g);
             int stringWidth = (int) Math.ceil(bounds.getWidth());
             maxWidth = Math.max(maxWidth, stringWidth);
@@ -144,7 +146,7 @@ public abstract class Axe<Src extends Number> {
         int x = right - maxWidth;
 
         for (double val = minLabel; val <= maxLabel; val += step) {
-            String str = nf.format(val);
+            String str = m_formatter.format(val);
             int y = translateInt(val);  // getPointReverse(val);
             g.drawString(str, x, y + halfFontHeight);
             g.drawLine(x - 2, y, x - AXE_MARKER_WIDTH, y);
