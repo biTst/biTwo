@@ -149,20 +149,24 @@ public class ChartPainter {
                     double selectPrice = yAxe.translateReverse(selectY);
                     String selectPriceFormatted = formatter.format(selectPrice);
 
+                    double selectTextY;
+                    double crossTextY;
                     if (crossPrice > selectPrice) {
-                        selectY += fontHeight;
+                        selectTextY = selectY + fontHeight;
+                        crossTextY = crossY;
                     } else {
-                        crossY += fontHeight;
+                        selectTextY = selectY;
+                        crossTextY = crossY + fontHeight;
                     }
-                    drawShadowLabel(g2, crossPriceFormatted, stringX, (float) crossY);
-                    drawShadowLabel(g2, selectPriceFormatted, stringX, (float) selectY);
+                    drawShadowLabel(g2, crossPriceFormatted, stringX, (float) crossTextY);
+                    drawShadowLabel(g2, selectPriceFormatted, stringX, (float) selectTextY);
 
                     double priceDelta = crossPrice - selectPrice;
                     double rate = priceDelta/selectPrice;
                     String priceDeltaFormatted = formatter.format(priceDelta);
                     String rateFormatted = Utils.format5(rate);
                     String midStr = priceDeltaFormatted + " (" + rateFormatted + ")";
-                    drawShadowLabel(g2, midStr, stringX, (float) (selectY + crossY) / 2);
+                    drawShadowLabel(g2, midStr, stringX, (float) (selectTextY + crossTextY) / 2);
 
                     double selectX = selectPoint.getX();
 
@@ -175,6 +179,23 @@ public class ChartPainter {
                     drawShadowLabel(g2, timeDiffStr, (float) (crossX - timeDiffStrWidth - 10), (float) timeDiffY);
 
                     paintLine(g2, selectPoint, crossPoint);
+
+                    double dx = crossX - selectX;
+                    double dy = crossY - selectY;
+                    double len = Math.sqrt(dx * dx + dy * dy);
+                    if (len > 40) {
+                        double centerX = (crossX + selectX) / 2;
+                        double centerY = (crossY + selectY) / 2;
+
+                        double x1 = centerX + dy / len * 10;
+                        double y1 = centerY - dx / len * 10;
+
+                        double x2 = centerX - dy / len * 10;
+                        double y2 = centerY + dx / len * 10;
+
+                        g2.setColor(Color.LIGHT_GRAY);
+                        g2.drawLine((int)x1, (int)y1, (int)x2, (int)y2);
+                    }
                 }
                 paintCross(g2, crossPoint, width, height);
             }
