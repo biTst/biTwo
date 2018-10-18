@@ -13,13 +13,12 @@ import java.util.TimeZone;
 
 public class ChartPainter {
     private static final Date SHARED_DATE = new Date();
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("y MM dd HH:mm:ss.S z");
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("y MM dd HH:mm:ss.S z");
     {
         DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
 
-    public ChartPainter() {
-    }
+    public ChartPainter() { }
 
     public void paintChart(Graphics2D g2, ChartSetting chartSetting, ChartPaintSetting cps, ChartData chartData, Point crossPoint, Point selectPoint) {
         List<ChartAreaSettings> chartAreasSettings = chartSetting.getChartAreasSettings();
@@ -137,7 +136,7 @@ public class ChartPainter {
                 if (selectPoint != null) {
                     int fontHeight = g2.getFontMetrics().getHeight();
                     double crossX = crossPoint.getX();
-                    float stringX = (float) crossX;
+                    float stringX = (float) (crossX + 12);
 
                     Axe yAxe = caps.getYAxe();
                     NumberFormat formatter = yAxe.getFormatter();
@@ -145,9 +144,13 @@ public class ChartPainter {
                     double crossPrice = yAxe.translateReverse(crossY);
                     String crossPriceFormatted = formatter.format(crossPrice);
 
+                    double selectX = selectPoint.getX();
                     double selectY = selectPoint.getY();
                     double selectPrice = yAxe.translateReverse(selectY);
                     String selectPriceFormatted = formatter.format(selectPrice);
+
+                    g2.setColor(Colors.alpha(Color.LIGHT_GRAY, 128));
+                    g2.drawLine((int)selectX, (int)selectY, (int)crossX, (int)selectY);
 
                     double selectTextY;
                     double crossTextY;
@@ -168,22 +171,20 @@ public class ChartPainter {
                     String midStr = priceDeltaFormatted + " (" + rateFormatted + ")";
                     drawShadowLabel(g2, midStr, stringX, (float) (selectTextY + crossTextY) / 2);
 
-                    double selectX = selectPoint.getX();
-
                     long selectTime = (long) xAxe.translateReverse(selectX);
                     long crossTime = (long) xAxe.translateReverse(crossX);
                     long timeDiff = crossTime - selectTime;
                     String timeDiffStr = Utils.millisToYDHMSStr(timeDiff);
                     int timeDiffStrWidth = g2.getFontMetrics().stringWidth(timeDiffStr);
                     double timeDiffY = (crossPrice > selectPrice) ? selectY : crossY;
-                    drawShadowLabel(g2, timeDiffStr, (float) (crossX - timeDiffStrWidth - 10), (float) timeDiffY);
+                    drawShadowLabel(g2, timeDiffStr, (float) (crossX - timeDiffStrWidth - 10), (float) (timeDiffY + fontHeight));
 
                     paintLine(g2, selectPoint, crossPoint);
 
                     double dx = crossX - selectX;
                     double dy = crossY - selectY;
                     double len = Math.sqrt(dx * dx + dy * dy);
-                    if (len > 40) {
+                    if (len > 40) { // draw line center marker
                         double centerX = (crossX + selectX) / 2;
                         double centerY = (crossY + selectY) / 2;
 
