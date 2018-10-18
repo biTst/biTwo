@@ -9,6 +9,7 @@ import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.polynomials.PolynomialFunction;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 
+/* 3 points PolynomialSpline based velocity calculation */
 public class TicksVelocity extends BaseTimesSeriesData<ITickData> {
     private final BarSplitter m_splitter;
     private final float m_multiplier;
@@ -98,5 +99,10 @@ public class TicksVelocity extends BaseTimesSeriesData<ITickData> {
             }
         }
         return m_tickData;
+    }
+
+    @Override public void onTimeShift(long shift) {
+        // todo: call super only
+        notifyOnTimeShift(shift);
     }
 }
