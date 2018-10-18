@@ -5,6 +5,7 @@ import bi.two.Colors;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
+import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
@@ -30,6 +31,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
     private int m_emasNum;
     private BaseTimesSeriesData[] m_emas;
+    private final TicksVelocity m_leadEmaVelocity;
     private boolean m_dirty;
     private TickData m_tickData;
 
@@ -42,7 +44,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private Float m_midStart;
     private Float m_one;
     private Float m_onePaint;
-//    private Float m_reverseLevel;
+    private Float m_reverseLevel;
 //    private Float m_targetLevel;
     private Float m_power;
     private Float m_value;
@@ -56,11 +58,11 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private Float m_spreadClosePower;
     private Float m_midPower;
     private Float m_tailPower;
-    private Float m_midTailPower;
+    private Float m_enterPower;
     private Float m_headPower;
     private Float m_direction;
     private Float m_directionIn;
-    private Float m_beginRate;
+    private Float m_remainedEnterDistance;
     private Float m_mid;
     private Float m_tailPower2;
     private Float m_spreadClosePowerAdjusted;
@@ -99,6 +101,10 @@ public class FastAlgo extends BaseAlgo<TickData> {
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
         boolean hasSchedule = exchange.hasSchedule();
         createRibbon(ts1, collectValues, hasSchedule);
+
+        int multiplier = 2000;
+        BaseTimesSeriesData leadEma = m_emas[0];
+        m_leadEmaVelocity = new TicksVelocity(leadEma, m_barSize * 1, multiplier);
 
         setParent(ts1);
     }
@@ -301,10 +307,10 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
             if (directionChanged) {
                 m_directionIn = (m_direction == null) ?  0 : m_direction;
-                m_beginRate = goUp ? 1 - m_directionIn : 1 + m_directionIn;
-//                m_directionIn = goUp ? 1f : -1f;
+                m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
                 m_maxHeadRun = 0; // reset
                 m_minHeadRun = 0; // reset
+                m_revPower = 0f;
             } else {
             }
 
@@ -330,30 +336,35 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 }
                 m_headPower = headPower;
 
-                float rev = leadEmaValue - mid;
-                float revPower = rev / (tail - mid);
+//                float rev = leadEmaValue - mid;
+//                float revPower = rev / (tail - mid);
+//                if (revPower < 0) {
+//                    revPower = 0;
+//                }
+////                if (m_revPower < revPower) {
+//                    m_revPower = revPower;
+////                }
+
+                float tailPower = (tail - m_tailStart) / (m_headStart - m_tailStart);
+                m_tailPower = (tailPower > 1) ? 1 : tailPower;
+                float reverseLevel = head - (head - mid) * m_tailPower;
+                m_reverseLevel = reverseLevel;
+                float revPower = (leadEmaValue - reverseLevel) / (tail - reverseLevel);
                 if (revPower < 0) {
                     revPower = 0;
                 }
                 m_revPower = revPower;
 
-                float direction = m_headPower * (goUp ? 1 : -1);
-                float reverseDistance = direction + (goUp ? 1 : -1);
-                float reverseValue = reverseDistance * m_revPower;
-                direction -= reverseValue;
-
-                m_direction = direction;
-
-//                float midPower = (mid - m_midStart) / (m_headStart - m_midStart);
+                float enterMidPower = (mid - m_midStart) / (m_headStart - m_midStart);
 ////                m_midPower = (midPower > 1) ? 1 : midPower;
-//                float tailPower = (tail - m_tailStart) / (m_midStart - m_tailStart) * 2;
+                float enterTailPower = (tail - m_tailStart) / (m_midStart - m_tailStart) * 2;
 ////                m_tailPower = (tailPower > 1) ? 1 : tailPower;
-//                float midTailPower = Math.max(midPower, tailPower);  //  (midPower + tailPower) / 2;
-//                midTailPower = (midTailPower > 1) ? 1 : midTailPower;
-//                m_midTailPower = midTailPower;
+                float enterPower = Math.max(enterMidPower, enterTailPower);  //  (enterMidPower + enterTailPower) / 2;
+                enterPower = (enterPower > 1) ? 1 : enterPower;
+                m_enterPower = enterPower;
 //
-//                float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
-//                m_spreadClosePower = spreadClosePower;
+                float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
+                m_spreadClosePower = spreadClosePower;
 //
 //                float tailPower2 = (tail - m_tailStart) / (m_headStart - m_tailStart);
 //                tailPower2 = (tailPower2 > 1) ? 1 : tailPower2;
@@ -363,11 +374,20 @@ public class FastAlgo extends BaseAlgo<TickData> {
 //                m_spreadClosePowerAdjusted = spreadClosePowerAdjusted;
 //
 //                float direction = m_directionIn
-//                        + m_beginRate * (goUp ? midTailPower : -midTailPower)
+//                        + m_remainedEnterDistance * (goUp ? midTailPower : -midTailPower)
 //                        + m_reverseMul * (goUp ? -spreadClosePowerAdjusted : spreadClosePowerAdjusted);
 //                direction = (direction > 1) ? 1 : direction;
 //                direction = (direction < -1) ? -1 : direction;
 //                m_direction = direction;
+
+//                float direction = m_headPower * (goUp ? 1 : -1);
+////                float reverseDistance = direction + (goUp ? 1 : -1);
+////                float reverseValue = reverseDistance * m_revPower;
+////                direction -= reverseValue;
+
+                float direction = m_directionIn + (goUp ? 1 : -1) * m_remainedEnterDistance * m_enterPower;
+
+                m_direction = direction;
             }
         }
 
@@ -387,7 +407,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
         m_power = null;
         m_value = 0F;
         m_mul = 0F;
-//        m_reverseLevel = null;
+        m_reverseLevel = null;
         m_reversePower = null;
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
@@ -397,11 +417,11 @@ public class FastAlgo extends BaseAlgo<TickData> {
         m_spreadClosePower = null;
         m_midPower = null;
         m_tailPower = null;
-        m_midTailPower = null;
+        m_enterPower = null;
         m_headPower = null;
         m_direction = null;
         m_directionIn = null;
-        m_beginRate = null;
+        m_remainedEnterDistance = null;
         m_mid = null;
         m_tailPower2 = null;
         m_spreadClosePowerAdjusted = null;
@@ -430,12 +450,12 @@ public class FastAlgo extends BaseAlgo<TickData> {
     TicksTimesSeriesData<TickData> getOneTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_onePaint; } }; }
     TicksTimesSeriesData<TickData> getFiveQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_fiveQuarterPaint; } }; }
 
-    //    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
+    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePower; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerAdjustedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePowerAdjusted; } }; }
     TicksTimesSeriesData<TickData> getMidPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midPower; } }; }
     TicksTimesSeriesData<TickData> getTailPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower; } }; }
-    TicksTimesSeriesData<TickData> getMidTailPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midTailPower; } }; }
+    TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getTailPower2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower2; } }; }
 
     TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
@@ -488,7 +508,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
 //            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //
-//            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
+            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Colors.GOLD, TickPainter.LINE_JOIN);
 
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
@@ -503,12 +523,12 @@ public class FastAlgo extends BaseAlgo<TickData> {
         List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
             addChart(chartData, getHeadPowerTs(), powerLayers, "headPower", Color.MAGENTA, TickPainter.LINE_JOIN);
-            addChart(chartData, getRevPowerTs(), powerLayers, "revPower", Colors.STRING_BEAN, TickPainter.LINE_JOIN);
-//            addChart(chartData, getSpreadClosePowerTs(), powerLayers, "spreadClosePower", Color.MAGENTA, TickPainter.LINE_JOIN);
+            addChart(chartData, getRevPowerTs(), powerLayers, "revPower", Colors.JUST_ORANGE, TickPainter.LINE_JOIN);
+            addChart(chartData, getSpreadClosePowerTs(), powerLayers, "spreadClosePower", Colors.SUEDE_BROWN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSpreadClosePowerAdjustedTs(), powerLayers, "spreadClosePowerAdjusted", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
 ////            addChart(chartData, getMidPowerTs(), powerLayers, "midPower", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
-////            addChart(chartData, getTailPowerTs(), powerLayers, "tailPower", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
-//            addChart(chartData, getMidTailPowerTs(), powerLayers, "midTailPower", Colors.SUEDE_BROWN, TickPainter.LINE_JOIN);
+            addChart(chartData, getTailPowerTs(), powerLayers, "tailPower", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getEnterPowerTs(), powerLayers, "enterPowerTs", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getTailPower2Ts(), powerLayers, "tailPower2", Colors.TURQUOISE, TickPainter.LINE_JOIN);
 
 //            addChart(chartData, firstWatcher.getFadeOutTs(), powerLayers, "fadeOut", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
@@ -523,6 +543,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
 //            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
 //            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, m_leadEmaVelocity.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity", Colors.CLOW_IN_THE_DARK, TickPainter.LINE_JOIN);
 //            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
 ////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
