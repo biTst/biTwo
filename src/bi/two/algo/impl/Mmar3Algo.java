@@ -6,8 +6,8 @@ import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.Average;
 import bi.two.calc.BarsEMA;
+import bi.two.calc.PolynomialSplineVelocity;
 import bi.two.calc.SlidingTicksRegressor;
-import bi.two.calc.TicksVelocity;
 import bi.two.chart.*;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
@@ -32,7 +32,7 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
     private final float m_threshold;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
-    private final VelocityAvg m_velocityAvg;
+    private final Average m_velocityAvg;
     private final SlidingTicksRegressor m_velocityAdjRegr;
     private final VelocityAdj m_velocityAdj;
     private BaseTimesSeriesData m_spreadSmoothed;
@@ -77,7 +77,8 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
         float start = 1.2f;
         float step = 0.06f;
         int count = 1;
-        m_velocityAvg = new VelocityAvg(m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs, m_barSize, start, step, count, multiplier);
+        BaseTimesSeriesData velocityBaseTsd = m_minMaxSpread.m_ribbonSpreadFadingMidMidAdjTs;
+        m_velocityAvg = new Average(buildVelocities(velocityBaseTsd, m_barSize, start, step, count, multiplier), velocityBaseTsd);
 
         m_velocityAdjRegr = new SlidingTicksRegressor(m_velocityAvg, (long) (m_barSize * 1.0f));
 
@@ -85,6 +86,18 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
 
         setParent(m_emas.get(0));
     }
+
+    private static List<BaseTimesSeriesData> buildVelocities(BaseTimesSeriesData velocityBaseTsd, long barSize, float start, float step, int count, float multiplier) {
+        List<BaseTimesSeriesData> velocities = new ArrayList<>(count);
+        double len = start;
+        for (int i = 0; i < count; i++) {
+            PolynomialSplineVelocity midVelocity = new PolynomialSplineVelocity(velocityBaseTsd, (long) (barSize * len), multiplier);
+            velocities.add(midVelocity);
+            len += step;
+        }
+        return velocities;
+    }
+
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
         return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
@@ -582,25 +595,6 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
 
         ITicksData<TickData> getMidTs() {
             return m_midTs.getJoinNonChangedTs();
-        }
-    }
-
-
-    //----------------------------------------------------------
-    private static  class VelocityAvg extends Average {
-        VelocityAvg(BaseTimesSeriesData velocityBaseTsd, long barSize, float start, float step, int count, float multiplier) {
-            super(buildVelocities(velocityBaseTsd, barSize, start, step, count, multiplier), velocityBaseTsd);
-        }
-
-        private static List<BaseTimesSeriesData> buildVelocities(BaseTimesSeriesData velocityBaseTsd, long barSize, float start, float step, int count, float multiplier) {
-            List<BaseTimesSeriesData> velocities = new ArrayList<>(count);
-            double len = start;
-            for (int i = 0; i < count; i++) {
-                TicksVelocity midVelocity = new TicksVelocity(velocityBaseTsd, (long) (barSize * len), multiplier);
-                velocities.add(midVelocity);
-                len += step;
-            }
-            return velocities;
         }
     }
 }

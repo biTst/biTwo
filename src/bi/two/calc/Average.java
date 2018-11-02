@@ -9,7 +9,7 @@ import java.util.List;
 
 //----------------------------------------------------------
 public class Average extends BaseTimesSeriesData<ITickData> {
-    public final List<BaseTimesSeriesData> m_tss;
+    private final List<BaseTimesSeriesData> m_tss;
     private boolean m_dirty;
     private float m_average;
     private TickData m_tick;
@@ -54,5 +54,10 @@ public class Average extends BaseTimesSeriesData<ITickData> {
             }
         }
         return m_tick;
+    }
+
+    @Override public void onTimeShift(long shift) {
+        // todo: call super only;   +recheck
+        notifyOnTimeShift(shift);
     }
 }

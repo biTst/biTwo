@@ -362,22 +362,22 @@ public class MmarAlgo extends BaseAlgo<TickData> {
 
         // ---------------------------------------------------------------------------------------
         private static class Velocities2 {
-            private final TicksVelocity m_midVelocity1;
-            private final TicksVelocity m_midVelocity2;
-            private final TicksVelocity m_midVelocity3;
-            private TicksVelocity m_midVelocity4;
-            private TicksVelocity m_midVelocity5;
-            private TicksVelocity m_midVelocity6;
+            private final PolynomialSplineVelocity m_midVelocity1;
+            private final PolynomialSplineVelocity m_midVelocity2;
+            private final PolynomialSplineVelocity m_midVelocity3;
+            private PolynomialSplineVelocity m_midVelocity4;
+            private PolynomialSplineVelocity m_midVelocity5;
+            private PolynomialSplineVelocity m_midVelocity6;
             private final Average m_midVelocityAvg;
 
             Velocities2(BaseTimesSeriesData midSmoothed, long barSize) {
                 int multiplier = 100000;
-                m_midVelocity1 = new TicksVelocity(midSmoothed, barSize * 1, multiplier);
-                m_midVelocity2 = new TicksVelocity(midSmoothed, barSize * 2, multiplier);
-                m_midVelocity3 = new TicksVelocity(midSmoothed, barSize * 3, multiplier);
-                m_midVelocity4 = new TicksVelocity(midSmoothed, barSize * 5, multiplier);
-                m_midVelocity5 = new TicksVelocity(midSmoothed, barSize * 8, multiplier);
-                m_midVelocity6 = new TicksVelocity(midSmoothed, barSize * 12, multiplier);
+                m_midVelocity1 = new PolynomialSplineVelocity(midSmoothed, barSize * 1, multiplier);
+                m_midVelocity2 = new PolynomialSplineVelocity(midSmoothed, barSize * 2, multiplier);
+                m_midVelocity3 = new PolynomialSplineVelocity(midSmoothed, barSize * 3, multiplier);
+                m_midVelocity4 = new PolynomialSplineVelocity(midSmoothed, barSize * 5, multiplier);
+                m_midVelocity5 = new PolynomialSplineVelocity(midSmoothed, barSize * 8, multiplier);
+                m_midVelocity6 = new PolynomialSplineVelocity(midSmoothed, barSize * 12, multiplier);
 
                 List<BaseTimesSeriesData> midVelocities = new ArrayList<>();
                 midVelocities.add(m_midVelocity1);
