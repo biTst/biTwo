@@ -11,7 +11,6 @@ import java.util.List;
 public class Average extends BaseTimesSeriesData<ITickData> {
     private final List<BaseTimesSeriesData> m_tss;
     private boolean m_dirty;
-    private float m_average;
     private TickData m_tick;
 
     public Average(List<BaseTimesSeriesData> tss, ITimesSeriesData baseDs) {
@@ -48,9 +47,9 @@ public class Average extends BaseTimesSeriesData<ITickData> {
                 }
             }
             if (allDone) {
-                m_average = sum / m_tss.size();
-                m_dirty = false;
+                float m_average = sum / m_tss.size();
                 m_tick = new TickData(getParent().getLatestTick().getTimestamp(), m_average);
+                m_dirty = false;
             }
         }
         return m_tick;
