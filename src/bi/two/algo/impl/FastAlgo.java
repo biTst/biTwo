@@ -36,6 +36,9 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private final PolynomialSplineVelocity m_leadEmaVelocity1;
     private final PolynomialSplineVelocity m_leadEmaVelocity2;
     private final PolynomialSplineVelocity m_leadEmaVelocity3;
+    private final PolynomialSplineVelocity m_leadEmaVelocity4;
+    private final PolynomialSplineVelocity m_leadEmaVelocity5;
+    private final PolynomialSplineVelocity m_leadEmaVelocity6;
     private final Average m_leadEmaVelocityAvg;
     private final MidPointsVelocity m_leadEmaVelocity;
     private boolean m_dirty;
@@ -113,14 +116,20 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
         int multiplier = 1000;
         BaseTimesSeriesData leadEma = m_emas[0];
-        m_leadEmaVelocity1 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
-        m_leadEmaVelocity2 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.2), multiplier);
-        m_leadEmaVelocity3 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.4), multiplier);
+        m_leadEmaVelocity1 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 0.8), multiplier);
+        m_leadEmaVelocity2 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 0.9), multiplier);
+        m_leadEmaVelocity3 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
+        m_leadEmaVelocity4 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.1), multiplier);
+        m_leadEmaVelocity5 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.2), multiplier);
+        m_leadEmaVelocity6 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.3), multiplier);
 
         List<BaseTimesSeriesData> midVelocities = new ArrayList<>();
         midVelocities.add(m_leadEmaVelocity1);
         midVelocities.add(m_leadEmaVelocity2);
         midVelocities.add(m_leadEmaVelocity3);
+        midVelocities.add(m_leadEmaVelocity4);
+        midVelocities.add(m_leadEmaVelocity5);
+        midVelocities.add(m_leadEmaVelocity6);
         m_leadEmaVelocityAvg = new Average(midVelocities, leadEma);
 
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
@@ -423,6 +432,9 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 exitPower += remainedExitPower * revPower;
                 m_exitPower = exitPower;
 
+                float collapsePower = (tail - m_tailStart) / (m_midStart - m_tailStart);
+                collapsePower = (collapsePower > 1) ? 1 : collapsePower;
+
                 float velocity = getVelocity();
                 float velocityStartHalf = m_velocityStart / 2;
                 float collapseRate = (velocity - velocityStartHalf) / (-2 * velocityStartHalf);
@@ -431,7 +443,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 } else if (collapseRate > 1) {
                     collapseRate = 1;
                 }
-                collapseRate *= (1 - tailPower);
+                collapseRate *= (1 - collapsePower);
                 m_collapseRate = collapseRate;
 
                 float direction = m_directionIn + (goUp ? 1 : -1) * m_remainedEnterDistance * enterPower;
@@ -449,10 +461,11 @@ public class FastAlgo extends BaseAlgo<TickData> {
     }
 
     private float getVelocity() {
-        float v1 = m_leadEmaVelocity1.getLatestTick().getClosePrice();
-        float v2 = m_leadEmaVelocity2.getLatestTick().getClosePrice();
-        float v3 = m_leadEmaVelocity3.getLatestTick().getClosePrice();
-        return (v1 + v2 + v3) / 3;
+        return m_leadEmaVelocityAvg.getLatestTick().getClosePrice();
+//        float v1 = m_leadEmaVelocity1.getLatestTick().getClosePrice();
+//        float v2 = m_leadEmaVelocity2.getLatestTick().getClosePrice();
+//        float v3 = m_leadEmaVelocity3.getLatestTick().getClosePrice();
+//        return (v1 + v2 + v3) / 3;
     }
 
     @Override public void reset() {
@@ -614,6 +627,9 @@ public class FastAlgo extends BaseAlgo<TickData> {
             addChart(chartData, m_leadEmaVelocity1.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity1", velocityColor, TickPainter.LINE_JOIN);
             addChart(chartData, m_leadEmaVelocity2.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity2", velocityColor, TickPainter.LINE_JOIN);
             addChart(chartData, m_leadEmaVelocity3.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity3", velocityColor, TickPainter.LINE_JOIN);
+            addChart(chartData, m_leadEmaVelocity4.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity4", velocityColor, TickPainter.LINE_JOIN);
+            addChart(chartData, m_leadEmaVelocity6.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity5", velocityColor, TickPainter.LINE_JOIN);
+            addChart(chartData, m_leadEmaVelocity6.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity6", velocityColor, TickPainter.LINE_JOIN);
             addChart(chartData, m_leadEmaVelocityAvg.getJoinNonChangedTs(), valueLayers, "leadEmaVelocityAvg", Colors.YELLOW, TickPainter.LINE_JOIN);
             addChart(chartData, m_leadEmaVelocity.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity", Colors.TRANQUILITY, TickPainter.LINE_JOIN);
 //            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
