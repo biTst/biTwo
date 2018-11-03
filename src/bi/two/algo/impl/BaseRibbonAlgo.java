@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
+    protected final Exchange m_exchange;
     protected final float m_start;
     protected final float m_step;
     protected final float m_count;
@@ -23,17 +24,20 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     protected final float m_linRegMultiplier;
     protected final long m_joinTicks;
     protected final boolean m_collectValues;
-    protected int m_emasNum;
+    protected final double m_commission;
+
     protected BaseTimesSeriesData[] m_emas;
-    protected final ITimesSeriesData m_joinedIfNeededTs;
+    protected int m_emasNum;
+    protected final ITimesSeriesData m_wrappedInTs;
     private boolean m_dirty;
     private TickData m_tickData;
 
     protected abstract Float recalc(float lastPrice);
 
-    protected BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
+    protected BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
 
+        m_exchange = exchange;
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
@@ -41,10 +45,18 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
         m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
+        m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
-        m_joinedIfNeededTs = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
+        m_wrappedInTs = wrapIfNeededTs(inTsd);
+
         boolean hasSchedule = exchange.hasSchedule();
-        createRibbon(m_joinedIfNeededTs, m_collectValues, hasSchedule);
+        createRibbon(m_wrappedInTs, m_collectValues, hasSchedule);
+
+        setParent(m_wrappedInTs);
+    }
+
+    protected ITimesSeriesData wrapIfNeededTs(ITimesSeriesData inTsd) {
+        return (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(inTsd, m_joinTicks) : inTsd;
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
@@ -104,6 +116,7 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
                 if (adj != null) {
                     long timestamp = parentLatestTick.getTimestamp();
                     m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not chnaged
+                    m_dirty = false;
                     return m_tickData;
                 }
                 // else - not ready yet

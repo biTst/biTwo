@@ -2,9 +2,7 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
@@ -13,33 +11,22 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
-public class QummarAlgo extends BaseAlgo<TickData> {
+public class QummarAlgo extends BaseRibbonAlgo {
     private static final boolean APPLY_REVERSE = true;
     private static final boolean LIMIT_BY_PRICE = true;
     public static final boolean ADJUST_TAIL = false;
 
-    private final float m_start;
-    private final float m_step;
-    private final float m_count;
-    private final long m_barSize;
-    private final float m_linRegMultiplier;
-    private final long m_joinTicks;
     private final float m_minOrderMul;
     private final float m_target;
     private final float m_reverse;
     private final float m_reverseMul;
-    private final double m_commission;
 
 //    private BarsTimesSeriesData m_priceBars;
-    private BaseTimesSeriesData[] m_emas;
-    private int m_emasNum;
-    private boolean m_dirty; // when emas are changed
     private boolean m_goUp;
     private Float m_min;
     private Float m_max;
@@ -63,108 +50,30 @@ public class QummarAlgo extends BaseAlgo<TickData> {
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 
-    private TickData m_tickData;
-
     private BaseTimesSeriesData m_sliding;
 
     public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
-        super(null);
+        super(algoConfig, tsd, exchange);
 
-        reset();
+        reset(); // todo: really need here ?
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
-        m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
-
-        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
         m_target = algoConfig.getNumber(Vary.target).floatValue();
         m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
 
-        m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
-
-        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
 //        if (collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
 //        }
-
-        ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        boolean hasSchedule = exchange.hasSchedule();
-        ITimesSeriesData ts2 = hasSchedule ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
-
-        createRibbon(ts2, collectValues, hasSchedule);
-
-        setParent(ts2);
     }
 
-    private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
-        ITimesSeriesListener listener = new RibbonTsListener();
-
-//        long period = (long) (m_start * m_barSize * m_linRegMultiplier);
-//        SlidingTicksRegressor sliding0 = new SlidingTicksRegressor(tsd, period, false);
-//        m_sliding = new TicksSMA(sliding0, m_barSize);
-
-        List<BaseTimesSeriesData> list = new ArrayList<>();
-        float length = m_start;
-        int len = (int) m_count;
-        for (int i = 0; i < len; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues, hasSchedule);
-            ema.getActive().addListener(listener);
-            list.add(ema);
-            length += m_step;
-        }
-        if (m_count != len) {
-            float fraction = m_count - len;
-            float fractionLength = length - m_step + (m_step * fraction);
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues, hasSchedule);
-            ema.getActive().addListener(listener);
-            list.add(ema);
-            len++;
-        }
-
-        m_emasNum = len;
-        m_emas = list.toArray(new BaseTimesSeriesData[len]);
+    @Override protected ITimesSeriesData wrapIfNeededTs(ITimesSeriesData inTsd) {
+        ITimesSeriesData wrapped = wrapIfNeededTs(inTsd);
+        boolean hasSchedule = m_exchange.hasSchedule();
+        return hasSchedule ? new ScheduleTimesSeriesData(wrapped, m_exchange.m_schedule) : wrapped;
     }
 
-    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues, boolean hasSchedule) {
-        long period = (long) (length * barSize * m_linRegMultiplier);
-        return new SlidingTicksRegressor(tsd, period, false, hasSchedule);
-
-//        return new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier*5);
-
-//        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
-//        return new TicksSMA(r, m_barSize/2);
-
-//        return new BarsEMA(tsd, length, barSize);
-//        return new BarsDEMA(tsd, length, barSize);
-//        return new BarsTEMA(tsd, length, barSize);
-    }
-
-    @Override public TickData getLatestTick() {
-        return m_tickData;
-    }
-
-    @Override public ITickData getAdjusted() {
-        if (m_dirty) {
-            ITickData parentLatestTick = m_parent.getLatestTick();
-            if (parentLatestTick != null) {
-                float lastPrice = parentLatestTick.getClosePrice();
-                Float adj = recalc(lastPrice);
-                if (adj != null) {
-                    long timestamp = parentLatestTick.getTimestamp();
-                    m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not chnaged
-                    return m_tickData;
-                }
-                // else - not ready yet
-            }
-        }
-        return m_tickData;
-    }
-
-    private Float recalc(float lastPrice) {
+    @Override protected Float recalc(float lastPrice) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
@@ -301,7 +210,6 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 }
             }
         }
-        m_dirty = false;
         return m_adj;
     }
 
@@ -450,24 +358,5 @@ public class QummarAlgo extends BaseAlgo<TickData> {
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
             }
         }
-    }
-
-    @Override public void onTimeShift(long shift) {
-        // todo: call super
-        notifyOnTimeShift(shift);
-//        super.onTimeShift(shift);
-    }
-
-    //-------------------------------------------------------------------------------------------
-    private class RibbonTsListener implements ITimesSeriesListener {
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            if (changed) {
-                m_dirty = true;
-            }
-        }
-
-        @Override public void waitWhenAllFinish() { }
-        @Override public void notifyNoMoreTicks() {}
-        @Override public void onTimeShift(long shift) { /*noop*/ }
     }
 }

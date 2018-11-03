@@ -2,42 +2,29 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
+import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
 import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
-public class Ummar3Algo extends BaseAlgo<TickData> {
+public class Ummar3Algo extends BaseRibbonAlgo {
 
     private final double m_minOrderMul;
-    private final long m_joinTicks;
-
-    private final long m_barSize;
-    private final float m_start;
-    private final float m_step;
-    private final float m_count;
-    private final float m_multiplier;
 
     private final float m_s1;// spread proportional start
     private final float m_s2;// gain proportional start
     private final float m_e1;// spread proportional end
     private final float m_e2;// gain proportional end
 
-    private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private BarsTimesSeriesData m_priceBars;
-
-    private TickData m_tickData;
-    private boolean m_dirty;
 
     private boolean m_goUp;
     private float m_min;
@@ -56,103 +43,28 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
     private Ummar2Algo.DoubleAdjuster m_da;
     private Float m_adj;
 
-    public Ummar3Algo(MapConfig config, ITimesSeriesData tsd) {
-        super(null);
+    public Ummar3Algo(MapConfig config, ITimesSeriesData tsd, Exchange exchange) {
+        super(config, tsd, exchange);
 
         m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
-        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
-
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_start = config.getNumber(Vary.start).floatValue();
-        m_step = config.getNumber(Vary.step).floatValue();
-        m_count = config.getNumber(Vary.count).floatValue();
-        m_multiplier = config.getNumber(Vary.multiplier).floatValue();
 
         m_s1 = config.getNumber(Vary.s1).floatValue();
         m_s2 = config.getNumber(Vary.s2).floatValue();
         m_e1 = config.getNumber(Vary.e1).floatValue();
         m_e2 = config.getNumber(Vary.e2).floatValue();
 
-        if (collectValues) {
+        if (m_collectValues) {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
         }
-
-        ITimesSeriesData priceTsd = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        createRibbon(priceTsd, collectValues);
-
-        setParent(m_emas.get(0));
     }
 
-    private void createRibbon(ITimesSeriesData tsd, boolean collectValues) {
-
-        ITimesSeriesListener listener = new ITimesSeriesListener() {
-            @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-                if (changed) {
-                    m_dirty = true;
-                }
-            }
-            @Override public void waitWhenAllFinish() { }
-            @Override public void notifyNoMoreTicks() {}
-            @Override public void onTimeShift(long shift) { /*noop*/ }
-        };
-
-        List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
-        float length = m_start;
-        int countFloor = (int) m_count;
-        for (int i = 0; i < countFloor; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues);
-            ema.getActive().addListener(listener);
-            m_emas.add(ema);
-            iEmas.add(ema);
-            length += m_step;
-        }
-        if (m_count != countFloor) {
-            float fraction = m_count - countFloor;
-            float fractionLength = length - m_step + m_step * fraction;
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
-            ema.getActive().addListener(listener);
-            m_emas.add(ema);
-            iEmas.add(ema);
-        }
-    }
-
-    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
-        long period = (long) (length * barSize * m_multiplier);
-        return new SlidingTicksRegressor(tsd, period, collectValues);
-//        return new BarsEMA(tsd, length, barSize);
-//        return new BarsDEMA(tsd, length, barSize);
-//        return new BarsTEMA(tsd, length, barSize);
-    }
-
-    @Override public TickData getLatestTick() {
-        return m_tickData;
-    }
-
-    @Override public ITickData getAdjusted() {
-        if(m_dirty) {
-            ITickData parentLatestTick = getParent().getLatestTick();
-            if (parentLatestTick != null) {
-                Float adj = recalc();
-                if (adj != null) {
-                    long timestamp = parentLatestTick.getTimestamp();
-                    m_tickData = new TickData(timestamp, adj);
-                    return m_tickData;
-                }
-                // else - not ready yet
-            }
-        }
-        return m_tickData;
-    }
-
-    private Float recalc() {
+    @Override protected Float recalc(float lastPrice) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
         float leadEmaValue = 0;
-        int emasLen = m_emas.size();
-        for (int i = 0; i < emasLen; i++) {
-            ITimesSeriesData ema = m_emas.get(i);
+        for (int i = 0; i < m_emasNum; i++) {
+            ITimesSeriesData ema = m_emas[i];
             ITickData lastTick = ema.getLatestTick();
             if (lastTick != null) {
                 float value = lastTick.getClosePrice();
@@ -273,7 +185,6 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
 //            m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
 
         }
-        m_dirty = false;
         return m_adj;
     }
 
@@ -296,7 +207,7 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
                 + (detailed ? ",start=" : ",") + m_start
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
-                + (detailed ? ",multiplier=" : ",") + m_multiplier
+                + (detailed ? ",multiplier=" : ",") + m_linRegMultiplier
                 + (detailed ? "|s1=" : "|") + m_s1
                 + (detailed ? ",s2=" : ",") + m_s2
                 + (detailed ? ",e1=" : ",") + m_e1
@@ -311,7 +222,6 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
         console("ummar3.getPreloadPeriod() m_start=" + m_start + "; m_step=" + m_step + "; m_count=" + m_count);
         return TimeUnit.MINUTES.toMillis(25); // todo: calc from algo params
     }
-
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -331,7 +241,7 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
 //            Color emaColor = Colors.alpha(Color.BLUE, 25);
 //            int size = m_emas.size();
 //            for (int i = size - 1; i > 0; i--) {
-//                BaseTimesSeriesData ema = m_emas.get(i);
+//                BaseTimesSeriesData ema = m_emas[i];
 //                Color color = (i == size - 1) ? Colors.alpha(Color.GRAY, 50) : emaColor;
 //                addChart(chartData, ema.getJoinNonChangedTs(), topLayers, "ema" + i, color, TickPainter.LINE);
 //            }
@@ -350,7 +260,7 @@ public class Ummar3Algo extends BaseAlgo<TickData> {
             addChart(chartData, getLevelTs(), topLayers, "level", Color.PINK, TickPainter.LINE);
 ////            addChart(chartData, m_minMaxSpread.getMidTs(), topLayers, "mid", Color.PINK, TickPainter.LINE);
 
-            BaseTimesSeriesData leadEma = m_emas.get(0);
+            BaseTimesSeriesData leadEma = m_emas[0];
             Color color = Color.GREEN;
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma" , color, TickPainter.LINE);
         }

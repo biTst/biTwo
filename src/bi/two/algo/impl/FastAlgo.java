@@ -24,7 +24,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     public static final boolean ADJUST_TAIL = true;
 
     private final float m_reverseMul;
-    private final double m_commission;
 
     private final PolynomialSplineVelocity m_leadEmaVelocity1;
     private final PolynomialSplineVelocity m_leadEmaVelocity2;
@@ -76,7 +75,6 @@ public class FastAlgo extends BaseRibbonAlgo {
         super(algoConfig, tsd, exchange);
 
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
-        m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
 //        if (m_collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
@@ -101,8 +99,6 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_leadEmaVelocityAvg = new Average(midVelocities, leadEma);
 
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
-
-        setParent(m_joinedIfNeededTs);
     }
 
     @Override public String key(boolean detailed) {
@@ -121,7 +117,7 @@ public class FastAlgo extends BaseRibbonAlgo {
                 ;
     }
 
-    protected Float recalc(float lastPrice) {
+    @Override protected Float recalc(float lastPrice) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
