@@ -2,16 +2,17 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.Average;
 import bi.two.calc.MidPointsVelocity;
 import bi.two.calc.PolynomialSplineVelocity;
-import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
-import bi.two.ts.*;
+import bi.two.ts.BaseTicksTimesSeriesData;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -19,20 +20,12 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FastAlgo extends BaseAlgo<TickData> {
+public class FastAlgo extends BaseRibbonAlgo {
     public static final boolean ADJUST_TAIL = true;
 
-    private final float m_start;
-    private final long m_joinTicks;
-    private final float m_step;
-    private final float m_count;
-    private final long m_barSize;
-    private final float m_linRegMultiplier;
     private final float m_reverseMul;
     private final double m_commission;
 
-    private int m_emasNum;
-    private BaseTimesSeriesData[] m_emas;
     private final PolynomialSplineVelocity m_leadEmaVelocity1;
     private final PolynomialSplineVelocity m_leadEmaVelocity2;
     private final PolynomialSplineVelocity m_leadEmaVelocity3;
@@ -41,8 +34,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private final PolynomialSplineVelocity m_leadEmaVelocity6;
     private final Average m_leadEmaVelocityAvg;
     private final MidPointsVelocity m_leadEmaVelocity;
-    private boolean m_dirty;
-    private TickData m_tickData;
 
     private boolean m_goUp;
     private Float m_min;
@@ -54,13 +45,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private Float m_one;
     private Float m_onePaint;
     private Float m_reverseLevel;
-//    private Float m_targetLevel;
-    private Float m_power;
-    private Float m_value;
-    private Float m_mul;
-    private Float m_reversePower;
-    private Float m_mulAndPrev;
-    private Float m_revMulAndPrev;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
@@ -89,30 +73,14 @@ public class FastAlgo extends BaseAlgo<TickData> {
     private float m_velocityStart;
 
     public FastAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
-        super(null);
+        super(algoConfig, tsd, exchange);
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
-        m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
-
-        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
-//        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
-//        m_target = algoConfig.getNumber(Vary.target).floatValue();
-//        m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
-
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
-        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-//        if (collectValues) {
+//        if (m_collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
 //        }
-
-        ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        boolean hasSchedule = exchange.hasSchedule();
-        createRibbon(ts1, collectValues, hasSchedule);
 
         int multiplier = 1000;
         BaseTimesSeriesData leadEma = m_emas[0];
@@ -134,50 +102,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
 
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
 
-        setParent(ts1);
-    }
-
-    private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
-        ITimesSeriesListener listener = new RibbonTsListener();
-
-//        long period = (long) (m_start * m_barSize * m_linRegMultiplier);
-//        SlidingTicksRegressor sliding0 = new SlidingTicksRegressor(tsd, period, false);
-//        m_sliding = new TicksSMA(sliding0, m_barSize);
-
-        List<BaseTimesSeriesData> list = new ArrayList<>();
-        float length = m_start;
-        int len = (int) m_count;
-        for (int i = 0; i < len; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues, hasSchedule);
-            ema.getActive().addListener(listener);
-            list.add(ema);
-            length += m_step;  // todo: add progressive step
-        }
-        if (m_count != len) {
-            float fraction = m_count - len;
-            float fractionLength = length - m_step + (m_step * fraction);
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues, hasSchedule);
-            ema.getActive().addListener(listener);
-            list.add(ema);
-            len++;
-        }
-
-        m_emasNum = len;
-        m_emas = list.toArray(new BaseTimesSeriesData[len]);
-    }
-
-    private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues, boolean hasSchedule) {
-        long period = (long) (length * barSize * m_linRegMultiplier);
-        return new SlidingTicksRegressor(tsd, period, false, hasSchedule);
-
-//        return new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier*5);
-
-//        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
-//        return new TicksSMA(r, m_barSize/2);
-
-//        return new BarsEMA(tsd, length, barSize);
-//        return new BarsDEMA(tsd, length, barSize);
-//        return new BarsTEMA(tsd, length, barSize);
+        setParent(m_joinedIfNeededTs);
     }
 
     @Override public String key(boolean detailed) {
@@ -187,8 +112,6 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
-//                + (detailed ? ",target=" : ",") + m_target
-//                + (detailed ? ",reverse=" : ",") + m_reverse
                 + (detailed ? ",revMul=" : ",") + m_reverseMul
 //                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
@@ -198,28 +121,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 ;
     }
 
-    @Override public TickData getLatestTick() {
-        return m_tickData;
-    }
-
-    @Override public ITickData getAdjusted() {
-        if (m_dirty) {
-            ITickData parentLatestTick = m_parent.getLatestTick();
-            if (parentLatestTick != null) {
-                float lastPrice = parentLatestTick.getClosePrice();
-                Float adj = recalc(lastPrice);
-                if (adj != null) {
-                    long timestamp = parentLatestTick.getTimestamp();
-                    m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not chnaged
-                    return m_tickData;
-                }
-                // else - not ready yet
-            }
-        }
-        return m_tickData;
-    }
-
-    private Float recalc(float lastPrice) {
+    protected Float recalc(float lastPrice) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
@@ -477,14 +379,7 @@ public class FastAlgo extends BaseAlgo<TickData> {
         m_one = null;
         m_onePaint = null;
         m_tailStart = null;
-//        m_targetLevel = null;
-        m_power = null;
-        m_value = 0F;
-        m_mul = 0F;
         m_reverseLevel = null;
-        m_reversePower = null;
-        m_mulAndPrev = 0F;
-        m_revMulAndPrev = 0F;
         m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
@@ -646,27 +541,5 @@ public class FastAlgo extends BaseAlgo<TickData> {
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
             }
         }
-    }
-
-    @Override public void onTimeShift(long shift) {
-        // todo: call super
-        notifyOnTimeShift(shift);
-        m_tickData.onTimeShift(shift);
-//        super.onTimeShift(shift);
-    }
-
-
-
-    //-------------------------------------------------------------------------------------------
-    private class RibbonTsListener implements ITimesSeriesListener {
-        @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
-            if (changed) {
-                m_dirty = true;
-            }
-        }
-
-        @Override public void waitWhenAllFinish() { }
-        @Override public void notifyNoMoreTicks() {}
-        @Override public void onTimeShift(long shift) { /*noop*/ }
     }
 }
