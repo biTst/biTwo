@@ -8,7 +8,6 @@ import bi.two.calc.MidPointsVelocity;
 import bi.two.calc.PolynomialSplineVelocity;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
-import bi.two.opt.Vary;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
@@ -23,16 +22,9 @@ import java.util.List;
 public class FastAlgo extends BaseRibbonAlgo {
     public static final boolean ADJUST_TAIL = true;
 
-    private final float m_reverseMul;
-
-    private final PolynomialSplineVelocity m_leadEmaVelocity1;
-    private final PolynomialSplineVelocity m_leadEmaVelocity2;
-    private final PolynomialSplineVelocity m_leadEmaVelocity3;
-    private final PolynomialSplineVelocity m_leadEmaVelocity4;
-    private final PolynomialSplineVelocity m_leadEmaVelocity5;
-    private final PolynomialSplineVelocity m_leadEmaVelocity6;
-    private final Average m_leadEmaVelocityAvg;
+    private final VelocityArray m_velocity;
     private final MidPointsVelocity m_leadEmaVelocity;
+    private final Collapser m_collapser;
 
     private boolean m_goUp;
     private Float m_min;
@@ -49,7 +41,7 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_ribbonSpreadBottom;
     private Float m_spreadClosePower;
     private Float m_exitPower;
-    private Float m_collapseRate;
+    private Float m_noStartCollapseRate;
     private Float m_midPower;
     private Float m_tailPower;
     private Float m_enterPower;
@@ -69,36 +61,21 @@ public class FastAlgo extends BaseRibbonAlgo {
     private float m_maxHeadRun;
     private float m_minHeadRun;
     private Float m_revPower;
-    private float m_velocityStart;
+    private float m_velocityStartHalf;
 
     public FastAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
         super(algoConfig, tsd, exchange);
-
-        m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
 
 //        if (m_collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
 //        }
 
-        int multiplier = 1000;
         BaseTimesSeriesData leadEma = m_emas[0];
-        m_leadEmaVelocity1 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 0.8), multiplier);
-        m_leadEmaVelocity2 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 0.9), multiplier);
-        m_leadEmaVelocity3 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
-        m_leadEmaVelocity4 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.1), multiplier);
-        m_leadEmaVelocity5 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.2), multiplier);
-        m_leadEmaVelocity6 = new PolynomialSplineVelocity(leadEma, (long) (m_barSize * 1.3), multiplier);
-
-        List<BaseTimesSeriesData> midVelocities = new ArrayList<>();
-        midVelocities.add(m_leadEmaVelocity1);
-        midVelocities.add(m_leadEmaVelocity2);
-        midVelocities.add(m_leadEmaVelocity3);
-        midVelocities.add(m_leadEmaVelocity4);
-        midVelocities.add(m_leadEmaVelocity5);
-        midVelocities.add(m_leadEmaVelocity6);
-        m_leadEmaVelocityAvg = new Average(midVelocities, leadEma);
-
+        int multiplier = 1000;
+        m_velocity = new VelocityArray(leadEma, m_barSize, 1.0f, 0.1f, 2, multiplier);
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
+
+        m_collapser = new Collapser(0.3f);
     }
 
     @Override public String key(boolean detailed) {
@@ -108,7 +85,6 @@ public class FastAlgo extends BaseRibbonAlgo {
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
-                + (detailed ? ",revMul=" : ",") + m_reverseMul
 //                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
@@ -184,7 +160,8 @@ public class FastAlgo extends BaseRibbonAlgo {
                 m_one = head + spread / 2;
                 m_onePaint = head;
 
-                m_velocityStart = getVelocity();
+                m_velocityStartHalf = getVelocity() / 2;
+                m_collapser.init(head, tail);
             } else {
                 if (m_one != null) {
                     if (ADJUST_TAIL) {
@@ -330,22 +307,22 @@ public class FastAlgo extends BaseRibbonAlgo {
                 exitPower += remainedExitPower * revPower;
                 m_exitPower = exitPower;
 
-                float collapsePower = (tail - m_tailStart) / (m_midStart - m_tailStart);
-                collapsePower = (collapsePower > 1) ? 1 : collapsePower;
 
+                // false-start collapse
+                float noStartCollapsePower = (tail - m_tailStart) / (m_midStart - m_tailStart);
+                noStartCollapsePower = (noStartCollapsePower > 1) ? 1 : noStartCollapsePower;
                 float velocity = getVelocity();
-                float velocityStartHalf = m_velocityStart / 2;
-                float collapseRate = (velocity - velocityStartHalf) / (-2 * velocityStartHalf);
-                if (collapseRate < 0) {
-                    collapseRate = 0;
-                } else if (collapseRate > 1) {
-                    collapseRate = 1;
+                float noStartCollapseRate = (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf);
+                if (noStartCollapseRate < 0) {
+                    noStartCollapseRate = 0;
+                } else if (noStartCollapseRate > 1) {
+                    noStartCollapseRate = 1;
                 }
-                collapseRate *= (1 - collapsePower);
-                m_collapseRate = collapseRate;
+                noStartCollapseRate *= (1 - noStartCollapsePower);
+                m_noStartCollapseRate = noStartCollapseRate;
 
                 float direction = m_directionIn + (goUp ? 1 : -1) * m_remainedEnterDistance * enterPower;
-                direction *= (1 - collapseRate);
+                direction *= (1 - noStartCollapseRate);
                 float remainedExitDistance = goUp ? 1 + direction : 1 - direction;
 //                direction += (goUp ? -1 : 1) * remainedExitDistance * exitPower;
 //                direction += (goUp ? -1 : 1) * remainedExitDistance * revPower;
@@ -359,11 +336,7 @@ public class FastAlgo extends BaseRibbonAlgo {
     }
 
     private float getVelocity() {
-        return m_leadEmaVelocityAvg.getLatestTick().getClosePrice();
-//        float v1 = m_leadEmaVelocity1.getLatestTick().getClosePrice();
-//        float v2 = m_leadEmaVelocity2.getLatestTick().getClosePrice();
-//        float v3 = m_leadEmaVelocity3.getLatestTick().getClosePrice();
-//        return (v1 + v2 + v3) / 3;
+        return m_velocity.m_velocityAvg.getLatestTick().getClosePrice();
     }
 
     @Override public void reset() {
@@ -381,7 +354,7 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_ribbonSpreadBottom = null;
         m_spreadClosePower = null;
         m_exitPower = null;
-        m_collapseRate = null;
+        m_noStartCollapseRate = null;
         m_midPower = null;
         m_tailPower = null;
         m_enterPower = null;
@@ -425,7 +398,7 @@ public class FastAlgo extends BaseRibbonAlgo {
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getTailPower2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower2; } }; }
     TicksTimesSeriesData<TickData> getExitPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitPower; } }; }
-    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
+    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_noStartCollapseRate; } }; }
 
     TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
     TicksTimesSeriesData<TickData> getRevPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_revPower; } }; }
@@ -514,14 +487,14 @@ public class FastAlgo extends BaseRibbonAlgo {
 //            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
 //            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+
             Color velocityColor = Colors.alpha(Colors.CLOW_IN_THE_DARK, 60);
-            addChart(chartData, m_leadEmaVelocity1.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity1", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocity2.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity2", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocity3.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity3", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocity4.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity4", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocity6.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity5", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocity6.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity6", velocityColor, TickPainter.LINE_JOIN);
-            addChart(chartData, m_leadEmaVelocityAvg.getJoinNonChangedTs(), valueLayers, "leadEmaVelocityAvg", Colors.YELLOW, TickPainter.LINE_JOIN);
+            List<BaseTimesSeriesData> m_velocities = m_velocity.m_velocities;
+            for (int i = 0; i < m_velocities.size(); i++) {
+                BaseTimesSeriesData velocity = m_velocities.get(i);
+                addChart(chartData, velocity.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity" + i, velocityColor, TickPainter.LINE_JOIN);
+            }
+            addChart(chartData, m_velocity.m_velocityAvg.getJoinNonChangedTs(), valueLayers, "leadEmaVelocityAvg", Colors.YELLOW, TickPainter.LINE_JOIN);
             addChart(chartData, m_leadEmaVelocity.getJoinNonChangedTs(), valueLayers, "leadEmaVelocity", Colors.TRANQUILITY, TickPainter.LINE_JOIN);
 //            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
 ////            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
@@ -536,6 +509,35 @@ public class FastAlgo extends BaseRibbonAlgo {
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
             }
+        }
+    }
+
+    // --------------------------------------------------------------------------------------
+    private static class VelocityArray {
+        private final List<BaseTimesSeriesData> m_velocities = new ArrayList<>();
+        private final Average m_velocityAvg;
+
+        VelocityArray(BaseTimesSeriesData tsd, long barSize, float velocityStart, float velocityStep, int steps, int multiplier) {
+            for (int i = -steps; i <= steps; i++) {
+                PolynomialSplineVelocity velocity = new PolynomialSplineVelocity(tsd, (long) (barSize * velocityStart + i * velocityStep), multiplier);
+                m_velocities.add(velocity);
+            }
+            m_velocityAvg = new Average(m_velocities, tsd);
+        }
+    }
+
+    // --------------------------------------------------------------------------------------
+    private static class Collapser {
+        private final float m_step;
+        private float m_rate;
+
+        Collapser(float step) {
+            m_step = step;
+            m_rate = 0;
+        }
+
+        void init(float head, float tail) {
+            m_rate = 0;
         }
     }
 }
