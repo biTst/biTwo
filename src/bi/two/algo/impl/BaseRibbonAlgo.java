@@ -115,7 +115,7 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
                 Float adj = recalc(lastPrice);
                 if (adj != null) {
                     long timestamp = parentLatestTick.getTimestamp();
-                    m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not chnaged
+                    m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not changed
                     m_dirty = false;
                     return m_tickData;
                 }

@@ -20,7 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FastAlgo extends BaseRibbonAlgo {
-    public static final boolean ADJUST_TAIL = true;
+    private static final boolean ADJUST_TAIL = false;
+    private static final boolean LIMIT_BY_PRICE = true;
 
     private final VelocityArray m_velocity;
     private final MidPointsVelocity m_leadEmaVelocity;
@@ -46,7 +47,7 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_tailPower;
     private Float m_enterPower;
     private Float m_headPower;
-    private Float m_direction;
+    private Float m_direction = 0f;
     private Float m_directionIn;
     private Float m_remainedEnterDistance;
     private Float m_mid;
@@ -180,31 +181,35 @@ public class FastAlgo extends BaseRibbonAlgo {
                             m_one = m_headStart + half;
                         }
                     }
-                    if (goUp) { // todo: this only for painting
-                        if (tail > m_oneQuarter) {
-                            m_oneQuarterPaint = m_midStart;
-                        }
-                        if (tail > m_threeQuarter) {
-                            m_threeQuarterPaint = m_headStart;
-                        }
-                        if (tail > m_fiveQuarter) {
-                            m_fiveQuarterPaint = m_fiveQuarter;
-                        }
-                        if (tail > m_one) {
-                            m_onePaint = m_one;
-                        }
-                    } else {
-                        if (tail < m_oneQuarter) {
-                            m_oneQuarterPaint = m_midStart;
-                        }
-                        if (tail < m_threeQuarter) {
-                            m_threeQuarterPaint = m_headStart;
-                        }
-                        if (tail < m_fiveQuarter) {
-                            m_fiveQuarterPaint = m_fiveQuarter;
-                        }
-                        if (tail < m_one) {
-                            m_onePaint = m_one;
+                    if (m_collectValues) { // this only for painting
+                        if (goUp) {
+                            if (tail > m_oneQuarter) {
+                                m_oneQuarterPaint = m_midStart;
+                            }
+                            if (tail > m_threeQuarter) {
+                                m_threeQuarterPaint = m_headStart;
+                            }
+                            if (tail > m_fiveQuarter) {
+                                m_fiveQuarterPaint = m_fiveQuarter;
+                                m_onePaint = m_fiveQuarter;
+                            }
+                            if (tail > m_one) {
+                                m_onePaint = m_one;
+                            }
+                        } else {
+                            if (tail < m_oneQuarter) {
+                                m_oneQuarterPaint = m_midStart;
+                            }
+                            if (tail < m_threeQuarter) {
+                                m_threeQuarterPaint = m_headStart;
+                            }
+                            if (tail < m_fiveQuarter) {
+                                m_fiveQuarterPaint = m_fiveQuarter;
+                                m_onePaint = m_fiveQuarter;
+                            }
+                            if (tail < m_one) {
+                                m_onePaint = m_one;
+                            }
                         }
                     }
                 }
@@ -251,17 +256,21 @@ public class FastAlgo extends BaseRibbonAlgo {
 ////                }
 
                 float enterMidPower = (mid - m_midStart) / (m_headStart - m_midStart);
-////                m_midPower = (midPower > 1) ? 1 : midPower;
                 float enterTailPower = (tail - m_tailStart) / (m_midStart - m_tailStart) * 2;
-////                m_tailPower = (tailPower > 1) ? 1 : tailPower;
                 float enterPower = Math.max(enterMidPower, enterTailPower);  //  (enterMidPower + enterTailPower) / 2;
                 if (enterPower > 1) {
                     enterPower = 1;
+                } else if (enterPower < 0) {
+                    enterPower = 0;
                 }
                 m_enterPower = enterPower;
 
                 float tailPower = (tail - m_tailStart) / (m_headStart - m_tailStart);
-                tailPower = (tailPower > 1) ? 1 : tailPower;
+                if (tailPower > 1) {
+                    tailPower = 1;
+                } else if (tailPower < 0) {
+                    tailPower = 0;
+                }
                 m_tailPower = tailPower;
                 float reverseLevel = head - (head - mid) * tailPower;
                 m_reverseLevel = reverseLevel;
@@ -310,7 +319,11 @@ public class FastAlgo extends BaseRibbonAlgo {
 
                 // false-start collapse
                 float noStartCollapsePower = (tail - m_tailStart) / (m_midStart - m_tailStart);
-                noStartCollapsePower = (noStartCollapsePower > 1) ? 1 : noStartCollapsePower;
+                if (noStartCollapsePower > 1) {
+                    noStartCollapsePower = 1;
+                } else if (noStartCollapsePower < 0) {
+                    noStartCollapsePower = 0;
+                }
                 float velocity = getVelocity();
                 float noStartCollapseRate = (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf);
                 if (noStartCollapseRate < 0) {
@@ -328,7 +341,20 @@ public class FastAlgo extends BaseRibbonAlgo {
 //                direction += (goUp ? -1 : 1) * remainedExitDistance * revPower;
 //                direction += (goUp ? -1 : 1) * remainedExitDistance * spreadClosePower;
                 direction += (goUp ? -1 : 1) * remainedExitDistance * exitMidPower / 2;
-                m_direction = direction;
+
+                if (LIMIT_BY_PRICE) {
+                    if (direction > m_direction) {
+                        if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
+                            m_direction = direction;
+                        }
+                    } else { // adj < m_adj
+                        if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
+                            m_direction = direction;
+                        }
+                    }
+                } else {
+                    m_direction = direction;
+                }
             }
         }
 
@@ -359,7 +385,7 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_tailPower = null;
         m_enterPower = null;
         m_headPower = null;
-        m_direction = null;
+        m_direction = 0f;
         m_directionIn = null;
         m_remainedEnterDistance = null;
         m_mid = null;
