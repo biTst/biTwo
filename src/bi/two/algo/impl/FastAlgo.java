@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FastAlgo extends BaseRibbonAlgo {
-    private static final boolean ADJUST_TAIL = false;
+    private static final boolean ADJUST_TAIL = true;
     private static final boolean LIMIT_BY_PRICE = true;
 
     private final VelocityArray m_velocity;
@@ -34,8 +34,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_headStart;
     private Float m_tailStart;
     private Float m_midStart;
-    private Float m_one;
-    private Float m_onePaint;
     private Float m_reverseLevel;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
@@ -53,12 +51,20 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_mid;
     private Float m_tailPower2;
     private Float m_spreadClosePowerAdjusted;
-    private Float m_oneQuarter;
-    private Float m_oneQuarterPaint;
-    private Float m_threeQuarter;
-    private Float m_threeQuarterPaint;
-    private Float m_fiveQuarter;
-    private Float m_fiveQuarterPaint;
+
+    private Float m_1quarter;
+    private Float m_1quarterPaint;
+    private Float m_3quarter;
+    private Float m_3quarterPaint;
+    private Float m_5quarter;
+    private Float m_5quarterPaint;
+    private Float m_6quarter;
+    private Float m_6quarterPaint;
+    private Float m_7quarter;
+    private Float m_7quarterPaint;
+    private Float m_8quarter;
+    private Float m_8quarterPaint;
+
     private float m_maxHeadRun;
     private float m_minHeadRun;
     private Float m_revPower;
@@ -151,20 +157,25 @@ public class FastAlgo extends BaseRibbonAlgo {
                 m_midStart = mid;
 
                 float spread = head - tail;
+                float half = spread / 2;
                 float quarter = spread / 4;
-                m_oneQuarter = tail + quarter;
-                m_oneQuarterPaint = m_oneQuarter;
-                m_threeQuarter = mid + quarter;
-                m_threeQuarterPaint = m_threeQuarter;
-                m_fiveQuarter = head + quarter;
-                m_fiveQuarterPaint = head;
-                m_one = head + spread / 2;
-                m_onePaint = head;
+                m_1quarter = tail + quarter;
+                m_1quarterPaint = m_1quarter;
+                m_3quarter = mid + quarter;
+                m_3quarterPaint = m_3quarter;
+                m_5quarter = head + quarter;
+                m_5quarterPaint = head;
+                m_6quarter = head + half;
+                m_6quarterPaint = head;
+                m_7quarter = head + half + quarter;
+                m_7quarterPaint = head;
+                m_8quarter = head + spread;
+                m_8quarterPaint = head;
 
                 m_velocityStartHalf = getVelocity() / 2;
                 m_collapser.init(head, tail);
             } else {
-                if (m_one != null) {
+                if (m_6quarter != null) {
                     if (ADJUST_TAIL) {
                         if ((goUp && (tail < m_tailStart)) || (!goUp && (tail > m_tailStart))) {
                             m_tailStart = tail;
@@ -172,43 +183,70 @@ public class FastAlgo extends BaseRibbonAlgo {
                             float half = spread / 2;
                             float quarter = spread / 4;
                             m_midStart = tail + half;
-                            m_oneQuarter = tail + quarter;
-                            m_oneQuarterPaint = m_oneQuarter;
-                            m_threeQuarter = m_headStart - quarter;
-                            m_threeQuarterPaint = m_threeQuarter;
-                            m_fiveQuarter = m_headStart + quarter;
-                            m_fiveQuarterPaint = m_headStart;
-                            m_one = m_headStart + half;
+                            m_1quarter = tail + quarter;
+                            m_1quarterPaint = m_1quarter;
+                            m_3quarter = m_headStart - quarter;
+                            m_3quarterPaint = m_3quarter;
+                            m_5quarter = m_headStart + quarter;
+                            m_5quarterPaint = m_headStart;
+                            m_6quarter = m_headStart + half;
+                            m_6quarterPaint = m_headStart;
+                            m_7quarter = m_headStart + half + quarter;
+                            m_7quarterPaint = m_headStart;
+                            m_8quarter = m_headStart + spread;
+                            m_8quarterPaint = m_headStart;
                         }
                     }
                     if (m_collectValues) { // this only for painting
                         if (goUp) {
-                            if (tail > m_oneQuarter) {
-                                m_oneQuarterPaint = m_midStart;
+                            if (tail > m_1quarter) {
+                                m_1quarterPaint = m_midStart;
                             }
-                            if (tail > m_threeQuarter) {
-                                m_threeQuarterPaint = m_headStart;
+                            if (tail > m_3quarter) {
+                                m_3quarterPaint = m_headStart;
                             }
-                            if (tail > m_fiveQuarter) {
-                                m_fiveQuarterPaint = m_fiveQuarter;
-                                m_onePaint = m_fiveQuarter;
+                            if (tail > m_5quarter) {
+                                m_5quarterPaint = m_5quarter;
+                                m_6quarterPaint = m_5quarter;
+                                m_7quarterPaint = m_5quarter;
+                                m_8quarterPaint = m_5quarter;
                             }
-                            if (tail > m_one) {
-                                m_onePaint = m_one;
+                            if (tail > m_6quarter) {
+                                m_6quarterPaint = m_6quarter;
+                                m_7quarterPaint = m_6quarter;
+                                m_8quarterPaint = m_6quarter;
+                            }
+                            if (tail > m_7quarter) {
+                                m_7quarterPaint = m_7quarter;
+                                m_8quarterPaint = m_8quarter;
+                            }
+                            if (tail > m_8quarter) {
+                                m_8quarterPaint = m_8quarter;
                             }
                         } else {
-                            if (tail < m_oneQuarter) {
-                                m_oneQuarterPaint = m_midStart;
+                            if (tail < m_1quarter) {
+                                m_1quarterPaint = m_midStart;
                             }
-                            if (tail < m_threeQuarter) {
-                                m_threeQuarterPaint = m_headStart;
+                            if (tail < m_3quarter) {
+                                m_3quarterPaint = m_headStart;
                             }
-                            if (tail < m_fiveQuarter) {
-                                m_fiveQuarterPaint = m_fiveQuarter;
-                                m_onePaint = m_fiveQuarter;
+                            if (tail < m_5quarter) {
+                                m_5quarterPaint = m_5quarter;
+                                m_6quarterPaint = m_5quarter;
+                                m_7quarterPaint = m_5quarter;
+                                m_8quarterPaint = m_5quarter;
                             }
-                            if (tail < m_one) {
-                                m_onePaint = m_one;
+                            if (tail < m_6quarter) {
+                                m_6quarterPaint = m_6quarter;
+                                m_7quarterPaint = m_6quarter;
+                                m_8quarterPaint = m_6quarter;
+                            }
+                            if (tail < m_7quarter) {
+                                m_7quarterPaint = m_7quarter;
+                                m_8quarterPaint = m_7quarter;
+                            }
+                            if (tail < m_8quarter) {
+                                m_8quarterPaint = m_8quarter;
                             }
                         }
                     }
@@ -371,8 +409,6 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_zigZag = null;
         m_headStart = null;
         m_midStart = null;
-        m_one = null;
-        m_onePaint = null;
         m_tailStart = null;
         m_reverseLevel = null;
         m_maxRibbonSpread = 0f;
@@ -391,9 +427,12 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_mid = null;
         m_tailPower2 = null;
         m_spreadClosePowerAdjusted = null;
-        m_oneQuarter = null;
-        m_threeQuarter = null;
-        m_fiveQuarter = null;
+        m_1quarter = null;
+        m_3quarter = null;
+        m_5quarter = null;
+        m_6quarter = null;
+        m_7quarter = null;
+        m_8quarter = null;
         m_maxHeadRun = 0;
         m_minHeadRun = 0;
         m_revPower = null;
@@ -411,10 +450,12 @@ public class FastAlgo extends BaseRibbonAlgo {
 
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
 
-    TicksTimesSeriesData<TickData> getOneQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_oneQuarterPaint; } }; }
-    TicksTimesSeriesData<TickData> getThreeQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_threeQuarterPaint; } }; }
-    TicksTimesSeriesData<TickData> getOneTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_onePaint; } }; }
-    TicksTimesSeriesData<TickData> getFiveQuarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_fiveQuarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get1quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_1quarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get3quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_3quarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get5quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_5quarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get6quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_6quarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get7quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_7quarterPaint; } }; }
+    TicksTimesSeriesData<TickData> get8quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_8quarterPaint; } }; }
 
     TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePower; } }; }
@@ -469,10 +510,12 @@ public class FastAlgo extends BaseRibbonAlgo {
             addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
             Color halfGray = Colors.alpha(Color.GRAY, 128);
-            addChart(chartData, getOneQuarterTs(), topLayers, "oneQuarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, getThreeQuarterTs(), topLayers, "threeQuarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, getOneTs(), topLayers, "one", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, getFiveQuarterTs(), topLayers, "fiveQuarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
 //            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //
