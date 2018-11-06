@@ -7,6 +7,8 @@ import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 
 abstract class Base3PointsVelocity extends BaseTimesSeriesData<ITickData> {
+    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
+
     private final BarSplitter m_splitter;
     final float m_multiplier;
     private boolean m_initialized;
@@ -87,6 +89,15 @@ abstract class Base3PointsVelocity extends BaseTimesSeriesData<ITickData> {
                         long x1 = oldestTick.getTimestamp();
                         float y1 = oldestTick.getClosePrice();
 
+                        if (MONOTONE_TIME_INCREASE_CHECK) {
+                            if (x1 > x2) {
+                                throw new RuntimeException("non-monotone time increase: x1(" + x1 + ") > x2(" + x2 + ")");
+                            }
+                            if (x2 > x3) {
+                                throw new RuntimeException("non-monotone time increase: x2(" + x2 + ") > x3(" + x3 + ")");
+                            }
+                        }
+
                         Float velocity = calcVelocity(x1, y1, x2, y2, x3, y3);
                         if (velocity != null) {
                             long timestamp = m_parent.getLatestTick().getTimestamp();
@@ -103,5 +114,8 @@ abstract class Base3PointsVelocity extends BaseTimesSeriesData<ITickData> {
     @Override public void onTimeShift(long shift) {
         // todo: call super only;   +recheck
         notifyOnTimeShift(shift);
+        if (m_tickData != null) {
+            m_tickData.onTimeShift(shift);
+        }
     }
 }

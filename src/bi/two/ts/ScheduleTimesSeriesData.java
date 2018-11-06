@@ -6,6 +6,8 @@ import bi.two.exch.schedule.TradeHours;
 import bi.two.exch.schedule.TradeSchedule;
 
 public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
+    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
+
     private final TradeSchedule m_tradeSchedule;
     private ITickData m_lastTick;
     private TradeHours m_currTradeHours;
@@ -24,7 +26,8 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
         if (changed) {
             ITickData latestTick = ts.getLatestTick();
             long timestamp = latestTick.getTimestamp();
-            if (m_tradeEndMillis <= timestamp) {
+            boolean afterTradeEnd = m_tradeEndMillis <= timestamp;
+            if (afterTradeEnd) {
                 TradeHours nextTradeHours = m_tradeSchedule.getTradeHours(timestamp);
                 boolean inside = nextTradeHours.isInsideOfTradingHours(timestamp);
                 if (!inside) {
@@ -40,10 +43,18 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
                     TradeHours nextDayTradeHours = m_currTradeHours.getNextDayTradeHours();
                     if (nextDayTradeHours == nextTradeHours) { // expected next trade day
                         onTimeShift(tradePause); // report valid shift if next trade day
+                    } else {
+                        throw new RuntimeException("not expected next trade day");
                     }
                 }
                 m_currTradeHours = nextTradeHours;
                 m_tradeEndMillis = nextTradeHours.m_tradeEndMillis;
+            }
+            if (MONOTONE_TIME_INCREASE_CHECK) {
+                boolean inside = m_currTradeHours.isInsideOfTradingHours(timestamp);
+                if (!inside) {
+                    throw new RuntimeException("timestamp is not inside of trading day: timestamp=" + timestamp + "; currTradeHours=" + m_currTradeHours);
+                }
             }
             m_lastTick = latestTick;
             super.onChanged(ts, changed);

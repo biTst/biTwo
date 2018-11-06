@@ -21,6 +21,7 @@ import static bi.two.util.Log.log;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
+    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
 
     private static final long FADE_OUT_EOD_MILLIS = TimeUnit.MINUTES.toMillis(5);
     private static final long FADE_IN_BOD_MILLIS = TimeUnit.MINUTES.toMillis(5);
@@ -143,12 +144,17 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 long gap = currTimestamp - firstTimestamp;
                 float fadeInRate = ((float) gap) / FADE_IN_TIME;
                 fadeInRate = (1 <= fadeInRate) ? 1 : fadeInRate;  // Math.min(1, fadeInRate); // [0 -> 1]
+                if (MONOTONE_TIME_INCREASE_CHECK) {
+                    if (fadeInRate < 0) {
+                        throw new RuntimeException("negative fadeInRate=" + fadeInRate);
+                    }
+                }
                 m_fadeInRate = fadeInRate;
                 if (fadeInRate == 1) {
                     m_fadeOutRate = 0; // no fade out - trades are flowing fine
                 }
             } else {
-                m_firstTick = latestPriceTick;
+                m_firstTick = m_hasSchedule ? new TickData(latestPriceTick) : latestPriceTick;
             }
         }
 
@@ -194,7 +200,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             }
         }
 
-        m_lastTick = latestPriceTick;
+        m_lastTick = m_hasSchedule ? new TickData(latestPriceTick) : latestPriceTick;
 
         float closePrice = latestPriceTick.getClosePrice();
         m_topData.m_last = closePrice;

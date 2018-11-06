@@ -9,6 +9,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class BaseTimesSeriesData<T extends ITickData>
         implements ITimesSeriesData<T>, ITimesSeriesListener<T> {
+    public static final boolean STRICT_MONOTONE_TIME_INCREASE_CHECK = true;
+
     public ITimesSeriesData m_parent;
     protected List<ITimesSeriesListener<T>> m_listeners = new CopyOnWriteArrayList<>();
 

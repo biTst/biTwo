@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static bi.two.util.Log.*;
 
 public class ParallelTimesSeriesData extends BaseTimesSeriesData {
+    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
+
     private final int m_maxParallelSize;
     private final int m_groupTicks;
     private final Exchange m_exchange;
@@ -231,6 +233,14 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                         notifyNoMoreTicks();
                         break;
                     } else {
+                        if (MONOTONE_TIME_INCREASE_CHECK) {
+                            if (m_currentTickData != null) {
+                                long currTimestamp = m_currentTickData.getTimestamp();
+                                if (timestamp < currTimestamp) {
+                                    throw new RuntimeException("non-monotonic time increase");
+                                }
+                            }
+                        }
                         m_currentTickData = tick;
                         notifyListeners(true);
                     }
@@ -284,10 +294,22 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         private int m_outPosition;
         private int m_outLength;
         private volatile int m_size;
+        private long m_lastTimestamp;
 
         @Override public int size() { return m_size; }
 
         @Override public void addToTail(X x) {
+            if (MONOTONE_TIME_INCREASE_CHECK) {
+                long timestamp = x.getTimestamp();
+                if (timestamp != 0) { // not no-more-ticks-marker
+                    long diff = timestamp - m_lastTimestamp;
+                    if (diff < 0) {
+                        throw new RuntimeException("non-monotone time increase");
+                    }
+                    m_lastTimestamp = timestamp;
+                }
+            }
+
             m_in[m_inPosition++] = x;
             m_size++;
             if (m_inPosition >= m_groupTicks) {
@@ -305,7 +327,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                         if (m_sharedSize > 0) {
 //                            ITickData[] out = m_out;
                             m_out = m_shared;
-                            m_outLength = m_out.length;
+                            m_outLength = m_sharedSize; // m_out.length;
                             m_outPosition = 0;
 
 //                            m_shared = out; // todo: reuse buffer - breaks test for now.

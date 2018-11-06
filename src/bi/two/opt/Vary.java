@@ -32,6 +32,8 @@ public enum Vary {
     target(VaryType.FLOAT),     // qummar target
     reverseMul(VaryType.FLOAT), // qummar multiplicator
 
+    collapse(VaryType.FLOAT),
+
     minOrderMul(VaryType.FLOAT),
     joinTicks(VaryType.LONG),
     commission(VaryType.FLOAT),

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
+    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
     public static final int BARS_NUM = 20;
     private static final long DEF_PERIOD = 60000L;
 
@@ -87,6 +88,11 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
                 m_newestBar.put(tickClone);
             } else {
                 long timeShift = timestamp - m_newestBar.m_time;
+                if (MONOTONE_TIME_INCREASE_CHECK) {
+                    if (timeShift < 0L) {
+                        throw new RuntimeException("non-monotone time increase: timeShift=" + timeShift);
+                    }
+                }
                 m_newestBar.put(tickClone);
                 if (timeShift > 0L) {
                     for (int index = 0; index < m_barsNum; ++index) {
