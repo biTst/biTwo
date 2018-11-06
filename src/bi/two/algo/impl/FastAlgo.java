@@ -129,30 +129,17 @@ public class FastAlgo extends BaseRibbonAlgo {
 
         if (allDone) {
             boolean goUp = (leadEmaValue == emasMax)
-                    ? true // go up
-                    : ((leadEmaValue == emasMin)
-                    ? false // go down
-                    : m_goUp); // do not change
+                            ? true // go up
+                            : ((leadEmaValue == emasMin)
+                                ? false // go down
+                                : m_goUp); // do not change
             boolean directionChanged = (goUp != m_goUp);
             m_goUp = goUp;
-
             m_min = emasMin;
             m_max = emasMax;
 
-            // note - ribbonSpread from prev step here
-            m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
-
-            float ribbonSpread = emasMax - emasMin;
-            float maxRibbonSpread = directionChanged
-                    ? ribbonSpread //reset
-                    : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
-            m_maxRibbonSpread = maxRibbonSpread;
-            m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
-
             float head = goUp ? emasMax : emasMin;
             float tail = goUp ? emasMin : emasMax;
-
             float mid = (head + tail) / 2;
             m_mid = mid;
 
@@ -260,14 +247,24 @@ public class FastAlgo extends BaseRibbonAlgo {
                 }
             }
 
+
+            float ribbonSpread = emasMax - emasMin;
+            float maxRibbonSpread;
             if (directionChanged) {
+                // note - ribbonSpread from prev step here
+                m_zigZag = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
                 m_directionIn = (m_direction == null) ?  0 : m_direction;
                 m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
                 m_maxHeadRun = 0; // reset
                 m_minHeadRun = 0; // reset
                 m_revPower = 0f;
+                maxRibbonSpread = ribbonSpread; //reset
             } else {
+                maxRibbonSpread = (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
             }
+            m_maxRibbonSpread = maxRibbonSpread;
+            m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
             if (m_headStart != null) { // directionChanged once observed
                 float collapseRate = m_collapser.update(tail);
@@ -328,7 +325,8 @@ public class FastAlgo extends BaseRibbonAlgo {
                 }
                 m_revPower = revPower;
 
-                float exitMidPower = (leadEmaValue - mid) / (tail - mid);
+                float tailRun = tail - mid;
+                float exitMidPower = (tailRun != 0) ? (leadEmaValue - mid) / tailRun : 0;
                 if (exitMidPower < 0) {
                     exitMidPower = 0;
                 }
@@ -372,7 +370,7 @@ public class FastAlgo extends BaseRibbonAlgo {
                     noStartCollapsePower = 0;
                 }
                 float velocity = getVelocity();
-                float noStartCollapseRate = (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf);
+                float noStartCollapseRate = (m_velocityStartHalf > 0) ? (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf) : 0;
                 if (noStartCollapseRate < 0) {
                     noStartCollapseRate = 0;
                 } else if (noStartCollapseRate > 1) {
@@ -412,7 +410,9 @@ public class FastAlgo extends BaseRibbonAlgo {
     }
 
     private float getVelocity() {
-        return m_velocity.m_velocityAvg.getLatestTick().getClosePrice();
+        Average velocityAvg = m_velocity.m_velocityAvg;
+        ITickData latestTick = velocityAvg.getLatestTick();
+        return (latestTick == null) ? 0f : latestTick.getClosePrice();
     }
 
     @Override public void reset() {

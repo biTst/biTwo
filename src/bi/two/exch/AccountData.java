@@ -12,8 +12,8 @@ public class AccountData {
     private static final boolean LOG_MOVE = false;
 
     private final Exchange m_exch;
-    private final HashMap<Currency, Double> m_funds = new HashMap<Currency,Double>();
-    private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<Currency,Double>();
+    private final HashMap<Currency, Double> m_funds = new HashMap<>();
+    private final HashMap<Currency, Double> m_allocatedFunds = new HashMap<>();
     public Map<Pair,TopData> m_topDatas = new HashMap<>();
 
     public AccountData(Exchange exch) {
