@@ -36,18 +36,20 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_headStart;
     private Float m_tailStart;
     private Float m_midStart;
-    private Float m_reverseLevel;
+//    private Float m_reverseLevel;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
-    private Float m_spreadClosePower;
-    private Float m_exitPower;
+//    private Float m_spreadClosePower;
+//    private Float m_exitPower;
     private Float m_noStartCollapseRate;
     private Float m_collapseRate;
     private Float m_midPower;
-    private Float m_tailPower;
+//    private Float m_tailPower;
     private Float m_enterPower;
-    private Float m_headPower;
+//    private Float m_headPower;
+//    private float m_maxHeadRun;
+//    private float m_minHeadRun;
     private Float m_direction = 0f;
     private Float m_directionNoLimit = 0f;
     private Float m_directionIn;
@@ -69,8 +71,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_8quarter;
     private Float m_8quarterPaint;
 
-    private float m_maxHeadRun;
-    private float m_minHeadRun;
     private Float m_revPower;
     private float m_velocityStartHalf;
 
@@ -247,7 +247,6 @@ public class FastAlgo extends BaseRibbonAlgo {
                 }
             }
 
-
             float ribbonSpread = emasMax - emasMin;
             float maxRibbonSpread;
             if (directionChanged) {
@@ -255,8 +254,8 @@ public class FastAlgo extends BaseRibbonAlgo {
                 m_zigZag = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
                 m_directionIn = (m_direction == null) ?  0 : m_direction;
                 m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
-                m_maxHeadRun = 0; // reset
-                m_minHeadRun = 0; // reset
+//                m_maxHeadRun = 0; // reset
+//                m_minHeadRun = 0; // reset
                 m_revPower = 0f;
                 maxRibbonSpread = ribbonSpread; //reset
             } else {
@@ -270,26 +269,28 @@ public class FastAlgo extends BaseRibbonAlgo {
                 float collapseRate = m_collapser.update(tail);
                 m_collapseRate = collapseRate;
 
-                float headRun = leadEmaValue - m_headStart;
-                if (!goUp) {
-                    headRun = -headRun;
-                }
-                float maxHeadRun = m_maxHeadRun;
-                if (maxHeadRun < headRun) {
-                    m_maxHeadRun = headRun;
-                    maxHeadRun = headRun;
-                }
-                float minHeadRun = m_minHeadRun; // negative
-                if (headRun < minHeadRun) {
-                    m_minHeadRun = headRun;
-                    minHeadRun = headRun;
-                }
-                float sumHeadRun = maxHeadRun - minHeadRun;
-                float headPower = (sumHeadRun == 0) ? 1 : (headRun - minHeadRun) / sumHeadRun;
-                if (headPower < 0) {
-                    headPower = 0;
-                }
-                m_headPower = headPower;
+//                {
+//                    float headRun = leadEmaValue - m_headStart;
+//                    if (!goUp) {
+//                        headRun = -headRun;
+//                    }
+//                    float maxHeadRun = m_maxHeadRun;
+//                    if (maxHeadRun < headRun) {
+//                        m_maxHeadRun = headRun;
+//                        maxHeadRun = headRun;
+//                    }
+//                    float minHeadRun = m_minHeadRun; // negative
+//                    if (headRun < minHeadRun) {
+//                        m_minHeadRun = headRun;
+//                        minHeadRun = headRun;
+//                    }
+//                    float sumHeadRun = maxHeadRun - minHeadRun;
+//                    float headPower = (sumHeadRun == 0) ? 1 : (headRun - minHeadRun) / sumHeadRun;
+//                    if (headPower < 0) {
+//                        headPower = 0;
+//                    }
+//                    m_headPower = headPower;
+//                }
 
 //                float rev = leadEmaValue - mid;
 //                float revPower = rev / (tail - mid);
@@ -310,20 +311,22 @@ public class FastAlgo extends BaseRibbonAlgo {
                 }
                 m_enterPower = enterPower;
 
-                float tailPower = (tail - m_tailStart) / (m_headStart - m_tailStart);
-                if (tailPower > 1) {
-                    tailPower = 1;
-                } else if (tailPower < 0) {
-                    tailPower = 0;
-                }
-                m_tailPower = tailPower;
-                float reverseLevel = head - (head - mid) * tailPower;
-                m_reverseLevel = reverseLevel;
-                float revPower = (leadEmaValue - reverseLevel) / (tail - reverseLevel);
-                if (revPower < 0) {
-                    revPower = 0;
-                }
-                m_revPower = revPower;
+//                {
+//                    float tailPower = (tail - m_tailStart) / (m_headStart - m_tailStart);
+//                    if (tailPower > 1) {
+//                        tailPower = 1;
+//                    } else if (tailPower < 0) {
+//                        tailPower = 0;
+//                    }
+//                    m_tailPower = tailPower;
+//                    float reverseLevel = head - (head - mid) * tailPower;
+//                    m_reverseLevel = reverseLevel;
+//                    float revPower = (leadEmaValue - reverseLevel) / (tail - reverseLevel);
+//                    if (revPower < 0) {
+//                        revPower = 0;
+//                    }
+//                    m_revPower = revPower;
+//                }
 
                 float tailRun = tail - mid;
                 float exitMidPower = (tailRun != 0) ? (leadEmaValue - mid) / tailRun : 0;
@@ -331,9 +334,11 @@ public class FastAlgo extends BaseRibbonAlgo {
                     exitMidPower = 0;
                 }
 
-                float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
-                m_spreadClosePower = spreadClosePower;
-//
+//                {
+//                    float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
+//                    m_spreadClosePower = spreadClosePower;
+//                }
+
 //                float tailPower2 = (tail - m_tailStart) / (m_headStart - m_tailStart);
 //                tailPower2 = (tailPower2 > 1) ? 1 : tailPower2;
 //                m_tailPower2 = tailPower2;
@@ -354,13 +359,15 @@ public class FastAlgo extends BaseRibbonAlgo {
 ////                direction -= reverseValue;
 
                 // exitPower = spreadClosePower "+" revPower
-                float exitPower = spreadClosePower;
-                float remainedExitPower = 1 - exitPower;
-                if (remainedExitPower > 0.5f) {
-                    remainedExitPower = 0.5f; // max allow 0.5
-                }
-                exitPower += remainedExitPower * revPower;
-                m_exitPower = exitPower;
+//                {
+//                    float exitPower = spreadClosePower;
+//                    float remainedExitPower = 1 - exitPower;
+//                    if (remainedExitPower > 0.5f) {
+//                        remainedExitPower = 0.5f; // max allow 0.5
+//                    }
+//                    exitPower += remainedExitPower * revPower;
+//                    m_exitPower = exitPower;
+//                }
 
                 // false-start collapse
                 float noStartCollapsePower = (tail - m_tailStart) / (m_midStart - m_tailStart);
@@ -422,18 +429,20 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_headStart = null;
         m_midStart = null;
         m_tailStart = null;
-        m_reverseLevel = null;
+//        m_reverseLevel = null;
         m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
-        m_spreadClosePower = null;
-        m_exitPower = null;
+//        m_spreadClosePower = null;
+//        m_exitPower = null;
         m_noStartCollapseRate = null;
         m_collapseRate = null;
         m_midPower = null;
-        m_tailPower = null;
+//        m_tailPower = null;
         m_enterPower = null;
-        m_headPower = null;
+//        m_headPower = null;
+//        m_maxHeadRun = 0;
+//        m_minHeadRun = 0;
         m_direction = 0f;
         m_directionIn = null;
         m_remainedEnterDistance = null;
@@ -446,8 +455,6 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_6quarter = null;
         m_7quarter = null;
         m_8quarter = null;
-        m_maxHeadRun = 0;
-        m_minHeadRun = 0;
         m_revPower = null;
     }
 
@@ -470,18 +477,18 @@ public class FastAlgo extends BaseRibbonAlgo {
     TicksTimesSeriesData<TickData> get7quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_7quarterPaint; } }; }
     TicksTimesSeriesData<TickData> get8quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_8quarterPaint; } }; }
 
-    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
-    TicksTimesSeriesData<TickData> getSpreadClosePowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePower; } }; }
+//    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
+//    TicksTimesSeriesData<TickData> getSpreadClosePowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePower; } }; }
     TicksTimesSeriesData<TickData> getSpreadClosePowerAdjustedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadClosePowerAdjusted; } }; }
     TicksTimesSeriesData<TickData> getMidPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midPower; } }; }
-    TicksTimesSeriesData<TickData> getTailPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower; } }; }
+//    TicksTimesSeriesData<TickData> getTailPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower; } }; }
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getTailPower2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower2; } }; }
-    TicksTimesSeriesData<TickData> getExitPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitPower; } }; }
+//    TicksTimesSeriesData<TickData> getExitPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitPower; } }; }
     TicksTimesSeriesData<TickData> getNoStartCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_noStartCollapseRate; } }; }
     TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
 
-    TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
+//    TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
     TicksTimesSeriesData<TickData> getRevPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_revPower; } }; }
 
     TicksTimesSeriesData<TickData> getDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_direction; } }; }
@@ -534,7 +541,7 @@ public class FastAlgo extends BaseRibbonAlgo {
 
 //            addChart(chartData, getTargetTs(), topLayers, "target", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //
-            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Colors.GOLD, TickPainter.LINE_JOIN);
+//            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Colors.GOLD, TickPainter.LINE_JOIN);
 
             addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
@@ -548,14 +555,14 @@ public class FastAlgo extends BaseRibbonAlgo {
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
-            addChart(chartData, getHeadPowerTs(), powerLayers, "headPower", Color.MAGENTA, TickPainter.LINE_JOIN);
+//            addChart(chartData, getHeadPowerTs(), powerLayers, "headPower", Color.MAGENTA, TickPainter.LINE_JOIN);
             addChart(chartData, getRevPowerTs(), powerLayers, "revPower", Colors.JUST_ORANGE, TickPainter.LINE_JOIN);
-            addChart(chartData, getSpreadClosePowerTs(), powerLayers, "spreadClosePower", Colors.SUEDE_BROWN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getSpreadClosePowerTs(), powerLayers, "spreadClosePower", Colors.SUEDE_BROWN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSpreadClosePowerAdjustedTs(), powerLayers, "spreadClosePowerAdjusted", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
 ////            addChart(chartData, getMidPowerTs(), powerLayers, "midPower", Color.LIGHT_GRAY, TickPainter.LINE_JOIN);
-            addChart(chartData, getTailPowerTs(), powerLayers, "tailPower", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTailPowerTs(), powerLayers, "tailPower", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getEnterPowerTs(), powerLayers, "enterPower", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitPowerTs(), powerLayers, "exitPower", Colors.EMERALD, TickPainter.LINE_JOIN);
+//            addChart(chartData, getExitPowerTs(), powerLayers, "exitPower", Colors.EMERALD, TickPainter.LINE_JOIN);
             addChart(chartData, getNoStartCollapseRateTs(), powerLayers, "noStartCollapseRate", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
 //            addChart(chartData, getTailPower2Ts(), powerLayers, "tailPower2", Colors.TURQUOISE, TickPainter.LINE_JOIN);
