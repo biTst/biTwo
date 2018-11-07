@@ -33,6 +33,9 @@ public enum Vary {
     reverseMul(VaryType.FLOAT), // qummar multiplicator
 
     collapse(VaryType.FLOAT),
+    p1(VaryType.FLOAT), // prestart 1
+    p2(VaryType.FLOAT), // prestart 2
+    p3(VaryType.FLOAT), // noStartCollapse
 
     minOrderMul(VaryType.FLOAT),
     joinTicks(VaryType.LONG),

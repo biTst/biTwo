@@ -34,7 +34,7 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
 
     protected abstract Float recalc(float lastPrice);
 
-    protected BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
+    BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
 
         m_exchange = exchange;
