@@ -17,12 +17,13 @@ import java.util.List;
 
 abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     protected final Exchange m_exchange;
+    protected final long m_joinTicks;
+
     protected final float m_start;
     protected final float m_step;
     protected final float m_count;
     protected final long m_barSize;
     protected final float m_linRegMultiplier;
-    protected final long m_joinTicks;
     protected final boolean m_collectValues;
     protected final double m_commission;
 
@@ -38,11 +39,12 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         super(null);
 
         m_exchange = exchange;
+        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
+
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
         m_barSize = algoConfig.getNumber(Vary.period).longValue();
-        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
         m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();

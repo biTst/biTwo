@@ -6,7 +6,10 @@ import bi.two.algo.Watcher;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
-import bi.two.ts.*;
+import bi.two.ts.BaseTicksTimesSeriesData;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -65,12 +68,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        if (collectValues) {
 //            m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);
 //        }
-    }
-
-    @Override protected ITimesSeriesData wrapIfNeededTs(ITimesSeriesData inTsd) {
-        ITimesSeriesData wrapped = wrapIfNeededTs(inTsd);
-        boolean hasSchedule = m_exchange.hasSchedule();
-        return hasSchedule ? new ScheduleTimesSeriesData(wrapped, m_exchange.m_schedule) : wrapped;
     }
 
     @Override protected Float recalc(float lastPrice) {

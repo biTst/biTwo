@@ -7,7 +7,10 @@ import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
-import bi.two.ts.*;
+import bi.two.ts.BaseTicksTimesSeriesData;
+import bi.two.ts.BaseTimesSeriesData;
+import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TickJoinerTimesSeriesData;
 
 import java.awt.*;
 import java.util.List;
@@ -20,13 +23,12 @@ public class TestAlgo extends BaseAlgo<TickData> {
 
         long m_joinTicks = 2;
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;
-        ITimesSeriesData ts2 = exchange.hasSchedule() ? new ScheduleTimesSeriesData(ts1, exchange.m_schedule) : ts1;
 
 //        m_ema = new BarsEMA(ts2, 5, 60000);
-        m_ema[0] = new SlidingTicksRegressor(ts2, 60000 * 5 * 2, false, true);
-        m_ema[1] = new SlidingTicksRegressor(ts2, 60000 * 10 * 2, false, true);
+        m_ema[0] = new SlidingTicksRegressor(ts1, 60000 * 5 * 2, false, true);
+        m_ema[1] = new SlidingTicksRegressor(ts1, 60000 * 10 * 2, false, true);
 
-        setParent(ts2);
+        setParent(ts1);
     }
 
     @Override public String key(boolean detailed) {
@@ -36,7 +38,6 @@ public class TestAlgo extends BaseAlgo<TickData> {
     @Override public void reset() {
         // todo: implement
     }
-
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();

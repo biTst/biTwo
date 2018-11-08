@@ -6,7 +6,7 @@ import bi.two.exch.schedule.TradeHours;
 import bi.two.exch.schedule.TradeSchedule;
 
 public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
-    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
+    private static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
 
     private final TradeSchedule m_tradeSchedule;
     private ITickData m_lastTick;
@@ -26,7 +26,7 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
         if (changed) {
             ITickData latestTick = ts.getLatestTick();
             long timestamp = latestTick.getTimestamp();
-            boolean afterTradeEnd = m_tradeEndMillis <= timestamp;
+            boolean afterTradeEnd = (m_tradeEndMillis <= timestamp);
             if (afterTradeEnd) {
                 TradeHours nextTradeHours = m_tradeSchedule.getTradeHours(timestamp);
                 boolean inside = nextTradeHours.isInsideOfTradingHours(timestamp);

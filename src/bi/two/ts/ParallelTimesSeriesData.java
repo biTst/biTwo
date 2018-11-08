@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static bi.two.util.Log.*;
 
 public class ParallelTimesSeriesData extends BaseTimesSeriesData {
-    public static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
+    private static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
 
     private final int m_maxParallelSize;
     private final int m_groupTicks;
@@ -46,7 +46,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
         }
         InnerTimesSeriesData ret = m_array.get(m_activeIndex);
         m_activeIndex = (m_activeIndex + 1) % m_maxParallelSize;
-        return ret.getScheduledTs();
+        return ret.getScheduledIfNeededTs();
     }
 
     @Override public ITickData getLatestTick() { throw new RuntimeException("InnerTimesSeriesData should be used"); }
@@ -192,10 +192,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     protected class InnerTimesSeriesData extends BaseTimesSeriesData implements Runnable {
         private final IQueue<ITickData> m_queue;
         private final int m_innerIndex;
-        private final BaseTimesSeriesData m_scheduledTs;
+        private final BaseTimesSeriesData m_scheduledIfNeededTs;
         private ITickData m_currentTickData;
 
-        public BaseTimesSeriesData getScheduledTs() { return m_scheduledTs; }
+        BaseTimesSeriesData getScheduledIfNeededTs() { return m_scheduledIfNeededTs; }
 
         @Override public String toString() {
             return "Inner-" + m_innerIndex;
@@ -207,9 +207,9 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_queue = new ArrayQueue<>();   // 1% faster
 
             if ((m_exchange != null) && m_exchange.hasSchedule()) {
-                m_scheduledTs = new ScheduleTimesSeriesData(this, m_exchange.m_schedule);
+                m_scheduledIfNeededTs = new ScheduleTimesSeriesData(this, m_exchange.m_schedule);
             } else {
-                m_scheduledTs = this;
+                m_scheduledIfNeededTs = this;
             }
 
             String name = "parallel-" + index;
