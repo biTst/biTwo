@@ -295,7 +295,7 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
     public static class TicksChartAreaPainter extends ChartAreaPainter {
         private final TickPainter m_tickPainter;
 
-        public TicksChartAreaPainter(TickPainter tickPainter) {
+        TicksChartAreaPainter(TickPainter tickPainter) {
             m_tickPainter = tickPainter;
         }
 
@@ -311,7 +311,46 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
 
                 int size = ticksData.getTicksNum();
                 m_tickPainter.startPaintTicks(xMin, xMax);
-                for (int i = 0; i < size; i++) {
+
+//                long timeDiff = timeMax - timeMin;
+//Log.console("paintChartArea xMin=" + xMin + "; xMax=" + xMax + "; timeMin=" + timeMin + "; timeMax=" + timeMax + "; timeDiff=" + Utils.millisToYDHMSStr(timeDiff));
+
+                // ticks are in reverse order - first at right
+
+//                ITickData firstTick = ticksData.getTick(size - 1);
+//                ITickData lastTick = ticksData.getTick(0);
+//                long firstTickTimestamp = firstTick.getTimestamp();
+//                long lastTickTimestamp = lastTick.getTimestamp();
+//                long ticksDiff = lastTickTimestamp - firstTickTimestamp;
+//Log.console(" firstTickTimestamp=" + firstTickTimestamp + "; lastTickTimestamp=" + lastTickTimestamp + "; ticksDiff=" + Utils.millisToYDHMSStr(ticksDiff) + "; size=" + size);
+
+                int maxTickIndex = findTickIndexFromMillis(ticksData, timeMax);
+                maxTickIndex--; // add 1 point to draw the line
+                if (maxTickIndex < 0) {
+                    maxTickIndex = 0;
+                } else if (maxTickIndex >= size) {
+                    maxTickIndex = size - 1;
+                }
+                int minTickIndex = findTickIndexFromMillis(ticksData, timeMin);
+                minTickIndex++; // add 1 point to draw the line
+                if (minTickIndex < 0) {
+                    minTickIndex = 0;
+                } else if (minTickIndex >= size) {
+                    minTickIndex = size - 1;
+                }
+//Log.console(" minTickIndex=" + minTickIndex + "; maxTickIndex=" + maxTickIndex);
+
+                ITickData maxTick = ticksData.getTick(maxTickIndex);
+//                long maxTickTimestamp = maxTick.getTimestamp();
+//Log.console("  maxTick=" + maxTick + "; maxTickTimestamp=" + maxTickTimestamp);
+
+                ITickData minTick = ticksData.getTick(minTickIndex);
+//                long minTickTimestamp = minTick.getTimestamp();
+//Log.console("  minTick=" + minTick + "; minTickTimestamp=" + minTickTimestamp);
+
+                int from = maxTickIndex; // 0;
+                int to = minTickIndex;   // size;
+                for (int i = from; i < to; i++) {
                     ITickData tick = ticksData.getTick(i);
                     long timestamp = tick.getTimestamp();
                     boolean timeAfterFrame = (timestamp > timeMax);
@@ -366,25 +405,21 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
         return -1;
     }
 
-    private static int findTickIndexFromMillis(TicksTimesSeriesData ticksTs, final long millis) {
+    private static int findTickIndexFromMillis(ITicksData ticksData, final long millis) {
         Comparator<ITickData> comparator = new Comparator<ITickData>() {
             @Override public int compare(ITickData td1, ITickData td2) {
                 long tickMillis = td1.getTimestamp();
-                return tickMillis > millis
-                        ? -1
-                        : tickMillis < millis
-                        ? 1
-                        : 0;
+                return Long.compare(tickMillis, millis);
             }
         };
 
-        int highlightTickIndex = ticksTs.binarySearch(null, comparator);
+        int highlightTickIndex = ticksData.binarySearch(null, comparator);
         if (highlightTickIndex < 0) {
             highlightTickIndex = -highlightTickIndex - 1;
         }
-        if ((highlightTickIndex >= 1) && (highlightTickIndex > ticksTs.getTicksNum())) {
-            ITickData tick1 = ticksTs.getTick(highlightTickIndex);
-            ITickData tick2 = ticksTs.getTick(highlightTickIndex - 1);
+        if ((highlightTickIndex >= 1) && (highlightTickIndex > ticksData.getTicksNum())) {
+            ITickData tick1 = ticksData.getTick(highlightTickIndex);
+            ITickData tick2 = ticksData.getTick(highlightTickIndex - 1);
 
             long timestamp1 = tick1.getTimestamp();
             long timestamp2 = tick2.getTimestamp();
