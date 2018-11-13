@@ -53,23 +53,14 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         double val = value * multiplier;
         double min = fieldConfig.m_min.doubleValue();
         if (val < min) {
-            console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
+            log("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
             val = min;
         }
         double max = fieldConfig.m_max.doubleValue();
         if (val > max) {
-            console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
+            log("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
             val = max;
         }
-
-//        if (value < m_min) {
-//            val = m_fieldConfig.m_min.doubleValue();
-//            console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + val);
-//        }
-//        if (value > m_max) {
-//            val = m_fieldConfig.m_max.doubleValue();
-//            console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + val);
-//        }
 
         sb.append(fieldName).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ").append(") => ");
 

@@ -22,15 +22,15 @@ import java.util.concurrent.TimeUnit;
 import static bi.two.util.Log.*;
 
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
-    public static final int MAX_EVALS_COUNT = 150;
-    public static final double RELATIVE_TOLERANCE = 1e-6;
-    public static final double ABSOLUTE_TOLERANCE = 1e-8;
+    private static final int MAX_EVALS_COUNT = 150;
+    private static final double RELATIVE_TOLERANCE = 1e-5;
+    private static final double ABSOLUTE_TOLERANCE = 1e-7;
 
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
     private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
 
-    public MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
+    MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
 
         m_startPoint = buildStartPoint(m_optimizeConfigs);
@@ -50,12 +50,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     double val = value * multiplier;
                     double min = fieldConfig.m_min.doubleValue();
                     if (val < min) {
-                        console("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
+                        log("doOptimize too low value=" + val + " of field " + fieldName + "; using min=" + min);
                         val = min;
                     }
                     double max = fieldConfig.m_max.doubleValue();
                     if (val > max) {
-                        console("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
+                        log("doOptimize too high value=" + val + " of field " + fieldName + "; using max=" + max);
                         val = max;
                     }
 
