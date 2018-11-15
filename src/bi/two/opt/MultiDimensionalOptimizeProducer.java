@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 import static bi.two.util.Log.*;
 
 class MultiDimensionalOptimizeProducer extends OptimizeProducer {
-    private static final int MAX_EVALS_COUNT = 150;
+    private static final int MAX_EVALS_COUNT = 120;
     private static final double RELATIVE_TOLERANCE = 1e-5;
     private static final double ABSOLUTE_TOLERANCE = 1e-7;
 
