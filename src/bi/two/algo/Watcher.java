@@ -159,7 +159,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         }
 
         if (m_hasSchedule) {
-            if (m_tradeEndMillis <= currTimestamp) {
+            if (m_tradeEndMillis < currTimestamp) {
                 TradeHours nextTradeHours = m_tradeSchedule.getTradeHours(currTimestamp);
                 boolean inside = nextTradeHours.isInsideOfTradingHours(currTimestamp);
                 if (!inside) {

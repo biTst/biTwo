@@ -66,7 +66,7 @@ public class TradeHours {
     }
 
     public boolean isInsideOfTradingHours(long timestamp) {
-        return (m_tradeStartMillis <= timestamp) && (timestamp < m_tradeEndMillis);
+        return (m_tradeStartMillis <= timestamp) && (timestamp <= m_tradeEndMillis);
     }
 
     @NotNull public TradeHours getNextDayTradeHours() {
