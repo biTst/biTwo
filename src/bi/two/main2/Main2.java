@@ -26,7 +26,7 @@ import static bi.two.util.Log.*;
 
 public class Main2 extends Thread {
     private static final String CONFIG = "cfg" + File.separator + "main2.properties";
-    public static final String LOG_FILE_LOCATION = "logs" + File.separator + "main2.дщп";
+    public static final String LOG_FILE_LOCATION = "logs" + File.separator + "main2.log";
 
 //    private static final long PRELOAD_PERIOD = TimeUnit.MINUTES.toMillis(50);
 //    private static final long PRELOAD_PERIOD = TimeUnit.HOURS.toMillis(24);
