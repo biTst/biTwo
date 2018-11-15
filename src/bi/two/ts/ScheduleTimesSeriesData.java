@@ -4,6 +4,7 @@ import bi.two.chart.ITickData;
 import bi.two.exch.schedule.Schedule;
 import bi.two.exch.schedule.TradeHours;
 import bi.two.exch.schedule.TradeSchedule;
+import bi.two.util.Log;
 
 public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
     private static final boolean MONOTONE_TIME_INCREASE_CHECK = STRICT_MONOTONE_TIME_INCREASE_CHECK;
@@ -28,27 +29,29 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
             long timestamp = latestTick.getTimestamp();
             boolean afterTradeEnd = (m_tradeEndMillis <= timestamp);
             if (afterTradeEnd) {
-                TradeHours nextTradeHours = m_tradeSchedule.getTradeHours(timestamp);
-                boolean inside = nextTradeHours.isInsideOfTradingHours(timestamp);
+                TradeHours timestampTradeHours = m_tradeSchedule.getTradeHours(timestamp);
+                boolean inside = timestampTradeHours.isInsideOfTradingHours(timestamp);
                 if (!inside) {
                     String dateTime = m_tradeSchedule.formatLongDateTime(timestamp);
-                    throw new RuntimeException("next trade is not inside of trading day: dateTime=" + dateTime + "; nextTradeHours=" + nextTradeHours);
+                    throw new RuntimeException("next trade is not inside of trading day: dateTime=" + dateTime + "; timestampTradeHours=" + timestampTradeHours);
                 }
                 if (m_currTradeHours != null) {
-                    long tradePause = nextTradeHours.m_tradeStartMillis - m_tradeEndMillis;
+                    long tradePause = timestampTradeHours.m_tradeStartMillis - m_tradeEndMillis;
                     if (tradePause < 0) {
                         String dateTime = m_tradeSchedule.formatLongDateTime(timestamp);
-                        throw new RuntimeException("negative tradePause=" + tradePause + "; dateTime=" + dateTime + "; currTradeHours=" + m_currTradeHours + "; nextTradeHours=" + nextTradeHours);
+                        throw new RuntimeException("negative tradePause=" + tradePause + "; dateTime=" + dateTime + "; currTradeHours=" + m_currTradeHours + "; timestampTradeHours=" + timestampTradeHours);
                     }
                     TradeHours nextDayTradeHours = m_currTradeHours.getNextDayTradeHours();
-                    if (nextDayTradeHours == nextTradeHours) { // expected next trade day
+                    if (nextDayTradeHours == timestampTradeHours) { // expected next trade day
                         onTimeShift(tradePause); // report valid shift if next trade day
                     } else {
+                        Log.console("timestampTradeHours=" + timestampTradeHours);
+                        Log.console("currTradeHours.getNextDayTradeHours=" + nextDayTradeHours);
                         throw new RuntimeException("not expected next trade day");
                     }
                 }
-                m_currTradeHours = nextTradeHours;
-                m_tradeEndMillis = nextTradeHours.m_tradeEndMillis;
+                m_currTradeHours = timestampTradeHours;
+                m_tradeEndMillis = timestampTradeHours.m_tradeEndMillis;
             }
             if (MONOTONE_TIME_INCREASE_CHECK) {
                 boolean inside = m_currTradeHours.isInsideOfTradingHours(timestamp);
