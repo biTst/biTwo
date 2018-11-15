@@ -17,6 +17,9 @@ public class DirTradesReader {
         TimeStamp doneTs = new TimeStamp();
 
         String path = config.getPropertyNoComment("dataDir");
+        if (path == null) {
+            throw new RuntimeException("dataDir is not specified in config");
+        }
         File dir = new File(path);
         if (!dir.exists()) {
             throw new RuntimeException("directory does not exists: " + path);
