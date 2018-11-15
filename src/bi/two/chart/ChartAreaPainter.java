@@ -310,6 +310,10 @@ g2.setColor((lineNum==0) ? Color.red : Colors.alpha(Color.red, 100));
                 ITickData prevTick = null;
 
                 int size = ticksData.getTicksNum();
+                if (size <= 1) {
+                    return; // ~nothing to paint
+                }
+
                 m_tickPainter.startPaintTicks(xMin, xMax);
 
 //                long timeDiff = timeMax - timeMin;
