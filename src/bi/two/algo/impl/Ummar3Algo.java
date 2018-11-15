@@ -41,7 +41,6 @@ public class Ummar3Algo extends BaseRibbonAlgo {
     private Float m_bottom;
     private float m_level;
     private Ummar2Algo.DoubleAdjuster m_da;
-    private Float m_adj;
 
     public Ummar3Algo(MapConfig config, ITimesSeriesData tsd, Exchange exchange) {
         super(config, tsd, exchange);
@@ -58,79 +57,58 @@ public class Ummar3Algo extends BaseRibbonAlgo {
         }
     }
 
-    @Override protected Float recalc(float lastPrice) {
-        float emasMin = Float.POSITIVE_INFINITY;
-        float emasMax = Float.NEGATIVE_INFINITY;
-        boolean allDone = true;
-        float leadEmaValue = 0;
-        for (int i = 0; i < m_emasNum; i++) {
-            ITimesSeriesData ema = m_emas[i];
-            ITickData lastTick = ema.getLatestTick();
-            if (lastTick != null) {
-                float value = lastTick.getClosePrice();
-                emasMin = Math.min(emasMin, value);
-                emasMax = Math.max(emasMax, value);
-                if (i == 0) {
-                    leadEmaValue = value;
-                }
-            } else {
-                allDone = false;
-                break; // not ready yet
-            }
-        }
-
-        if (allDone) {
-            boolean goUp = (leadEmaValue == emasMax)
-                    ? true // go up
-                    : ((leadEmaValue == emasMin)
-                    ? false // go down
-                    : m_goUp); // do not change
-            boolean directionChanged = (goUp != m_goUp);
-            m_goUp = goUp;
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
+        boolean goUp = (leadEmaValue == emasMax)
+                ? true // go up
+                : ((leadEmaValue == emasMin)
+                ? false // go down
+                : m_goUp); // do not change
+        boolean directionChanged = (goUp != m_goUp);
+        m_goUp = goUp;
 
 //            m_min = emasMin;
 //            m_max = emasMax;
 
-            float ribbonSpread = emasMax - emasMin;
+        float ribbonSpread = emasMax - emasMin;
 
-            m_ribbonSpread = directionChanged // direction changed
-                    ? ribbonSpread //reset
-                    : Math.max(ribbonSpread, m_ribbonSpread);
-            m_ribbonSpreadTop = goUp ? emasMin + m_ribbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
+        m_ribbonSpread = directionChanged // direction changed
+                ? ribbonSpread //reset
+                : Math.max(ribbonSpread, m_ribbonSpread);
+        m_ribbonSpreadTop = goUp ? emasMin + m_ribbonSpread : emasMax;
+        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
 
-            if (directionChanged) {
-                m_xxx = goUp ? emasMax : emasMin;
-                m_height = emasMax - emasMin;
-                m_da = new Ummar2Algo.DoubleAdjuster(goUp ? 1 : -1);
+        if (directionChanged) {
+            m_xxx = goUp ? emasMax : emasMin;
+            m_height = emasMax - emasMin;
+            m_da = new Ummar2Algo.DoubleAdjuster(goUp ? 1 : -1);
+        }
+
+        if (m_xxx != null) {
+            float height;
+            float approachRate;
+            float approachLevel;
+            float gainLevel;
+            float spread = m_ribbonSpreadTop - m_ribbonSpreadBottom;
+            if (goUp) {
+                float trend = m_ribbonSpreadTop - m_xxx;
+                gainLevel = m_ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
+                height = m_xxx - m_ribbonSpreadBottom;
+                approachLevel = m_ribbonSpreadBottom + m_s1 * spread + m_s2 * trend;
+            } else {
+                float trend = m_xxx - m_ribbonSpreadBottom;
+                gainLevel = m_ribbonSpreadTop - m_e1 * spread + m_e2 * trend;
+                height = m_ribbonSpreadTop - m_xxx;
+                approachLevel = m_ribbonSpreadTop - m_s1 * spread + m_s2 * trend;
             }
-
-            if (m_xxx != null) {
-                float height;
-                float approachRate;
-                float approachLevel;
-                float gainLevel;
-                float spread = m_ribbonSpreadTop - m_ribbonSpreadBottom;
-                if (goUp) {
-                    float trend = m_ribbonSpreadTop - m_xxx;
-                    gainLevel = m_ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
-                    height = m_xxx - m_ribbonSpreadBottom;
-                    approachLevel = m_ribbonSpreadBottom + m_s1 * spread + m_s2 * trend;
-                } else {
-                    float trend = m_xxx - m_ribbonSpreadBottom;
-                    gainLevel = m_ribbonSpreadTop - m_e1 * spread + m_e2 * trend;
-                    height = m_ribbonSpreadTop - m_xxx;
-                    approachLevel = m_ribbonSpreadTop - m_s1 * spread + m_s2 * trend;
-                }
-                approachRate = height / m_height;
-                if (approachRate > 0) {
-                    m_level = approachLevel * approachRate + gainLevel * (1 - approachRate);
-                } else {
-                    m_level = gainLevel;
-                }
-                if (m_da != null) {
-                    m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
-                }
+            approachRate = height / m_height;
+            if (approachRate > 0) {
+                m_level = approachLevel * approachRate + gainLevel * (1 - approachRate);
+            } else {
+                m_level = gainLevel;
+            }
+            if (m_da != null) {
+                m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
+            }
 
 //            m_adj = goUp ? 1f : -1f;
 
@@ -180,12 +158,9 @@ public class Ummar3Algo extends BaseRibbonAlgo {
 //                    m_adj2 = m_da.update(top, mid, m_ribbonSpreadBottom, leadEmaValue);
 //                }
 //                m_mid = mid;
-            }
+        }
 
 //            m_tick = new TickData(getParent().getLatestTick().getTimestamp(), ribbonSpread);
-
-        }
-        return m_adj;
     }
 
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }

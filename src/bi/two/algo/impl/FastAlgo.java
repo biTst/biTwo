@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FastAlgo extends BaseRibbonAlgo {
-    private static final boolean ADJUST_TAIL = true;
+    private static final boolean ADJUST_TAIL = false;
     private static final boolean LIMIT_BY_PRICE = true;
 
     private final float m_collapse;
@@ -53,7 +53,6 @@ public class FastAlgo extends BaseRibbonAlgo {
 //    private Float m_headPower;
 //    private float m_maxHeadRun;
 //    private float m_minHeadRun;
-    private Float m_direction = 0f;
     private Float m_directionNoLimit = 0f;
     private Float m_directionIn;
     private Float m_remainedEnterDistance;
@@ -116,173 +115,152 @@ public class FastAlgo extends BaseRibbonAlgo {
                 ;
     }
 
-    @Override protected Float recalc(float lastPrice) {
-        float emasMin = Float.POSITIVE_INFINITY;
-        float emasMax = Float.NEGATIVE_INFINITY;
-        boolean allDone = true;
-        float leadEmaValue = 0;
-        for (int i = 0; i < m_emasNum; i++) {
-            ITimesSeriesData ema = m_emas[i];
-            ITickData lastTick = ema.getLatestTick();
-            if (lastTick != null) {
-                float value = lastTick.getClosePrice();
-                emasMin = (emasMin <= value) ? emasMin : value;  // Math.min(emasMin, value);
-                emasMax = (emasMax >= value) ? emasMax : value;  // Math.max(emasMax, value);
-                if (i == 0) {
-                    leadEmaValue = value;
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
+        boolean goUp = (leadEmaValue == emasMax)
+                        ? true // go up
+                        : ((leadEmaValue == emasMin)
+                            ? false // go down
+                            : m_goUp); // do not change
+        boolean directionChanged = (goUp != m_goUp);
+        m_goUp = goUp;
+        m_min = emasMin;
+        m_max = emasMax;
+
+        float head = goUp ? emasMax : emasMin;
+        float tail = goUp ? emasMin : emasMax;
+        float mid = (head + tail) / 2;
+        m_mid = mid;
+
+        Float tailStart = m_tailStart;
+        // common ribbon lines
+        if (directionChanged) {
+            m_headStart = head; // pink
+            tailStart = tail;
+            m_tailStart = tail;  // dark green
+            m_midStart = mid;
+
+            if (m_collectValues) { // this only for painting
+                float spread = head - tail;
+                float half = spread / 2;
+                float quarter = spread / 4;
+                m_1quarter = tail + quarter;
+                m_1quarterPaint = m_1quarter;
+                m_3quarter = mid + quarter;
+                m_3quarterPaint = m_3quarter;
+                m_5quarter = head + quarter;
+                m_5quarterPaint = head;
+                m_6quarter = head + half;
+                m_6quarterPaint = head;
+                m_7quarter = head + half + quarter;
+                m_7quarterPaint = head;
+                m_8quarter = head + spread;
+                m_8quarterPaint = head;
+            }
+            m_velocityStartHalf = getVelocity() / 2;
+            m_collapser.init(goUp, head, tail);
+        } else {
+            if (ADJUST_TAIL) {
+                if ((tailStart != null) && ((goUp && (tail < tailStart)) || (!goUp && (tail > tailStart)))) {
+                    tailStart = tail;
+                    m_tailStart = tail;
+                    float spread = m_headStart - tail;
+                    float half = spread / 2;
+                    m_midStart = tail + half;
+                    if (m_collectValues) { // this only for painting
+                        float quarter = spread / 4;
+                        m_1quarter = tail + quarter;
+                        m_1quarterPaint = m_1quarter;
+                        m_3quarter = m_headStart - quarter;
+                        m_3quarterPaint = m_3quarter;
+                        m_5quarter = m_headStart + quarter;
+                        m_5quarterPaint = m_headStart;
+                        m_6quarter = m_headStart + half;
+                        m_6quarterPaint = m_headStart;
+                        m_7quarter = m_headStart + half + quarter;
+                        m_7quarterPaint = m_headStart;
+                        m_8quarter = m_headStart + spread;
+                        m_8quarterPaint = m_headStart;
+                    }
+                    m_collapser.adjustTail(tail);
                 }
-            } else {
-                allDone = false;
-                break; // not ready yet
+            }
+            if (m_collectValues) { // this only for painting
+                if (m_6quarter != null) {
+                    if (goUp) {
+                        if (tail > m_1quarter) {
+                            m_1quarterPaint = m_midStart;
+                        }
+                        if (tail > m_3quarter) {
+                            m_3quarterPaint = m_headStart;
+                        }
+                        if (tail > m_5quarter) {
+                            m_5quarterPaint = m_5quarter;
+                            m_6quarterPaint = m_5quarter;
+                            m_7quarterPaint = m_5quarter;
+                            m_8quarterPaint = m_5quarter;
+                        }
+                        if (tail > m_6quarter) {
+                            m_6quarterPaint = m_6quarter;
+                            m_7quarterPaint = m_6quarter;
+                            m_8quarterPaint = m_6quarter;
+                        }
+                        if (tail > m_7quarter) {
+                            m_7quarterPaint = m_7quarter;
+                            m_8quarterPaint = m_7quarter;
+                        }
+                        if (tail > m_8quarter) {
+                            m_8quarterPaint = m_8quarter;
+                        }
+                    } else {
+                        if (tail < m_1quarter) {
+                            m_1quarterPaint = m_midStart;
+                        }
+                        if (tail < m_3quarter) {
+                            m_3quarterPaint = m_headStart;
+                        }
+                        if (tail < m_5quarter) {
+                            m_5quarterPaint = m_5quarter;
+                            m_6quarterPaint = m_5quarter;
+                            m_7quarterPaint = m_5quarter;
+                            m_8quarterPaint = m_5quarter;
+                        }
+                        if (tail < m_6quarter) {
+                            m_6quarterPaint = m_6quarter;
+                            m_7quarterPaint = m_6quarter;
+                            m_8quarterPaint = m_6quarter;
+                        }
+                        if (tail < m_7quarter) {
+                            m_7quarterPaint = m_7quarter;
+                            m_8quarterPaint = m_7quarter;
+                        }
+                        if (tail < m_8quarter) {
+                            m_8quarterPaint = m_8quarter;
+                        }
+                    }
+                }
             }
         }
 
-        if (allDone) {
-            boolean goUp = (leadEmaValue == emasMax)
-                            ? true // go up
-                            : ((leadEmaValue == emasMin)
-                                ? false // go down
-                                : m_goUp); // do not change
-            boolean directionChanged = (goUp != m_goUp);
-            m_goUp = goUp;
-            m_min = emasMin;
-            m_max = emasMax;
-
-            float head = goUp ? emasMax : emasMin;
-            float tail = goUp ? emasMin : emasMax;
-            float mid = (head + tail) / 2;
-            m_mid = mid;
-
-            Float tailStart = m_tailStart;
-            // common ribbon lines
-            if (directionChanged) {
-                m_headStart = head; // pink
-                tailStart = tail;
-                m_tailStart = tail;  // dark green
-                m_midStart = mid;
-
-                if (m_collectValues) { // this only for painting
-                    float spread = head - tail;
-                    float half = spread / 2;
-                    float quarter = spread / 4;
-                    m_1quarter = tail + quarter;
-                    m_1quarterPaint = m_1quarter;
-                    m_3quarter = mid + quarter;
-                    m_3quarterPaint = m_3quarter;
-                    m_5quarter = head + quarter;
-                    m_5quarterPaint = head;
-                    m_6quarter = head + half;
-                    m_6quarterPaint = head;
-                    m_7quarter = head + half + quarter;
-                    m_7quarterPaint = head;
-                    m_8quarter = head + spread;
-                    m_8quarterPaint = head;
-                }
-                m_velocityStartHalf = getVelocity() / 2;
-                m_collapser.init(goUp, head, tail);
-            } else {
-                if (ADJUST_TAIL) {
-                    if ((tailStart != null) && ((goUp && (tail < tailStart)) || (!goUp && (tail > tailStart)))) {
-                        tailStart = tail;
-                        m_tailStart = tail;
-                        float spread = m_headStart - tail;
-                        float half = spread / 2;
-                        m_midStart = tail + half;
-                        if (m_collectValues) { // this only for painting
-                            float quarter = spread / 4;
-                            m_1quarter = tail + quarter;
-                            m_1quarterPaint = m_1quarter;
-                            m_3quarter = m_headStart - quarter;
-                            m_3quarterPaint = m_3quarter;
-                            m_5quarter = m_headStart + quarter;
-                            m_5quarterPaint = m_headStart;
-                            m_6quarter = m_headStart + half;
-                            m_6quarterPaint = m_headStart;
-                            m_7quarter = m_headStart + half + quarter;
-                            m_7quarterPaint = m_headStart;
-                            m_8quarter = m_headStart + spread;
-                            m_8quarterPaint = m_headStart;
-                        }
-                        m_collapser.adjustTail(tail);
-                    }
-                }
-                if (m_collectValues) { // this only for painting
-                    if (m_6quarter != null) {
-                        if (goUp) {
-                            if (tail > m_1quarter) {
-                                m_1quarterPaint = m_midStart;
-                            }
-                            if (tail > m_3quarter) {
-                                m_3quarterPaint = m_headStart;
-                            }
-                            if (tail > m_5quarter) {
-                                m_5quarterPaint = m_5quarter;
-                                m_6quarterPaint = m_5quarter;
-                                m_7quarterPaint = m_5quarter;
-                                m_8quarterPaint = m_5quarter;
-                            }
-                            if (tail > m_6quarter) {
-                                m_6quarterPaint = m_6quarter;
-                                m_7quarterPaint = m_6quarter;
-                                m_8quarterPaint = m_6quarter;
-                            }
-                            if (tail > m_7quarter) {
-                                m_7quarterPaint = m_7quarter;
-                                m_8quarterPaint = m_7quarter;
-                            }
-                            if (tail > m_8quarter) {
-                                m_8quarterPaint = m_8quarter;
-                            }
-                        } else {
-                            if (tail < m_1quarter) {
-                                m_1quarterPaint = m_midStart;
-                            }
-                            if (tail < m_3quarter) {
-                                m_3quarterPaint = m_headStart;
-                            }
-                            if (tail < m_5quarter) {
-                                m_5quarterPaint = m_5quarter;
-                                m_6quarterPaint = m_5quarter;
-                                m_7quarterPaint = m_5quarter;
-                                m_8quarterPaint = m_5quarter;
-                            }
-                            if (tail < m_6quarter) {
-                                m_6quarterPaint = m_6quarter;
-                                m_7quarterPaint = m_6quarter;
-                                m_8quarterPaint = m_6quarter;
-                            }
-                            if (tail < m_7quarter) {
-                                m_7quarterPaint = m_7quarter;
-                                m_8quarterPaint = m_7quarter;
-                            }
-                            if (tail < m_8quarter) {
-                                m_8quarterPaint = m_8quarter;
-                            }
-                        }
-                    }
-                }
-            }
-
-            float ribbonSpread = emasMax - emasMin;
-            float maxRibbonSpread;
-            if (directionChanged) {
-                // note - ribbonSpread from prev step here
-                m_zigZag = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
-                m_directionIn = (m_direction == null) ?  0 : m_direction;
-                m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
+        float ribbonSpread = emasMax - emasMin;
+        float maxRibbonSpread;
+        if (directionChanged) {
+            // note - ribbonSpread from prev step here
+            m_zigZag = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
+            m_directionIn = (m_adj == null) ?  0 : m_adj;
+            m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
 //                m_maxHeadRun = 0; // reset
 //                m_minHeadRun = 0; // reset
 //                m_revPower = 0f;
-                maxRibbonSpread = ribbonSpread; //reset
-            } else {
-                maxRibbonSpread = (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
-            }
-            m_maxRibbonSpread = maxRibbonSpread;
-            m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+            maxRibbonSpread = ribbonSpread; //reset
+        } else {
+            maxRibbonSpread = (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
+        }
+        m_maxRibbonSpread = maxRibbonSpread;
+        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
-            if (m_headStart != null) { // directionChanged once observed
-                float collapseRate = m_collapser.update(tail);
+        if (m_headStart != null) { // directionChanged once observed
+            float collapseRate = m_collapser.update(tail);
 
 //                {
 //                    float headRun = leadEmaValue - m_headStart;
@@ -316,47 +294,47 @@ public class FastAlgo extends BaseRibbonAlgo {
 //                    m_revPower = revPower;
 ////                }
 
-                float tailRun = tail - tailStart;
-                float tailToMidPower = tailRun / (m_midStart - tailStart);
-                if (tailToMidPower > 1) {
-                    tailToMidPower = 1;
-                } else if (tailToMidPower < 0) {
-                    tailToMidPower = 0;
-                }
+            float tailRun = tail - tailStart;
+            float tailToMidPower = tailRun / (m_midStart - tailStart);
+            if (tailToMidPower > 1) {
+                tailToMidPower = 1;
+            } else if (tailToMidPower < 0) {
+                tailToMidPower = 0;
+            }
 
-                float enterMidPower = (mid - m_midStart) / (m_headStart - m_midStart);
-                float enterPower = Math.max(enterMidPower, tailToMidPower * 2);  //  (enterMidPower + tailToMidPower) / 2;
-                if (enterPower > 1) {
-                    enterPower = 1;
-                } else if (enterPower < 0) {
-                    enterPower = 0;
-                }
+            float enterMidPower = (mid - m_midStart) / (m_headStart - m_midStart);
+            float enterPower = Math.max(enterMidPower, tailToMidPower * 2);  //  (enterMidPower + tailToMidPower) / 2;
+            if (enterPower > 1) {
+                enterPower = 1;
+            } else if (enterPower < 0) {
+                enterPower = 0;
+            }
 //                m_enterPower = enterPower;
 
-                // revPower
-                float tailPower = tailRun / (m_headStart - tailStart);
-                if (tailPower > 1) {
-                    tailPower = 1;
-                } else if (tailPower < 0) {
-                    tailPower = 0;
-                }
+            // revPower
+            float tailPower = tailRun / (m_headStart - tailStart);
+            if (tailPower > 1) {
+                tailPower = 1;
+            } else if (tailPower < 0) {
+                tailPower = 0;
+            }
 //                m_tailPower = tailPower;
-                float reverseLevel = head - (head - mid) * tailPower;
+            float reverseLevel = head - (head - mid) * tailPower;
 //                m_reverseLevel = reverseLevel;
-                float revPower = (leadEmaValue - reverseLevel) / (tail - reverseLevel);
-                if (revPower < 0) {
-                    revPower = 0;
-                }
+            float revPower = (leadEmaValue - reverseLevel) / (tail - reverseLevel);
+            if (revPower < 0) {
+                revPower = 0;
+            }
 //                m_revPower = revPower;
 
-                float tailMidRun = tail - mid;
-                float exitMidPower = (tailMidRun != 0) ? (leadEmaValue - mid) / tailMidRun : 0;
-                if (exitMidPower < 0) {
-                    exitMidPower = 0;
-                }
+            float tailMidRun = tail - mid;
+            float exitMidPower = (tailMidRun != 0) ? (leadEmaValue - mid) / tailMidRun : 0;
+            if (exitMidPower < 0) {
+                exitMidPower = 0;
+            }
 
-                // spreadClosePower
-                float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
+            // spreadClosePower
+            float spreadClosePower = (maxRibbonSpread - ribbonSpread) / maxRibbonSpread;
 //                m_spreadClosePower = spreadClosePower;
 
 //                float tailPower2 = (tail - m_tailStart) / (m_headStart - m_tailStart);
@@ -378,65 +356,62 @@ public class FastAlgo extends BaseRibbonAlgo {
 ////                float reverseValue = reverseDistance * m_revPower;
 ////                direction -= reverseValue;
 
-                // exitPower = spreadClosePower "+" revPower
-                float exitPower = spreadClosePower;
-                float remainedExitPower = 1 - exitPower;
-                if (remainedExitPower > 0.5f) {
-                    remainedExitPower = 0.5f; // max allow 0.5
-                }
-                exitPower += remainedExitPower * revPower;
+            // exitPower = spreadClosePower "+" revPower
+            float exitPower = spreadClosePower;
+            float remainedExitPower = 1 - exitPower;
+            if (remainedExitPower > 0.5f) {
+                remainedExitPower = 0.5f; // max allow 0.5
+            }
+            exitPower += remainedExitPower * revPower;
 //                m_exitPower = exitPower;
 
-                // false-start collapse
-                float velocity = getVelocity();
-                float noStartCollapseRate = (m_velocityStartHalf > 0) ? (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf) : 0;
-                if (noStartCollapseRate < 0) {
-                    noStartCollapseRate = 0;
-                } else if (noStartCollapseRate > 1) {
-                    noStartCollapseRate = 1;
-                }
-                noStartCollapseRate *= (1 - tailToMidPower);
+            // false-start collapse
+            float velocity = getVelocity();
+            float noStartCollapseRate = (m_velocityStartHalf > 0) ? (velocity - m_velocityStartHalf) / (-2 * m_velocityStartHalf) : 0;
+            if (noStartCollapseRate < 0) {
+                noStartCollapseRate = 0;
+            } else if (noStartCollapseRate > 1) {
+                noStartCollapseRate = 1;
+            }
+            noStartCollapseRate *= (1 - tailToMidPower);
 
-                int sign = goUp ? 1 : -1;
-                float direction = m_directionIn + sign * m_remainedEnterDistance * enterPower;
-                direction *= (1 - noStartCollapseRate * m_p3);
-                direction *= (1 - collapseRate);
+            int sign = goUp ? 1 : -1;
+            float direction = m_directionIn + sign * m_remainedEnterDistance * enterPower;
+            direction *= (1 - noStartCollapseRate * m_p3);
+            direction *= (1 - collapseRate);
 
-                // pre-start next turn
-                float remainedExitDistance = goUp ? 1 + direction : 1 - direction;
-                direction -= sign * remainedExitDistance * exitMidPower * m_p1;
-                direction -= sign * remainedExitDistance * exitPower * m_p2;
+            // pre-start next turn
+            float remainedExitDistance = goUp ? 1 + direction : 1 - direction;
+            direction -= sign * remainedExitDistance * exitMidPower * m_p1;
+            direction -= sign * remainedExitDistance * exitPower * m_p2;
 //                direction -= sign * remainedExitDistance * revPower;
 //                direction -= sign * remainedExitDistance * spreadClosePower;
-                if (direction < -1) {
-                    direction = -1;
-                } else if (direction > 1) {
-                    direction = 1;
-                }
+            if (direction < -1) {
+                direction = -1;
+            } else if (direction > 1) {
+                direction = 1;
+            }
 
-                if (m_collectValues) { // this only for painting
-                    m_collapseRate = collapseRate;
-                    m_noStartCollapseRate = noStartCollapseRate;
-                    m_directionNoLimit = direction;
-                }
+            if (m_collectValues) { // this only for painting
+                m_collapseRate = collapseRate;
+                m_noStartCollapseRate = noStartCollapseRate;
+                m_directionNoLimit = direction;
+            }
 
-                if (LIMIT_BY_PRICE) {
-                    if (direction > m_direction) {
-                        if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
-                            m_direction = direction;
-                        }
-                    } else { // adj < m_adj
-                        if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
-                            m_direction = direction;
-                        }
+            if (LIMIT_BY_PRICE) {
+                if (direction > m_adj) {
+                    if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
+                        m_adj = direction;
                     }
-                } else {
-                    m_direction = direction;
+                } else { // adj < m_adj
+                    if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
+                        m_adj = direction;
+                    }
                 }
+            } else {
+                m_adj = direction;
             }
         }
-
-        return m_direction;
     }
 
     private float getVelocity() {
@@ -446,6 +421,7 @@ public class FastAlgo extends BaseRibbonAlgo {
     }
 
     @Override public void reset() {
+        super.reset();
         m_min = null;
         m_max = null;
         m_zigZag = null;
@@ -466,7 +442,6 @@ public class FastAlgo extends BaseRibbonAlgo {
 //        m_headPower = null;
 //        m_maxHeadRun = 0;
 //        m_minHeadRun = 0;
-        m_direction = 0f;
         m_directionIn = null;
         m_remainedEnterDistance = null;
         m_mid = null;
@@ -515,7 +490,7 @@ public class FastAlgo extends BaseRibbonAlgo {
 //    TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
 //    TicksTimesSeriesData<TickData> getRevPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_revPower; } }; }
 
-    TicksTimesSeriesData<TickData> getDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_direction; } }; }
+    TicksTimesSeriesData<TickData> getDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj; } }; }
     TicksTimesSeriesData<TickData> getDirectionNoLimitTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_directionNoLimit; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {

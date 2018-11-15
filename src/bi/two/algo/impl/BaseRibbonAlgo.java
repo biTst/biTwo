@@ -32,8 +32,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     protected final ITimesSeriesData m_wrappedInTs;
     private boolean m_dirty;
     private TickData m_tickData;
+    protected Float m_adj;
 
-    protected abstract Float recalc(float lastPrice);
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue);
 
     BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
@@ -59,6 +60,37 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
 
     protected ITimesSeriesData wrapIfNeededTs(ITimesSeriesData inTsd) {
         return (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(inTsd, m_joinTicks) : inTsd;
+    }
+
+    private Float recalc(float lastPrice) {
+        float emasMin = Float.POSITIVE_INFINITY;
+        float emasMax = Float.NEGATIVE_INFINITY;
+        boolean allDone = true;
+        float leadEmaValue = 0;
+        for (int i = 0; i < m_emasNum; i++) {
+            ITimesSeriesData ema = m_emas[i];
+            ITickData lastTick = ema.getLatestTick();
+            if (lastTick != null) {
+                float value = lastTick.getClosePrice();
+                emasMin = (emasMin <= value) ? emasMin : value;  // Math.min(emasMin, value);
+                emasMax = (emasMax >= value) ? emasMax : value;  // Math.max(emasMax, value);
+                if (i == 0) {
+                    leadEmaValue = value;
+                }
+            } else {
+                allDone = false;
+                break; // not ready yet
+            }
+        }
+
+        if (allDone) {
+            recalc2(lastPrice, emasMin, emasMax, leadEmaValue);
+        }
+        return m_adj;
+    }
+
+    @Override public void reset() {
+        m_adj = 0F;
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {

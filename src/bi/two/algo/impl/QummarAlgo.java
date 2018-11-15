@@ -48,7 +48,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
     private Float m_mulAndPrev;
     private Float m_revMulAndPrev;
     private Float m_prevAdj;
-    private Float m_adj;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
@@ -70,145 +69,122 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        }
     }
 
-    @Override protected Float recalc(float lastPrice) {
-        float emasMin = Float.POSITIVE_INFINITY;
-        float emasMax = Float.NEGATIVE_INFINITY;
-        boolean allDone = true;
-        float leadEmaValue = 0;
-        for (int i = 0; i < m_emasNum; i++) {
-            ITimesSeriesData ema = m_emas[i];
-            ITickData lastTick = ema.getLatestTick();
-            if (lastTick != null) {
-                float value = lastTick.getClosePrice();
-                emasMin = (emasMin <= value) ? emasMin : value;  // Math.min(emasMin, value);
-                emasMax = (emasMax >= value) ? emasMax : value;  // Math.max(emasMax, value);
-                if (i == 0) {
-                    leadEmaValue = value;
-                }
-            } else {
-                allDone = false;
-                break; // not ready yet
-            }
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
+        boolean goUp = (leadEmaValue == emasMax)
+                ? true // go up
+                : ((leadEmaValue == emasMin)
+                    ? false // go down
+                    : m_goUp); // do not change
+        boolean directionChanged = (goUp != m_goUp);
+        if (directionChanged) {
+            m_prevAdj = m_adj; // save prev
         }
+        m_goUp = goUp;
 
-        if (allDone) {
-            boolean goUp = (leadEmaValue == emasMax)
-                    ? true // go up
-                    : ((leadEmaValue == emasMin)
-                        ? false // go down
-                        : m_goUp); // do not change
-            boolean directionChanged = (goUp != m_goUp);
-            if (directionChanged) {
-                m_prevAdj = m_adj; // save prev
-            }
-            m_goUp = goUp;
+        m_min = emasMin;
+        m_max = emasMax;
 
-            m_min = emasMin;
-            m_max = emasMax;
+        // note - ribbonSpread from prev step here
+        m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
 
-            // note - ribbonSpread from prev step here
-            m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
+        float ribbonSpread = emasMax - emasMin;
+        float maxRibbonSpread = directionChanged
+                ? ribbonSpread //reset
+                : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
+        m_maxRibbonSpread = maxRibbonSpread;
+        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
-            float ribbonSpread = emasMax - emasMin;
-            float maxRibbonSpread = directionChanged
-                    ? ribbonSpread //reset
-                    : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
-            m_maxRibbonSpread = maxRibbonSpread;
-            m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-            m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+        float head = goUp ? emasMax : emasMin;
+        float tail = goUp ? emasMin : emasMax;
 
-            float head = goUp ? emasMax : emasMin;
-            float tail = goUp ? emasMin : emasMax;
-
-            if (directionChanged) {
-                m_zerro = head; // pink
-                m_turn = tail;  // dark green
-                float diff = head - tail;
-                m_one = head + diff / 2;
-                m_onePaint = head;
-                m_half = (head + tail) / 2;
-                m_targetLevel = tail + m_target * diff;
-            } else {
-                if (m_one != null) {
-                    if (goUp) {
-                        if (tail >= m_one) {
-                            m_onePaint = m_one;
+        if (directionChanged) {
+            m_zerro = head; // pink
+            m_turn = tail;  // dark green
+            float diff = head - tail;
+            m_one = head + diff / 2;
+            m_onePaint = head;
+            m_half = (head + tail) / 2;
+            m_targetLevel = tail + m_target * diff;
+        } else {
+            if (m_one != null) {
+                if (goUp) {
+                    if (tail >= m_one) {
+                        m_onePaint = m_one;
+                    }
+                    if (ADJUST_TAIL) {
+                        if (tail < m_turn) {
+                            m_turn = tail;
+                            m_half = (m_zerro + tail) / 2;
+                            m_targetLevel = tail + m_target * (m_zerro - tail);
                         }
-                        if (ADJUST_TAIL) {
-                            if (tail < m_turn) {
-                                m_turn = tail;
-                                m_half = (m_zerro + tail) / 2;
-                                m_targetLevel = tail + m_target * (m_zerro - tail);
-                            }
-                        }
-                    } else {
-                        if (tail <= m_one) {
-                            m_onePaint = m_one;
-                        }
-                        if (ADJUST_TAIL) {
-                            if (tail > m_turn) {
-                                m_turn = tail;
-                                m_half = (m_zerro + tail) / 2;
-                                m_targetLevel = tail + m_target * (m_zerro - tail);
-                            }
+                    }
+                } else {
+                    if (tail <= m_one) {
+                        m_onePaint = m_one;
+                    }
+                    if (ADJUST_TAIL) {
+                        if (tail > m_turn) {
+                            m_turn = tail;
+                            m_half = (m_zerro + tail) / 2;
+                            m_targetLevel = tail + m_target * (m_zerro - tail);
                         }
                     }
                 }
             }
+        }
 
-            if (m_zerro != null) { // directionChanged once observed
+        if (m_zerro != null) { // directionChanged once observed
 
-                float diff = m_targetLevel - m_turn;
-                float power = (diff == 0)
-                                ? 0 // avoid NaN value
-                                : (tail - m_turn) / diff;
-                power = (1.0f <= power) ? 1.0f : power;  //  Math.min(1.0f, power);
-                power = (0.0f >= power) ? 0.0f : power;  //  Math.max(0.0f, power); // bounds
-                m_power = power;
+            float diff = m_targetLevel - m_turn;
+            float power = (diff == 0)
+                            ? 0 // avoid NaN value
+                            : (tail - m_turn) / diff;
+            power = (1.0f <= power) ? 1.0f : power;  //  Math.min(1.0f, power);
+            power = (0.0f >= power) ? 0.0f : power;  //  Math.max(0.0f, power); // bounds
+            m_power = power;
 
-                m_value = (maxRibbonSpread == 0)
-                        ? 0
-                        : ((head - m_ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
+            m_value = (maxRibbonSpread == 0)
+                    ? 0
+                    : ((head - m_ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
 
-                m_mul = power * m_value;
-                m_mulAndPrev = m_mul + m_prevAdj * (1 - power);
+            m_mul = power * m_value;
+            m_mulAndPrev = m_mul + m_prevAdj * (1 - power);
 
-                Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
-                float reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
-                m_reverseLevel = reverseLevel;
+            Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
+            float reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
+            m_reverseLevel = reverseLevel;
 
-                float reversePower;
-                boolean checkReverse = (goUp && (head < reverseLevel)) || (!goUp && (head > reverseLevel));
-                if (checkReverse) {
-                    float rp = (head - reverseLevel) / (tail - reverseLevel) * m_reverseMul;
-                    reversePower = (1.0f <= rp) ? 1.0f : rp;                      // Math.min(1.0f, rp);
-                    reversePower = (0.0f >= reversePower) ? 0.0f : reversePower;  //  Math.max(0.0f, reversePower); // bounds
-                } else {
-                    reversePower = 0;
-                }
-                m_reversePower = reversePower;
+            float reversePower;
+            boolean checkReverse = (goUp && (head < reverseLevel)) || (!goUp && (head > reverseLevel));
+            if (checkReverse) {
+                float rp = (head - reverseLevel) / (tail - reverseLevel) * m_reverseMul;
+                reversePower = (1.0f <= rp) ? 1.0f : rp;                      // Math.min(1.0f, rp);
+                reversePower = (0.0f >= reversePower) ? 0.0f : reversePower;  //  Math.max(0.0f, reversePower); // bounds
+            } else {
+                reversePower = 0;
+            }
+            m_reversePower = reversePower;
 
-                m_revMulAndPrev = (goUp ? -reversePower : reversePower) + m_mulAndPrev * (1 - reversePower);
+            m_revMulAndPrev = (goUp ? -reversePower : reversePower) + m_mulAndPrev * (1 - reversePower);
 
-                Float adj = APPLY_REVERSE ? m_revMulAndPrev : m_mulAndPrev;
+            Float adj = APPLY_REVERSE ? m_revMulAndPrev : m_mulAndPrev;
 
-                if (LIMIT_BY_PRICE) {
-                    if (adj > m_adj) {
-                        if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
-                            m_adj = adj;
-                        }
-                    } else { // adj < m_adj
-                        if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
-                            m_adj = adj;
-                        }
+            if (LIMIT_BY_PRICE) {
+                if (adj > m_adj) {
+                    if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
+                        m_adj = adj;
                     }
-                } else {
-                    m_adj = adj;
+                } else { // adj < m_adj
+                    if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
+                        m_adj = adj;
+                    }
                 }
+            } else {
+                m_adj = adj;
             }
         }
-        return m_adj;
-    }
+}
 
 
     @Override public String key(boolean detailed) {
@@ -235,6 +211,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
     }
 
     @Override public void reset() {
+        super.reset();
         m_min = null;
         m_max = null;
         m_zigZag = null;
@@ -252,7 +229,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
         m_prevAdj = 0F;
-        m_adj = 0F;
         m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
