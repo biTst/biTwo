@@ -46,8 +46,10 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
                     if (nextDayTradeHours == timestampTradeHours) { // expected next trade day
                         onTimeShift(tradePause); // report valid shift if next trade day
                     } else {
-                        Log.console("timestampTradeHours=" + timestampTradeHours);
+                        Log.console("currTradeHours=" + m_currTradeHours);
                         Log.console("currTradeHours.getNextDayTradeHours=" + nextDayTradeHours);
+                        Log.console("timestamp=" + m_tradeSchedule.formatLongDateTime(timestamp));
+                        Log.console("timestampTradeHours=" + timestampTradeHours);
                         throw new RuntimeException("not expected next trade day");
                     }
                 }
