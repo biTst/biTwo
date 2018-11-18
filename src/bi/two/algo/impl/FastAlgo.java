@@ -89,9 +89,10 @@ public class FastAlgo extends BaseRibbonAlgo2 {
     }
 
     @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
-                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
+                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
+                                     float ribbonSpreadBottom, float mid, float head, float tail) {
 
-        Float tailStart = m_tailStart;
+        Float tailStart = m_tailStart; // use local var to speedup
         // common ribbon lines
         if (directionChanged) {
             m_headStart = head; // pink
