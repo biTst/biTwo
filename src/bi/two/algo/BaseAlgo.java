@@ -84,6 +84,10 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
             }
             notifyListeners(false);
         }
+
+        @Override public void onTimeShift(long shift) {
+            notifyOnTimeShift(shift);
+        }
     }
 
 

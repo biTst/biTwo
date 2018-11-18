@@ -33,8 +33,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     private boolean m_dirty;
     private TickData m_tickData;
     protected Float m_adj;
+    private boolean m_goUp;
 
-    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue);
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged);
 
     BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
@@ -84,7 +85,15 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         }
 
         if (allDone) {
-            recalc2(lastPrice, emasMin, emasMax, leadEmaValue);
+            boolean goUp = (leadEmaValue == emasMax)
+                    ? true // go up
+                    : ((leadEmaValue == emasMin)
+                    ? false // go down
+                    : m_goUp); // do not change
+            boolean directionChanged = (goUp != m_goUp);
+            m_goUp = goUp;
+
+            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged);
         }
         return m_adj;
     }

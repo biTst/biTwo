@@ -21,7 +21,7 @@ import static bi.two.util.Log.console;
 
 public class QummarAlgo extends BaseRibbonAlgo {
     private static final boolean APPLY_REVERSE = true;
-    private static final boolean LIMIT_BY_PRICE = true;
+    private static final boolean LIMIT_BY_PRICE = false;
     public static final boolean ADJUST_TAIL = false;
 
     private final float m_minOrderMul;
@@ -30,9 +30,9 @@ public class QummarAlgo extends BaseRibbonAlgo {
     private final float m_reverseMul;
 
 //    private BarsTimesSeriesData m_priceBars;
-    private boolean m_goUp;
     private Float m_min;
     private Float m_max;
+    private Float m_mid;
     private Float m_zigZag;
     private Float m_zerro;
     private Float m_turn;
@@ -69,20 +69,15 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
-        boolean goUp = (leadEmaValue == emasMax)
-                ? true // go up
-                : ((leadEmaValue == emasMin)
-                    ? false // go down
-                    : m_goUp); // do not change
-        boolean directionChanged = (goUp != m_goUp);
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
+
         if (directionChanged) {
             m_prevAdj = m_adj; // save prev
         }
-        m_goUp = goUp;
 
         m_min = emasMin;
         m_max = emasMax;
+        m_mid = (emasMin + emasMax) / 2;
 
         // note - ribbonSpread from prev step here
         m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
@@ -214,6 +209,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
         super.reset();
         m_min = null;
         m_max = null;
+        m_mid = null;
         m_zigZag = null;
         m_zerro = null;
         m_half = null;
@@ -236,6 +232,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
 
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
+    TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
     TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
@@ -280,6 +277,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
 
             addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE_JOIN);
             addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getMidTs(), topLayers, "mid", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
@@ -312,12 +310,12 @@ public class QummarAlgo extends BaseRibbonAlgo {
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         List<ChartAreaLayerSettings> valueLayers = value.getLayers();
         {
-//            addChart(chartData, getTS(true), valueLayers, "value", Color.blue, TickPainter.LINE);
-//            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
-            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
-            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
-            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTS(true), valueLayers, "value1", Color.blue, TickPainter.LINE);
+            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Colors.TURQUOISE, TickPainter.LINE);
+//            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
+//            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
+//            addChart(chartData, getMulAndPrevTs(), valueLayers, "mulAndPrev", Color.RED, TickPainter.LINE_JOIN);
+//            addChart(chartData, getRevMulAndPrevTs(), valueLayers, "revMulAndPrev", Colors.GOLD, TickPainter.LINE_JOIN);
 //            addChart(chartData, m_velocityAdj.getJoinNonChangedTs(), valueLayers, "velAdj", Color.RED, TickPainter.LINE);
         }
 

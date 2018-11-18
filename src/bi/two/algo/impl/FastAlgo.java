@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FastAlgo extends BaseRibbonAlgo {
-    private static final boolean ADJUST_TAIL = false;
-    private static final boolean LIMIT_BY_PRICE = true;
+    private static final boolean ADJUST_TAIL = true;
+    private static final boolean LIMIT_BY_PRICE = false;
 
     private final float m_collapse;
     private final float m_p1;
@@ -32,7 +32,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private final MidPointsVelocity m_leadEmaVelocity;
     private final Collapser m_collapser;
 
-    private boolean m_goUp;
     private Float m_min;
     private Float m_max;
     private Float m_zigZag;
@@ -88,7 +87,7 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_p3 = algoConfig.getNumber(Vary.p3).floatValue();
 
         BaseTimesSeriesData leadEma = m_emas[0];
-        int multiplier = 1000;
+        int multiplier = 4000;
         m_velocity = new VelocityArray(leadEma, m_barSize, 1.0f, 0.1f, 2, multiplier);
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
 
@@ -115,14 +114,8 @@ public class FastAlgo extends BaseRibbonAlgo {
                 ;
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
-        boolean goUp = (leadEmaValue == emasMax)
-                        ? true // go up
-                        : ((leadEmaValue == emasMin)
-                            ? false // go down
-                            : m_goUp); // do not change
-        boolean directionChanged = (goUp != m_goUp);
-        m_goUp = goUp;
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
+
         m_min = emasMin;
         m_max = emasMax;
 
@@ -399,7 +392,8 @@ public class FastAlgo extends BaseRibbonAlgo {
             }
 
             if (LIMIT_BY_PRICE) {
-                if (direction > m_adj) {
+                float adj = (m_adj == null) ? 0 : m_adj;
+                if (direction > adj) {
                     if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
                         m_adj = direction;
                     }
@@ -577,7 +571,7 @@ public class FastAlgo extends BaseRibbonAlgo {
 ////            addChart(chartData, getJoinNonChangedTs(), valueLayers, "value", Color.blue, TickPainter.LINE);
 //            addChart(chartData, getValueTs(), valueLayers, "value", Colors.alpha(Color.MAGENTA, 128), TickPainter.LINE_JOIN);
 //            addChart(chartData, getMulTs(), valueLayers, "mul", Color.GRAY, TickPainter.LINE_JOIN);
-            addChart(chartData, getDirectionNoLimitTs(), valueLayers, "directionNoLimit", Colors.alpha(Color.RED, 60), TickPainter.LINE_JOIN);
+            addChart(chartData, getDirectionNoLimitTs(), valueLayers, "directionNoLimit", Colors.alpha(Color.RED, 45), TickPainter.LINE_JOIN);
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
 
             Color velocityColor = Colors.alpha(Colors.CLOW_IN_THE_DARK, 60);

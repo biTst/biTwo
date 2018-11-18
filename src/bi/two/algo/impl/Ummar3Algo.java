@@ -26,7 +26,6 @@ public class Ummar3Algo extends BaseRibbonAlgo {
 
     private BarsTimesSeriesData m_priceBars;
 
-    private boolean m_goUp;
     private float m_min;
     private float m_max;
     private float m_ribbonSpread;
@@ -57,14 +56,7 @@ public class Ummar3Algo extends BaseRibbonAlgo {
         }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue) {
-        boolean goUp = (leadEmaValue == emasMax)
-                ? true // go up
-                : ((leadEmaValue == emasMin)
-                ? false // go down
-                : m_goUp); // do not change
-        boolean directionChanged = (goUp != m_goUp);
-        m_goUp = goUp;
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
 
 //            m_min = emasMin;
 //            m_max = emasMax;
