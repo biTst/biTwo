@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
+
     protected final Exchange m_exchange;
     protected final long m_joinTicks;
 

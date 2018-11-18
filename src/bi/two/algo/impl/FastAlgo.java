@@ -20,7 +20,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FastAlgo extends BaseRibbonAlgo {
+public class FastAlgo extends BaseRibbonAlgo2 {
     private static final boolean ADJUST_TAIL = true;
     private static final boolean LIMIT_BY_PRICE = false;
 
@@ -32,8 +32,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private final MidPointsVelocity m_leadEmaVelocity;
     private final Collapser m_collapser;
 
-    private Float m_min;
-    private Float m_max;
     private Float m_zigZag;
     private Float m_headStart;
     private Float m_tailStart;
@@ -52,7 +50,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_directionNoLimit = 0f;
     private Float m_directionIn;
     private Float m_remainedEnterDistance;
-    private Float m_mid;
     private Float m_tailPower2;
     private Float m_spreadClosePowerAdjusted;
 
@@ -92,34 +89,11 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_collapser = new Collapser(m_collapse);
     }
 
-    @Override public String key(boolean detailed) {
-        detailed = true;
-        return  ""
-                + (detailed ? ",start=" : ",") + m_start
-                + (detailed ? ",step=" : ",") + m_step
-                + (detailed ? ",count=" : ",") + m_count
-                + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
-                + (detailed ? ",collapse=" : ",") + m_collapse
-                + (detailed ? ",p1=" : ",") + m_p1
-                + (detailed ? ",p2=" : ",") + m_p2
-                + (detailed ? ",p3=" : ",") + m_p3
-//                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
-                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
-                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
-                + ", " + m_barSize
-//                + ", " + Utils.millisToYDHMSStr(m_barSize)
-                ;
-    }
-
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
-
-        m_min = emasMin;
-        m_max = emasMax;
+    @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
+                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid) {
 
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
-        float mid = (head + tail) / 2;
-        m_mid = mid;
 
         Float tailStart = m_tailStart;
         // common ribbon lines
@@ -397,6 +371,25 @@ public class FastAlgo extends BaseRibbonAlgo {
         }
     }
 
+    @Override public String key(boolean detailed) {
+        detailed = true;
+        return  ""
+                + (detailed ? ",start=" : ",") + m_start
+                + (detailed ? ",step=" : ",") + m_step
+                + (detailed ? ",count=" : ",") + m_count
+                + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
+                + (detailed ? ",collapse=" : ",") + m_collapse
+                + (detailed ? ",p1=" : ",") + m_p1
+                + (detailed ? ",p2=" : ",") + m_p2
+                + (detailed ? ",p3=" : ",") + m_p3
+//                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
+                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
+                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
+                + ", " + m_barSize
+//                + ", " + Utils.millisToYDHMSStr(m_barSize)
+                ;
+    }
+
     private float getVelocity() {
         Average velocityAvg = m_velocity.m_velocityAvg;
         ITickData latestTick = velocityAvg.getLatestTick();
@@ -405,8 +398,6 @@ public class FastAlgo extends BaseRibbonAlgo {
 
     @Override public void reset() {
         super.reset();
-        m_min = null;
-        m_max = null;
         m_zigZag = null;
         m_headStart = null;
         m_midStart = null;
@@ -424,7 +415,6 @@ public class FastAlgo extends BaseRibbonAlgo {
 //        m_minHeadRun = 0;
         m_directionIn = null;
         m_remainedEnterDistance = null;
-        m_mid = null;
         m_tailPower2 = null;
         m_spreadClosePowerAdjusted = null;
         m_1quarter = null;
@@ -437,14 +427,11 @@ public class FastAlgo extends BaseRibbonAlgo {
 //        m_revPower = null;
     }
 
-    TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_min; } }; }
-    TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_max; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(getParent(), false) { @Override protected Float getValue() { return m_zigZag; } }; }
 
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headStart; } }; }
     TicksTimesSeriesData<TickData> getTailStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailStart; } }; }
     TicksTimesSeriesData<TickData> getMidStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midStart; } }; }
-    TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_mid; } }; }
 
     TicksTimesSeriesData<TickData> get1quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_1quarterPaint; } }; }
     TicksTimesSeriesData<TickData> get3quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_3quarterPaint; } }; }

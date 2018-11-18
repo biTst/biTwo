@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
-public class QummarAlgo extends BaseRibbonAlgo {
+public class QummarAlgo extends BaseRibbonAlgo2 {
     private static final boolean APPLY_REVERSE = true;
     private static final boolean LIMIT_BY_PRICE = false;
     public static final boolean ADJUST_TAIL = false;
@@ -30,9 +30,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
     private final float m_reverseMul;
 
 //    private BarsTimesSeriesData m_priceBars;
-    private Float m_min;
-    private Float m_max;
-    private Float m_mid;
     private Float m_zigZag;
     private Float m_zerro;
     private Float m_turn;
@@ -66,15 +63,12 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
+    @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
+                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid) {
 
         if (directionChanged) {
             m_prevAdj = m_adj; // save prev
         }
-
-        m_min = emasMin;
-        m_max = emasMax;
-        m_mid = (emasMin + emasMax) / 2;
 
         // note - ribbonSpread from prev step here
         m_zigZag = directionChanged ? (goUp ? ribbonSpreadBottom : ribbonSpreadTop) : m_zigZag;
@@ -196,9 +190,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
 
     @Override public void reset() {
         super.reset();
-        m_min = null;
-        m_max = null;
-        m_mid = null;
         m_zigZag = null;
         m_zerro = null;
         m_half = null;
@@ -216,9 +207,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
         m_prevAdj = 0F;
     }
 
-    TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
-    TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
-    TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
