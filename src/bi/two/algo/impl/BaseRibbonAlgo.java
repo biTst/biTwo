@@ -6,10 +6,7 @@ import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
-import bi.two.ts.BaseTimesSeriesData;
-import bi.two.ts.ITimesSeriesData;
-import bi.two.ts.ITimesSeriesListener;
-import bi.two.ts.TickJoinerTimesSeriesData;
+import bi.two.ts.*;
 import bi.two.util.MapConfig;
 
 import java.util.ArrayList;
@@ -35,8 +32,10 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     protected Float m_adj;
     private boolean m_goUp;
     private float m_maxRibbonSpread;
+    private Float m_ribbonSpreadTop;
+    private Float m_ribbonSpreadBottom;
 
-    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread);
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
     BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
@@ -99,8 +98,12 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
                     ? ribbonSpread //reset
                     : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
             m_maxRibbonSpread = maxRibbonSpread;
+            float ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+            float ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+            m_ribbonSpreadTop = ribbonSpreadTop;
+            m_ribbonSpreadBottom = ribbonSpreadBottom;
 
-            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread);
+            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
         }
         return m_adj;
     }
@@ -108,6 +111,8 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     @Override public void reset() {
         m_adj = 0F;
         m_maxRibbonSpread = 0f;
+        m_ribbonSpreadTop = null;
+        m_ribbonSpreadBottom = null;
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
@@ -182,6 +187,10 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         m_tickData.onTimeShift(shift);
 //        super.onTimeShift(shift);
     }
+
+
+    TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
+    TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
 
 
     //-------------------------------------------------------------------------------------------

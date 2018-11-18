@@ -25,8 +25,6 @@ public class Ummar2Algo extends BaseRibbonAlgo {
 
     private float m_min;
     private float m_max;
-    private float m_ribbonSpreadTop;
-    private float m_ribbonSpreadBottom;
     private Float m_xxx;
     private float m_height;
     private Float m_trend;
@@ -48,13 +46,10 @@ public class Ummar2Algo extends BaseRibbonAlgo {
     }
 
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
 
 //            m_min = emasMin;
 //            m_max = emasMax;
-
-        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
         if (directionChanged) {
             m_xxx = goUp ? emasMax : emasMin;
@@ -66,15 +61,15 @@ public class Ummar2Algo extends BaseRibbonAlgo {
 
             float rate = m_threshold;
             m_level = goUp
-                    ? m_ribbonSpreadBottom < m_xxx
-                        ? m_xxx * m_reverse + m_ribbonSpreadBottom * (1-m_reverse)
-                        : m_ribbonSpreadTop * rate + m_ribbonSpreadBottom * (1-rate)
-                    : m_ribbonSpreadTop > m_xxx
-                        ? m_xxx * m_reverse + m_ribbonSpreadTop * (1-m_reverse)
-                        : m_ribbonSpreadTop * (1-rate) + m_ribbonSpreadBottom * rate;
+                    ? ribbonSpreadBottom < m_xxx
+                        ? m_xxx * m_reverse + ribbonSpreadBottom * (1-m_reverse)
+                        : ribbonSpreadTop * rate + ribbonSpreadBottom * (1-rate)
+                    : ribbonSpreadTop > m_xxx
+                        ? m_xxx * m_reverse + ribbonSpreadTop * (1-m_reverse)
+                        : ribbonSpreadTop * (1-rate) + ribbonSpreadBottom * rate;
 
             if (m_da != null) {
-                m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
+                m_adj = m_da.update(ribbonSpreadTop, m_level, ribbonSpreadBottom, leadEmaValue);
             }
 
 //            m_adj = goUp ? 1f : -1f;
@@ -137,8 +132,6 @@ public class Ummar2Algo extends BaseRibbonAlgo {
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
 
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
     TicksTimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
 //    TicksTimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }

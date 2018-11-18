@@ -28,8 +28,6 @@ public class Ummar3Algo extends BaseRibbonAlgo {
 
     private float m_min;
     private float m_max;
-    private float m_ribbonSpreadTop;
-    private float m_ribbonSpreadBottom;
     private Float m_xxx;
     private float m_height;
     private Float m_trend;
@@ -55,13 +53,10 @@ public class Ummar3Algo extends BaseRibbonAlgo {
         }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
 
 //            m_min = emasMin;
 //            m_max = emasMax;
-
-        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
         if (directionChanged) {
             m_xxx = goUp ? emasMax : emasMin;
@@ -74,17 +69,17 @@ public class Ummar3Algo extends BaseRibbonAlgo {
             float approachRate;
             float approachLevel;
             float gainLevel;
-            float spread = m_ribbonSpreadTop - m_ribbonSpreadBottom;
+            float spread = ribbonSpreadTop - ribbonSpreadBottom;
             if (goUp) {
-                float trend = m_ribbonSpreadTop - m_xxx;
-                gainLevel = m_ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
-                height = m_xxx - m_ribbonSpreadBottom;
-                approachLevel = m_ribbonSpreadBottom + m_s1 * spread + m_s2 * trend;
+                float trend = ribbonSpreadTop - m_xxx;
+                gainLevel = ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
+                height = m_xxx - ribbonSpreadBottom;
+                approachLevel = ribbonSpreadBottom + m_s1 * spread + m_s2 * trend;
             } else {
-                float trend = m_xxx - m_ribbonSpreadBottom;
-                gainLevel = m_ribbonSpreadTop - m_e1 * spread + m_e2 * trend;
-                height = m_ribbonSpreadTop - m_xxx;
-                approachLevel = m_ribbonSpreadTop - m_s1 * spread + m_s2 * trend;
+                float trend = m_xxx - ribbonSpreadBottom;
+                gainLevel = ribbonSpreadTop - m_e1 * spread + m_e2 * trend;
+                height = ribbonSpreadTop - m_xxx;
+                approachLevel = ribbonSpreadTop - m_s1 * spread + m_s2 * trend;
             }
             approachRate = height / m_height;
             if (approachRate > 0) {
@@ -93,7 +88,7 @@ public class Ummar3Algo extends BaseRibbonAlgo {
                 m_level = gainLevel;
             }
             if (m_da != null) {
-                m_adj = m_da.update(m_ribbonSpreadTop, m_level, m_ribbonSpreadBottom, leadEmaValue);
+                m_adj = m_da.update(ribbonSpreadTop, m_level, ribbonSpreadBottom, leadEmaValue);
             }
 
 //            m_adj = goUp ? 1f : -1f;
@@ -152,8 +147,6 @@ public class Ummar3Algo extends BaseRibbonAlgo {
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
 
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getXxxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_xxx; } }; }
     TicksTimesSeriesData<TickData> getTrendTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_trend; } }; }
     //    TicksTimesSeriesData<TickData> getMirrorTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mirror; } }; }

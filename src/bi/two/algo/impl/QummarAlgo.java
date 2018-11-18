@@ -48,8 +48,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
     private Float m_mulAndPrev;
     private Float m_revMulAndPrev;
     private Float m_prevAdj;
-    private Float m_ribbonSpreadTop;
-    private Float m_ribbonSpreadBottom;
 
     private BaseTimesSeriesData m_sliding;
 
@@ -68,7 +66,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
 
         if (directionChanged) {
             m_prevAdj = m_adj; // save prev
@@ -79,10 +77,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
         m_mid = (emasMin + emasMax) / 2;
 
         // note - ribbonSpread from prev step here
-        m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
-
-        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+        m_zigZag = directionChanged ? (goUp ? ribbonSpreadBottom : ribbonSpreadTop) : m_zigZag;
 
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
@@ -135,12 +130,12 @@ public class QummarAlgo extends BaseRibbonAlgo {
 
             m_value = (maxRibbonSpread == 0)
                     ? 0
-                    : ((head - m_ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
+                    : ((head - ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
 
             m_mul = power * m_value;
             m_mulAndPrev = m_mul + m_prevAdj * (1 - power);
 
-            Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : m_ribbonSpreadBottom;
+            Float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
             float reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
             m_reverseLevel = reverseLevel;
 
@@ -219,15 +214,11 @@ public class QummarAlgo extends BaseRibbonAlgo {
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
         m_prevAdj = 0F;
-        m_ribbonSpreadTop = null;
-        m_ribbonSpreadBottom = null;
     }
 
     TicksTimesSeriesData<TickData> getMinTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_min; } }; }
     TicksTimesSeriesData<TickData> getMaxTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_max; } }; }
     TicksTimesSeriesData<TickData> getMidTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_mid; } }; }
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
