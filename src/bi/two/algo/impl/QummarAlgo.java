@@ -48,7 +48,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
     private Float m_mulAndPrev;
     private Float m_revMulAndPrev;
     private Float m_prevAdj;
-    private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 
@@ -69,7 +68,7 @@ public class QummarAlgo extends BaseRibbonAlgo {
 //        }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
 
         if (directionChanged) {
             m_prevAdj = m_adj; // save prev
@@ -82,11 +81,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
         // note - ribbonSpread from prev step here
         m_zigZag = directionChanged ? (goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop) : m_zigZag;
 
-        float ribbonSpread = emasMax - emasMin;
-        float maxRibbonSpread = directionChanged
-                ? ribbonSpread //reset
-                : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
-        m_maxRibbonSpread = maxRibbonSpread;
         m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
         m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
@@ -225,7 +219,6 @@ public class QummarAlgo extends BaseRibbonAlgo {
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
         m_prevAdj = 0F;
-        m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
     }

@@ -39,7 +39,6 @@ public class FastAlgo extends BaseRibbonAlgo {
     private Float m_tailStart;
     private Float m_midStart;
 //    private Float m_reverseLevel;
-    private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
 //    private Float m_spreadClosePower;
@@ -114,7 +113,7 @@ public class FastAlgo extends BaseRibbonAlgo {
                 ;
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
 
         m_min = emasMin;
         m_max = emasMax;
@@ -234,8 +233,6 @@ public class FastAlgo extends BaseRibbonAlgo {
             }
         }
 
-        float ribbonSpread = emasMax - emasMin;
-        float maxRibbonSpread;
         if (directionChanged) {
             // note - ribbonSpread from prev step here
             m_zigZag = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
@@ -244,11 +241,7 @@ public class FastAlgo extends BaseRibbonAlgo {
 //                m_maxHeadRun = 0; // reset
 //                m_minHeadRun = 0; // reset
 //                m_revPower = 0f;
-            maxRibbonSpread = ribbonSpread; //reset
-        } else {
-            maxRibbonSpread = (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
         }
-        m_maxRibbonSpread = maxRibbonSpread;
         m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
         m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
@@ -423,7 +416,6 @@ public class FastAlgo extends BaseRibbonAlgo {
         m_midStart = null;
         m_tailStart = null;
 //        m_reverseLevel = null;
-        m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
         m_ribbonSpreadBottom = null;
 //        m_spreadClosePower = null;

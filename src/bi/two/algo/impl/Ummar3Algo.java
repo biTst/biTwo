@@ -28,7 +28,6 @@ public class Ummar3Algo extends BaseRibbonAlgo {
 
     private float m_min;
     private float m_max;
-    private float m_ribbonSpread;
     private float m_ribbonSpreadTop;
     private float m_ribbonSpreadBottom;
     private Float m_xxx;
@@ -56,18 +55,13 @@ public class Ummar3Algo extends BaseRibbonAlgo {
         }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged) {
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread) {
 
 //            m_min = emasMin;
 //            m_max = emasMax;
 
-        float ribbonSpread = emasMax - emasMin;
-
-        m_ribbonSpread = directionChanged // direction changed
-                ? ribbonSpread //reset
-                : Math.max(ribbonSpread, m_ribbonSpread);
-        m_ribbonSpreadTop = goUp ? emasMin + m_ribbonSpread : emasMax;
-        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - m_ribbonSpread;
+        m_ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+        m_ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
 
         if (directionChanged) {
             m_xxx = goUp ? emasMax : emasMin;

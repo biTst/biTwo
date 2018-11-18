@@ -34,8 +34,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     private TickData m_tickData;
     protected Float m_adj;
     private boolean m_goUp;
+    private float m_maxRibbonSpread;
 
-    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged);
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread);
 
     BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null);
@@ -93,13 +94,20 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
             boolean directionChanged = (goUp != m_goUp);
             m_goUp = goUp;
 
-            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged);
+            float ribbonSpread = emasMax - emasMin;
+            float maxRibbonSpread = directionChanged
+                    ? ribbonSpread //reset
+                    : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
+            m_maxRibbonSpread = maxRibbonSpread;
+
+            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread);
         }
         return m_adj;
     }
 
     @Override public void reset() {
         m_adj = 0F;
+        m_maxRibbonSpread = 0f;
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
