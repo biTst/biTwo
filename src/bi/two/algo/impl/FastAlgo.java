@@ -89,10 +89,7 @@ public class FastAlgo extends BaseRibbonAlgo2 {
     }
 
     @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
-                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid) {
-
-        float head = goUp ? emasMax : emasMin;
-        float tail = goUp ? emasMin : emasMax;
+                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
 
         Float tailStart = m_tailStart;
         // common ribbon lines
