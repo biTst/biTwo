@@ -32,7 +32,6 @@ public class FastAlgo extends BaseRibbonAlgo2 {
     private final MidPointsVelocity m_leadEmaVelocity;
     private final Collapser m_collapser;
 
-    private Float m_zigZag;
     private Float m_headStart;
     private Float m_tailStart;
     private Float m_midStart;
@@ -206,8 +205,6 @@ public class FastAlgo extends BaseRibbonAlgo2 {
         }
 
         if (directionChanged) {
-            // note - ribbonSpread from prev step here
-            m_zigZag = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
             m_directionIn = (m_adj == null) ?  0 : m_adj;
             m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
 //                m_maxHeadRun = 0; // reset
@@ -398,7 +395,6 @@ public class FastAlgo extends BaseRibbonAlgo2 {
 
     @Override public void reset() {
         super.reset();
-        m_zigZag = null;
         m_headStart = null;
         m_midStart = null;
         m_tailStart = null;
@@ -426,8 +422,6 @@ public class FastAlgo extends BaseRibbonAlgo2 {
         m_directionNoLimit = 0f;
 //        m_revPower = null;
     }
-
-    TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(getParent(), false) { @Override protected Float getValue() { return m_zigZag; } }; }
 
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headStart; } }; }
     TicksTimesSeriesData<TickData> getTailStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailStart; } }; }

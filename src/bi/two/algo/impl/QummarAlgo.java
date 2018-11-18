@@ -30,7 +30,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     private final float m_reverseMul;
 
 //    private BarsTimesSeriesData m_priceBars;
-    private Float m_zigZag;
     private Float m_zerro;
     private Float m_turn;
     private Float m_half;
@@ -69,9 +68,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
         if (directionChanged) {
             m_prevAdj = m_adj; // save prev
         }
-
-        // note - ribbonSpread from prev step here
-        m_zigZag = directionChanged ? (goUp ? ribbonSpreadBottom : ribbonSpreadTop) : m_zigZag;
 
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
@@ -190,7 +186,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 
     @Override public void reset() {
         super.reset();
-        m_zigZag = null;
         m_zerro = null;
         m_half = null;
         m_one = null;
@@ -207,7 +202,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
         m_prevAdj = 0F;
     }
 
-    TicksTimesSeriesData<TickData> getZigZagTs() { return new JoinNonChangedInnerTimesSeriesData(this, false) { @Override protected Float getValue() { return m_zigZag; } }; }
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }
     TicksTimesSeriesData<TickData> getTurnTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_turn; } }; }
     TicksTimesSeriesData<TickData> getHalfTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_half; } }; }
