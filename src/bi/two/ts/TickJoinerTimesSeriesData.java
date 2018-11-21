@@ -1,5 +1,6 @@
 package bi.two.ts;
 
+import bi.two.chart.BaseTickData;
 import bi.two.chart.ITickData;
 import bi.two.util.Log;
 
@@ -78,5 +79,13 @@ public class TickJoinerTimesSeriesData extends BaseTimesSeriesData<ITickData> {
         // todo: notify last not reported tick here
         super.notifyNoMoreTicks();
         log("TickJoinerTs[" + m_size + "ms]: reportedCount=" + m_reportedCount + "; joinedCount=" + m_joinedCount + "; rate=" + (((float) m_joinedCount) / m_reportedCount));
+    }
+
+    @Override public void onTimeShift(long shift) {
+        m_end += shift;
+        if (m_lastJoinTick != null) {
+            m_lastJoinTick = new BaseTickData(m_lastJoinTick.getTimestamp() + shift, m_lastJoinTick.getClosePrice());
+        }
+        notifyOnTimeShift(shift);
     }
 }

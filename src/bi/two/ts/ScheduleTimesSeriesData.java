@@ -1,5 +1,6 @@
 package bi.two.ts;
 
+import bi.two.chart.BaseTickData;
 import bi.two.chart.ITickData;
 import bi.two.exch.schedule.Schedule;
 import bi.two.exch.schedule.TradeHours;
@@ -68,6 +69,9 @@ public class ScheduleTimesSeriesData extends BaseTimesSeriesData<ITickData> {
     }
 
     @Override public void onTimeShift(long shift) {
+        if (m_lastTick != null) {
+            m_lastTick = new BaseTickData(m_lastTick.getTimestamp() + shift, m_lastTick.getClosePrice());
+        }
         notifyOnTimeShift(shift);
         // todo: remove override
 //        super.onTimeShift(shift);

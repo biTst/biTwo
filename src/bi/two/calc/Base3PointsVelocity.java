@@ -115,7 +115,7 @@ abstract class Base3PointsVelocity extends BaseTimesSeriesData<ITickData> {
         // todo: call super only;   +recheck
         notifyOnTimeShift(shift);
         if (m_tickData != null) {
-            m_tickData.onTimeShift(shift);
+            m_tickData = new TickData(m_tickData.getTimestamp() + shift, m_tickData.getClosePrice());
         }
     }
 }

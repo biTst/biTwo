@@ -366,11 +366,5 @@ public class WatchersProducer {
             BaseAlgo algoImpl = algo.createAlgo(algoConfig, parent, m_exch);
             return algoImpl;
         }
-
-        @Override public void onTimeShift(long shift) {
-            // todo: recheck
-            notifyOnTimeShift(shift);
-//            super.onTimeShift(shift);
-        }
     }
 }

@@ -56,7 +56,10 @@ public class Average extends BaseTimesSeriesData<ITickData> {
     }
 
     @Override public void onTimeShift(long shift) {
-        // todo: call super only;   +recheck
+        if (m_tick != null) {
+            m_tick = new TickData(m_tick.getTimestamp() + shift, m_tick.getClosePrice());
+        }
+        // todo: call super only
         notifyOnTimeShift(shift);
     }
 }
