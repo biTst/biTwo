@@ -223,8 +223,10 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     @Override public void onTimeShift(long shift) {
         // todo: call super
         notifyOnTimeShift(shift);
-        m_tickData.onTimeShift(shift);
-        if(m_directionChangeTime != 0) {
+        if (m_tickData != null) {
+            m_tickData.onTimeShift(shift);
+        }
+        if (m_directionChangeTime != 0) {
             m_directionChangeTime += shift;
         }
 //        super.onTimeShift(shift);
