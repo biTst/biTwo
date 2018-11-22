@@ -2,7 +2,6 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.Average;
 import bi.two.calc.BarsEMA;
@@ -24,10 +23,11 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
     private final float m_start;
     private final float m_step;
     private final float m_count;
+    private final float m_multiplier;
+
     private final float m_drop;
     private final float m_smooth;
     private final float m_power;
-    private final float m_multiplier;
     private final float m_threshold;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
@@ -40,7 +40,6 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
     public Mmar3Algo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
@@ -66,8 +65,8 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
         m_emas.add(ema);
         iEmas.add(ema);
 
-        m_minMaxSpread = new MinMaxSpread(iEmas, tsd, collectValues);
-        if (collectValues) {
+        m_minMaxSpread = new MinMaxSpread(iEmas, tsd, m_collectValues);
+        if (m_collectValues) {
             m_spreadSmoothed = new BarsEMA(m_minMaxSpread, m_smooth, m_barSize);
         }
 

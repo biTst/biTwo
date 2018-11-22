@@ -33,7 +33,6 @@ public class RegressionAlgo extends BaseBarSizeAlgo {
     public final HashMap<String,Powerer> s_powererCache = new HashMap<>();
     public final HashMap<String,TicksRegressor> s_smootherCache = new HashMap<>();
 
-    private final boolean m_collectValues;
     public final int m_curveLength;
     public final float m_divider;
     public final float m_slopeLength;
@@ -77,8 +76,6 @@ public class RegressionAlgo extends BaseBarSizeAlgo {
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
         m_dropLevel = algoConfig.getNumber(Vary.drop).floatValue();
         m_directionThreshold = algoConfig.getNumber(Vary.reverse).floatValue();
-
-        m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
 
 //        long regressorPeriod = m_curveLength * barSize;
 //        String key = tsd.hashCode() + "." + regressorPeriod;

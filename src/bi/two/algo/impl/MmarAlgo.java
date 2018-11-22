@@ -2,7 +2,6 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.*;
 import bi.two.chart.*;
@@ -44,7 +43,6 @@ public class MmarAlgo extends BaseBarSizeAlgo {
     public MmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
@@ -52,7 +50,7 @@ public class MmarAlgo extends BaseBarSizeAlgo {
         m_smooth = algoConfig.getNumber(Vary.smooth).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
 
-        m_mainLevel = new Level(tsd, m_barSize, m_start, m_step, m_count, collectValues) {
+        m_mainLevel = new Level(tsd, m_barSize, m_start, m_step, m_count, m_collectValues) {
             @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {
                 return new SlidingTicksRegressor(tsd, (long) (length * barSize));
 //                return new BarsEMA(tsd, length, barSize);
@@ -63,7 +61,7 @@ public class MmarAlgo extends BaseBarSizeAlgo {
 
         m_spreadSmoothed = new TicksSMA(m_mainLevel.m_minMaxSpread, (long) (m_barSize * m_smooth));
 
-        if(collectValues) {
+        if (m_collectValues) {
             BarMinMaxSpread barMinMaxSpread = new BarMinMaxSpread(tsd, m_barSize);
             m_barSpreadSmoothed = new TicksSMA(barMinMaxSpread, (long) (m_barSize * 5.0));
         }

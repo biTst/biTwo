@@ -19,6 +19,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public static final String COMMISSION_KEY = "commission";
 
     protected final double m_minOrderMul; // used in Watcher, used on algos for logging
+    protected final boolean m_collectValues;
 
     public List<BaseIndicator> m_indicators = new ArrayList<>();
 
@@ -26,6 +27,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
         super(parent);
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
+        m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
     }
 
     // override

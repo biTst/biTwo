@@ -1,6 +1,5 @@
 package bi.two.algo.impl;
 
-import bi.two.algo.BaseAlgo;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
@@ -22,7 +21,6 @@ abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
     protected final float m_turnLevel; // time in bars to confirm turn
     protected final long m_turnSize; // time in millis to confirm turn
     protected final float m_linRegMultiplier;
-    protected final boolean m_collectValues;
     protected final double m_commission;
 
     protected BaseTimesSeriesData[] m_emas;
@@ -49,7 +47,6 @@ abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 

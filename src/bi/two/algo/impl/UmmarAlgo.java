@@ -2,7 +2,6 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressor;
 import bi.two.chart.*;
@@ -31,7 +30,6 @@ public class UmmarAlgo extends BaseBarSizeAlgo {
     public UmmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
@@ -44,7 +42,7 @@ public class UmmarAlgo extends BaseBarSizeAlgo {
         float length = m_start;
         int countFloor = (int) m_count;
         for (int i = 0; i < countFloor; i++) {
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, collectValues);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, length, m_collectValues);
             m_emas.add(ema);
             iEmas.add(ema);
             length += m_step;
@@ -52,12 +50,12 @@ public class UmmarAlgo extends BaseBarSizeAlgo {
         if (m_count != countFloor) {
             float fraction = m_count - countFloor;
             float fractionLength = length - m_step + m_step * fraction;
-            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, collectValues);
+            BaseTimesSeriesData ema = getOrCreateEma(tsd, m_barSize, fractionLength, m_collectValues);
             m_emas.add(ema);
             iEmas.add(ema);
         }
 
-        m_minMaxSpread = new MinMaxSpread(iEmas, tsd, collectValues);
+        m_minMaxSpread = new MinMaxSpread(iEmas, tsd, m_collectValues);
 
         setParent(m_emas.get(0));
     }
