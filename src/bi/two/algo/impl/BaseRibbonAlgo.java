@@ -12,14 +12,13 @@ import bi.two.util.MapConfig;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
+abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
     protected final Exchange m_exchange;
     protected final long m_joinTicks;
 
     protected final float m_start;
     protected final float m_step;
     protected final float m_count;
-    protected final long m_barSize;
     protected final float m_turnLevel; // time in bars to confirm turn
     protected final long m_turnSize; // time in millis to confirm turn
     protected final float m_linRegMultiplier;
@@ -50,7 +49,6 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
         m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();

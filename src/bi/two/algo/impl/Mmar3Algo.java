@@ -20,8 +20,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-public class Mmar3Algo extends BaseAlgo<TickData> {
-    private final long m_barSize;
+public class Mmar3Algo extends BaseBarSizeAlgo {
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -42,7 +41,6 @@ public class Mmar3Algo extends BaseAlgo<TickData> {
         super(null, algoConfig);
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();

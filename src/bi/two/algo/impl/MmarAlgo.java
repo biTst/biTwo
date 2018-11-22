@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MmarAlgo extends BaseAlgo<TickData> {
+public class MmarAlgo extends BaseBarSizeAlgo {
     private static final boolean PINCH = true; // pinch by spread / spreadSmoothed
     private static final boolean FAST_RIBBON = true;
 
@@ -27,7 +27,6 @@ public class MmarAlgo extends BaseAlgo<TickData> {
     private static int s_emaCacheHit;
     private static int s_emaCacheMiss;
 
-    private final long m_barSize;
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -46,7 +45,6 @@ public class MmarAlgo extends BaseAlgo<TickData> {
         super(null, algoConfig);
 
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();

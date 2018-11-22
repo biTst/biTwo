@@ -2,7 +2,6 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.Differ;
 import bi.two.calc.TicksRegressor;
@@ -17,8 +16,7 @@ import bi.two.util.MapConfig;
 import java.awt.*;
 import java.util.List;
 
-public class EmaTrendAlgo extends BaseAlgo<TickData> {
-    private final long m_barSize;
+public class EmaTrendAlgo extends BaseBarSizeAlgo {
 //    private final float m_length;
     private final float m_longLength;
     private final float m_shortLength;
@@ -37,7 +35,6 @@ public class EmaTrendAlgo extends BaseAlgo<TickData> {
     public EmaTrendAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
 //        m_length = algoConfig.getNumber(Vary.emaLen).floatValue();
         m_longLength = algoConfig.getNumber(Vary.longEmaLen).floatValue();
         m_shortLength = algoConfig.getNumber(Vary.shortEmaLen).floatValue();

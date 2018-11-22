@@ -17,11 +17,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UmmarAlgo extends BaseAlgo<TickData> {
-
-    private final double m_minOrderMul;
-
-    private final long m_barSize;
+public class UmmarAlgo extends BaseBarSizeAlgo {
     private final float m_start;
     private final float m_step;
     private final float m_count;
@@ -35,10 +31,7 @@ public class UmmarAlgo extends BaseAlgo<TickData> {
     public UmmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
-
         boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
         m_start = algoConfig.getNumber(Vary.start).floatValue();
         m_step = algoConfig.getNumber(Vary.step).floatValue();
         m_count = algoConfig.getNumber(Vary.count).floatValue();

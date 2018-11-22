@@ -5,7 +5,6 @@ import bi.two.ChartCanvas;
 import bi.two.Colors;
 import bi.two.Main;
 import bi.two.algo.BarSplitter;
-import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
 import bi.two.calc.BarsEMA;
 import bi.two.calc.BarsRegressor;
@@ -22,7 +21,7 @@ import java.util.List;
 
 import static bi.two.util.Log.console;
 
-public class RegressionAlgo extends BaseAlgo<TickData> {
+public class RegressionAlgo extends BaseBarSizeAlgo {
     public static final float DEF_THRESHOLD = 0.1f;
 
     public final HashMap<String,BarsRegressor> s_regressorsCache = new HashMap<>();
@@ -35,7 +34,6 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
     public final HashMap<String,TicksRegressor> s_smootherCache = new HashMap<>();
 
     private final boolean m_collectValues;
-    private final long m_barSize;
     public final int m_curveLength;
     public final float m_divider;
     public final float m_slopeLength;
@@ -70,7 +68,6 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
     public RegressionAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_barSize = algoConfig.getNumber(Vary.period).longValue();
         m_curveLength = algoConfig.getNumber(Vary.bars).intValue();
         m_divider = algoConfig.getNumber(Vary.divider).floatValue();
         m_slopeLength = algoConfig.getNumber(Vary.slope).floatValue();
