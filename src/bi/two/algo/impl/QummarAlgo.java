@@ -24,7 +24,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     private static final boolean LIMIT_BY_PRICE = false;
     public static final boolean ADJUST_TAIL = false;
 
-    private final float m_minOrderMul;
     private final float m_target;
     private final float m_reverse;
     private final float m_reverseMul;
@@ -52,7 +51,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 
         reset(); // todo: really need here ?
 
-        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
         m_target = algoConfig.getNumber(Vary.target).floatValue();
         m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();

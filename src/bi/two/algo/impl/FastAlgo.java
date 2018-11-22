@@ -67,15 +67,12 @@ public class FastAlgo extends BaseRibbonAlgo3 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
-                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
-                                     float ribbonSpreadBottom, float mid, float head, float tail) {
-
-        Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, goUp); // use local var to speedup
-
+    @Override protected void recalc4(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
+                                     float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;
-            m_directionIn = (m_adj == null) ?  0 : m_adj;
+            m_directionIn = (m_adj == null) ? 0 : m_adj;
             m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
 //                m_maxHeadRun = 0; // reset
 //                m_minHeadRun = 0; // reset
@@ -84,7 +81,7 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 
         Float headStart = m_ribbon.m_headStart; // use local var to speedup
         if (headStart != null) { // directionChanged once observed
-            float collapseRate = m_ribbon.m_collapser.update(tail);
+//            float collapseRate = m_ribbon.m_collapser.update(tail);
 
 //                {
 //                    float headRun = leadEmaValue - m_headStart;
@@ -303,7 +300,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //    TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
 //    TicksTimesSeriesData<TickData> getRevPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_revPower; } }; }
 
-    TicksTimesSeriesData<TickData> getDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj; } }; }
     TicksTimesSeriesData<TickData> getDirectionNoLimitTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_directionNoLimit; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
