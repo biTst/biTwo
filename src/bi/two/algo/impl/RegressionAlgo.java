@@ -67,21 +67,21 @@ public class RegressionAlgo extends BaseAlgo<TickData> {
     }
 
 
-    public RegressionAlgo(MapConfig config, ITimesSeriesData tsd) {
-        super(null);
+    public RegressionAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+        super(null, algoConfig);
 
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_curveLength = config.getNumber(Vary.bars).intValue();
-        m_divider = config.getNumber(Vary.divider).floatValue();
-        m_slopeLength = config.getNumber(Vary.slope).floatValue();
-        m_signalLength = config.getNumber(Vary.signal).floatValue();
-        m_powerLevel = config.getNumber(Vary.power).floatValue();
-        m_smootherLevel = config.getNumber(Vary.smooth).floatValue();
-        m_threshold = config.getNumber(Vary.threshold).floatValue();
-        m_dropLevel = config.getNumber(Vary.drop).floatValue();
-        m_directionThreshold = config.getNumber(Vary.reverse).floatValue();
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+        m_curveLength = algoConfig.getNumber(Vary.bars).intValue();
+        m_divider = algoConfig.getNumber(Vary.divider).floatValue();
+        m_slopeLength = algoConfig.getNumber(Vary.slope).floatValue();
+        m_signalLength = algoConfig.getNumber(Vary.signal).floatValue();
+        m_powerLevel = algoConfig.getNumber(Vary.power).floatValue();
+        m_smootherLevel = algoConfig.getNumber(Vary.smooth).floatValue();
+        m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
+        m_dropLevel = algoConfig.getNumber(Vary.drop).floatValue();
+        m_directionThreshold = algoConfig.getNumber(Vary.reverse).floatValue();
 
-        m_collectValues = config.getBoolean(COLLECT_VALUES_KEY);
+        m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
 
 //        long regressorPeriod = m_curveLength * barSize;
 //        String key = tsd.hashCode() + "." + regressorPeriod;

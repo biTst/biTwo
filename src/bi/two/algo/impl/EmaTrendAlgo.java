@@ -34,15 +34,15 @@ public class EmaTrendAlgo extends BaseAlgo<TickData> {
     private final TicksSMA m_signal;
     private final Differ m_hist;
 
-    public EmaTrendAlgo(MapConfig config, ITimesSeriesData tsd) {
-        super(null);
+    public EmaTrendAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+        super(null, algoConfig);
 
-        m_barSize = config.getNumber(Vary.period).longValue();
-//        m_length = config.getNumber(Vary.emaLen).floatValue();
-        m_longLength = config.getNumber(Vary.longEmaLen).floatValue();
-        m_shortLength = config.getNumber(Vary.shortEmaLen).floatValue();
-        m_signalLength = config.getNumber(Vary.signal).floatValue();
-        m_threshold = config.getNumber(Vary.threshold).floatValue();
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+//        m_length = algoConfig.getNumber(Vary.emaLen).floatValue();
+        m_longLength = algoConfig.getNumber(Vary.longEmaLen).floatValue();
+        m_shortLength = algoConfig.getNumber(Vary.shortEmaLen).floatValue();
+        m_signalLength = algoConfig.getNumber(Vary.signal).floatValue();
+        m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
 
 //        m_ema = new ExponentialMovingBarAverager(tsd, m_length, m_barSize);
 //        m_emaShort = new FadingTicksAverager(tsd, (long) (m_shortLength * m_barSize));

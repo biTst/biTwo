@@ -17,8 +17,6 @@ import static bi.two.util.Log.console;
 
 public class Ummar3Algo extends BaseRibbonAlgo {
 
-    private final double m_minOrderMul;
-
     private final float m_s1;// spread proportional start
     private final float m_s2;// gain proportional start
     private final float m_e1;// spread proportional end
@@ -38,15 +36,13 @@ public class Ummar3Algo extends BaseRibbonAlgo {
     private float m_level;
     private Ummar2Algo.DoubleAdjuster m_da;
 
-    public Ummar3Algo(MapConfig config, ITimesSeriesData tsd, Exchange exchange) {
-        super(config, tsd, exchange);
+    public Ummar3Algo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
+        super(algoConfig, tsd, exchange);
 
-        m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
-
-        m_s1 = config.getNumber(Vary.s1).floatValue();
-        m_s2 = config.getNumber(Vary.s2).floatValue();
-        m_e1 = config.getNumber(Vary.e1).floatValue();
-        m_e2 = config.getNumber(Vary.e2).floatValue();
+        m_s1 = algoConfig.getNumber(Vary.s1).floatValue();
+        m_s2 = algoConfig.getNumber(Vary.s2).floatValue();
+        m_e1 = algoConfig.getNumber(Vary.e1).floatValue();
+        m_e2 = algoConfig.getNumber(Vary.e2).floatValue();
 
         if (m_collectValues) {
             m_priceBars = new BarsTimesSeriesData(tsd, m_barSize);

@@ -35,14 +35,14 @@ public class Ummar2Algo extends BaseRibbonAlgo {
     private float m_level;
     private DoubleAdjuster m_da;
 
-    public Ummar2Algo(MapConfig config, ITimesSeriesData tsd, Exchange exchange) {
-        super(config, tsd, exchange);
+    public Ummar2Algo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
+        super(algoConfig, tsd, exchange);
 
-        m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
-        m_joinTicks = config.getNumber(Vary.joinTicks).longValue();
+        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
+        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
 
-        m_threshold = config.getNumber(Vary.threshold).floatValue();
-        m_reverse = config.getNumber(Vary.reverse).floatValue();
+        m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
+        m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
     }
 
 

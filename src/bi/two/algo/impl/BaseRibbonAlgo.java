@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
-
     protected final Exchange m_exchange;
     protected final long m_joinTicks;
 
@@ -39,10 +38,11 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     private Float m_ribbonSpreadBottom;
     private long m_directionChangeTime;
 
-    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+                                    float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
     BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
-        super(null);
+        super(null, algoConfig);
 
         m_exchange = exchange;
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();

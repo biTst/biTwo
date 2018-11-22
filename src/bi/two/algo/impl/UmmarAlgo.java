@@ -32,19 +32,19 @@ public class UmmarAlgo extends BaseAlgo<TickData> {
     private final MinMaxSpread m_minMaxSpread;
     private TickData m_tickData;
 
-    public UmmarAlgo(MapConfig config, ITimesSeriesData tsd) {
-        super(null);
+    public UmmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+        super(null, algoConfig);
 
-        m_minOrderMul = config.getNumber(Vary.minOrderMul).floatValue();
+        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
 
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_start = config.getNumber(Vary.start).floatValue();
-        m_step = config.getNumber(Vary.step).floatValue();
-        m_count = config.getNumber(Vary.count).floatValue();
-        m_multiplier = config.getNumber(Vary.multiplier).floatValue();
-        m_threshold = config.getNumber(Vary.threshold).floatValue();
-        m_signal = config.getNumber(Vary.signal).floatValue();
+        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+        m_start = algoConfig.getNumber(Vary.start).floatValue();
+        m_step = algoConfig.getNumber(Vary.step).floatValue();
+        m_count = algoConfig.getNumber(Vary.count).floatValue();
+        m_multiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
+        m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
+        m_signal = algoConfig.getNumber(Vary.signal).floatValue();
 
         // create ribbon
         List<ITimesSeriesData> iEmas = new ArrayList<>(); // as list of ITimesSeriesData
@@ -109,7 +109,7 @@ public class UmmarAlgo extends BaseAlgo<TickData> {
                 + (detailed ? ",multiplier=" : ",") + m_multiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",signal=" : ",") + m_signal
-+ (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
+                + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }

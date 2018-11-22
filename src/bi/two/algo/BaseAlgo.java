@@ -3,9 +3,11 @@ package bi.two.algo;
 import bi.two.ChartCanvas;
 import bi.two.chart.*;
 import bi.two.ind.BaseIndicator;
+import bi.two.opt.Vary;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
+import bi.two.util.MapConfig;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -16,10 +18,14 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public static final String ALGO_NAME_KEY = "algoName";
     public static final String COMMISSION_KEY = "commission";
 
+    protected final double m_minOrderMul; // used in Watcher, used on algos for logging
+
     public List<BaseIndicator> m_indicators = new ArrayList<>();
 
-    public BaseAlgo(ITimesSeriesData parent) {
+    public BaseAlgo(ITimesSeriesData parent, MapConfig algoConfig) {
         super(parent);
+
+        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
     }
 
     // override

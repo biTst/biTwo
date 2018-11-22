@@ -11,6 +11,7 @@ import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TickJoinerTimesSeriesData;
+import bi.two.util.MapConfig;
 
 import java.awt.*;
 import java.util.List;
@@ -18,8 +19,8 @@ import java.util.List;
 public class TestAlgo extends BaseAlgo<TickData> {
     private final BaseTimesSeriesData<ITickData> m_ema[] = new BaseTimesSeriesData[2];
 
-    public TestAlgo(ITimesSeriesData tsd, Exchange exchange) {
-        super(tsd);
+    public TestAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
+        super(tsd, algoConfig);
 
         long m_joinTicks = 2;
         ITimesSeriesData ts1 = (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(tsd, m_joinTicks) : tsd;

@@ -42,17 +42,17 @@ public class MmarAlgo extends BaseAlgo<TickData> {
     private Float m_ribbonDirection;
     private float m_spreadRate;
 
-    public MmarAlgo(MapConfig config, ITimesSeriesData tsd) {
-        super(null);
+    public MmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+        super(null, algoConfig);
 
-        boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_start = config.getNumber(Vary.start).floatValue();
-        m_step = config.getNumber(Vary.step).floatValue();
-        m_count = config.getNumber(Vary.count).floatValue();
-        m_drop = config.getNumber(Vary.drop).floatValue();
-        m_smooth = config.getNumber(Vary.smooth).floatValue();
-        m_power = config.getNumber(Vary.power).floatValue();
+        boolean collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+        m_start = algoConfig.getNumber(Vary.start).floatValue();
+        m_step = algoConfig.getNumber(Vary.step).floatValue();
+        m_count = algoConfig.getNumber(Vary.count).floatValue();
+        m_drop = algoConfig.getNumber(Vary.drop).floatValue();
+        m_smooth = algoConfig.getNumber(Vary.smooth).floatValue();
+        m_power = algoConfig.getNumber(Vary.power).floatValue();
 
         m_mainLevel = new Level(tsd, m_barSize, m_start, m_step, m_count, collectValues) {
             @Override protected BaseTimesSeriesData createEma(ITimesSeriesData tsd, long barSize, float length) {

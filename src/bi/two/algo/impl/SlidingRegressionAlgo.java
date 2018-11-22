@@ -21,11 +21,11 @@ public class SlidingRegressionAlgo extends BaseAlgo<TickData> {
     private final TicksRegressor m_regressor;
     private final SlidingTicksRegressor m_slidingRegressor;
 
-    public SlidingRegressionAlgo(MapConfig config, ITimesSeriesData tsd) {
-        super(tsd);
+    public SlidingRegressionAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
+        super(tsd, algoConfig);
 
-        m_barSize = config.getNumber(Vary.period).longValue();
-        m_length = config.getNumber(Vary.slope).floatValue();
+        m_barSize = algoConfig.getNumber(Vary.period).longValue();
+        m_length = algoConfig.getNumber(Vary.slope).floatValue();
 
         m_regressor = new TicksRegressor(tsd, (long) (m_length *  m_barSize));
         m_slidingRegressor = new SlidingTicksRegressor(tsd, (long) (m_length *  m_barSize));
