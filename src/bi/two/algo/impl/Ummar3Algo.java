@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
-public class Ummar3Algo extends BaseRibbonAlgo {
+public class Ummar3Algo extends BaseRibbonAlgo1 {
 
     private final float m_s1;// spread proportional start
     private final float m_s2;// gain proportional start

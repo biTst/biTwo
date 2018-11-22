@@ -15,11 +15,7 @@ import bi.two.util.MapConfig;
 import java.awt.*;
 import java.util.List;
 
-public class Ummar2Algo extends BaseRibbonAlgo {
-
-    private final double m_minOrderMul;
-    private final long m_joinTicks;
-
+public class Ummar2Algo extends BaseRibbonAlgo1 {
     private final float m_threshold;
     private final float m_reverse;
 
@@ -38,9 +34,6 @@ public class Ummar2Algo extends BaseRibbonAlgo {
     public Ummar2Algo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
         super(algoConfig, tsd, exchange);
 
-        m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).floatValue();
-        m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
-
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
         m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
     }
@@ -48,7 +41,6 @@ public class Ummar2Algo extends BaseRibbonAlgo {
 
     @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
                                      boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
-
 //            m_min = emasMin;
 //            m_max = emasMax;
 

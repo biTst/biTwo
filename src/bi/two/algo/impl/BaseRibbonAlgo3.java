@@ -8,14 +8,12 @@ import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
 abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
-    protected final boolean m_adjustTail;
     protected final float m_collapse;
     protected final Ribbon m_ribbon;
     protected RibbonUi m_ribbonUi;
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
-        super(algoConfig, inTsd, exchange);
-        m_adjustTail = adjustTail;
+        super(algoConfig, inTsd, exchange, adjustTail);
 
         m_collapse = algoConfig.getNumber(Vary.collapse).floatValue();
         if (m_collectValues) {
@@ -53,7 +51,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         private Float m_8quarter;
         private Float m_8quarterPaint;
 
-        public RibbonUi(float collapse, boolean adjustTail) {
+        RibbonUi(float collapse, boolean adjustTail) {
             super(collapse, adjustTail);
         }
 
@@ -171,7 +169,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         protected Float m_tailStart;
         protected Float m_midStart;
 
-        protected Ribbon(float collapse, boolean adjustTail) {
+        Ribbon(float collapse, boolean adjustTail) {
             m_collapser = new Collapser(collapse);
             m_adjustTail = adjustTail;
         }

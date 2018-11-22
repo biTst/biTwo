@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MmarAlgo extends BaseBarSizeAlgo {
+public class MmarAlgo extends BaseRibbonAlgo0 {
     private static final boolean PINCH = true; // pinch by spread / spreadSmoothed
     private static final boolean FAST_RIBBON = true;
 
@@ -26,9 +26,6 @@ public class MmarAlgo extends BaseBarSizeAlgo {
     private static int s_emaCacheHit;
     private static int s_emaCacheMiss;
 
-    private final float m_start;
-    private final float m_step;
-    private final float m_count;
     private final float m_drop;
     private final float m_smooth;
     private final float m_power;
@@ -36,16 +33,12 @@ public class MmarAlgo extends BaseBarSizeAlgo {
     private final Level m_mainLevel;
     private TicksSMA m_barSpreadSmoothed;
     private MinMaxSmoothed m_minMaxSmoothed;
-    private TickData m_tickData; // latest tick
     private Float m_ribbonDirection;
     private float m_spreadRate;
 
     public MmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
         m_drop = algoConfig.getNumber(Vary.drop).floatValue();
         m_smooth = algoConfig.getNumber(Vary.smooth).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
@@ -179,10 +172,6 @@ public class MmarAlgo extends BaseBarSizeAlgo {
                 return m_spreadRate;
             }
         };
-    }
-
-    @Override public TickData getLatestTick() {
-        return m_tickData;
     }
 
     @Override public String key(boolean detailed) {

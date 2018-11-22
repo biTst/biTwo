@@ -48,7 +48,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     private BaseTimesSeriesData m_sliding;
 
     public QummarAlgo(MapConfig algoConfig, ITimesSeriesData tsd, Exchange exchange) {
-        super(algoConfig, tsd, exchange);
+        super(algoConfig, tsd, exchange, ADJUST_TAIL);
 
         reset(); // todo: really need here ?
 

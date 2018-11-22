@@ -6,14 +6,16 @@ import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
-abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo {
+abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
+    protected final boolean m_adjustTail;
     private Float m_min;
     private Float m_max;
     private Float m_mid;
     private Float m_zigZag;
 
-    BaseRibbonAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
+    BaseRibbonAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange);
+        m_adjustTail = adjustTail;
     }
 
     @Override public void reset() {

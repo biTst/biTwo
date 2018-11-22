@@ -11,23 +11,19 @@ import bi.two.util.MapConfig;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
+abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected final Exchange m_exchange;
     protected final long m_joinTicks;
 
-    protected final float m_start;
-    protected final float m_step;
-    protected final float m_count;
     protected final float m_turnLevel; // time in bars to confirm turn
     protected final long m_turnSize; // time in millis to confirm turn
-    protected final float m_linRegMultiplier;
     protected final double m_commission;
 
     protected BaseTimesSeriesData[] m_emas;
     protected int m_emasNum;
     protected final ITimesSeriesData m_wrappedInTs;
     private boolean m_dirty;
-    private TickData m_tickData;
+//    private TickData m_tickData;
     protected Float m_adj;
     private Boolean m_goUp;
     private float m_maxRibbonSpread;
@@ -38,16 +34,12 @@ abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
     protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
-    BaseRibbonAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
+    BaseRibbonAlgo1(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null, algoConfig);
 
         m_exchange = exchange;
         m_joinTicks = algoConfig.getNumber(Vary.joinTicks).longValue();
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
         m_turnLevel = algoConfig.getNumber(Vary.turn).floatValue(); // time in bars to confirm turn
@@ -191,10 +183,6 @@ abstract class BaseRibbonAlgo extends BaseBarSizeAlgo {
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
-    }
-
-    @Override public TickData getLatestTick() {
-        return m_tickData;
     }
 
     @Override public ITickData getAdjusted() {

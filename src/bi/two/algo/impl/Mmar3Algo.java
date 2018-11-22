@@ -19,12 +19,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-public class Mmar3Algo extends BaseBarSizeAlgo {
-    private final float m_start;
-    private final float m_step;
-    private final float m_count;
-    private final float m_multiplier;
-
+public class Mmar3Algo extends BaseRibbonAlgo0 {
     private final float m_drop;
     private final float m_smooth;
     private final float m_power;
@@ -35,18 +30,13 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
     private final SlidingTicksRegressor m_velocityAdjRegr;
     private final VelocityAdj m_velocityAdj;
     private BaseTimesSeriesData m_spreadSmoothed;
-    private TickData m_tickData;
 
     public Mmar3Algo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
         m_drop = algoConfig.getNumber(Vary.drop).floatValue();
         m_smooth = algoConfig.getNumber(Vary.smooth).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
-        m_multiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
 
         // create ribbon
@@ -97,7 +87,7 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
 
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length) {
-        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_multiplier));
+        return new SlidingTicksRegressor(tsd, (long) (length * barSize * m_linRegMultiplier));
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
@@ -121,10 +111,6 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
 
         long timestamp = parentLatestTick.getTimestamp();
         m_tickData = new TickData(timestamp, (m_minMaxSpread.m_powAdj + m_velocityAdj.m_adj) / 2);
-        return m_tickData;
-    }
-
-    @Override public TickData getLatestTick() {
         return m_tickData;
     }
 
@@ -225,7 +211,7 @@ public class Mmar3Algo extends BaseBarSizeAlgo {
                 + (detailed ? ",drop=" : ",") + m_drop
                 + (detailed ? ",smooth=" : ",") + m_smooth
                 + (detailed ? ",power=" : ",") + m_power
-                + (detailed ? ",multiplier=" : ",") + m_multiplier
+                + (detailed ? ",multiplier=" : ",") + m_linRegMultiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;

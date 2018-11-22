@@ -16,24 +16,15 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UmmarAlgo extends BaseBarSizeAlgo {
-    private final float m_start;
-    private final float m_step;
-    private final float m_count;
-    private final float m_multiplier;
+public class UmmarAlgo extends BaseRibbonAlgo0 {
     private final float m_threshold;
     private final float m_signal;
     private final List<BaseTimesSeriesData> m_emas = new ArrayList<>();
     private final MinMaxSpread m_minMaxSpread;
-    private TickData m_tickData;
 
     public UmmarAlgo(MapConfig algoConfig, ITimesSeriesData tsd) {
         super(null, algoConfig);
 
-        m_start = algoConfig.getNumber(Vary.start).floatValue();
-        m_step = algoConfig.getNumber(Vary.step).floatValue();
-        m_count = algoConfig.getNumber(Vary.count).floatValue();
-        m_multiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
         m_signal = algoConfig.getNumber(Vary.signal).floatValue();
 
@@ -61,7 +52,7 @@ public class UmmarAlgo extends BaseBarSizeAlgo {
     }
 
     private BaseTimesSeriesData getOrCreateEma(ITimesSeriesData tsd, long barSize, float length, boolean collectValues) {
-        long period = (long) (length * barSize * m_multiplier);
+        long period = (long) (length * barSize * m_linRegMultiplier);
         return new SlidingTicksRegressor(tsd, period, collectValues);
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
@@ -88,16 +79,12 @@ public class UmmarAlgo extends BaseBarSizeAlgo {
         return null;
     }
 
-    @Override public TickData getLatestTick() {
-        return m_tickData;
-    }
-
     @Override public String key(boolean detailed) {
         return  ""
                 + (detailed ? ",start=" : ",") + m_start
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
-                + (detailed ? ",multiplier=" : ",") + m_multiplier
+                + (detailed ? ",multiplier=" : ",") + m_linRegMultiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",signal=" : ",") + m_signal
                 + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
