@@ -21,6 +21,8 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     protected final float m_step;
     protected final float m_count;
     protected final long m_barSize;
+    protected final float m_turnLevel; // time in bars to confirm turn
+    protected final long m_turnSize; // time in millis to confirm turn
     protected final float m_linRegMultiplier;
     protected final boolean m_collectValues;
     protected final double m_commission;
@@ -31,10 +33,11 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
     private boolean m_dirty;
     private TickData m_tickData;
     protected Float m_adj;
-    private boolean m_goUp;
+    private Boolean m_goUp;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
+    private long m_directionChangeTime;
 
     protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
@@ -52,6 +55,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         m_linRegMultiplier = algoConfig.getNumber(Vary.multiplier).floatValue();
         m_commission = algoConfig.getNumber(Vary.commission).doubleValue();
 
+        m_turnLevel = algoConfig.getNumber(Vary.turn).floatValue(); // time in bars to confirm turn
+        m_turnSize = (long) (m_barSize * m_turnLevel);
+
         m_wrappedInTs = wrapIfNeededTs(inTsd);
 
         boolean hasSchedule = exchange.hasSchedule();
@@ -64,7 +70,7 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         return (m_joinTicks > 0) ? new TickJoinerTimesSeriesData(inTsd, m_joinTicks) : inTsd;
     }
 
-    private Float recalc(float lastPrice) {
+    private Float recalc(float lastPrice, long timestamp) {
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
@@ -86,30 +92,62 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         }
 
         if (allDone) {
-            boolean goUp = (leadEmaValue == emasMax)
-                    ? true // go up
-                    : ((leadEmaValue == emasMin)
-                    ? false // go down
-                    : m_goUp); // do not change
-            boolean directionChanged = (goUp != m_goUp);
-            m_goUp = goUp;
 
-            float ribbonSpread = emasMax - emasMin;
-            float maxRibbonSpread = directionChanged
-                    ? ribbonSpread //reset
-                    : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
-            m_maxRibbonSpread = maxRibbonSpread;
-            float ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
-            float ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
-            m_ribbonSpreadTop = ribbonSpreadTop;
-            m_ribbonSpreadBottom = ribbonSpreadBottom;
+            Boolean canBeUp = (leadEmaValue == emasMax)
+                                ? Boolean.TRUE // go up
+                                : ((leadEmaValue == emasMin)
+                                    ? Boolean.FALSE // go down
+                                    : m_goUp); // do not change
+            boolean canDirectionChange = (canBeUp != m_goUp);
 
-            recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
+            Boolean goUp;
+            boolean directionChanged;
+            if (m_turnSize > 0) {
+                goUp = m_goUp;
+                directionChanged = false;
+                long directionChangeTime = m_directionChangeTime;
+                if (canDirectionChange) {
+                    if (directionChangeTime == 0) { // first detected directionChange
+                        m_directionChangeTime = timestamp; // just save directionChangeTime
+                    } else {
+                        long passed = timestamp - directionChangeTime;
+                        if (passed >= m_turnSize) { // turn confirmed ?
+                            goUp = canBeUp;
+                            directionChanged = true;
+                            m_directionChangeTime = 0; // reset
+                        }
+                    }
+                } else {
+                    if (directionChangeTime != 0) { // directionChange was detected
+                        m_directionChangeTime = 0; // but not confirmed - reset
+                    }
+                }
+            } else {
+                goUp = canBeUp;
+                directionChanged = canDirectionChange;
+            }
+
+            if (goUp != null) {
+                m_goUp = goUp;
+
+                float ribbonSpread = emasMax - emasMin;
+                float maxRibbonSpread = directionChanged
+                        ? ribbonSpread //reset
+                        : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
+                m_maxRibbonSpread = maxRibbonSpread;
+                float ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
+                float ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
+                m_ribbonSpreadTop = ribbonSpreadTop;
+                m_ribbonSpreadBottom = ribbonSpreadBottom;
+
+                recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
+            }
         }
         return m_adj;
     }
 
     @Override public void reset() {
+        m_goUp = null;
         m_adj = 0F;
         m_maxRibbonSpread = 0f;
         m_ribbonSpreadTop = null;
@@ -169,9 +207,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
             ITickData parentLatestTick = m_parent.getLatestTick();
             if (parentLatestTick != null) {
                 float lastPrice = parentLatestTick.getClosePrice();
-                Float adj = recalc(lastPrice);
+                long timestamp = parentLatestTick.getTimestamp();
+                Float adj = recalc(lastPrice, timestamp);
                 if (adj != null) {
-                    long timestamp = parentLatestTick.getTimestamp();
                     m_tickData = new TickData(timestamp, adj); // todo: every time here new object, even if value is not changed
                     m_dirty = false;
                     return m_tickData;
@@ -186,6 +224,9 @@ abstract class BaseRibbonAlgo extends BaseAlgo<TickData> {
         // todo: call super
         notifyOnTimeShift(shift);
         m_tickData.onTimeShift(shift);
+        if(m_directionChangeTime != 0) {
+            m_directionChangeTime += shift;
+        }
 //        super.onTimeShift(shift);
     }
 
