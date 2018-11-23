@@ -16,8 +16,7 @@ import bi.two.util.Utils;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
-import static bi.two.util.Log.console;
-import static bi.two.util.Log.log;
+import static bi.two.util.Log.*;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
@@ -213,7 +212,12 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
             if (m_priceAtSameTick) {
                 ITickData adjusted = m_algo.getAdjusted();
                 if (adjusted != null) {
-                    process(adjusted);
+                    try {
+                        process(adjusted);
+                    } catch (AccountData.AccountMoveException ame) {
+                        err("acct error: " + ame, ame);
+                        adjusted = m_algo.getAdjusted();
+                    }
                 }
             } else {
                 if (m_savedAdjusted != null) { // process delayed first
