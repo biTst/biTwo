@@ -248,11 +248,11 @@ public class AccountData {
             log("        newAvailableFrom=" + Utils.format8(newAvailableFrom) + fromName + "; newAvailableTo=" + Utils.format8(newAvailableTo) + toName);
         }
         if (newAvailableFrom < 0) {
-            throw new RuntimeException("Error account move (newAvailableFrom="+newAvailableFrom+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
+            throw new AccountMoveException("Error account move (newAvailableFrom="+newAvailableFrom+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; on " + this);
         }
         if (newAvailableTo < 0) {
-            throw new RuntimeException("Error account move (newAvailableTo="+newAvailableTo+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
+            throw new AccountMoveException("Error account move (newAvailableTo="+newAvailableTo+"). from=" + fromName + "; to=" + toName + "; amountTo=" + amountTo
                     + "; amountFrom=" + amountFrom + "; availableFrom=" + availableFrom + "; availableTo=" + availableTo + "; on " + this);
         }
 
@@ -306,5 +306,13 @@ public class AccountData {
 
     public boolean hasAllocated() {
         return !m_allocatedFunds.isEmpty();
+    }
+
+
+    // ---------------------------------------------------------------------------------------------
+    public class AccountMoveException extends RuntimeException {
+        public AccountMoveException(String message) {
+            super(message);
+        }
     }
 }
