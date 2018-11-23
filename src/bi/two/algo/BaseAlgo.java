@@ -35,6 +35,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public ITickData getAdjusted() { return null; }
     public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) { /*noop*/ }
     public abstract String key(boolean detailed);
+    public int getTurnsCount() { return 0; } // unknown
 
     public TicksTimesSeriesData<TickData> getTS(final boolean joinNonChangedValues) {
         return new AlgoTimesSeriesData(this, joinNonChangedValues);

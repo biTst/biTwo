@@ -432,10 +432,15 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         long processedPeriod = getProcessedPeriod();
 //        String processedPeriodStr = getProcessedPeriodStr();
 
+        int turns = m_algo.getTurnsCount();
+        if(turns == 0 ) {
+            turns = m_changedDirection;
+        }
+
         return prefix + "GAIN[" + key + "]: " + Utils.format8(gain)
                 + "   trades=" + m_tradesNum
                 + "; avgTrade=" + Utils.format5(this.getAvgTradeSize())
-                + "; turns=" + m_changedDirection
+                + "; turns=" + turns
                 + "; processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
 //                + "  " + processedPeriodStr
                 + " .....................................";

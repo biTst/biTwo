@@ -23,13 +23,15 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected int m_emasNum;
     protected final ITimesSeriesData m_wrappedInTs;
     private boolean m_dirty;
-//    private TickData m_tickData;
     protected Float m_adj;
     private Boolean m_goUp;
     private float m_maxRibbonSpread;
     private Float m_ribbonSpreadTop;
     private Float m_ribbonSpreadBottom;
     private long m_directionChangeTime;
+    private int m_turnsCount;
+
+    @Override public int getTurnsCount() { return m_turnsCount; }
 
     protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
@@ -79,7 +81,6 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
         }
 
         if (allDone) {
-
             Boolean canBeUp = (leadEmaValue == emasMax)
                                 ? Boolean.TRUE // go up
                                 : ((leadEmaValue == emasMin)
@@ -118,9 +119,13 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_goUp = goUp;
 
                 float ribbonSpread = emasMax - emasMin;
-                float maxRibbonSpread = directionChanged
-                        ? ribbonSpread //reset
-                        : (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread;  //  Math.max(ribbonSpread, m_maxRibbonSpread);
+                float maxRibbonSpread;
+                if (directionChanged) {
+                    maxRibbonSpread = ribbonSpread; //reset
+                    m_turnsCount++;
+                } else {
+                    maxRibbonSpread = (ribbonSpread >= m_maxRibbonSpread) ? ribbonSpread : m_maxRibbonSpread; //  Math.max(ribbonSpread, m_maxRibbonSpread);
+                }
                 m_maxRibbonSpread = maxRibbonSpread;
                 float ribbonSpreadTop = goUp ? emasMin + maxRibbonSpread : emasMax;
                 float ribbonSpreadBottom = goUp ? emasMin : emasMax - maxRibbonSpread;
@@ -143,12 +148,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     }
 
     private void createRibbon(ITimesSeriesData tsd, boolean collectValues, boolean hasSchedule) {
-
         ITimesSeriesListener listener = new RibbonTsListener();
-
-//        long period = (long) (m_start * m_barSize * m_linRegMultiplier);
-//        SlidingTicksRegressor sliding0 = new SlidingTicksRegressor(tsd, period, false);
-//        m_sliding = new TicksSMA(sliding0, m_barSize);
 
         List<BaseTimesSeriesData> list = new ArrayList<>();
         float length = m_start;
@@ -180,7 +180,6 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
 
 //        BarsRegressor r = new BarsRegressor(tsd, (int) length, (long) (barSize * m_linRegMultiplier), m_linRegMultiplier * 5);
 //        return new TicksSMA(r, m_barSize/2);
-
 //        return new BarsEMA(tsd, length, barSize);
 //        return new BarsDEMA(tsd, length, barSize);
 //        return new BarsTEMA(tsd, length, barSize);
