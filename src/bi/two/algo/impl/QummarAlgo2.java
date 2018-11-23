@@ -10,6 +10,7 @@ import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
+import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -42,10 +43,12 @@ private Float m_exit2power;
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         Float headStart = m_ribbon.m_headStart;
         float headGainLevel = (ribbonSpreadHead + headStart) / 2; // todo:   /2 = *0.5; add vary of this level
-        this.m_headGainHalf = headGainLevel;
+        m_headGainHalf = headGainLevel;
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter);
-        float enterPower = (tail - tailStart) / (enterLevel - tailStart);
+        float tailRun = tail - tailStart;
+        float tailRunToEnter = enterLevel - tailStart;
+        float enterPower = (tailRunToEnter <= 0) ? 0 : tailRun / tailRunToEnter;
         if (enterPower > 1) {
             enterPower = 1;
         }
@@ -75,6 +78,20 @@ private Float m_exit2power;
         m_exit2power = exit2power;
 
         float power = enterPower * (1-collapseRate) * (1-exit2power);
+
+
+if(Float.isInfinite(power)) {
+    Log.console("Infinite power: enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power);
+}
+if(Float.isNaN(power)) {
+    Log.console("Nan power: enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power);
+}
+if(power > 1) {
+    Log.console("power > 1: " + power + ": enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power );
+}
+if(power < -1) {
+    Log.console("power < -1: " + power + ": enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power );
+}
         m_adj = goUp ? power : -power;
 
         // ...
