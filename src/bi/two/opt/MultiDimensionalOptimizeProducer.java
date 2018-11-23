@@ -29,6 +29,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
     private final MultivariateFunction m_function;
     private final double[] m_startPoint; // multiplied
     private final SimpleBounds m_bounds; // PowellOptimizer not supports bounds
+    private String m_maxConfig;
 
     MultiDimensionalOptimizeProducer(List<OptimizeConfig> optimizeConfigs, MapConfig algoConfig) {
         super(optimizeConfigs, algoConfig);
@@ -39,7 +40,6 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         m_function = new MultivariateFunction() {
             @Override public double value(double[] point) {
                 StringBuilder sb = new StringBuilder();
-                sb.append("function(");
                 int length = point.length;
                 for (int i = 0; i < length; i++) {
                     double value = point[i];
@@ -60,8 +60,12 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                     }
 
                     m_algoConfig.put(fieldName, val);
-                    sb.append(fieldName).append("=").append(Utils.format5(val)).append("(").append(Utils.format5(value)).append("); ");
+                    sb.append(fieldName).append("=").append(Utils.format5(val))
+                            //.append("(").append(Utils.format5(value)).append(")")
+                            .append("; ");
                 }
+                String cfg = sb.toString();
+                sb.insert(0,"function(");
                 sb.append(") => ");
 
                 synchronized (m_sync) {
@@ -84,6 +88,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
                 if (m_onFinishTotalPriceRatio > m_maxTotalPriceRatio) {
                     m_maxTotalPriceRatio = m_onFinishTotalPriceRatio;
                     m_maxWatcher = m_lastWatcher;
+                    m_maxConfig = cfg;
                 }
 
                 return m_onFinishTotalPriceRatio;
@@ -232,14 +237,16 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
             double start = fieldConfig.m_start.doubleValue();
             double strt = start / fieldConfig.m_multiplier;
             startPoint[i] = strt;
-            sb.append(field.name()).append("=").append(Utils.format5(start)).append("(").append(Utils.format5(strt)).append("); ");
+            sb.append(field.name()).append("=").append(Utils.format5(start))
+                    //.append("(").append(Utils.format5(strt)).append(")")
+                    .append("; ");
         }
         console(sb.toString());
         return startPoint;
     }
 
     @Override public double logResults(int pad) {
-        console("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio);
+        console("MultiDimensionalOptimizeProducer result: totalPriceRatio=" + m_maxTotalPriceRatio + " : " + m_maxConfig);
         return m_maxTotalPriceRatio;
     }
 
