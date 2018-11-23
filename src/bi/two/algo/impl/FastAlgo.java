@@ -34,7 +34,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //    private Float m_spreadClosePower;
 //    private Float m_exitPower;
     private Float m_noStartCollapseRate;
-    private Float m_collapseRate;
     private Float m_midPower;
 //    private Float m_tailPower;
 //    private Float m_enterPower;
@@ -215,7 +214,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
             }
 
             if (m_collectValues) { // this only for painting
-                m_collapseRate = collapseRate;
                 m_noStartCollapseRate = noStartCollapseRate;
                 m_directionNoLimit = direction;
             }
@@ -269,7 +267,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //        m_spreadClosePower = null;
 //        m_exitPower = null;
         m_noStartCollapseRate = null;
-        m_collapseRate = null;
         m_midPower = null;
 //        m_tailPower = null;
 //        m_enterPower = null;
@@ -282,8 +279,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
         m_spreadClosePowerAdjusted = null;
         m_directionNoLimit = 0f;
 //        m_revPower = null;
-
-        m_ribbon.reset();
     }
 
     //    TicksTimesSeriesData<TickData> getReverseLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_reverseLevel; } }; }
@@ -295,7 +290,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getTailPower2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailPower2; } }; }
 //    TicksTimesSeriesData<TickData> getExitPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitPower; } }; }
     TicksTimesSeriesData<TickData> getNoStartCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_noStartCollapseRate; } }; }
-    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
 
 //    TicksTimesSeriesData<TickData> getHeadPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPower; } }; }
 //    TicksTimesSeriesData<TickData> getRevPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_revPower; } }; }

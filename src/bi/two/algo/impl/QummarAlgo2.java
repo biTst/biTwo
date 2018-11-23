@@ -24,6 +24,9 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
     private Float m_ribbonSpreadMid;
     private Float m_headGainHalf;
     private Float m_enterPower;
+private Float m_exit1level;
+private Float m_exit2level;
+private Float m_exit2power;
 
     public QummarAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -33,11 +36,13 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
     @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
-        m_ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
+        float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
+        m_ribbonSpreadMid = ribbonSpreadMid;
 
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         Float headStart = m_ribbon.m_headStart;
-        m_headGainHalf = (ribbonSpreadHead + headStart) / 2;
+        float headGainLevel = (ribbonSpreadHead + headStart) / 2; // todo:   /2 = *0.5; add vary of this level
+        this.m_headGainHalf = headGainLevel;
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter);
         float enterPower = (tail - tailStart) / (enterLevel - tailStart);
@@ -45,6 +50,32 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
             enterPower = 1;
         }
         m_enterPower = enterPower;
+
+        float exit1level = goUp
+                ? Math.max(ribbonSpreadMid, headGainLevel)
+                : Math.min(ribbonSpreadMid, headGainLevel);
+        m_exit1level = exit1level;
+
+        float exit2level = goUp
+                ? Math.min(ribbonSpreadMid, headGainLevel)
+                : Math.max(ribbonSpreadMid, headGainLevel);
+        m_exit2level = exit2level;
+
+        float exit2power;
+        if ((goUp && (exit2level <= tail)) || (!goUp && (tail <= exit2level))) {
+            exit2power = 0;
+        } else {
+            exit2power = (leadEmaValue - exit2level) / (tail - exit2level);
+            if (exit2power < 0) {
+                exit2power = 0;
+            } else if (exit2power > 1) {
+                exit2power = 1;
+            }
+        }
+        m_exit2power = exit2power;
+
+        float power = enterPower * (1-collapseRate) * (1-exit2power);
+        m_adj = goUp ? power : -power;
 
         // ...
     }
@@ -54,6 +85,10 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
         m_ribbonSpreadMid = null;
         m_headGainHalf = null;
         m_enterPower = null;
+
+m_exit1level = null;
+m_exit2level = null;
+m_exit2power = null;
     }
 
     @Override public String key(boolean detailed) {
@@ -76,6 +111,9 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getRibbonSpreadMidTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadMid; } }; }
     TicksTimesSeriesData<TickData> getHeadGainHalfTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headGainHalf; } }; }
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
+TicksTimesSeriesData<TickData> getExit1levelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit1level; } }; }
+TicksTimesSeriesData<TickData> getExit2levelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit2level; } }; }
+TicksTimesSeriesData<TickData> getExit2powerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit2power; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -117,21 +155,26 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
             addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
             addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
             addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.TAN, TickPainter.LINE_JOIN);
             addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.TAN, TickPainter.LINE_JOIN);
 
             addChart(chartData, getRibbonSpreadTopTs(), topLayers, "ribbonTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "ribbonBottom", Color.CYAN, TickPainter.LINE_JOIN);
 
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
+
+addChart(chartData, getExit1levelTs(), topLayers, "exit1level", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
+addChart(chartData, getExit2levelTs(), topLayers, "exit2level", Colors.ROSE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
             addChart(chartData, getEnterPowerTs(), powerLayers, "enterPower", Color.MAGENTA, TickPainter.LINE_JOIN);
+            addChart(chartData, getExit2powerTs(), powerLayers, "exit2Power", Colors.TURQUOISE, TickPainter.LINE_JOIN);
+            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.GOLD, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);

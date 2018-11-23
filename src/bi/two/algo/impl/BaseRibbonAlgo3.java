@@ -11,6 +11,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     protected final float m_collapse;
     protected final Ribbon m_ribbon;
     protected RibbonUi m_ribbonUi;
+    private Float m_collapseRate;
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
@@ -35,9 +36,17 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         // m_tailStart can be changed inside of m_ribbon.update()
         Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, goUp); // use local var to speedup
         float collapseRate = m_ribbon.m_collapser.update(tail);
-
+        if (m_collectValues) { // this only for painting
+            m_collapseRate = collapseRate;
+        }
         recalc4( lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
+    }
+
+    @Override public void reset() {
+        super.reset();
+        m_collapseRate = null;
+        m_ribbon.reset();
     }
 
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_headStart; } }; }
@@ -51,6 +60,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     TicksTimesSeriesData<TickData> get7quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_7quarterPaint; } }; }
     TicksTimesSeriesData<TickData> get8quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_8quarterPaint; } }; }
 
+    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
 
     // --------------------------------------------------------------------------------------
     protected static class RibbonUi extends Ribbon {
