@@ -237,7 +237,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         }
 
         public float calcEnterLevel(float enter) {
-            return m_tailStart * (1 - enter) + m_headStart * enter;
+            return m_tailStart + (m_headStart - m_tailStart) * enter;
         }
     }
 
