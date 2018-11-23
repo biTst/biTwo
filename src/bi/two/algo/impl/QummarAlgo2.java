@@ -5,9 +5,11 @@ import bi.two.Colors;
 import bi.two.algo.Watcher;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
+import bi.two.opt.Vary;
 import bi.two.ts.BaseTicksTimesSeriesData;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.ts.ITimesSeriesData;
+import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
@@ -18,14 +20,40 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = true;
     private static final boolean PAINT_RIBBON = false;
 
+    private final float m_enter;
+    private Float m_ribbonSpreadMid;
+    private Float m_headGainHalf;
+    private Float m_enterPower;
+
     public QummarAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
+        m_enter = algoConfig.getNumber(Vary.enter).floatValue();
     }
 
-    @Override protected void recalc4(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
+        m_ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
+
+        float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
+        Float headStart = m_ribbon.m_headStart;
+        m_headGainHalf = (ribbonSpreadHead + headStart) / 2;
+
+        float enterLevel = m_ribbon.calcEnterLevel(m_enter);
+        float enterPower = (tail - tailStart) / (enterLevel - tailStart);
+        if (enterPower > 1) {
+            enterPower = 1;
+        }
+        m_enterPower = enterPower;
+
         // ...
+    }
+
+    @Override public void reset() {
+        super.reset();
+        m_ribbonSpreadMid = null;
+        m_headGainHalf = null;
+        m_enterPower = null;
     }
 
     @Override public String key(boolean detailed) {
@@ -44,6 +72,10 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
                 ;
     }
+
+    TicksTimesSeriesData<TickData> getRibbonSpreadMidTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadMid; } }; }
+    TicksTimesSeriesData<TickData> getHeadGainHalfTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headGainHalf; } }; }
+    TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
 
     @Override public void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<TickData> ticksTs, Watcher firstWatcher) {
         ChartData chartData = chartCanvas.getChartData();
@@ -68,15 +100,18 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
                 }
             }
 
-            addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadMidTs(), topLayers, "ribbonMid", Colors.CAMOUFLAGE, TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadGainHalfTs(), topLayers, "headGainHalf", Colors.SILVVER, TickPainter.LINE_JOIN);
+
+            addChart(chartData, getMinTs(), topLayers, "min", Color.BLUE, TickPainter.LINE_JOIN);
+            addChart(chartData, getMaxTs(), topLayers, "max", Color.BLUE, TickPainter.LINE_JOIN);
 
             addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
             addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
             addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
-            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
             Color halfGray = Colors.alpha(Color.GRAY, 128);
             addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
@@ -86,8 +121,8 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
             addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
             addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
-            addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "ribbonTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "ribbonBottom", Color.CYAN, TickPainter.LINE_JOIN);
 
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
@@ -96,7 +131,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
         {
-//            addChart(chartData, getHeadPowerTs(), powerLayers, "headPower", Color.MAGENTA, TickPainter.LINE_JOIN);
+            addChart(chartData, getEnterPowerTs(), powerLayers, "enterPower", Color.MAGENTA, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);

@@ -24,7 +24,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         }
     }
 
-    protected abstract void recalc4(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    protected abstract void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                     float mid, float head, float tail, Float tailStart, float collapseRate);
 
@@ -36,7 +36,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, goUp); // use local var to speedup
         float collapseRate = m_ribbon.m_collapser.update(tail);
 
-        recalc4( lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+        recalc4( lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
     }
 
@@ -224,6 +224,10 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
             m_headStart = null;
             m_midStart = null;
             m_tailStart = null;
+        }
+
+        public float calcEnterLevel(float enter) {
+            return m_tailStart * (1 - enter) + m_headStart * enter;
         }
     }
 

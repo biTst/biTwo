@@ -67,7 +67,7 @@ public class FastAlgo extends BaseRibbonAlgo3 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc4(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (directionChanged) {
@@ -351,8 +351,8 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //
 //            addChart(chartData, getReverseLevelTs(), topLayers, "reverseLevel", Colors.GOLD, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getRibbonSpreadMaxTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
-            addChart(chartData, getRibbonSpreadMaxBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
 
 //            addChart(chartData, getReverseLevelTs(), topLayers, "reverse", Colors.SPRING_LILAC, TickPainter.LINE_JOIN);
 

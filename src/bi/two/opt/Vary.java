@@ -17,6 +17,7 @@ public enum Vary {
     threshold(VaryType.FLOAT), // strong trend threshold
     drop(VaryType.FLOAT),           // trend drop level
     reverse(VaryType.FLOAT),     // direction threshold
+    enter(VaryType.FLOAT),
 
     longEmaLen(VaryType.FLOAT),   // long ema trend len
     shortEmaLen(VaryType.FLOAT), // short ema trend len

@@ -127,6 +127,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_ribbonSpreadTop = ribbonSpreadTop;
                 m_ribbonSpreadBottom = ribbonSpreadBottom;
 
+                // todo: check what is faster, to use m_ribbonSpreadTop or pass as param value into functions chain recalc2->recalc3->recalc4
                 recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
             }
         }
@@ -216,8 +217,8 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     }
 
 
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxTopTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
-    TicksTimesSeriesData<TickData> getRibbonSpreadMaxBottomTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
+    TicksTimesSeriesData<TickData> getRibbonSpreadTopTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadTop; } }; }
+    TicksTimesSeriesData<TickData> getRibbonSpreadBottomTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonSpreadBottom; } }; }
     TicksTimesSeriesData<TickData> getDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj; } }; }
 
 
