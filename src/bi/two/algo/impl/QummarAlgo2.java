@@ -33,6 +33,7 @@ private Float m_exit2power;
     public QummarAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
         m_enter = algoConfig.getNumber(Vary.enter).floatValue();
+        m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
@@ -43,7 +44,8 @@ private Float m_exit2power;
 
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         Float headStart = m_ribbon.m_headStart;
-        float headGainLevel = (ribbonSpreadHead + headStart) / 2; // todo:   /2 = *0.5; add vary of this level
+//        float headGainLevel = (ribbonSpreadHead + headStart) / 2; // todo:   /2 = *0.5; add vary of this level
+        float headGainLevel = headStart + (ribbonSpreadHead - headStart) * m_backLevel;
         m_headGainHalf = headGainLevel;
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter);
@@ -116,6 +118,8 @@ m_exit2power = null;
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
                 + (detailed ? ",collapse=" : ",") + m_collapse
+                + (detailed ? ",enter=" : ",") + m_enter
+                + (detailed ? ",backLevel=" : ",") + m_backLevel
                 + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|turn=" : "|") + m_turnLevel
