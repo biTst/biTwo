@@ -22,6 +22,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
     private static final boolean PAINT_RIBBON = false;
 
     private final float m_enter;
+    private final float m_backLevel;
     private Float m_ribbonSpreadMid;
     private Float m_headGainHalf;
     private Float m_enterPower;
@@ -48,7 +49,7 @@ private Float m_exit2power;
         float enterLevel = m_ribbon.calcEnterLevel(m_enter);
         float tailRun = tail - tailStart;
         float tailRunToEnter = enterLevel - tailStart;
-        float enterPower = (tailRunToEnter <= 0) ? 0 : tailRun / tailRunToEnter;
+        float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : tailRun / tailRunToEnter;
         if (enterPower > 1) {
             enterPower = 1;
         }
