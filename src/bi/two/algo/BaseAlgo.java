@@ -18,7 +18,7 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     public static final String ALGO_NAME_KEY = "algoName";
     public static final String COMMISSION_KEY = "commission";
 
-    protected final double m_minOrderMul; // used in Watcher, used on algos for logging
+    protected final float m_minOrderMul; // used in Watcher, used on algos for logging
     protected final boolean m_collectValues;
 
     public List<BaseIndicator> m_indicators = new ArrayList<>();

@@ -87,7 +87,7 @@ public class UmmarAlgo extends BaseRibbonAlgo0 {
                 + (detailed ? ",multiplier=" : ",") + m_linRegMultiplier
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",signal=" : ",") + m_signal
-                + (detailed ? ",minOrderMul=" : ",") + m_minOrderMul
+                + (detailed ? ",minOrdMul=" : ",") + m_minOrderMul
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;
     }

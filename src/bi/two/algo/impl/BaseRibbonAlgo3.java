@@ -12,6 +12,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     protected final Ribbon m_ribbon;
     protected RibbonUi m_ribbonUi;
     private Float m_collapseRate;
+    Float m_remainedEnterDistance; // positive
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
@@ -32,12 +33,14 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     @Override protected final void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
                                            boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
                                            float ribbonSpreadBottom, float mid, float head, float tail) {
-
         // m_tailStart can be changed inside of m_ribbon.update()
         Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, goUp); // use local var to speedup
         float collapseRate = m_ribbon.m_collapser.update(tail);
         if (m_collectValues) { // this only for painting
             m_collapseRate = collapseRate;
+        }
+        if (directionChanged) {
+            m_remainedEnterDistance = goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
         }
         recalc4( lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
@@ -47,6 +50,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         super.reset();
         m_collapseRate = null;
         m_ribbon.reset();
+        m_remainedEnterDistance = null;
     }
 
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_headStart; } }; }

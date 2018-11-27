@@ -12,6 +12,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
     private Float m_max;
     private Float m_mid;
     private Float m_zigZag;
+    Float m_prevAdj = 0F;
 
     BaseRibbonAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange);
@@ -24,6 +25,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         m_max = null;
         m_mid = null;
         m_zigZag = null;
+        m_prevAdj = 0F;
     }
 
     protected abstract void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
@@ -39,6 +41,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         if (directionChanged) {
             // note - ribbonSpread from prev step here
             m_zigZag = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
+            m_prevAdj = m_adj; // save prev
         }
 
         float head = goUp ? emasMax : emasMin;

@@ -42,7 +42,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     private Float m_reversePower;
     private Float m_mulAndPrev;
     private Float m_revMulAndPrev;
-    private Float m_prevAdj;
 
     private BaseTimesSeriesData m_sliding;
 
@@ -65,8 +64,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
                                      float ribbonSpreadBottom, float mid, float head, float tail) {
 
         if (directionChanged) {
-            m_prevAdj = m_adj; // save prev
-
             m_zerro = head; // pink
             m_turn = tail;  // dark green
             float diff = head - tail;
@@ -194,7 +191,6 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
         m_reversePower = null;
         m_mulAndPrev = 0F;
         m_revMulAndPrev = 0F;
-        m_prevAdj = 0F;
     }
 
     TicksTimesSeriesData<TickData> getZerroTs() { return new JoinNonChangedInnerTimesSeriesData(this) { @Override protected Float getValue() { return m_zerro; } }; }

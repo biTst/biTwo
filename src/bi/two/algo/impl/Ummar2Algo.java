@@ -143,7 +143,7 @@ public class Ummar2Algo extends BaseRibbonAlgo1 {
                 + (detailed ? ",threshold=" : ",") + m_threshold
                 + (detailed ? ",reverse=" : ",") + m_reverse
 //                + (detailed ? ",signal=" : ",") + m_signal
-                + (detailed ? "|minOrderMul=" : "|") + m_minOrderMul
+                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? ",joinTicks=" : ",") + m_joinTicks
 //                /*+ ", " + Utils.millisToYDHMSStr(period)*/;
                 ;

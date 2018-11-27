@@ -42,7 +42,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //    private float m_minHeadRun;
     private Float m_directionNoLimit = 0f;
     private Float m_directionIn;
-    private Float m_remainedEnterDistance;
     private Float m_tailPower2;
     private Float m_spreadClosePowerAdjusted;
 
@@ -72,7 +71,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
         if (directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;
             m_directionIn = (m_adj == null) ? 0 : m_adj;
-            m_remainedEnterDistance = goUp ? 1 - m_directionIn : 1 + m_directionIn;
 //                m_maxHeadRun = 0; // reset
 //                m_minHeadRun = 0; // reset
 //                m_revPower = 0f;
@@ -274,7 +272,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
 //        m_maxHeadRun = 0;
 //        m_minHeadRun = 0;
         m_directionIn = null;
-        m_remainedEnterDistance = null;
         m_tailPower2 = null;
         m_spreadClosePowerAdjusted = null;
         m_directionNoLimit = 0f;

@@ -77,8 +77,7 @@ private Float m_exit2power;
         }
         m_exit2power = exit2power;
 
-        float power = enterPower * (1-collapseRate) * (1-exit2power);
-
+        float power = enterPower * (1 - collapseRate) * (1 - exit2power);
 
 if(Float.isInfinite(power)) {
     Log.console("Infinite power: enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power);
