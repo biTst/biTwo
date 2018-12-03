@@ -6,13 +6,24 @@ import bi.two.util.MapConfig;
 import bi.two.util.TimeStamp;
 
 import java.io.File;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static bi.two.util.Log.console;
 import static bi.two.util.Log.log;
 
 public class DirTradesReader {
+
+    private static final Comparator<File> BY_NAME_FILE_COMPARATOR = new Comparator<File>() {
+        @Override public int compare(File f1, File f2) {
+            return f1.getName().compareTo(f2.getName());
+        }
+    };
+
     static void readTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) {
         TimeStamp doneTs = new TimeStamp();
 
@@ -34,38 +45,46 @@ public class DirTradesReader {
 
         long lastProcessedTickTime = 0;
         int filesProcessed = 0;
-        File[] files = dir.listFiles();
-        Arrays.sort(files, new Comparator<File>() {
-            @Override public int compare(File f1, File f2) {
-                return f1.getName().compareTo(f2.getName());
-            }
-        });
+
+        Pattern pattern = (filePattern != null) ? Pattern.compile(filePattern) : null;
+
+        ArrayList<File> files = new ArrayList<>();
+        process(dir, files, pattern);
+        Collections.sort(files, BY_NAME_FILE_COMPARATOR);
+
         for (File file : files) {
             String absolutePath = file.getAbsolutePath();
-            if (file.isFile()) {
-                if (filePattern != null) {
-                    String name = file.getName();
-                    boolean matches = name.matches(filePattern);
-                    if (!matches) {
-                        log("skipped file: " + name + "; not matched");
-                        continue;
-                    }
-                }
-
-                log("readFileTicks: " + absolutePath);
-                try {
-                    lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, lastProcessedTickTime, 0, 0, Long.MAX_VALUE);
-                } catch (Exception e) {
-                    throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
-                }
-                filesProcessed++;
-            } else {
-                console("skipped subdirectory: " + absolutePath);
+            log("---readFileTicks: " + absolutePath);
+            try {
+                lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, lastProcessedTickTime, 0, 0, Long.MAX_VALUE);
+            } catch (Exception e) {
+                throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
             }
+            filesProcessed++;
         }
 
         console("readDirTicks() done in " + doneTs.getPassed() + ";  filesProcessed=" + filesProcessed);
 
         ticksTs.notifyNoMoreTicks();
+    }
+
+    private static void process(File dir, List<File> ret, Pattern pattern) {
+        File[] files = dir.listFiles();
+        for (File file : files) {
+            if (file.isFile()) {
+                if (pattern != null) {
+                    String name = file.getName();
+                    Matcher matcher = pattern.matcher(name);
+                    boolean matches = matcher.matches();
+                    if (!matches) {
+                        log("skipped file: " + name + "; not matched");
+                        continue;
+                    }
+                }
+                ret.add(file);
+            } else if (file.isDirectory()) {
+                process(file, ret, pattern);
+            }
+        }
     }
 }
