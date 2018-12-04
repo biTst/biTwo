@@ -1,13 +1,12 @@
-package bi.two.ts;
+package bi.two.ts.join;
 
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
+import bi.two.ts.ITimesSeriesData;
 
 import static bi.two.util.Log.console;
 
-public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
-    private final long m_size;
-    private final boolean m_collectTicks;
+public class AvgTickJoiner extends BaseTickJoiner {
     private long m_first;
     private long m_last;
     private long m_end;
@@ -21,10 +20,8 @@ public class AvgTickJoiner extends TicksTimesSeriesData<ITickData> {
 
     @Override public ITickData getLatestTick() { return m_latestTick; }
 
-    public AvgTickJoiner(ITimesSeriesData tsd, long size, boolean collectTicks) {
-        super(tsd);
-        m_size = size;
-        m_collectTicks = collectTicks;
+    public AvgTickJoiner(ITimesSeriesData parent, long size, boolean collectTicks) {
+        super(parent, size, collectTicks);
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {

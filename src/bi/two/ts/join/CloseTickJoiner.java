@@ -1,11 +1,11 @@
-package bi.two.ts;
+package bi.two.ts.join;
 
 import bi.two.chart.ITickData;
+import bi.two.ts.ITimesSeriesData;
 
 import static bi.two.util.Log.console;
 
-public class CloseTickJoiner extends TicksTimesSeriesData<ITickData> {
-    private final long m_size;
+public class CloseTickJoiner extends BaseTickJoiner {
     private long m_end;
     private int m_count;
     private int m_joinedCount;
@@ -17,9 +17,8 @@ public class CloseTickJoiner extends TicksTimesSeriesData<ITickData> {
 
     @Override public ITickData getLatestTick() { return m_latestTick; }
 
-    public CloseTickJoiner(ITimesSeriesData tsd, long size) {
-        super(tsd);
-        m_size = size;
+    public CloseTickJoiner(ITimesSeriesData parent, long size, boolean collectTicks) {
+        super(parent, size, collectTicks);
     }
 
     @Override public void onChanged(ITimesSeriesData ts, boolean changed) {
