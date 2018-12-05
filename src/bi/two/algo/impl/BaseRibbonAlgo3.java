@@ -10,12 +10,14 @@ import bi.two.util.MapConfig;
 abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     protected final float m_collapse;
     protected final Ribbon m_ribbon;
+    protected final String m_joinerName;
     protected RibbonUi m_ribbonUi;
     private Float m_collapseRate;
     Float m_remainedEnterDistance; // positive
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
+        m_joinerName = algoConfig.getString("joiner");
 
         m_collapse = algoConfig.getNumber(Vary.collapse).floatValue();
         if (m_collectValues) {

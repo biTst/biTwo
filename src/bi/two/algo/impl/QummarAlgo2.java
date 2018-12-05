@@ -23,7 +23,6 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
 
     private final float m_enter;
     private final float m_backLevel;
-    private final String m_joinerName;
     private Float m_ribbonSpreadMid;
     private Float m_headGainLevel;
     private Float m_enterPower;
@@ -40,7 +39,6 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
         m_enter = algoConfig.getNumber(Vary.enter).floatValue();
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
-        m_joinerName = algoConfig.getString("joiner");
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
