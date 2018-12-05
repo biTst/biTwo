@@ -17,7 +17,7 @@ import java.awt.*;
 import java.util.List;
 
 public class QummarAlgo2 extends BaseRibbonAlgo3 {
-    private static final boolean ADJUST_TAIL = true;
+    private static final boolean ADJUST_TAIL = false;
     private static final boolean PAINT_RIBBON = false;
     private static final boolean LIMIT_BY_PRICE = true;
 
@@ -58,6 +58,8 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
         float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : tailRun / tailRunToEnter;
         if (enterPower > 1) {
             enterPower = 1;
+        } else if(enterPower < 0) {
+            enterPower = 0;
         }
         m_enterPower = enterPower;
 
@@ -106,7 +108,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
 ////        float adj = m_prevAdj + sign * m_remainedEnterDistance * enterPower;
 ////        adj = adj * (1 - collapseRate);
 //
-        float power = enterPower * /*(1 - collapseRate) **/ (1 - exit2power);
+        float power = enterPower * (1 - collapseRate) * (1 - exit2power);
 
 //if(Float.isInfinite(power)) {
 //    Log.console("Infinite power: enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power);
