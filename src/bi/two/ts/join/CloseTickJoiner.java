@@ -40,7 +40,11 @@ public class CloseTickJoiner extends BaseTickJoiner {
 
     private void reportTick() {
         m_latestTick = m_lastParentTick;
-        notifyListeners(true);
+        if (m_collectTicks) {
+            addNewestTick(m_lastParentTick);
+        } else {
+            notifyListeners(true);
+        }
         m_joinedCount += m_count;
         m_reportedCount++;
     }
