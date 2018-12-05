@@ -13,6 +13,7 @@ import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
 import bi.two.ts.*;
+import bi.two.ts.join.TickJoiner;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
@@ -59,6 +60,19 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
         try {
             MapConfig config = initConfig(args);
 
+            MapConfig defAlgoConfig = new MapConfig();
+            String params = config.getString("params");
+            if (params != null) {
+                String[] split = params.split(";");
+                for (String s : split) {
+                    String[] nv = s.trim().split("=");
+                    String name = nv[0];
+                    String value = nv[1];
+                    config.put(name, value);
+                    defAlgoConfig.put(name, value);
+                }
+            }
+
             String exchangeName = config.getString("exchange");
             Exchange exchange = Exchange.get(exchangeName);
             String pairName = config.getString("pair");
@@ -67,6 +81,13 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
 
             Integer joinTicksInReader = config.getInt("joinTicksInReader");
             boolean joinTicks = (joinTicksInReader > 0);
+            TickJoiner joiner;
+            if (joinTicks) {
+                String joinerName = config.getString("joiner");
+                joiner = TickJoiner.get(joinerName);
+            } else {
+                joiner = null;
+            }
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
@@ -77,7 +98,7 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
             int prefillTicks = config.getInt("prefill.ticks");
 
-            MapConfig defAlgoConfig = getDefaultConfig(config);
+            initDefaultConfig(config, defAlgoConfig);
             // todo: copy all keys from config to defAlgoConfig ?
             defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
             defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
@@ -97,9 +118,8 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = joinTicks
-                         ? new AvgTickJoiner(ticksTs, joinTicksInReader, collectTicks)
-//                        ? new CloseTickJoiner(ticksTs, joinTicksInReader)
+                BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = (joiner != null)
+                        ? joiner.createBaseTickJoiner(ticksTs, joinTicksInReader, collectTicks)
                         : ticksTs;
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
@@ -202,21 +222,7 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
         return INTEGER_FORMAT.format(memory);
     }
 
-    private static MapConfig getDefaultConfig(MapConfig config) {
-        MapConfig algoConfig = new MapConfig();
-
-        String params = config.getString("params");
-        if (params != null) {
-            String[] split = params.split(";");
-            for (String s : split) {
-                String[] nv = s.trim().split("=");
-                String name = nv[0];
-                String value = nv[1];
-                algoConfig.put(name, value);
-                config.put(name, value);
-            }
-        }
-
+    private static void initDefaultConfig(MapConfig config, MapConfig algoConfig) {
         // read default config
         for (Vary vary : Vary.values()) {
             String name = vary.name();
@@ -225,7 +231,6 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
                 algoConfig.put(name, number);
             }
         }
-        return algoConfig;
     }
 
     private static void setupChart(boolean collectValues, ChartCanvas chartCanvas, BaseTicksTimesSeriesData<? extends ITickData> ticksTs, List<Watcher> watchers) {
