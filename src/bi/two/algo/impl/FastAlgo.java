@@ -5,7 +5,7 @@ import bi.two.Colors;
 import bi.two.algo.Watcher;
 import bi.two.calc.Average;
 import bi.two.calc.MidPointsVelocity;
-import bi.two.calc.PolynomialSplineVelocity;
+import bi.two.calc.VelocityArray;
 import bi.two.chart.*;
 import bi.two.exch.Exchange;
 import bi.two.opt.Vary;
@@ -17,7 +17,6 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 
 public class FastAlgo extends BaseRibbonAlgo3 {
@@ -401,20 +400,6 @@ public class FastAlgo extends BaseRibbonAlgo3 {
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
             }
-        }
-    }
-
-    // --------------------------------------------------------------------------------------
-    private static class VelocityArray {
-        private final List<BaseTimesSeriesData> m_velocities = new ArrayList<>();
-        private final Average m_velocityAvg;
-
-        VelocityArray(BaseTimesSeriesData tsd, long barSize, float velocityStart, float velocityStep, int steps, int multiplier) {
-            for (int i = -steps; i <= steps; i++) {
-                PolynomialSplineVelocity velocity = new PolynomialSplineVelocity(tsd, (long) (barSize * (velocityStart + i * velocityStep)), multiplier);
-                m_velocities.add(velocity);
-            }
-            m_velocityAvg = new Average(m_velocities, tsd);
         }
     }
 }
