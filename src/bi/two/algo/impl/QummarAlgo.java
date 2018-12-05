@@ -164,7 +164,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
                 + (detailed ? ",revMul=" : ",") + m_reverseMul
                 + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
-                + (detailed ? "|turn=" : "|") + m_turnLevel
+                + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)

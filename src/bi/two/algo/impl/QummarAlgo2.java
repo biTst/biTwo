@@ -170,12 +170,12 @@ m_exit2power = null;
                 + (detailed ? ",step=" : ",") + m_step
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
-                + (detailed ? ",collapse=" : ",") + m_collapse
+                + (detailed ? ",collapse=" : ",") + Utils.format8((double) m_collapse)
                 + (detailed ? ",enter=" : ",") + m_enter
                 + (detailed ? ",backLevel=" : ",") + m_backLevel
                 + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
-                + (detailed ? "|turn=" : "|") + m_turnLevel
+                + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)

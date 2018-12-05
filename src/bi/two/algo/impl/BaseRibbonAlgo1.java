@@ -15,7 +15,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected final Exchange m_exchange;
     protected final long m_joinTicks;
 
-    protected final float m_turnLevel; // time in bars to confirm turn
+    protected final double m_turnLevel; // time in bars to confirm turn
     protected final long m_turnSize; // time in millis to confirm turn
     protected final double m_commission;
 
