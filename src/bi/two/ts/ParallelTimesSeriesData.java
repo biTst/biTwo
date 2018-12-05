@@ -95,6 +95,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_sleepCounter = 0;
             int maxSize = 0;
             int minSize = Integer.MAX_VALUE;
+            // iteration optimized for speed
+            //noinspection ForLoopReplaceableByForEach
             for (int i = 0, arraySize = m_array.size(); i < arraySize; i++) {
                 InnerTimesSeriesData innerTsd = m_array.get(i);
                 innerTsd.addNewestTick(latestTick);
@@ -104,22 +106,18 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
             if (maxSize > 2000) {
                 long sleep;
-                if (maxSize > 3000) {
-                    if (maxSize > 5000) {
-                        if (maxSize > 7000) {
-                            if (maxSize > 10000) {
-                                sleep = 1000;
-                            } else {
-                                sleep = 500;
-                            }
-                        } else {
-                            sleep = 250;
-                        }
-                    } else {
-                        sleep = 100;
-                    }
+                if (m_array.size() == 1) { // single - no need to sleep much
+                    sleep = 10;
                 } else {
-                    sleep = 20;
+                    if (maxSize > 3000) {
+                        if (maxSize > 5000) {
+                            if (maxSize > 7000) {
+                                if (maxSize > 10000) {
+                                    sleep = 1000;
+                                } else { sleep = 500; }
+                            } else { sleep = 250; }
+                        } else { sleep = 100; }
+                    } else { sleep = 20; }
                 }
                 try {
                     log("sleep " + sleep + "ms; maxSize=" + maxSize + "; minSize=" + minSize);
@@ -128,6 +126,8 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             }
         } else {
             long nanoTime1 = System.nanoTime();
+            // iteration optimized for speed
+            //noinspection ForLoopReplaceableByForEach
             for (int i = 0, arraySize = m_array.size(); i < arraySize; i++) {
                 InnerTimesSeriesData innerTsd = m_array.get(i);
                 innerTsd.addNewestTick(latestTick);
