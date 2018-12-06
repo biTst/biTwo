@@ -66,4 +66,11 @@ public abstract class TicksBufferBased<R>
         }
         super.onChanged(this, iAmChanged); // notifyListeners
     }
+
+    @Override public void onTimeShift(long shift) {
+        if (m_tickData != null) {
+            m_tickData = m_tickData.newTimeShifted(shift);
+        }
+        notifyOnTimeShift(shift);
+    }
 }

@@ -24,11 +24,11 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     private boolean m_initialized;
     private TickData m_tickData;
 
-    public BarsEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
+    public BarsEMA(ITimesSeriesData<? extends ITickData> tsd, float length, long barSize) {
         this(tsd, length, barSize, DEF_THRESHOLD);
     }
 
-    public BarsEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize, double threshold) {
+    public BarsEMA(ITimesSeriesData<? extends ITickData> tsd, float length, long barSize, double threshold) {
         super();
         if (length < MIN_LEN) {
             throw new RuntimeException("EMA.length passed " + length + "; should be " + MIN_LEN + " or bigger");
@@ -105,6 +105,9 @@ public class BarsEMA extends BaseTimesSeriesData<ITickData> {
     }
 
     @Override public void onTimeShift(long shift) {
+        if (m_tickData != null) {
+            m_tickData = m_tickData.newTimeShifted(shift);
+        }
         m_dirty = true;
         // todo: call super
         notifyOnTimeShift(shift);

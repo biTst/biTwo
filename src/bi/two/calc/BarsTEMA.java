@@ -14,7 +14,7 @@ public class BarsTEMA extends BaseTimesSeriesData<ITickData> {
     private final BarsEMA m_ema3;
     private TickData m_tickData;
 
-    public BarsTEMA(ITimesSeriesData<ITickData> tsd, float length, long barSize) {
+    public BarsTEMA(ITimesSeriesData<? extends ITickData> tsd, float length, long barSize) {
         super();
         m_ema1 = new BarsEMA(tsd, length, barSize);
         m_ema2 = new BarsEMA(m_ema1, length, barSize);
@@ -54,5 +54,14 @@ public class BarsTEMA extends BaseTimesSeriesData<ITickData> {
 
     public String log() {
         return "TEMA[]";
+    }
+
+    @Override public void onTimeShift(long shift) {
+        if (m_tickData != null) {
+            m_tickData = m_tickData.newTimeShifted(shift);
+        }
+        // todo: call super
+        notifyOnTimeShift(shift);
+        //super.onTimeShift(shift);
     }
 }

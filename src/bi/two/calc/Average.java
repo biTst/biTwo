@@ -47,9 +47,13 @@ public class Average extends BaseTimesSeriesData<ITickData> {
                 }
             }
             if (allDone) {
-                float m_average = sum / m_tss.size();
-                m_tick = new TickData(getParent().getLatestTick().getTimestamp(), m_average);
-                m_dirty = false;
+                ITickData latestTick = getParent().getLatestTick();
+                if (latestTick != null) {
+                    float average = sum / m_tss.size();
+                    long timestamp = latestTick.getTimestamp();
+                    m_tick = new TickData(timestamp, average);
+                    m_dirty = false;
+                }
             }
         }
         return m_tick;
@@ -57,7 +61,7 @@ public class Average extends BaseTimesSeriesData<ITickData> {
 
     @Override public void onTimeShift(long shift) {
         if (m_tick != null) {
-            m_tick = new TickData(m_tick.getTimestamp() + shift, m_tick.getClosePrice());
+            m_tick = m_tick.newTimeShifted(shift);
         }
         // todo: call super only
         notifyOnTimeShift(shift);

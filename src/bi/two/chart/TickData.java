@@ -21,4 +21,8 @@ public class TickData extends BaseTickData {
     @Override public ITickData getOlderTick() { return m_olderTick; }
 
     public void setOlderTick(ITickData olderTick) { m_olderTick = olderTick; }
+
+    public TickData newTimeShifted(long shift) {
+        return  new TickData(getTimestamp() + shift, getClosePrice());
+    }
 }

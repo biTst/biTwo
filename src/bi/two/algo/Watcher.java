@@ -401,10 +401,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
     @Override public void onTimeShift(long shift) {
 //        super.onTimeShift(shift);
-        notifyOnTimeShift(shift);
         if (m_lastTick != null) {
-            m_lastTick = new TickData(m_lastTick.getTimestamp() + shift, m_lastTick.getClosePrice());
+            m_lastTick = m_lastTick.newTimeShifted(shift);
         }
+        notifyOnTimeShift(shift);
     }
 
     @Override protected void notifyOnTimeShift(long shift) {
