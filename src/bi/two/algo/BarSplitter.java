@@ -22,15 +22,15 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
     public BarSplitter.BarHolder m_newestBar;
     private boolean m_muteListeners;
 
-    public BarSplitter(ITimesSeriesData<ITickData> iTicksData) {
+    public BarSplitter(ITimesSeriesData<? extends ITickData> iTicksData) {
         this(iTicksData, BARS_NUM, DEF_PERIOD);
     }
 
-    public BarSplitter(ITimesSeriesData<ITickData> iTicksData, int barsNum, long period) {
+    public BarSplitter(ITimesSeriesData<? extends ITickData> iTicksData, int barsNum, long period) {
         this(iTicksData, barsNum, period, true);
     }
 
-    public BarSplitter(ITimesSeriesData<ITickData> iTicksData, int barsNum, long period, boolean cloneTicks) {
+    public BarSplitter(ITimesSeriesData<? extends ITickData> iTicksData, int barsNum, long period, boolean cloneTicks) {
         super(iTicksData);
         m_barsNum = barsNum;
         m_period = period;

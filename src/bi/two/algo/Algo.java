@@ -21,6 +21,7 @@ public enum Algo {
     qummar2 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new QummarAlgo2(algoConfig, parent, exchange); } },
     fast { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new FastAlgo(algoConfig, parent, exchange); } },
     test { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new TestAlgo(algoConfig, parent, exchange); } },
+    midvel { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new MidvelAlgo(algoConfig, parent, exchange); } },
     ;
 
     public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) {
