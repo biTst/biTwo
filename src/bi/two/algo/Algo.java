@@ -22,6 +22,7 @@ public enum Algo {
     fast { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new FastAlgo(algoConfig, parent, exchange); } },
     test { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new TestAlgo(algoConfig, parent, exchange); } },
     midvel { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new MidvelAlgo(algoConfig, parent, exchange); } },
+    midvel2 { @Override public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) { return new Midvel2Algo(algoConfig, parent, exchange); } },
     ;
 
     public BaseAlgo createAlgo(MapConfig algoConfig, ITimesSeriesData parent, Exchange exchange) {
