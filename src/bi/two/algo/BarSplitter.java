@@ -73,7 +73,8 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         if (changed) {
             long timestamp = tick.getTimestamp();
             ITickData tickClone = m_cloneTicks ? new BaseTickData(tick) : tick;
-            if (m_lastTickTime == 0L) { // init on first tick
+            if ((m_lastTickTime == 0L)  // init on first tick
+                    || (m_newestBar==null)) { // or if newestBar not yet initialized
                 long timeShift = timestamp;
 
                 m_muteListeners = true; // do not notify listeners on first bars creation
@@ -140,10 +141,12 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
             bar = bar.m_olderBar;
         }
 
-        TickNode node = m_newestBar.m_latestTick;
-        while (node != null) {
-            node.onTimeShift(shift);
-            node = node.m_prev; // older
+        if (m_newestBar != null) {
+            TickNode node = m_newestBar.m_latestTick;
+            while (node != null) {
+                node.onTimeShift(shift);
+                node = node.m_prev; // older
+            }
         }
 
         // todo: remove - just call super
