@@ -21,9 +21,9 @@ import java.util.List;
 // based on lin reg slope
 public class Midvel3Algo extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = false;
-    private static final float RATE = 0.5f;
 
     private final float m_p1;
+    private final float m_p2;
     private final BaseTimesSeriesData m_midTs;
     private final List<SlidingTicksRegressorSlope> m_slopes = new ArrayList<>();
     private float m_avgVelocity;
@@ -32,6 +32,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
 
         m_p1 = algoConfig.getNumber(Vary.p1).floatValue();
+        m_p2 = algoConfig.getNumber(Vary.p2).floatValue();
 
         m_midTs = new BaseTimesSeriesData(this) {
             @Override public ITickData getLatestTick() {
@@ -85,14 +86,14 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
                 m_vMax = avgVelocity;
             } else {
                 if (delta < 0) {
-                    m_vMax += RATE * delta;
+                    m_vMax += m_p2 * delta;
                 }
             }
             if (avgVelocity < m_vMin) {
                 m_vMin = avgVelocity;
             } else {
                 if (delta > 0) {
-                    m_vMin += RATE * delta;
+                    m_vMin += m_p2 * delta;
                 }
             }
 
@@ -123,7 +124,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
 //                + (detailed ? ",collapse=" : ",") + Utils.format8((double) m_collapse)
 //                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? ",p1=" : ",") + m_p1
-//                + (detailed ? ",p2=" : ",") + m_p2
+                + (detailed ? ",p2=" : ",") + m_p2
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|joiner=" : "|") + m_joinerName
                 + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
