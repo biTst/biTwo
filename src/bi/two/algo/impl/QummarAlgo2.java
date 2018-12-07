@@ -16,7 +16,7 @@ import bi.two.util.Utils;
 import java.awt.*;
 import java.util.List;
 
-public class QummarAlgo2 extends BaseRibbonAlgo3 {
+public class QummarAlgo2 extends BaseRibbonAlgo4 {
     private static final boolean ADJUST_TAIL = false;
     private static final boolean PAINT_RIBBON = false;
     private static final boolean LIMIT_BY_PRICE = true;
@@ -41,7 +41,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo3 {
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;

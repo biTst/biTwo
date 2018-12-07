@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // based on lin reg slope
-public class Midvel3Algo extends BaseRibbonAlgo3 {
+public class Midvel3Algo extends BaseRibbonAlgo4 {
     private static final boolean ADJUST_TAIL = false;
 
     private final float m_p1;
@@ -60,7 +60,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         int count = 0;

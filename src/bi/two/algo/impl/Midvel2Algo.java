@@ -17,7 +17,7 @@ import bi.two.util.Utils;
 import java.awt.*;
 import java.util.List;
 
-public class Midvel2Algo extends BaseRibbonAlgo3 {
+public class Midvel2Algo extends BaseRibbonAlgo4 {
     private static final boolean ADJUST_TAIL = false;
 
     private final float m_p1;
@@ -39,7 +39,7 @@ public class Midvel2Algo extends BaseRibbonAlgo3 {
     float m_vel = 0;
     float m_vMax = 0;
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         ITickData latestTick = m_slope.getLatestTick();

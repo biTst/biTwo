@@ -19,7 +19,7 @@ import bi.two.util.Utils;
 import java.awt.*;
 import java.util.List;
 
-public class FastAlgo extends BaseRibbonAlgo3 {
+public class FastAlgo extends BaseRibbonAlgo4 {
     private static final boolean ADJUST_TAIL = true;
     private static final boolean LIMIT_BY_PRICE = false;
 
@@ -64,7 +64,7 @@ public class FastAlgo extends BaseRibbonAlgo3 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (directionChanged) {

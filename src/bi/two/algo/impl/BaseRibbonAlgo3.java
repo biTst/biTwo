@@ -2,57 +2,48 @@ package bi.two.algo.impl;
 
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
-import bi.two.opt.Vary;
 import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 
 abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
-    protected final float m_collapse;
-    protected final Ribbon m_ribbon;
-    protected final String m_joinerName;
-    protected RibbonUi m_ribbonUi;
-    private Float m_collapseRate;
-    Float m_remainedEnterDistance; // positive
+    final String m_joinerName; // not used in computations - but for params logging
+    final Ribbon m_ribbon;
+    private BaseRibbonAlgo4.RibbonUi m_ribbonUi;
+
+    protected abstract void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread,
+                                    float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail, Float tailStart);
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
         m_joinerName = algoConfig.getString("joiner");
 
-        m_collapse = algoConfig.getNumber(Vary.collapse).floatValue();
+        Ribbon.ICollapser nullCollapser = new Ribbon.ICollapser() {
+            @Override public void init(boolean goUp, float head, float tail) {}
+            @Override public void adjustTail(float tail) {}
+        };
+
         if (m_collectValues) {
-            m_ribbonUi = new RibbonUi(m_collapse, adjustTail);
+            m_ribbonUi = new BaseRibbonAlgo4.RibbonUi(adjustTail, nullCollapser);
             m_ribbon = m_ribbonUi;
         } else {
-            m_ribbon = new Ribbon(m_collapse, adjustTail);
+            m_ribbon = new Ribbon(adjustTail, nullCollapser);
         }
     }
-
-    protected abstract void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
-                                    float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
-                                    float mid, float head, float tail, Float tailStart, float collapseRate);
 
     @Override protected final void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
                                            boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
                                            float ribbonSpreadBottom, float mid, float head, float tail) {
         // m_tailStart can be changed inside of m_ribbon.update()
         Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, goUp); // use local var to speedup
-        float collapseRate = m_ribbon.m_collapser.update(tail);
-        if (m_collectValues) { // this only for painting
-            m_collapseRate = collapseRate;
-        }
-        if (directionChanged) {
-            m_remainedEnterDistance = goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
-        }
-        recalc4( lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
-                ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
+
+        recalc4(lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+                ribbonSpreadBottom, mid, head, tail, tailStart);
     }
 
     @Override public void reset() {
         super.reset();
-        m_collapseRate = null;
         m_ribbon.reset();
-        m_remainedEnterDistance = null;
     }
 
     TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_headStart; } }; }
@@ -66,7 +57,70 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     TicksTimesSeriesData<TickData> get7quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_7quarterPaint; } }; }
     TicksTimesSeriesData<TickData> get8quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_8quarterPaint; } }; }
 
-    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
+
+    // --------------------------------------------------------------------------------------
+    protected static class Ribbon {
+        protected final boolean m_adjustTail;
+        protected ICollapser m_collapser;
+        protected Float m_headStart;
+        protected Float m_tailStart;
+        protected Float m_midStart;
+
+        public void setCollapser(BaseRibbonAlgo4.Collapser collapser) { m_collapser = collapser; }
+
+        Ribbon(boolean adjustTail, ICollapser collapser) {
+            m_collapser = collapser;
+            m_adjustTail = adjustTail;
+        }
+
+        protected Float update(boolean directionChanged, float mid, float head, float tail, boolean goUp) {
+            Float tailStart = m_tailStart; // use local var to speedup
+            // common ribbon lines
+            if (directionChanged) {
+                m_headStart = head; // pink
+                tailStart = tail;
+                m_tailStart = tail;  // dark green
+                m_midStart = mid;
+
+                m_collapser.init(goUp, head, tail);
+            } else {
+                if (m_adjustTail) {
+                    if ((tailStart != null) && ((goUp && (tail < tailStart)) || (!goUp && (tail > tailStart)))) {
+                        tailStart = tail;
+                        float spread = m_headStart - tail;
+                        onTailAdjusted(tail, spread);
+
+                        m_collapser.adjustTail(tail);
+                    }
+                }
+            }
+            return tailStart;
+        }
+
+        protected void onTailAdjusted(float tail, float spread) {
+            m_tailStart = tail;
+            float half = spread / 2;
+            m_midStart = tail + half;
+        }
+
+        protected void reset() {
+            m_headStart = null;
+            m_midStart = null;
+            m_tailStart = null;
+        }
+
+        public float calcEnterLevel(float enter) {
+            return m_tailStart + (m_headStart - m_tailStart) * enter;
+        }
+
+
+        // --------------------------------------------------------------------------------------
+        public interface ICollapser {
+            void init(boolean goUp, float head, float tail);
+            void adjustTail(float tail);
+        }
+    }
+
 
     // --------------------------------------------------------------------------------------
     protected static class RibbonUi extends Ribbon {
@@ -83,8 +137,8 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         private Float m_8quarter;
         private Float m_8quarterPaint;
 
-        RibbonUi(float collapse, boolean adjustTail) {
-            super(collapse, adjustTail);
+        RibbonUi(boolean adjustTail, ICollapser collapser) {
+            super(adjustTail, collapser);
         }
 
         @Override protected Float update(boolean directionChanged, float mid, float head, float tail, boolean goUp) {
@@ -190,102 +244,6 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
             m_6quarter = null;
             m_7quarter = null;
             m_8quarter = null;
-        }
-    }
-
-    // --------------------------------------------------------------------------------------
-    protected static class Ribbon {
-        protected final Collapser m_collapser;
-        protected final boolean m_adjustTail;
-        protected Float m_headStart;
-        protected Float m_tailStart;
-        protected Float m_midStart;
-
-        Ribbon(float collapse, boolean adjustTail) {
-            m_collapser = new Collapser(collapse);
-            m_adjustTail = adjustTail;
-        }
-
-        protected Float update(boolean directionChanged, float mid, float head, float tail, boolean goUp) {
-            Float tailStart = m_tailStart; // use local var to speedup
-            // common ribbon lines
-            if (directionChanged) {
-                m_headStart = head; // pink
-                tailStart = tail;
-                m_tailStart = tail;  // dark green
-                m_midStart = mid;
-
-                m_collapser.init(goUp, head, tail);
-            } else {
-                if (m_adjustTail) {
-                    if ((tailStart != null) && ((goUp && (tail < tailStart)) || (!goUp && (tail > tailStart)))) {
-                        tailStart = tail;
-                        float spread = m_headStart - tail;
-                        onTailAdjusted(tail, spread);
-
-                        m_collapser.adjustTail(tail);
-                    }
-                }
-            }
-            return tailStart;
-        }
-
-        protected void onTailAdjusted(float tail, float spread) {
-            m_tailStart = tail;
-            float half = spread / 2;
-            m_midStart = tail + half;
-        }
-
-        protected void reset() {
-            m_headStart = null;
-            m_midStart = null;
-            m_tailStart = null;
-        }
-
-        public float calcEnterLevel(float enter) {
-            return m_tailStart + (m_headStart - m_tailStart) * enter;
-        }
-    }
-
-    // --------------------------------------------------------------------------------------
-    protected static class Collapser {
-        private final float m_step;
-        private boolean m_goUp;
-        private float m_head;
-        private float m_tail;
-        private float m_quarter;
-        private float m_waitQuarterNum;
-        private float m_waitLevel;
-        private float m_rate;
-
-        Collapser(float step) {
-            m_step = step;
-            m_rate = 0;
-        }
-
-        void init(boolean goUp, float head, float tail) {
-            m_rate = 0;
-            m_goUp = goUp;
-            m_head = head;
-            m_waitQuarterNum = 1;
-            adjustTail(tail);
-            m_tail = tail;
-        }
-
-        void adjustTail(float tail) {
-            m_tail = tail;
-            m_quarter = (m_head - m_tail) / 4;
-            m_waitLevel = m_tail + m_quarter * m_waitQuarterNum;
-        }
-
-        public float update(float tail) {
-            boolean reached = (m_goUp && (m_waitLevel <= tail)) || (!m_goUp && (m_waitLevel >= tail));
-            if (reached) {
-                m_waitQuarterNum++;
-                m_waitLevel = m_tail + m_quarter * m_waitQuarterNum;
-                m_rate = m_rate + (1 - m_rate) * m_step;
-            }
-            return m_rate;
         }
     }
 }
