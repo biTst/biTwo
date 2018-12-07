@@ -27,6 +27,8 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
     private final BaseTimesSeriesData m_midTs;
     private final List<SlidingTicksRegressorSlope> m_slopes = new ArrayList<>();
     private float m_avgVelocity;
+    private float m_vMin = 0;
+    private float m_vMax = 0;
 
     public Midvel3Algo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -57,10 +59,6 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
             m_slopes.add(slope);
         }
     }
-
-    float m_vMin = 0;
-    float m_vel = 0;
-    float m_vMax = 0;
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
@@ -109,9 +107,8 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
 
     @Override public void reset() {
         super.reset();
-//        m_vMin = 0;
-//        m_vel = 0;
-//        m_vMax = 0;
+        m_vMin = 0;
+        m_vMax = 0;
     }
 
     @Override public String key(boolean detailed) {
