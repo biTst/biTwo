@@ -10,7 +10,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
     protected final boolean m_adjustTail;
     private Float m_min;
     private Float m_max;
-    private Float m_mid;
+    protected Float m_mid;
     private Float m_zigZag;
     Float m_prevAdj = 0F;
 
