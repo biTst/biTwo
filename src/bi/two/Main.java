@@ -3,7 +3,6 @@ package bi.two;
 import bi.two.algo.Algo;
 import bi.two.algo.BaseAlgo;
 import bi.two.algo.Watcher;
-import bi.two.algo.impl.QummarAlgo;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
@@ -44,8 +43,6 @@ public class Main {
         String logFileLocation = (args.length) > 1 ? args[1] : Log.FileLog.DEF_LOG_FILE_LOCATION;
         System.out.println("Started: " + (new Date()) + "; logFileLocation = " + logFileLocation);
         Log.s_impl = new Log.FileLog(logFileLocation);
-
-console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
 
         MarketConfig.initMarkets(false);
 
@@ -150,6 +147,8 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
                 tradesReader.readTicks(config, writerTicksTs, callback, tradesWriter);
                 ticksTs.waitWhenAllFinish();
 
+                notifyFinish(watchers);
+
                 logResults(watchers, startMillis);
 
                 if (frame != null) {
@@ -174,6 +173,12 @@ console("QummarAlgo.ADJUST_TAIL="+ QummarAlgo.ADJUST_TAIL); // todo
             Runtime.getRuntime().gc();
             TimeUnit.DAYS.sleep(3);
         } catch (InterruptedException e) { /*noop*/ }
+    }
+
+    private static void notifyFinish(List<Watcher> watchers) {
+        for (Watcher watcher : watchers) {
+            watcher.notifyFinish();
+        }
     }
 
     private static MapConfig initConfig(String[] args) throws IOException {

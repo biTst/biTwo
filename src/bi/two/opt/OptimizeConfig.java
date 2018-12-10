@@ -49,7 +49,7 @@ public class OptimizeConfig {
                 }
             }
         }
-        throw new RuntimeException("invalid OptimizeConfig: " + config);
+        throw new RuntimeException("invalid OptimizeConfig, no init value for vary " + vary + ": " + config);
     }
 
     @Override public String toString() {

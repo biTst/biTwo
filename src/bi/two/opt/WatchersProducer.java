@@ -47,6 +47,10 @@ public class WatchersProducer {
     private static List<List<OptimizeConfig>> parseOptimizeConfigs(String optimizeCfgStr, MapConfig config) {
         List<List<OptimizeConfig>> optimizeConfigs = new ArrayList<>();
         // multiplier2|count2&step2|multiplier=*[1,15]
+        String namedOptimizeCfgStr = config.getPropertyNoComment(optimizeCfgStr);
+        if (namedOptimizeCfgStr != null) { // do substitution
+            optimizeCfgStr = namedOptimizeCfgStr;
+        }
         String[] split = optimizeCfgStr.split("\\|");
         List<String> list = new ArrayList<>();
         for (String s : split) {
@@ -65,7 +69,7 @@ public class WatchersProducer {
             // multiplier2
             // count2&step2
             // multiplier=*[1,15]
-            String namedOptimizeCfgStr = config.getPropertyNoComment(s);
+            namedOptimizeCfgStr = config.getPropertyNoComment(s);
             if (namedOptimizeCfgStr != null) {
                 s = namedOptimizeCfgStr; // substitute
             }

@@ -10,7 +10,7 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
     private final boolean m_collectValues;
     final SimpleRegression m_simpleRegression = new SimpleRegression(true);
-    private final BarSplitter m_splitter;
+    public final BarSplitter m_splitter;
     private long m_firstTimestamp;
     private long m_lastTimestamp;
     private boolean m_initialized;

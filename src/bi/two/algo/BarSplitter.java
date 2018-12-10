@@ -172,8 +172,8 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
         private final long m_period;
         private long m_time;
         private long m_oldestTime;
-        private TickNode m_latestTick;
-        private TickNode m_oldestTick;
+        public TickNode m_latestTick;
+        public TickNode m_oldestTick;
         private BarHolder m_olderBar;
         private float m_minPrice = Utils.INVALID_PRICE;
         private float m_maxPrice = Utils.INVALID_PRICE;

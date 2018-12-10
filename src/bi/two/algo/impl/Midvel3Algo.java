@@ -2,6 +2,7 @@ package bi.two.algo.impl;
 
 import bi.two.ChartCanvas;
 import bi.two.Colors;
+import bi.two.algo.BarSplitter;
 import bi.two.algo.Watcher;
 import bi.two.calc.SlidingTicksRegressorSlope;
 import bi.two.chart.*;
@@ -18,12 +19,21 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static bi.two.util.Log.console;
+
 // based on lin reg slope
-public class Midvel3Algo extends BaseRibbonAlgo4 {
+public class Midvel3Algo extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = false;
+    private static final boolean DO_NOT_CROSS_ZERO = false;
+
+    static {
+        console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
+    }
 
     private final float m_p1;
     private final float m_p2;
+    private final float m_p3;
+    private final float m_p4;
     private final BaseTimesSeriesData m_midTs;
     private final List<SlidingTicksRegressorSlope> m_slopes = new ArrayList<>();
     private float m_avgVelocity;
@@ -35,6 +45,8 @@ public class Midvel3Algo extends BaseRibbonAlgo4 {
 
         m_p1 = algoConfig.getNumber(Vary.p1).floatValue();
         m_p2 = algoConfig.getNumber(Vary.p2).floatValue();
+        m_p3 = algoConfig.getNumber(Vary.p3).floatValue();
+        m_p4 = algoConfig.getNumber(Vary.p4).floatValue();
 
         m_midTs = new BaseTimesSeriesData(this) {
             @Override public ITickData getLatestTick() {
@@ -55,26 +67,53 @@ public class Midvel3Algo extends BaseRibbonAlgo4 {
         float step = size * 0.05f;
         for (int i = -steps; i <= steps; i++) {
             long slopePeriod = (long) (size + i * step);
-            SlidingTicksRegressorSlope slope = new SlidingTicksRegressorSlope(m_midTs, slopePeriod, false, true);
+            SlidingTicksRegressorSlope slope = new SlidingTicksRegressorSlope(/*inTsd*/ m_midTs, slopePeriod, false,
+                    true // todo: recheck
+            );
             m_slopes.add(slope);
         }
     }
 
-    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
-                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
-                                     float mid, float head, float tail, Float tailStart, float collapseRate) {
+    @Override public void notifyFinish() {
+//Log.console("###### m_maxDiff="+m_maxDiff);  //m_maxDiff=897000  53652 * 2.0
+    }
+
+
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread,
+                                     float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head,
+                                     float tail, Float tailStart) {
         int count = 0;
         float sum = 0;
         for (SlidingTicksRegressorSlope slope : m_slopes) {
             ITickData latestTick = slope.getLatestTick();
             if (latestTick != null) {
-                float velocity = latestTick.getClosePrice();
-                sum += velocity;
-                count++;
-            } else {
-                count = 0;
-                break;
+                BarSplitter splitter = slope.m_splitter;
+                BarSplitter.BarHolder newestBar = splitter.m_newestBar;
+                if (newestBar != null) {
+                    BarSplitter.TickNode oldestTickNode = newestBar.m_oldestTick;
+                    if (oldestTickNode != null) {
+                        BarSplitter.TickNode newestTickNode = newestBar.m_latestTick;
+                        if (newestTickNode != null) {
+                            ITickData oldestTick = oldestTickNode.m_param;
+                            ITickData newestTick = newestTickNode.m_param;
+
+                            long oldestTime = oldestTick.getTimestamp();
+                            long newestTime = newestTick.getTimestamp();
+                            long diff = newestTime - oldestTime; // todo: BarSplitter should know its width instead of calcs above
+
+                            long period = splitter.m_period;
+                            float splitterFillRate = ((float)diff)/ period;
+                            float velocity = latestTick.getClosePrice() * 1000;
+                            float velocityRated = velocity * splitterFillRate;
+                            sum += velocityRated;
+                            count++;
+                            continue;
+                        }
+                    }
+                }
             }
+            count = 0;
+            break;
         }
         if (count > 0) {
             float avgVelocity = sum / count;
@@ -84,20 +123,27 @@ public class Midvel3Algo extends BaseRibbonAlgo4 {
                 m_vMax = avgVelocity;
             } else {
                 if (delta < 0) {
-                    m_vMax += m_p2 * delta;
+                    m_vMax += m_p2 * delta * (avgVelocity > 0 ? 1 : m_p4);
+                    if (DO_NOT_CROSS_ZERO && (m_vMax < 0)) {
+                        m_vMax = 0;
+                    }
                 }
             }
             if (avgVelocity < m_vMin) {
                 m_vMin = avgVelocity;
             } else {
                 if (delta > 0) {
-                    m_vMin += m_p2 * delta;
+                    m_vMin += m_p2 * delta * (avgVelocity > 0 ? 1 : m_p4);
+                    if (DO_NOT_CROSS_ZERO && (m_vMin > 0)) {
+                        m_vMin = 0;
+                    }
                 }
             }
 
             m_avgVelocity = avgVelocity;
 
-            m_adj = (avgVelocity - m_vMin) / (m_vMax - m_vMin) * 2 - 1;
+            float adj = ((avgVelocity - m_vMin) / (m_vMax - m_vMin)) * 2 - 1;
+            m_adj = (float)(Math.signum(adj) * Math.pow(Math.abs(adj), m_p3));
         }
     }
 
@@ -122,7 +168,9 @@ public class Midvel3Algo extends BaseRibbonAlgo4 {
 //                + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
                 + (detailed ? ",p1=" : ",") + m_p1
                 + (detailed ? ",p2=" : ",") + m_p2
-                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
+                + (detailed ? ",p3=" : ",") + m_p3
+                + (detailed ? ",p4=" : ",") + m_p4
+//                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|joiner=" : "|") + m_joinerName
                 + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)

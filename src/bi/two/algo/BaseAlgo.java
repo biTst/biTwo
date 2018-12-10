@@ -58,6 +58,8 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
         throw new RuntimeException("not implemented");
     }
 
+    public void notifyFinish() { /*noop*/ }
+
 
     //----------------------------------------------------------
     public class AlgoTimesSeriesData extends TicksTimesSeriesData<TickData> {

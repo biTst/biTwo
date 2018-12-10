@@ -450,6 +450,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 + " .....................................";
     }
 
+    public void notifyFinish() {
+        m_algo.notifyFinish();
+    }
+
 
     //----------------------------------------------------------
     public class GainTimesSeriesData extends JoinNonChangedTimesSeriesData {
