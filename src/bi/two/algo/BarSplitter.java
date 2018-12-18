@@ -154,6 +154,10 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 //        super.onTimeShift(shift);
     }
 
+    public float calcFillRate(long expectedTicksStep) {
+        return m_newestBar.calcFillRate(expectedTicksStep);
+    }
+
     //---------------------------------------------------------------
     public static class TickNode extends Node<ITickData,TickNode> {
         TickNode(TickNode prev, ITickData tick, TickNode next) {
@@ -340,7 +344,7 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
 
             iTicksProcessor.start(); // before iteration
 
-            for (TickNode tickNode = lastTick; tickNode != null; tickNode = (TickNode) tickNode.m_prev) {
+            for (TickNode tickNode = lastTick; tickNode != null; tickNode = tickNode.m_prev) {
                 ITickData tick = tickNode.m_param;
                 iTicksProcessor.processTick(tick);
                 if (tickNode == oldestTick) {
@@ -375,6 +379,31 @@ public class BarSplitter extends TicksTimesSeriesData<BarSplitter.BarHolder> {
             m_time += shift;
             m_oldestTime += shift;
             m_dirty = true;
+        }
+
+        public float calcFillRate(long expectedTicksStep) {
+            TickNode lastTick = m_latestTick;
+
+            long summ = 0;
+            for (TickNode tickNode = lastTick; tickNode != null; tickNode = tickNode.m_prev) {
+                TickNode prevTickNode = tickNode.m_prev;
+                if (prevTickNode == null) {
+                    break;
+                }
+
+                ITickData tick = tickNode.m_param;
+                ITickData prevTick = prevTickNode.m_param;
+
+                long timestamp = tick.getTimestamp();
+                long prevTimestamp = prevTick.getTimestamp();
+
+                long diff = timestamp - prevTimestamp;
+                if (diff > expectedTicksStep) {
+                    summ += diff;
+                }
+            }
+            float fillRate = ((float) (m_period - summ)) / m_period;
+            return Math.max(0, fillRate);
         }
 
 
