@@ -46,8 +46,11 @@ public abstract class BaseAlgo<T extends ITickData> extends TicksTimesSeriesData
     }
 
     public static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter) {
+        addChart(chartData, ticksData, layers, name, color, tickPainter, true);
+    }
+    public static void addChart(ChartData chartData, ITicksData ticksData, List<ChartAreaLayerSettings> layers, String name, Color color, TickPainter tickPainter, boolean ajustPriceAxe) {
         chartData.setTicksData(name, ticksData);
-        layers.add(new ChartAreaLayerSettings(name, color, tickPainter));
+        layers.add(new ChartAreaLayerSettings(name, color, tickPainter, ajustPriceAxe));
     }
 
     public long getPreloadPeriod() {

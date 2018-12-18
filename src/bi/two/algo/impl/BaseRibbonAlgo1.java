@@ -30,6 +30,8 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     private Float m_ribbonSpreadBottom;
     private long m_directionChangeTime;
     private int m_turnsCount;
+    protected boolean m_directionChanged;
+    protected long m_timestamp;
 
     @Override public int getTurnsCount() { return m_turnsCount; }
 
@@ -60,6 +62,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     }
 
     private Float recalc(float lastPrice, long timestamp) {
+        m_timestamp = timestamp;
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
         boolean allDone = true;
@@ -114,6 +117,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 goUp = canBeUp;
                 directionChanged = canDirectionChange;
             }
+            m_directionChanged = directionChanged;
 
             if (goUp != null) {
                 m_goUp = goUp;

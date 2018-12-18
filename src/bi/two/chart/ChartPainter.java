@@ -91,22 +91,24 @@ public class ChartPainter {
             float maxPrice = Float.NEGATIVE_INFINITY;
             List<ChartAreaLayerSettings> layers = cas.getLayers();
             for (ChartAreaLayerSettings layer : layers) {
-                String name = layer.getName();
-                ChartAreaData cad = chartData.getChartAreaData(name);
-                if (cad != null) {
-                    ITicksData ticksData = cad.getTicksData();
-                    if (ticksData != null) {
-                        synchronized (ticksData.syncObject()) {
-                            for (Object o : ticksData.getTicksIterable()) {
-                                ITickData tick = (ITickData) o;
-                                long timestamp = tick.getTimestamp();
-                                if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
-                                    float min = tick.getMinPrice();
-                                    float max = tick.getMaxPrice();
+                if (layer.isAdjustPriceAxe()) {
+                    String name = layer.getName();
+                    ChartAreaData cad = chartData.getChartAreaData(name);
+                    if (cad != null) {
+                        ITicksData ticksData = cad.getTicksData();
+                        if (ticksData != null) {
+                            synchronized (ticksData.syncObject()) {
+                                for (Object o : ticksData.getTicksIterable()) {
+                                    ITickData tick = (ITickData) o;
+                                    long timestamp = tick.getTimestamp();
+                                    if ((timestamp >= timeMin) && (timestamp <= timeMax)) { // fit horizontally ?
+                                        float min = tick.getMinPrice();
+                                        float max = tick.getMaxPrice();
 
-                                    if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max) && !Float.isNaN(min) && !Float.isNaN(max)) {
-                                        maxPrice = (maxPrice >= max) ? maxPrice : max;  //  Math.max(maxPrice, max);
-                                        minPrice = (minPrice <= min) ? minPrice : min;  //  Math.min(minPrice, min);
+                                        if ((min != Utils.INVALID_PRICE) && !Float.isInfinite(min) && !Float.isInfinite(max) && !Float.isNaN(min) && !Float.isNaN(max)) {
+                                            maxPrice = (maxPrice >= max) ? maxPrice : max;  //  Math.max(maxPrice, max);
+                                            minPrice = (minPrice <= min) ? minPrice : min;  //  Math.min(minPrice, min);
+                                        }
                                     }
                                 }
                             }
