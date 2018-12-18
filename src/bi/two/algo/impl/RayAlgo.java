@@ -34,10 +34,23 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private double m_splitToTurnTime;
     private Float m_headRay;
     private Float m_tailRay;
-
+    private Float m_midRay;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
+    }
+
+    @Override public void onTimeShift(long shift) {
+        super.onTimeShift(shift);
+        if (m_lastSplitTime > 0) {
+            m_lastSplitTime += shift;
+        }
+        if (m_splitTime > 0) {
+            m_splitTime += shift;
+        }
+        if (m_turnTime > 0) {
+            m_turnTime += shift;
+        }
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread,
@@ -68,8 +81,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 double rate = (m_timestamp - m_splitTime) / m_splitToTurnTime;
                 m_headRay = (float) (m_splitValue + (m_turnHead - m_splitValue) * rate);
                 m_tailRay = (float) (m_splitValue + (m_turnTail - m_splitValue) * rate);
-//                m_headRay = (float) (m_turnHead);
-//                m_tailRay = (float) (m_turnTail);
+                m_midRay = (m_headRay + m_tailRay) / 2;
             }
         }
     }
@@ -77,6 +89,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getSplitTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_lastSplitValue; } }; }
     TicksTimesSeriesData<TickData> getHeadRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headRay; } }; }
     TicksTimesSeriesData<TickData> getTailRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailRay; } }; }
+    TicksTimesSeriesData<TickData> getMidRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midRay; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -146,6 +159,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getSplitTs(), topLayers, "split", Colors.GENTLE_PLUM, TickPainter.LINE_JOIN);
             addChart(chartData, getHeadRayTs(), topLayers, "headRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
             addChart(chartData, getTailRayTs(), topLayers, "tailRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getMidRayTs(), topLayers, "midRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
