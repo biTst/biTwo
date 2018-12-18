@@ -35,6 +35,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_headRay;
     private Float m_tailRay;
     private Float m_midRay;
+    private Float m_headPlusRay;
+    private Float m_lvl;
+    private float m_headPlus;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -69,6 +72,16 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 m_turnHead = head;
                 m_turnTail = tail;
                 m_splitToTurnTime = m_turnTime - m_splitTime;
+
+                float headPlus = (m_lvl == null)
+                        ? 0
+                        : goUp
+                        ? (1 - m_lvl) / (m_lvl + 1)
+                        : (m_lvl + 1) / (1 - m_lvl);
+                if (headPlus < 0) {
+                    headPlus = 0;
+                }
+                m_headPlus = headPlus;
             }
 
             if (leadEmaValue == head) {
@@ -76,13 +89,18 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             }
         }
 
-        if (m_splitValue != null) {
-            if (m_turnTime > 0) {
-                double rate = (m_timestamp - m_splitTime) / m_splitToTurnTime;
-                m_headRay = (float) (m_splitValue + (m_turnHead - m_splitValue) * rate);
-                m_tailRay = (float) (m_splitValue + (m_turnTail - m_splitValue) * rate);
-                m_midRay = (m_headRay + m_tailRay) / 2;
+        if ((m_splitValue != null) && (m_turnTime > 0)) {
+            double rate = (m_timestamp - m_splitTime) / m_splitToTurnTime;
+            m_headRay = (float) (m_splitValue + (m_turnHead - m_splitValue) * rate);
+            m_tailRay = (float) (m_splitValue + (m_turnTail - m_splitValue) * rate);
+            m_midRay = (m_headRay + m_tailRay) / 2;
+            m_headPlusRay = m_headRay + (m_headRay - m_tailRay) * m_headPlus;
+
+            float lvl = (head - m_tailRay) / (m_headRay - m_tailRay) * 2 - 1;
+            if (!goUp) {
+                lvl = -lvl;
             }
+            m_lvl = lvl;
         }
     }
 
@@ -90,6 +108,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getHeadRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headRay; } }; }
     TicksTimesSeriesData<TickData> getTailRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailRay; } }; }
     TicksTimesSeriesData<TickData> getMidRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_midRay; } }; }
+    TicksTimesSeriesData<TickData> getLvlTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_lvl; } }; }
+    TicksTimesSeriesData<TickData> getHeadPlusTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlus; } }; }
+    TicksTimesSeriesData<TickData> getHeadPlusRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -137,9 +158,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 
 //            addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
-//            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
-//            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
-//            addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
+            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+            addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
 //            Color halfGray = Colors.alpha(Color.GRAY, 128);
@@ -160,26 +181,31 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getHeadRayTs(), topLayers, "headRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
             addChart(chartData, getTailRayTs(), topLayers, "tailRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
             addChart(chartData, getMidRayTs(), topLayers, "midRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
+            addChart(chartData, getHeadPlusRayTs(), topLayers, "headPlusRay", Colors.CHOCOLATE, TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
         {
+            power.addHorizontalLineValue(1);
+            power.addHorizontalLineValue(0);
+            power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
 //            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
+            addChart(chartData, getLvlTs(), powerLayers, "lvl", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         {
             java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
 //            addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
-
         }
 
         if (collectValues) {
             addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
             {
                 ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
-                gain.setHorizontalLineValue(1);
+                gain.addHorizontalLineValue(1);
 
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
