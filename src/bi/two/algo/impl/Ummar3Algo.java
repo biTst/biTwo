@@ -229,7 +229,7 @@ public class Ummar3Algo extends BaseRibbonAlgo1 {
 
         if (collectValues) {
             ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.8f, 1, 0.2f, Color.ORANGE);
-            gain.setHorizontalLineValue(1);
+            gain.addHorizontalLineValue(1);
 
             addChart(chartData, firstWatcher, topLayers, "trades", Color.WHITE, TickPainter.TRADE);
 

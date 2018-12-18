@@ -174,7 +174,7 @@ addChart(chartData, m_mid2.getJoinNonChangedTs(), topLayers, "mid2", Colors.CAMO
 
             {
                 ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
-                gain.setHorizontalLineValue(1);
+                gain.addHorizontalLineValue(1);
 
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
                 addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);

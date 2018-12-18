@@ -263,12 +263,14 @@ public class ChartPainter {
         yAxe.paintYAxe(g2, paintRight, Color.PINK);
         g2.setClip(null);
 
-        // paint zero line
-        double horizont = cas.getHorizontalLineValue();
-        int zero = yAxe.translateInt(horizont);
-        if ((zero > paintTop) && (zero < paintBottom)) {
-            g2.setColor(Color.GRAY);
-            g2.drawRect(paintLeft, zero, paintWidth - priceAxeWidth, zero);
+        // paint horizont lines
+        List<Double> horizonts = cas.getHorizontalLines();
+        for (Double horizont : horizonts) {
+            int zero = yAxe.translateInt(horizont);
+            if ((zero > paintTop) && (zero < paintBottom)) {
+                g2.setColor(Color.GRAY);
+                g2.drawRect(paintLeft, zero, paintWidth - priceAxeWidth, zero);
+            }
         }
 
         Axe.AxeLong xAxe = cps.getXAxe();

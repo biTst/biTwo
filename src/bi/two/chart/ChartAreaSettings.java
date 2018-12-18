@@ -14,7 +14,7 @@ public class ChartAreaSettings {
     private final float m_height;
     private final Color m_color;
     private final List<ChartAreaLayerSettings> m_layers = new ArrayList<ChartAreaLayerSettings>();
-    private double m_horizontalLineValue;
+    private final List<Double> m_horizontalLines = new ArrayList<>();
 
     public ChartAreaSettings(String name, float left, float top, float width, float height, Color color) {
         m_name = name;
@@ -41,10 +41,8 @@ public class ChartAreaSettings {
         return m_height;
     }
     public Color getColor() { return m_color; }
-    public double getHorizontalLineValue() { return m_horizontalLineValue; }
     public List<ChartAreaLayerSettings> getLayers() { return m_layers; }
 
-    public void setHorizontalLineValue(double val) {
-        m_horizontalLineValue = val;
-    }
+    public void addHorizontalLineValue(double val) { m_horizontalLines.add(val); }
+    public List<Double> getHorizontalLines() { return m_horizontalLines; }
 }

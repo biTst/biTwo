@@ -267,7 +267,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
 //            addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
 
-            value.setHorizontalLineValue(0.00001);
+            value.addHorizontalLineValue(0.00001);
             for (int i = 0; i < m_slopeConfidenceIntervals.length; i++) {
                 addChart(chartData, getSlopeConfidenceIntervalTs(i), valueLayers, "SlopeConfidenceInterval" + i, Color.RED, TickPainter.LINE_JOIN);
             }
@@ -278,7 +278,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
 
             {
                 ChartAreaSettings gain = chartSetting.addChartAreaSettings("gain", 0, 0.85f, 1, 0.15f, Color.ORANGE);
-                gain.setHorizontalLineValue(1);
+                gain.addHorizontalLineValue(1);
 
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
 //                addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
