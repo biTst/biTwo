@@ -17,7 +17,7 @@ public class FileTradesReader {
     public static void readFileTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback) throws IOException {
         TimeStamp doneTs = new TimeStamp();
 
-        String path = config.getPropertyNoComment("dataFile");
+        String path = config.getString("dataFile");
         long bytesToSkip = config.getLongOrDefault("skip.bytes", 0l);
         long bytesToProcess = config.getLongOrDefault("process.bytes", 0l);
         long ticksToProcess = config.getLongOrDefault("process.ticks", Long.MAX_VALUE);
