@@ -127,6 +127,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                     m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
                     if (m_logGaps) {
                         log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+//console("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
                     }
                     m_fadeInRate = 0;
                     processWithFade(m_lastDirection);
@@ -404,16 +405,13 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         if (m_lastTick != null) {
             m_lastTick = m_lastTick.newTimeShifted(shift);
         }
-        notifyOnTimeShift(shift);
-    }
-
-    @Override protected void notifyOnTimeShift(long shift) {
-        m_lastTick.onTimeShift(shift);
-        m_firstTick.onTimeShift(shift);
+        if (m_lastTick != null) {
+            m_firstTick = m_firstTick.newTimeShifted(shift);
+        }
         if (m_savedAdjusted != null) {
             m_savedAdjusted.onTimeShift(shift);
         }
-        super.notifyOnTimeShift(shift);
+        notifyOnTimeShift(shift);
     }
 
     public String toLog() {
