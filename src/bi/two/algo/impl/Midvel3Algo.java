@@ -16,7 +16,6 @@ import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 
 import static bi.two.util.Log.console;
@@ -24,7 +23,7 @@ import static bi.two.util.Log.console;
 // based on lin reg slope
 public class Midvel3Algo extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = false;
-    private static final boolean DO_NOT_CROSS_ZERO = false;
+    private static final boolean DO_NOT_CROSS_ZERO = true;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -35,13 +34,26 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
     private final float m_p3;
     private final float m_p4;
     private final BaseTimesSeriesData m_midTs;
-    private final List<SlidingTicksRegressorSlope> m_slopes = new ArrayList<>();
+    private final SlidingTicksRegressorSlope[] m_slopes;
+    private final long m_expectedTicksStep;
     private float m_avgVelocity;
     private float m_vMin = 0;
     private float m_vMax = 0;
 
+    private double[] m_slopeConfidenceIntervals;
+    private double[] m_meanSquareErrors;
+
     public Midvel3Algo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
+
+        long joinTicksInReader = algoConfig.getLong("joinTicksInReader");
+        m_expectedTicksStep = Math.max(m_joinTicks, joinTicksInReader); // joinTicksInReader or joinTicks; can be 0
+
+        int steps = 0;
+        int arraySize = 1 + steps * 2;
+        m_slopes = new SlidingTicksRegressorSlope[arraySize];
+        m_slopeConfidenceIntervals = new double[arraySize];
+        m_meanSquareErrors = new double[arraySize];
 
         m_p1 = algoConfig.getNumber(Vary.p1).floatValue();
         m_p2 = algoConfig.getNumber(Vary.p2).floatValue();
@@ -57,20 +69,17 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
                 return null;
             }
 
-            @Override public void onTimeShift(long shift) {
-                notifyOnTimeShift(shift);
-            }
+            @Override public void onTimeShift(long shift) { notifyOnTimeShift(shift); }
         };
 
-        int steps = 0;
         float size = m_p1 * m_barSize;
         float step = size * 0.05f;
-        for (int i = -steps; i <= steps; i++) {
+        for (int i = -steps, k = 0; i <= steps; i++, k++) {
             long slopePeriod = (long) (size + i * step);
             SlidingTicksRegressorSlope slope = new SlidingTicksRegressorSlope(/*inTsd*/ m_midTs, slopePeriod, false,
                     true // todo: recheck
             );
-            m_slopes.add(slope);
+            m_slopes[k] = slope;
         }
     }
 
@@ -84,33 +93,40 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
                                      float tail, Float tailStart) {
         int count = 0;
         float sum = 0;
-        for (SlidingTicksRegressorSlope slope : m_slopes) {
+        for (int i = 0; i < m_slopes.length; i++) {
+            SlidingTicksRegressorSlope slope = m_slopes[i];
             ITickData latestTick = slope.getLatestTick();
             if (latestTick != null) {
                 BarSplitter splitter = slope.m_splitter;
-                BarSplitter.BarHolder newestBar = splitter.m_newestBar;
-                if (newestBar != null) {
-                    BarSplitter.TickNode oldestTickNode = newestBar.m_oldestTick;
-                    if (oldestTickNode != null) {
-                        BarSplitter.TickNode newestTickNode = newestBar.m_latestTick;
-                        if (newestTickNode != null) {
-                            ITickData oldestTick = oldestTickNode.m_param;
-                            ITickData newestTick = newestTickNode.m_param;
+                long period = splitter.m_period;
+                long regressionN = slope.getRegressionN();
 
-                            long oldestTime = oldestTick.getTimestamp();
-                            long newestTime = newestTick.getTimestamp();
-                            long diff = newestTime - oldestTime; // todo: BarSplitter should know its width instead of calcs above
-
-                            long period = splitter.m_period;
-                            float splitterFillRate = ((float)diff)/ period;
-                            float velocity = latestTick.getClosePrice() * 1000;
-                            float velocityRated = velocity * splitterFillRate;
-                            sum += velocityRated;
-                            count++;
-                            continue;
-                        }
-                    }
+                long expectedTicksNum;
+                if (m_expectedTicksStep == 0) { // if no join
+                    throw new RuntimeException("not implemented"); // todo: calc max slope N, reset on timeShift; calc as "slope N"/"max slope N"
+                } else {
+                    expectedTicksNum = period / m_expectedTicksStep;
                 }
+
+                float splitterFillRate = ((float) regressionN) / expectedTicksNum;
+
+                double slopeConfidenceInterval = slope.getSlopeConfidenceInterval();
+                if (!Double.isNaN(slopeConfidenceInterval)) {
+                    double sci = slopeConfidenceInterval * splitterFillRate * splitterFillRate;
+                    m_slopeConfidenceIntervals[i] = sci;
+                }
+
+                double meanSquareError = slope.getMeanSquareError();
+                if (!Double.isNaN(meanSquareError)) {
+                    double mae = meanSquareError * splitterFillRate * splitterFillRate;
+                    m_meanSquareErrors[i] = mae;
+                }
+
+                float velocity = latestTick.getClosePrice() * 1000;
+                float velocityRated = velocity * splitterFillRate;
+                sum += velocityRated;
+                count++;
+                continue;
             }
             count = 0;
             break;
@@ -150,6 +166,9 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getAvgVelocityTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_avgVelocity; } }; }
     TicksTimesSeriesData<TickData> getVMaxTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_vMax; } }; }
     TicksTimesSeriesData<TickData> getVMinTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_vMin; } }; }
+
+    TicksTimesSeriesData<TickData> getSlopeConfidenceIntervalTs(final int i) { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return (float)m_slopeConfidenceIntervals[i]; } }; }
+    TicksTimesSeriesData<TickData> getMeanSquareErrorTs(final int i) { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return (float)m_meanSquareErrors[i]; } }; }
 
     @Override public void reset() {
         super.reset();
@@ -234,9 +253,9 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
 
             Color velocityColor = Colors.alpha(Colors.CLOW_IN_THE_DARK, 60);
-            for (int i = 0; i < m_slopes.size(); i++) {
-                SlidingTicksRegressorSlope slope = m_slopes.get(i);
-                addChart(chartData, slope.getJoinNonChangedTs(), powerLayers, "slope"+i, velocityColor, TickPainter.LINE_JOIN);
+            for (int i = 0; i < m_slopes.length; i++) {
+                SlidingTicksRegressorSlope slope = m_slopes[i];
+                addChart(chartData, slope.getJoinNonChangedTs(), powerLayers, "slope" + i, velocityColor, TickPainter.LINE_JOIN);
             }
             addChart(chartData, getAvgVelocityTs(), powerLayers, "avgSlope", Colors.YELLOW, TickPainter.LINE_JOIN);
             addChart(chartData, getVMaxTs(), powerLayers, "vmax", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
@@ -246,7 +265,12 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         {
             List<ChartAreaLayerSettings> valueLayers = value.getLayers();
-            addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+//            addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+
+            value.setHorizontalLineValue(0.00001);
+            for (int i = 0; i < m_slopeConfidenceIntervals.length; i++) {
+                addChart(chartData, getSlopeConfidenceIntervalTs(i), valueLayers, "SlopeConfidenceInterval" + i, Color.RED, TickPainter.LINE_JOIN);
+            }
         }
 
         if (collectValues) {
@@ -257,7 +281,11 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
                 gain.setHorizontalLineValue(1);
 
                 List<ChartAreaLayerSettings> gainLayers = gain.getLayers();
-                addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
+//                addChart(chartData, firstWatcher.getGainTs(), gainLayers, "gain", Color.blue, TickPainter.LINE_JOIN);
+
+                for (int i = 0; i < m_meanSquareErrors.length; i++) {
+                    addChart(chartData, getMeanSquareErrorTs(i), gainLayers, "MeanSquareError" + i, Color.RED, TickPainter.LINE_JOIN);
+                }
             }
         }
     }

@@ -123,4 +123,10 @@ public class SlidingTicksRegressor extends BaseTimesSeriesData<ITickData> {
         notifyOnTimeShift(shift);
 //        super.onTimeShift(shift);
     }
+
+    public double getMeanSquareError() {
+        return m_simpleRegression.getMeanSquareError();
+    }
+
+    public long getRegressionN() { return m_simpleRegression.getN(); }
 }

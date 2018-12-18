@@ -20,4 +20,8 @@ public class SlidingTicksRegressorSlope extends SlidingTicksRegressor {
     protected double getValue() {
         return m_simpleRegression.getSlope();
     }
+
+    public double getSlopeConfidenceInterval() {
+        return m_simpleRegression.getSlopeConfidenceInterval();
+    }
 }
