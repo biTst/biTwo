@@ -40,6 +40,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_midRay;
     private Float m_headPlusRay;
     private Float m_headPlusRay2;
+    private Float m_headPlusRay3;
     private Float m_lvl;
     private float m_headPlus;
     private Float m_enterPower;
@@ -83,8 +84,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 float headPlus = (m_lvl == null)
                         ? 0
                         : goUp
-                        ? (1 - m_lvl) / (m_lvl + 1)
-                        : (m_lvl + 1) / (1 - m_lvl);
+                            ? (1 - m_lvl) / (m_lvl + 1)
+                            : (m_lvl + 1) / (1 - m_lvl);
                 if (headPlus < 0) {
                     headPlus = 0;
                 }
@@ -113,13 +114,24 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             m_tailRay = (float) (m_splitValue + (m_turnTail - m_splitValue) * rate);
             m_midRay = (m_headRay + m_tailRay) / 2;
             m_headPlusRay = m_headRay + (m_headRay - m_tailRay) * m_headPlus;
-            m_headPlusRay2 = m_headRay + (m_headRay - m_tailRay) * m_headPlus * (1-enterPower);
+            m_headPlusRay2 = m_headRay + (m_headRay - m_tailRay) * m_headPlus * (1 - enterPower);
+            m_headPlusRay3 = goUp
+                    ? (m_ribbonSpreadTop > m_headPlusRay2) ? m_ribbonSpreadTop : m_headPlusRay2
+                    : (m_ribbonSpreadBottom < m_headPlusRay2) ? m_ribbonSpreadBottom : m_headPlusRay2;
 
-            float lvl = (head - m_tailRay) / (m_headRay - m_tailRay) * 2 - 1;
+            float lvl = (head - m_tailRay) / (m_headPlusRay3 - m_tailRay) * 2 - 1;
             if (!goUp) {
                 lvl = -lvl;
             }
+            if (lvl > 1) {
+                lvl = 1.0f;
+            }
+            if (lvl < -1) {
+                lvl = -1;
+            }
             m_lvl = lvl;
+
+            m_adj = lvl;
         }
     }
 
@@ -131,6 +143,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getHeadPlusTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlus; } }; }
     TicksTimesSeriesData<TickData> getHeadPlusRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay; } }; }
     TicksTimesSeriesData<TickData> getHeadPlusRay2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay2; } }; }
+    TicksTimesSeriesData<TickData> getHeadPlusRay3Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay3; } }; }
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
 
     @Override public String key(boolean detailed) {
@@ -179,8 +192,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 
 //            addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
-            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
@@ -204,6 +217,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getMidRayTs(), topLayers, "midRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadPlusRayTs(), topLayers, "headPlusRay", Colors.CHOCOLATE, TickPainter.LINE_JOIN, false);
             addChart(chartData, getHeadPlusRay2Ts(), topLayers, "headPlusRay2", Colors.HAZELNUT, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getHeadPlusRay3Ts(), topLayers, "headPlusRay3", Colors.TAN, TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
@@ -213,15 +227,18 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
 //            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
-            addChart(chartData, getLvlTs(), powerLayers, "lvl", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
             addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
         {
+            value.addHorizontalLineValue(1);
+            value.addHorizontalLineValue(0);
+            value.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
 //            addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getLvlTs(), valueLayers, "lvl", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
         }
 
         if (collectValues) {

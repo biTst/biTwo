@@ -26,8 +26,8 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected Float m_adj = 0F;
     private Boolean m_goUp;
     private float m_maxRibbonSpread;
-    private Float m_ribbonSpreadTop;
-    private Float m_ribbonSpreadBottom;
+    protected Float m_ribbonSpreadTop;
+    protected Float m_ribbonSpreadBottom;
     private long m_directionChangeTime;
     private int m_turnsCount;
     protected boolean m_directionChanged;
