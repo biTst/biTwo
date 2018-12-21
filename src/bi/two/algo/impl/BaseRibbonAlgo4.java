@@ -21,18 +21,18 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
         m_ribbon.setCollapser(m_collapser);
     }
 
-    protected abstract void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    protected abstract void recalc5(float lastPrice, float leadEmaValue, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                     float mid, float head, float tail, Float tailStart, float collapseRate);
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread, float maxRibbonSpread,
-                           float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail, Float tailStart) {
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean directionChanged, float ribbonSpread, float maxRibbonSpread,
+                                     float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail, Float tailStart) {
         float collapseRate = m_collapser.update(tail);
         m_collapseRate = collapseRate;
         if (directionChanged) {
-            m_remainedEnterDistance = goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
+            m_remainedEnterDistance = m_goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
         }
-        recalc5( lastPrice, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+        recalc5( lastPrice, leadEmaValue, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
     }
 

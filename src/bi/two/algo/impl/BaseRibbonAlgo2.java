@@ -28,7 +28,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         m_prevAdj = 0F;
     }
 
-    protected abstract void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    protected abstract void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail);
 
     protected final void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean directionChanged,
@@ -48,7 +48,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
 
-        recalc3(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+        recalc3(lastPrice, emasMin, emasMax, leadEmaValue, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail);
     }
 

@@ -64,7 +64,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (directionChanged) {
@@ -193,13 +193,14 @@ public class FastAlgo extends BaseRibbonAlgo4 {
             }
             noStartCollapseRate *= (1 - tailToMidPower);
 
+            Boolean goUp = m_goUp;
             int sign = goUp ? 1 : -1;
             float direction = m_directionIn + sign * m_remainedEnterDistance * enterPower;
             direction *= (1 - noStartCollapseRate * m_p3);
             direction *= (1 - collapseRate);
 
             // pre-start next turn
-            float remainedExitDistance = goUp ? 1 + direction : 1 - direction;
+            float remainedExitDistance = this.m_goUp ? 1 + direction : 1 - direction;
             direction -= sign * remainedExitDistance * exitMidPower * m_p1;
             direction -= sign * remainedExitDistance * exitPower * m_p2;
 //                direction -= sign * remainedExitDistance * revPower;

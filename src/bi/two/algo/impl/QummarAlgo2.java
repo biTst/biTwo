@@ -41,12 +41,13 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
-    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged,
+    @Override protected void recalc5(float lastPrice, float leadEmaValue, boolean directionChanged,
                                      float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
         m_ribbonSpreadMid = ribbonSpreadMid;
 
+        Boolean goUp = m_goUp;
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         Float headStart = m_ribbon.m_headStart;
         float headGainLevel = headStart + (ribbonSpreadHead - headStart) * m_backLevel;
