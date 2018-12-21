@@ -24,7 +24,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected final ITimesSeriesData m_wrappedInTs;
     private boolean m_dirty;
     protected Float m_adj = 0F;
-    private Boolean m_goUp;
+    Boolean m_goUp;
     private float m_maxRibbonSpread;
     protected Float m_ribbonSpreadTop;
     protected Float m_ribbonSpreadBottom;
@@ -35,7 +35,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
 
     @Override public int getTurnsCount() { return m_turnsCount; }
 
-    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
     BaseRibbonAlgo1(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
@@ -137,7 +137,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_ribbonSpreadBottom = ribbonSpreadBottom;
 
                 // todo: check what is faster, to use m_ribbonSpreadTop or pass as param value into functions chain recalc2->recalc3->recalc5
-                recalc2(lastPrice, emasMin, emasMax, leadEmaValue, goUp, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
+                recalc2(lastPrice, emasMin, emasMax, leadEmaValue, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
             }
         }
         return m_adj;

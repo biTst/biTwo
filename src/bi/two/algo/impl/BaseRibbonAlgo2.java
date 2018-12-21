@@ -31,13 +31,14 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
     protected abstract void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail);
 
-    protected final void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp, boolean directionChanged,
+    protected final void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean directionChanged,
                                  float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
         m_min = emasMin;
         m_max = emasMax;
         float mid = (emasMin + emasMax) / 2;
         m_mid = mid;
 
+        Boolean goUp = m_goUp;
         if (directionChanged) {
             // note - ribbonSpread from prev step here
             m_zigZag = goUp ? ribbonSpreadBottom : ribbonSpreadTop;

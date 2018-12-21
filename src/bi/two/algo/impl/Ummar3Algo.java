@@ -49,13 +49,14 @@ public class Ummar3Algo extends BaseRibbonAlgo1 {
         }
     }
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
                                      boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
 
 //            m_min = emasMin;
 //            m_max = emasMax;
 
         if (directionChanged) {
+            Boolean goUp = m_goUp;
             m_xxx = goUp ? emasMax : emasMin;
             m_height = emasMax - emasMin;
             m_da = new Ummar2Algo.DoubleAdjuster(goUp ? 1 : -1);
@@ -67,7 +68,7 @@ public class Ummar3Algo extends BaseRibbonAlgo1 {
             float approachLevel;
             float gainLevel;
             float spread = ribbonSpreadTop - ribbonSpreadBottom;
-            if (goUp) {
+            if (m_goUp) {
                 float trend = ribbonSpreadTop - m_xxx;
                 gainLevel = ribbonSpreadBottom + m_e1 * spread + m_e2 * trend;
                 height = m_xxx - ribbonSpreadBottom;

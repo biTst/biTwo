@@ -39,11 +39,12 @@ public class Ummar2Algo extends BaseRibbonAlgo1 {
     }
 
 
-    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue, boolean goUp,
+    @Override protected void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
                                      boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom) {
 //            m_min = emasMin;
 //            m_max = emasMax;
 
+        Boolean goUp = m_goUp;
         if (directionChanged) {
             m_xxx = goUp ? emasMax : emasMin;
 //                m_height = emasMax - emasMin;
