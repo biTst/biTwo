@@ -11,7 +11,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     final Ribbon m_ribbon;
     private BaseRibbonAlgo4.RibbonUi m_ribbonUi;
 
-    protected abstract void recalc4(float lastPrice, float leadEmaValue, boolean directionChanged, float ribbonSpread, float maxRibbonSpread,
+    protected abstract void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
                                     float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail, Float tailStart);
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
@@ -32,12 +32,12 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     }
 
     @Override protected final void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
-                                           boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
+                                           float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
                                            float ribbonSpreadBottom, float mid, float head, float tail) {
         // m_tailStart can be changed inside of m_ribbon.update()
-        Float tailStart = m_ribbon.update(directionChanged, mid, head, tail, m_goUp); // use local var to speedup
+        Float tailStart = m_ribbon.update(m_directionChanged, mid, head, tail, m_goUp); // use local var to speedup
 
-        recalc4(lastPrice, leadEmaValue, directionChanged, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+        recalc4(lastPrice, leadEmaValue, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart);
     }
 

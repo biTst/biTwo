@@ -60,11 +60,11 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     }
 
     @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
-                                     boolean directionChanged, float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
+                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
                                      float ribbonSpreadBottom, float mid, float head, float tail) {
 
         Boolean goUp = m_goUp;
-        if (directionChanged) {
+        if (m_directionChanged) {
             m_zerro = head; // pink
             m_turn = tail;  // dark green
             float diff = head - tail;
