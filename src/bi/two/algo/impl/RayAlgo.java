@@ -12,6 +12,7 @@ import bi.two.ts.ITimesSeriesData;
 import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
+import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.awt.*;
 import java.util.List;
@@ -44,6 +45,12 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_lvl;
     private float m_headPlus;
     private Float m_enterPower;
+    private Float m_headCollapseDouble;
+
+    private SimpleRegression m_enterRegression = new SimpleRegression(true);
+    private SimpleRegression m_exitRegression = new SimpleRegression(true);
+    private long m_exitStartTime;
+    private Float m_exitValue;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -64,17 +71,55 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, boolean goUp, boolean directionChanged, float ribbonSpread,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread,
                                      float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head,
                                      float tail, Float tailStart) {
-        if (m_lastSplitValue == null) {
-            if (leadEmaValue != head) {
-                m_lastSplitValue = (leadEmaValue + head) / 2;
-                m_lastSplitTime = m_timestamp;
+        if (m_directionChanged) {
+            SimpleRegression tmp = m_enterRegression;
+            m_enterRegression = m_exitRegression;
+            m_exitRegression = tmp;
+            tmp.clear();
+        }
+
+        long timestamp = m_timestamp;
+        Boolean goUp = m_goUp;
+        long exitStartTime = m_exitStartTime;
+        boolean exit = goUp
+                ? (lastPrice < ribbonSpreadTop) // up
+                : (lastPrice > ribbonSpreadBottom); // down
+        if (exit) { // exit started/continue
+            if (exitStartTime == 0) { // exit started
+                m_exitStartTime = timestamp;
             }
+            long exitTimeOffset = m_exitStartTime - timestamp;
+            m_exitRegression.addData(exitTimeOffset, lastPrice);
+            double predict = m_exitRegression.predict(exitTimeOffset);
+            if (Double.isNaN(predict)) {
+                m_exitValue = null;
+            } else {
+                m_exitValue = (float)predict;
+            }
+        } else { // exit not confirmed
+            if (exitStartTime != 0) { // reset exit calculations
+                m_exitStartTime = 0;
+                m_exitRegression.clear();
+                m_exitValue = null;
+            }
+        }
+
+        float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
+        if (m_lastSplitValue == null) {
+            if (head != ribbonSpreadHead) {
+                m_lastSplitValue = (head + ribbonSpreadHead) / 2;
+                m_lastSplitTime = timestamp;
+            }
+//            if (leadEmaValue != head) {
+//                m_lastSplitValue = (leadEmaValue + head) / 2;
+//                m_lastSplitTime = m_timestamp;
+//            }
         } else {
             if (m_directionChanged) {
-                m_turnTime = m_timestamp;
+                m_turnTime = timestamp;
                 m_splitTime = m_lastSplitTime;
                 m_splitValue = m_lastSplitValue;
                 m_turnHead = head;
@@ -92,10 +137,14 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 m_headPlus = headPlus;
             }
 
-            if (leadEmaValue == head) {
+            if (head == ribbonSpreadHead) {
+//            if (leadEmaValue == head) {
                 m_lastSplitValue = null;
             }
         }
+
+        float headCollapse = head - ribbonSpreadHead;
+        m_headCollapseDouble = ribbonSpreadHead + headCollapse * 2;
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter); // todo: calc only if tailStart updated
         float tailRun = tail - tailStart;
@@ -109,7 +158,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         m_enterPower = enterPower;
 
         if ((m_splitValue != null) && (m_turnTime > 0)) {
-            double rate = (m_timestamp - m_splitTime) / m_splitToTurnTime;
+            double rate = (timestamp - m_splitTime) / m_splitToTurnTime;
             m_headRay = (float) (m_splitValue + (m_turnHead - m_splitValue) * rate);
             m_tailRay = (float) (m_splitValue + (m_turnTail - m_splitValue) * rate);
             m_midRay = (m_headRay + m_tailRay) / 2;
@@ -145,6 +194,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getHeadPlusRay2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay2; } }; }
     TicksTimesSeriesData<TickData> getHeadPlusRay3Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headPlusRay3; } }; }
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
+    TicksTimesSeriesData<TickData> getHeadCollapseDoubleTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headCollapseDouble; } }; }
+    TicksTimesSeriesData<TickData> getExitValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValue; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -218,6 +269,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getHeadPlusRayTs(), topLayers, "headPlusRay", Colors.CHOCOLATE, TickPainter.LINE_JOIN, false);
             addChart(chartData, getHeadPlusRay2Ts(), topLayers, "headPlusRay2", Colors.HAZELNUT, TickPainter.LINE_JOIN, false);
             addChart(chartData, getHeadPlusRay3Ts(), topLayers, "headPlusRay3", Colors.TAN, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.YELLOW, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.TAN, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
@@ -227,8 +280,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
 //            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
-            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
-            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
