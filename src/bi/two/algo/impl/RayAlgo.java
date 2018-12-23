@@ -22,6 +22,7 @@ import static bi.two.util.Log.console;
 
 public class RayAlgo extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = false;
+    private static final boolean LIMIT_BY_PRICE = true;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -70,6 +71,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_exitMed;
     private Float m_exitMedLead;
     private Float m_exitMedLeadRate;
+    private Float m_adjNoLimit;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -217,7 +219,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         float leadEmaRate = (leadEmaValue - ribbonSpreadTail) / (head - ribbonSpreadTail);
         m_leadEmaRate = leadEmaRate;
 
-        float exitMedLead = exitMed * leadEmaRate + leadEmaValue * (1-leadEmaRate); // ledEma adjusted
+        float exitMedLead = exitMed * leadEmaRate + leadEmaValue * (1 - leadEmaRate); // ledEma adjusted
         m_exitMedLead = exitMedLead;
 
         float exitMedLeadRate = (enterValue == null)
@@ -225,10 +227,12 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 : (goUp && (exitMedLead > enterValue)) || (!goUp && (exitMedLead < enterValue))
                     ? 1 // irregular
                     : (exitMedLead - tail) / (enterValue - tail);
-        exitMedLeadRate = exitMedLeadRate * 2 - 1;
         if (exitMedLeadRate > 1) {
             exitMedLeadRate = 1;
+        } else if (exitMedLeadRate < 0) {
+            exitMedLeadRate = 0;
         }
+        exitMedLeadRate = exitMedLeadRate * 2 - 1;
         if (!goUp) {
             exitMedLeadRate = -exitMedLeadRate;
         }
@@ -308,7 +312,41 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             }
             m_lvl = lvl;
 
-            m_adj = exitMedLeadRate;
+            m_adjNoLimit = exitMedLeadRate;
+
+            if (LIMIT_BY_PRICE) {
+
+// limit only in one direction
+//                if (goUp) {
+//                    if (exitMedLeadRate > m_adj) {
+//                        if (lastPrice > exitMedLead) {
+//                            m_adj = exitMedLeadRate;
+//                        }
+//                    } else {
+//                        m_adj = exitMedLeadRate;
+//                    }
+//                } else {
+//                    if (exitMedLeadRate < m_adj) {
+//                        if (lastPrice < exitMedLead) {
+//                            m_adj = exitMedLeadRate;
+//                        }
+//                    } else {
+//                        m_adj = exitMedLeadRate;
+//                    }
+//                }
+
+                if (exitMedLeadRate > m_adj) {
+                    if (lastPrice > exitMedLead) {
+                        m_adj = exitMedLeadRate;
+                    }
+                } else { // adj < m_adj
+                    if (lastPrice < exitMedLead) {
+                        m_adj = exitMedLeadRate;
+                    }
+                }
+            } else {
+                m_adj = exitMedLeadRate;
+            }
         }
     }
 
