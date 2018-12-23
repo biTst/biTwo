@@ -16,6 +16,7 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.awt.*;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
@@ -27,6 +28,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     }
 
     private final float m_enter;
+    private final long m_mature;
 
     private long m_lastSplitTime;
     private Float m_lastSplitValue;
@@ -54,9 +56,13 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_sumDirection;
 
     private SimpleRegression m_enterRegression = new SimpleRegression(true);
+    private long m_enterStartTime;
+    private Float m_enterValue;
     private SimpleRegression m_exitRegression = new SimpleRegression(true);
     private long m_exitStartTime;
     private Float m_exitValue;
+    private Float m_exitMature;
+
     private Float m_absFalseStartRate;
     private Float m_tailToHeadStartPower;
     private boolean m_exit;
@@ -65,6 +71,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
 
         m_enter = algoConfig.getNumber(Vary.enter).floatValue();
+        m_mature = TimeUnit.MINUTES.toMillis(3);
     }
 
     @Override public void onTimeShift(long shift) {
@@ -83,15 +90,18 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread,
                                      float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head,
                                      float tail, Float tailStart) {
+        long timestamp = m_timestamp;
+
         if (m_directionChanged) {
             SimpleRegression tmp = m_enterRegression;
             m_enterRegression = m_exitRegression;
-            m_exitRegression = tmp;
+            m_enterStartTime = m_exitStartTime;
+
+            m_exitRegression = tmp; // restart exit regression calc
+            m_exitStartTime = timestamp;
             tmp.clear();
         }
 
-        Float exitValue;
-        long timestamp = m_timestamp;
         Boolean goUp = m_goUp;
         boolean exit = goUp
                 ? (lastPrice < ribbonSpreadTop) // up
@@ -102,16 +112,28 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 m_exitRegression.clear();
             }
         }
-        long exitTimeOffset = m_exitStartTime - timestamp;
+        long exitTimeOffset = timestamp - m_exitStartTime;
         m_exitRegression.addData(exitTimeOffset, lastPrice);
-        double predict = m_exitRegression.predict(exitTimeOffset);
-        if (Double.isNaN(predict)) {
-            exitValue = null;
-        } else {
-            exitValue = (float)predict;
-        }
+        double exitPredict = m_exitRegression.predict(exitTimeOffset);
+        Float exitValue = Double.isNaN(exitPredict)
+                ? null
+                : (float) exitPredict;
         m_exitValue = exitValue;
         m_exit = exit;
+
+        float exitMature = ((float) exitTimeOffset) / m_mature;
+        if (exitMature > 1) {
+            exitMature = 1;
+        }
+        m_exitMature = exitMature;
+
+        long enterTimeOffset = timestamp - m_enterStartTime;
+        m_enterRegression.addData(enterTimeOffset, lastPrice);
+        double enterPredict = m_enterRegression.predict(enterTimeOffset);
+        Float enterValue = Double.isNaN(enterPredict)
+                ? null
+                : (float) enterPredict;
+        m_enterValue = enterValue;
 
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
@@ -269,6 +291,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getHeadCollapseDoubleTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headCollapseDouble; } }; }
     TicksTimesSeriesData<TickData> getExitValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValue; } }; }
+    TicksTimesSeriesData<TickData> getEnterValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterValue; } }; }
     TicksTimesSeriesData<TickData> getAbsFalseStartRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_absFalseStartRate; } }; }
     TicksTimesSeriesData<TickData> getSmallerCollapseTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_smallerCollapse; } }; }
     TicksTimesSeriesData<TickData> getLeadEmaRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_leadEmaRate; } }; }
@@ -277,6 +300,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getCollapseBestDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseBestDirection; } }; }
     TicksTimesSeriesData<TickData> getSumDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_sumDirection; } }; }
     TicksTimesSeriesData<TickData> getTailToHeadStartPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailToHeadStartPower; } }; }
+    TicksTimesSeriesData<TickData> getExitMatureTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMature; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -319,14 +343,14 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 
 //            addChart(chartData, m_sliding.getJoinNonChangedTs(), topLayers, "sliding", Colors.BALERINA, TickPainter.LINE);
 
-            addChart(chartData, getMinTs(), topLayers, "min", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getMaxTs(), topLayers, "max", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getMinTs(), topLayers, "min", Colors.alpha(Color.RED, 150), TickPainter.LINE_JOIN);
+            addChart(chartData, getMaxTs(), topLayers, "max", Colors.alpha(Color.RED, 150), TickPainter.LINE_JOIN);
 
 //            addChart(chartData, getZigZagTs(), topLayers, "zigzag", Color.MAGENTA, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Color.PINK, TickPainter.LINE_JOIN);
-            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
-            addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.PURPLE, TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadStartTs(), topLayers, "headStart", Colors.HAZELNUT, TickPainter.LINE_JOIN);
+            addChart(chartData, getTailStartTs(), topLayers, "tailStart", Colors.HAZELNUT, TickPainter.LINE_JOIN);
+            addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
 //            Color halfGray = Colors.alpha(Color.GRAY, 128);
@@ -337,23 +361,24 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
 //            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "maxTop", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
-            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "maxBottom", Color.CYAN, TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "maxTop", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "maxBottom", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
 
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
-            addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.GRANNY_SMITH, TickPainter.LINE_JOIN);
+            addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
-            addChart(chartData, getSplitTs(), topLayers, "split", Colors.GENTLE_PLUM, TickPainter.LINE_JOIN);
-            addChart(chartData, getHeadRayTs(), topLayers, "headRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
-            addChart(chartData, getTailRayTs(), topLayers, "tailRay", Colors.ROSE, TickPainter.LINE_JOIN, false);
-            addChart(chartData, getMidRayTs(), topLayers, "midRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
+//            addChart(chartData, getSplitTs(), topLayers, "split", Colors.GENTLE_PLUM, TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadRayTs(), topLayers, "headRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
+            addChart(chartData, getTailRayTs(), topLayers, "tailRay", Colors.alpha(Colors.ROSE, 128), TickPainter.LINE_JOIN, false);
+            addChart(chartData, getMidRayTs(), topLayers, "midRay", Colors.alpha(Colors.ROSE, 90), TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadPlusRayTs(), topLayers, "headPlusRay", Colors.CHOCOLATE, TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadPlusRay2Ts(), topLayers, "headPlusRay2", Colors.HAZELNUT, TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadPlusRay3Ts(), topLayers, "headPlusRay3", Colors.TAN, TickPainter.LINE_JOIN, false);
-            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.YELLOW, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.TAN, TickPainter.LINE_JOIN);
-            addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
-            addChart(chartData, getCollapseBestTs(), topLayers, "CollapseBest", Color.BLUE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN);
+            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getEnterValueTs(), topLayers, "EnterValue", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.YELLOW, TickPainter.LINE_JOIN);
+//            addChart(chartData, getCollapseBestTs(), topLayers, "CollapseBest", Color.BLUE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
@@ -365,10 +390,11 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getCollapseRateTs(), powerLayers, "collapseRate", Colors.YELLOW, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, getAbsFalseStartRateTs(), powerLayers, "AbsFalseStartRate", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
-            addChart(chartData, getCollapseBestRateTs(), powerLayers, "CollapseBestRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
-            addChart(chartData, getTailToHeadStartPowerTs(), powerLayers, "TailToHeadStartPower", Colors.TURQUOISE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getAbsFalseStartRateTs(), powerLayers, "AbsFalseStartRate", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getCollapseBestRateTs(), powerLayers, "CollapseBestRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getTailToHeadStartPowerTs(), powerLayers, "TailToHeadStartPower", Colors.TURQUOISE, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitMatureTs(), powerLayers, "ExitMature", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
