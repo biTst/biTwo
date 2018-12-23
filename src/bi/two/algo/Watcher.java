@@ -265,6 +265,10 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     }
 
     private void process(float directionWithFade) {
+        if ((directionWithFade > 1) || (directionWithFade < -1)) {
+            throw new RuntimeException("invalid direction value=" + directionWithFade);
+        }
+
         boolean toLog = m_debugTrades;
 
         Currency currencyFrom = m_pair.m_from;
