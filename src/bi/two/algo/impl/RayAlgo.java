@@ -61,11 +61,15 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private SimpleRegression m_exitRegression = new SimpleRegression(true);
     private long m_exitStartTime;
     private Float m_exitValue;
+    private Float m_exitValueMatured;
     private Float m_exitMature;
 
     private Float m_absFalseStartRate;
     private Float m_tailToHeadStartPower;
     private boolean m_exit;
+    private Float m_exitMed;
+    private Float m_exitMedLead;
+    private Float m_exitMedLeadRate;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -103,6 +107,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
 
         Boolean goUp = m_goUp;
+        float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
+        float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
+
         boolean exit = goUp
                 ? (lastPrice < ribbonSpreadTop) // up
                 : (lastPrice > ribbonSpreadBottom); // down
@@ -112,20 +119,27 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 m_exitRegression.clear();
             }
         }
-        long exitTimeOffset = timestamp - m_exitStartTime;
-        m_exitRegression.addData(exitTimeOffset, lastPrice);
-        double exitPredict = m_exitRegression.predict(exitTimeOffset);
-        Float exitValue = Double.isNaN(exitPredict)
-                ? null
-                : (float) exitPredict;
-        m_exitValue = exitValue;
         m_exit = exit;
 
+        long exitTimeOffset = timestamp - m_exitStartTime;
         float exitMature = ((float) exitTimeOffset) / m_mature;
         if (exitMature > 1) {
             exitMature = 1;
         }
         m_exitMature = exitMature;
+        m_exitRegression.addData(exitTimeOffset, lastPrice);
+        float exitPredict = (float) m_exitRegression.predict(exitTimeOffset);
+        boolean isNan = Double.isNaN(exitPredict);
+        Float exitValue = isNan
+                ? null
+                : exitPredict;
+        m_exitValue = exitValue;
+        Float exitValueMatured = isNan
+                ? null
+                : (exitMature == 1)
+                    ? exitPredict
+                    : exitPredict * exitMature + ribbonSpreadHead * (1 - exitMature);
+        m_exitValueMatured = exitValueMatured;
 
         long enterTimeOffset = timestamp - m_enterStartTime;
         m_enterRegression.addData(enterTimeOffset, lastPrice);
@@ -134,9 +148,6 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 ? null
                 : (float) enterPredict;
         m_enterValue = enterValue;
-
-        float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
-        float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
 
         Float headStart = m_ribbon.m_headStart;
         float ribbonSpreadHeadRun = ribbonSpreadHead - headStart;
@@ -198,8 +209,30 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 : m_headCollapseDouble < leadEmaValue ? m_headCollapseDouble : leadEmaValue;
         m_smallerCollapse = smallerCollapse;
 
+        float exitMed = (exitValueMatured == null)
+                ? smallerCollapse
+                : (smallerCollapse + exitValueMatured) / 2;
+        m_exitMed = exitMed;
+
         float leadEmaRate = (leadEmaValue - ribbonSpreadTail) / (head - ribbonSpreadTail);
         m_leadEmaRate = leadEmaRate;
+
+        float exitMedLead = exitMed * leadEmaRate + leadEmaValue * (1-leadEmaRate); // ledEma adjusted
+        m_exitMedLead = exitMedLead;
+
+        float exitMedLeadRate = (enterValue == null)
+                ? 0
+                : (goUp && (exitMedLead > enterValue)) || (!goUp && (exitMedLead < enterValue))
+                    ? 1 // irregular
+                    : (exitMedLead - tail) / (enterValue - tail);
+        exitMedLeadRate = exitMedLeadRate * 2 - 1;
+        if (exitMedLeadRate > 1) {
+            exitMedLeadRate = 1;
+        }
+        if (!goUp) {
+            exitMedLeadRate = -exitMedLeadRate;
+        }
+        m_exitMedLeadRate = exitMedLeadRate;
 
         Float collapseBest;
         Float collapseBestRate;
@@ -275,7 +308,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             }
             m_lvl = lvl;
 
-            m_adj = sumDirection;
+            m_adj = exitMedLeadRate;
         }
     }
 
@@ -291,6 +324,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getHeadCollapseDoubleTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headCollapseDouble; } }; }
     TicksTimesSeriesData<TickData> getExitValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValue; } }; }
+    TicksTimesSeriesData<TickData> getExitValueMaruredTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValueMatured; } }; }
     TicksTimesSeriesData<TickData> getEnterValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterValue; } }; }
     TicksTimesSeriesData<TickData> getAbsFalseStartRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_absFalseStartRate; } }; }
     TicksTimesSeriesData<TickData> getSmallerCollapseTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_smallerCollapse; } }; }
@@ -301,6 +335,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getSumDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_sumDirection; } }; }
     TicksTimesSeriesData<TickData> getTailToHeadStartPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_tailToHeadStartPower; } }; }
     TicksTimesSeriesData<TickData> getExitMatureTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMature; } }; }
+    TicksTimesSeriesData<TickData> getExitMedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMed; } }; }
+    TicksTimesSeriesData<TickData> getExitMedLeadTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMedLead; } }; }
+    TicksTimesSeriesData<TickData> getExitMedLeadRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMedLeadRate; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -375,10 +412,13 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getHeadPlusRay2Ts(), topLayers, "headPlusRay2", Colors.HAZELNUT, TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadPlusRay3Ts(), topLayers, "headPlusRay3", Colors.TAN, TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN);
-            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+//            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitValueMaruredTs(), topLayers, "ExitValueMatured", Colors.TURQUOISE, TickPainter.LINE_JOIN);
             addChart(chartData, getEnterValueTs(), topLayers, "EnterValue", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.YELLOW, TickPainter.LINE_JOIN);
 //            addChart(chartData, getCollapseBestTs(), topLayers, "CollapseBest", Color.BLUE, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitMedTs(), topLayers, "ExitMed", Colors.CAMOUFLAGE, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitMedLeadTs(), topLayers, "ExitMedLead", Colors.HAZELNUT, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
@@ -391,10 +431,10 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getAbsFalseStartRateTs(), powerLayers, "AbsFalseStartRate", Colors.LEMONADE, TickPainter.LINE_JOIN);
-//            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
+            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getCollapseBestRateTs(), powerLayers, "CollapseBestRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getTailToHeadStartPowerTs(), powerLayers, "TailToHeadStartPower", Colors.TURQUOISE, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitMatureTs(), powerLayers, "ExitMature", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getExitMatureTs(), powerLayers, "ExitMature", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
@@ -407,6 +447,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getLvlTs(), valueLayers, "lvl", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getCollapseBestDirectionTs(), valueLayers, "CollapseBestDirection", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getSumDirectionTs(), valueLayers, "sumDirection", Colors.GOLD, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitMedLeadRateTs(), valueLayers, "ExitMedLeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
         }
 
         if (collectValues) {
