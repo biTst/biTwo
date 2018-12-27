@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit;
 import static bi.two.util.Log.console;
 
 public class RayAlgo extends BaseRibbonAlgo3 {
-    private static final boolean ADJUST_TAIL = false;
-    private static final boolean LIMIT_BY_PRICE = true;
+    private static final boolean ADJUST_TAIL = true;
+    private static final boolean LIMIT_BY_PRICE = false;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -72,6 +72,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     private Float m_exitMedLead;
     private Float m_exitMedLeadRate;
     private Float m_adjNoLimit;
+    private Float m_enterConfidence;
+    private Float m_exitConfidence;
 
     public RayAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -150,6 +152,10 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 ? null
                 : (float) enterPredict;
         m_enterValue = enterValue;
+
+//        m_enterConfidence = (float)m_enterRegression.getSlopeConfidenceInterval();
+        double exitConfidence = m_exitRegression.getSlopeConfidenceInterval();
+        m_exitConfidence = Double.isNaN(exitConfidence) ? null : (float) exitConfidence;
 
         Float headStart = m_ribbon.m_headStart;
         float ribbonSpreadHeadRun = ribbonSpreadHead - headStart;
@@ -376,6 +382,9 @@ public class RayAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getExitMedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMed; } }; }
     TicksTimesSeriesData<TickData> getExitMedLeadTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMedLead; } }; }
     TicksTimesSeriesData<TickData> getExitMedLeadRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMedLeadRate; } }; }
+    TicksTimesSeriesData<TickData> getEnterConfidenceTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterConfidence; } }; }
+    TicksTimesSeriesData<TickData> getExitConfidenceTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitConfidence; } }; }
+
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -428,13 +437,13 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.HAZELNUT, TickPainter.LINE_JOIN);
 //            addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
-//            Color halfGray = Colors.alpha(Color.GRAY, 128);
-//            addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
-//            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
-//            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
-//            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
-//            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
-//            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            Color halfGray = Colors.alpha(Color.GRAY, 128);
+            addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
+            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
             addChart(chartData, getRibbonSpreadTopTs(), topLayers, "maxTop", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "maxBottom", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
@@ -469,10 +478,12 @@ public class RayAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getHeadPlusTs(), powerLayers, "headPlus", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.LEMONADE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getAbsFalseStartRateTs(), powerLayers, "AbsFalseStartRate", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getCollapseBestRateTs(), powerLayers, "CollapseBestRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getTailToHeadStartPowerTs(), powerLayers, "TailToHeadStartPower", Colors.TURQUOISE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getExitMatureTs(), powerLayers, "ExitMature", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getEnterConfidenceTs(), powerLayers, "EnterConfidence", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitConfidenceTs(), powerLayers, "ExitConfidence", Colors.ROSE, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
