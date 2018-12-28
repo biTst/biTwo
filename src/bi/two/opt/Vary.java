@@ -6,11 +6,20 @@ import bi.two.util.Utils;
 
 public enum Vary {
     period(VaryType.MILLIS),  // barSize
-    mature(VaryType.MILLIS),
+    start(VaryType.FLOAT),
+    step(VaryType.FLOAT),
+    count(VaryType.FLOAT),
     turn(VaryType.FLOAT),     // time in bars to confirm turn
     bars(VaryType.INT),         // barsNum
+    multiplier(VaryType.FLOAT), // linRegMultiplier
+    enter(VaryType.FLOAT),
+    minOrderMul(VaryType.FLOAT),
+    joinTicks(VaryType.LONG),
+    commission(VaryType.FLOAT),
+
+    mature(VaryType.MILLIS),
     divider(VaryType.FLOAT),
-    multiplier(VaryType.FLOAT),
+    rate(VaryType.FLOAT),
     slope(VaryType.FLOAT),     // slopeLength
     signal(VaryType.FLOAT),   // signalLength
     power(VaryType.FLOAT),
@@ -18,15 +27,10 @@ public enum Vary {
     threshold(VaryType.FLOAT), // strong trend threshold
     drop(VaryType.FLOAT),           // trend drop level
     reverse(VaryType.FLOAT),     // direction threshold
-    enter(VaryType.FLOAT),
     backLevel(VaryType.FLOAT),
 
     longEmaLen(VaryType.FLOAT),   // long ema trend len
     shortEmaLen(VaryType.FLOAT), // short ema trend len
-
-    start(VaryType.FLOAT),
-    step(VaryType.FLOAT),
-    count(VaryType.FLOAT),
 
     s1(VaryType.FLOAT), // spread proportional start
     s2(VaryType.FLOAT), // gain proportional start
@@ -42,9 +46,6 @@ public enum Vary {
     p3(VaryType.FLOAT),
     p4(VaryType.FLOAT),
 
-    minOrderMul(VaryType.FLOAT),
-    joinTicks(VaryType.LONG),
-    commission(VaryType.FLOAT),
     ;
     
     public final VaryType m_varyType;
