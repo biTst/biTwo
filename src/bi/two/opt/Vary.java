@@ -6,6 +6,7 @@ import bi.two.util.Utils;
 
 public enum Vary {
     period(VaryType.MILLIS),  // barSize
+    mature(VaryType.MILLIS),
     turn(VaryType.FLOAT),     // time in bars to confirm turn
     bars(VaryType.INT),         // barsNum
     divider(VaryType.FLOAT),
