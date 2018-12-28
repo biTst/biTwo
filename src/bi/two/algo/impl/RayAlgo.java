@@ -16,7 +16,6 @@ import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import java.awt.*;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static bi.two.util.Log.console;
 
@@ -79,7 +78,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
 
         m_enter = algoConfig.getNumber(Vary.enter).floatValue();
-        m_mature = TimeUnit.MINUTES.toMillis(3);
+        m_mature = algoConfig.getNumber(Vary.mature).longValue();  // TimeUnit.MINUTES.toMillis(3);
     }
 
     @Override public void onTimeShift(long shift) {
@@ -153,9 +152,11 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 : (float) enterPredict;
         m_enterValue = enterValue;
 
+        if (m_collectValues) { // for now used in UI only
 //        m_enterConfidence = (float)m_enterRegression.getSlopeConfidenceInterval();
-        double exitConfidence = m_exitRegression.getSlopeConfidenceInterval();
-        m_exitConfidence = Double.isNaN(exitConfidence) ? null : (float) exitConfidence;
+            double exitConfidence = m_exitRegression.getSlopeConfidenceInterval();
+            m_exitConfidence = Double.isNaN(exitConfidence) ? null : (float) exitConfidence;
+        }
 
         Float headStart = m_ribbon.m_headStart;
         float ribbonSpreadHeadRun = ribbonSpreadHead - headStart;
@@ -394,9 +395,11 @@ public class RayAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
                 + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
+                + (detailed ? "|mature=" : "|") + m_mature
                 + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|joiner=" : "|") + m_joinerName
                 + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
+                + (detailed ? "|enter=" : "|") + m_enter
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
