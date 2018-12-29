@@ -27,6 +27,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
     private final float m_enter;
     private final float m_rate;
+    private final float m_p1;
+    private final float m_p2;
 
     private Float m_headCollapseDouble;
     private Float m_smallerCollapse;
@@ -44,6 +46,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
         m_enter = algoConfig.getNumber(Vary.enter).floatValue();
         m_rate = algoConfig.getNumber(Vary.rate).floatValue();
+        m_p1 = algoConfig.getNumber(Vary.p1).floatValue();
+        m_p2 = algoConfig.getNumber(Vary.p2).floatValue();
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
@@ -87,20 +91,20 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
         if (goUp) {
             if (headCollapseDiffDiff > 0) {
-                m_secondHeadDiff += headCollapseDiffDiff;
+                m_secondHeadDiff += headCollapseDiffDiff * m_p1;
             }
             if (headEdgeDiffDiff < 0) {
-                m_secondHeadDiff += headEdgeDiffDiff;
+                m_secondHeadDiff += headEdgeDiffDiff * m_p2;
             }
             if (m_secondHeadDiff < 0) {
                 m_secondHeadDiff = 0f;
             }
         } else {
             if (headCollapseDiffDiff < 0) {
-                m_secondHeadDiff += headCollapseDiffDiff;
+                m_secondHeadDiff += headCollapseDiffDiff * m_p1;
             }
             if (headEdgeDiffDiff > 0) {
-                m_secondHeadDiff += headEdgeDiffDiff;
+                m_secondHeadDiff += headEdgeDiffDiff * m_p2;
             }
             if (m_secondHeadDiff > 0) {
                 m_secondHeadDiff = 0f;
@@ -221,9 +225,9 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
-            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN);
+            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN, false);
             addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
-            addChart(chartData, getSecondHeadTs(), topLayers, "SecondHead", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
+            addChart(chartData, getSecondHeadTs(), topLayers, "SecondHead", Colors.CANDY_PINK, TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
