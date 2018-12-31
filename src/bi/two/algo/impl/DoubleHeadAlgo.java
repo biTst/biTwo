@@ -30,6 +30,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     private final float m_p1;
     private final float m_p2;
     private final float m_collapse;
+    private final float m_reverseMul;
+    private final float m_power;
 
     private Float m_headCollapseDouble;
     private Float m_smallerCollapse;
@@ -53,6 +55,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_p1 = algoConfig.getNumber(Vary.p1).floatValue();
         m_p2 = algoConfig.getNumber(Vary.p2).floatValue();
         m_collapse = algoConfig.getNumber(Vary.collapse).floatValue();
+        m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
+        m_power = algoConfig.getNumber(Vary.power).floatValue();
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
@@ -62,19 +66,15 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
 
         float headCollapse = head - ribbonSpreadHead;
-        m_headCollapseDouble = ribbonSpreadHead + headCollapse * m_rate;
+        float headCollapseDouble = ribbonSpreadHead + headCollapse * m_rate;
+        m_headCollapseDouble = headCollapseDouble;
 
         float smallerCollapse = goUp
-                ? (m_headCollapseDouble > leadEmaValue) ? m_headCollapseDouble : leadEmaValue
-                : (m_headCollapseDouble < leadEmaValue) ? m_headCollapseDouble : leadEmaValue;
+                ? (headCollapseDouble > leadEmaValue) ? headCollapseDouble : leadEmaValue
+                : (headCollapseDouble < leadEmaValue) ? headCollapseDouble : leadEmaValue;
         m_smallerCollapse = smallerCollapse;
 
         float smallerCollapseRate = (smallerCollapse - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail);
-//        if (smallerCollapseRate > 1) {
-//            smallerCollapseRate = 1f;
-//        } else if (smallerCollapseRate < 0) {
-//            smallerCollapseRate = 0f;
-//        }
         float smallerCollapseDirection = smallerCollapseRate * 2 - 1;
         if (!goUp) {
             smallerCollapseDirection = -smallerCollapseDirection;
@@ -118,12 +118,14 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         float secondHead = ribbonSpreadHead - m_secondHeadDiff;
         m_secondHead = secondHead;
 
-        float secondHeadRate = (secondHead - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail);
+        float secondHeadRate = (secondHead - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail); // [0...1]
+        secondHeadRate = 1 - (1 - secondHeadRate) * m_reverseMul;
         if (secondHeadRate < 0) {
             secondHeadRate = 0;
         } else if (secondHeadRate > 1) {
             secondHeadRate = 1;
         }
+        secondHeadRate = (float) Math.pow(secondHeadRate, m_power);
         m_secondHeadRate = secondHeadRate;
 
         float secondHeadDirection = secondHeadRate * 2 - 1;
@@ -135,7 +137,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         float enterLevel = m_ribbon.calcEnterLevel(m_enter); // todo: calc only if tailStart updated
         float tailRun = tail - tailStart;
         float tailRunToEnter = enterLevel - tailStart;
-        float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : tailRun / tailRunToEnter;
+        float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : (tailRun / tailRunToEnter);
         if (enterPower > 1) {
             enterPower = 1;
         } else if(enterPower < 0) {
@@ -149,17 +151,21 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         float adjToEdge = ((goUp && (secondHeadDirection > 0)) || (!goUp && (secondHeadDirection < 0))) ? adjToRun : adjToCollapse;
         float adj = (1 - enterPower) * (m_prevAdj + enterPower * adjToEdge * secondHeadDirection) + enterPower * secondHeadDirection;
 
-        float leadEmaRate = (leadEmaValue - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail);
+        float leadEmaRate = (leadEmaValue - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail); // [1 -> 0]
         m_leadEmaRate = leadEmaRate;
 
-        float collapseRate = 1 - ((1 - leadEmaRate) * (1 - enterPower)) * m_collapse;
+        float collapseRate = ((1 - leadEmaRate) * (1 - enterPower)); // [0...1]
         m_collapseRate = collapseRate;
 
-        float adjCollapsed = adj * collapseRate;
+        float adjCollapsed = adj - (adj + (goUp ? 1 : -1)) * m_collapse * collapseRate;
         m_adjCollapsed = adjCollapsed;
 
-        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower;
-        m_simpler = simpler;
+//        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower;
+//        m_simpler = simpler;
+
+//        if(adjCollapsed>1 || adjCollapsed<-1) {
+//            console("err");
+//        }
 
         m_adj = adjCollapsed;
     }
@@ -194,6 +200,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|p1=" : "|") + m_p1
                 + (detailed ? "|p2=" : "|") + m_p2
                 + (detailed ? "|collapse=" : "|") + m_collapse
+                + (detailed ? "|reverseMul=" : "|") + m_reverseMul
+                + (detailed ? "|power=" : "|") + m_power
                 + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
         + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
