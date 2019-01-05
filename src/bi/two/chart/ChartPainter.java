@@ -248,7 +248,13 @@ public class ChartPainter {
 
         g2.drawRect(paintLeft, paintTop, paintWidth - 1, paintHeight - 1);
         int fontHeight = g2.getFontMetrics().getHeight();
-        g2.drawString(cas.getName(), paintLeft + 10, paintTop + fontHeight);
+        int areaNameLeft = paintLeft + 10;
+        int areaNameY = paintTop + fontHeight;
+        g2.drawString(cas.getName(), areaNameLeft, areaNameY);
+
+        int layerNameLeft = areaNameLeft + 5;
+        int layerNameY = areaNameY;
+        boolean showLegend = cps.getShowLegend();
 
         // paint PriceAxe
         int paintRight = paintLeft + paintWidth - 1;
@@ -288,6 +294,11 @@ public class ChartPainter {
                     if (ticksData != null) {
                         Color layerColor = ls.getColor();
                         g2.setColor(layerColor);
+
+                        if (showLegend) {
+                            layerNameY += fontHeight;
+                            g2.drawString(name, layerNameLeft, layerNameY);
+                        }
 
                         ChartAreaPainter chartAreaPainter = ls.getChartAreaPainter();
                         chartAreaPainter.paintChartArea(g2, ticksData, xAxe, yAxe, 0, priceRight, timeMin, timeMax, crossPoint);

@@ -47,6 +47,8 @@ public class ChartCanvas extends JComponent {
                     m_cps.zoom(false, getWidth()/2);
                 } else if(keyChar == '-') {
                     m_cps.zoom(true, getWidth()/2);
+                } else if(keyChar == 'l') { // legend on-off
+                    m_cps.toggleShowLegend();
                 }
                 repaint(150);
             }

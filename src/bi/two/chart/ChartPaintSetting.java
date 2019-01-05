@@ -6,6 +6,7 @@ public class ChartPaintSetting {
     private int m_height;
     private final Axe.AxeLong m_xAxe = new Axe.AxeLong(); // time axe
     private int m_priceAxeWidth; // Y-axe width
+    private boolean m_showLegend;
 
     public ChartPaintSetting() {
     }
@@ -14,6 +15,7 @@ public class ChartPaintSetting {
     public int getHeight() { return m_height; }
     public Axe.AxeLong getXAxe() { return m_xAxe; }
     public int getPriceAxeWidth() { return m_priceAxeWidth; }
+    public boolean getShowLegend() { return m_showLegend; }
 
     public void setPriceAxeWidth(int priceAxeWidth) { m_priceAxeWidth = priceAxeWidth; }
 
@@ -46,5 +48,9 @@ public class ChartPaintSetting {
         if (m_xAxe.isInitialized()) {
             m_xAxe.zoom(in, x);
         }
+    }
+
+    public void toggleShowLegend() {
+        m_showLegend = !m_showLegend;
     }
 }
