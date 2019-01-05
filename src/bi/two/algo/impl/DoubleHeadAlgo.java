@@ -243,21 +243,21 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
             Color halfGray = Colors.alpha(Color.GRAY, 128);
             addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
-            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "maxTop", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
-            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "maxBottom", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadTopTs(), topLayers, "RibbonSpreadTop", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
+            addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "RibbonSpreadBottom", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
 
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
-            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN, false);
-            addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
-            addChart(chartData, getSecondHeadTs(), topLayers, "SecondHead", Colors.CANDY_PINK, TickPainter.LINE_JOIN, false);
+//            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN, false);
+//            addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
+//            addChart(chartData, getSecondHeadTs(), topLayers, "SecondHead", Colors.CANDY_PINK, TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
