@@ -16,7 +16,8 @@ import bi.two.util.Utils;
 import java.util.concurrent.TimeUnit;
 
 import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
-import static bi.two.util.Log.*;
+import static bi.two.util.Log.console;
+import static bi.two.util.Log.err;
 
 public class Watcher extends TicksTimesSeriesData<TradeData> {
     private static final boolean LOG_MOVE = false;
@@ -42,7 +43,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
     private final CurrencyValue m_exchMinOrderToCreate;
     private final boolean m_priceAtSameTick; // apply price from same tick or from the next
     private final boolean m_debugTrades; // paint debug info about trades on chart
-    private final boolean m_logGaps;
+    private final long m_logGaps; // min gaps in millis not to log
     private final double m_minOrderMul;
     private final boolean m_hasSchedule;
     private AccountData m_initAcctData;
@@ -94,7 +95,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         }
         m_priceAtSameTick = config.getBooleanOrDefault("priceAtSameTick", Boolean.FALSE); // by def - use price from next tick
         m_debugTrades = config.getBooleanOrDefault("debugTrades", Boolean.FALSE);
-        m_logGaps = config.getBooleanOrDefault("logGaps", Boolean.FALSE); // do not log by def
+        m_logGaps = config.getPeriodInMillis("logGaps");
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
@@ -125,9 +126,15 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                     float fadeOutRate = ((float) (gap - MIN_GAP_TO_FADE_OUT)) / FADE_OUT_TIME;
                     fadeOutRate = (1 <= fadeOutRate) ? 1 : fadeOutRate;  //  Math.min(1, fadeOutRate); // [0->1]
                     m_fadeOutRate = 1 - (1 - fadeOutRate) * (1 - m_fadeOutRate);
-                    if (m_logGaps) {
-                        log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
-//console("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                    if (gap > m_logGaps) {
+                        if (m_hasSchedule) {
+                            String last = m_tradeSchedule.formatLongDateTime(lastTimestamp);
+                            String current = m_tradeSchedule.formatLongDateTime(currTimestamp);
+                            console("got GAP: " + Utils.millisToYDHMSStr(gap) + "; [from: " + last + " to " + current + "]; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                        } else {
+//                        log("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                            console("got GAP: " + Utils.millisToYDHMSStr(gap) + "; fadeOutRate=" + fadeOutRate + "; total fadeOutRate=" + m_fadeOutRate);
+                        }
                     }
                     m_fadeInRate = 0;
                     processWithFade(m_lastDirection);
@@ -215,7 +222,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
                 if (adjusted != null) {
                     try {
                         process(adjusted);
-                    } catch (AccountData.AccountMoveException ame) {
+                    } catch (IllegalStateException ame) {
                         err("acct error: " + ame, ame);
                         adjusted = m_algo.getAdjusted();
                     }
@@ -266,7 +273,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
 
     private void process(float directionWithFade) {
         if ((directionWithFade > 1) || (directionWithFade < -1)) {
-            throw new RuntimeException("invalid direction value=" + directionWithFade);
+            throw new IllegalStateException("invalid direction value=" + directionWithFade);
         }
 
         boolean toLog = m_debugTrades;
