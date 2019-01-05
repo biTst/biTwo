@@ -34,6 +34,7 @@ public enum Schedule {
     },
     us_stocks(),
 
+    // MOEX: Moscow Exchange
     // Derivatives market is open from 10:00am until 11:50pm MSK
     // The evening trading session is held from 7:00 pm – 11:50 pm MSK
     moex(10, 0, 23, 50, TimeZone.getTimeZone("GMT+3"), Holidays.ru)

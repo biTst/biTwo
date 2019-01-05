@@ -6,7 +6,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static bi.two.util.Log.log;
+import static bi.two.util.Log.console;
 
 // precalculated trading hours for particular day
 public class TradeHours {
@@ -76,25 +76,34 @@ public class TradeHours {
     }
 
     private void shiftCalendarToNextDay() {
-        m_calendar.add(Calendar.DAY_OF_YEAR, 1);
+        m_calendar.add(Calendar.DAY_OF_YEAR, 1); // go to next day
 
         int dayOfWeek = m_calendar.get(Calendar.DAY_OF_WEEK);
-        if ((dayOfWeek == Calendar.SATURDAY) || (dayOfWeek == Calendar.SUNDAY)) {
-            shiftCalendarToNextDay();
-        } else {
-            Schedule schedule = m_tradeSchedule.m_schedule;
-            Holidays holidays = schedule.getHolidays();
-            if (holidays != null) {
-                DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
-                TimeZone timezone = schedule.getTimezone();
-                dateFormat.setTimeZone(timezone);
-                Date time = m_calendar.getTime();
-                String dateFormatted = dateFormat.format(time);
-                boolean holiday = holidays.isHoliday(dateFormatted);
-                if (holiday) {
-                    log("skip holiday=" + dateFormatted);
+        Schedule schedule = m_tradeSchedule.m_schedule;
+        Holidays holidays = schedule.getHolidays();
+        if (holidays != null) {
+            DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+            TimeZone timezone = schedule.getTimezone();
+            dateFormat.setTimeZone(timezone);
+            Date time = m_calendar.getTime();
+            String dateFormatted = dateFormat.format(time);
+            boolean working = holidays.isWorking(dateFormatted);
+            if (working) {
+                console("special working day=" + dateFormatted);
+            } else {
+                if ((dayOfWeek == Calendar.SATURDAY) || (dayOfWeek == Calendar.SUNDAY)) {
                     shiftCalendarToNextDay();
+                } else {
+                    boolean holiday = holidays.isHoliday(dateFormatted);
+                    if (holiday) {
+                        console("skip holiday=" + dateFormatted);
+                        shiftCalendarToNextDay();
+                    }
                 }
+            }
+        } else { // no special holidays
+            if ((dayOfWeek == Calendar.SATURDAY) || (dayOfWeek == Calendar.SUNDAY)) { // just skip weekends
+                shiftCalendarToNextDay();
             }
         }
     }
