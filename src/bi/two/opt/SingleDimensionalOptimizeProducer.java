@@ -13,8 +13,7 @@ import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static bi.two.util.Log.console;
-import static bi.two.util.Log.log;
+import static bi.two.util.Log.*;
 
 public class SingleDimensionalOptimizeProducer extends OptimizeProducer implements UnivariateFunction {
     public static final int MAX_EVALS_COUNT = 150;
@@ -100,10 +99,15 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
 //        console("BrentOptimizer thread started");
         m_optimizer = new BrentOptimizer(RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE);
         double multiplier = m_fieldConfig.m_multiplier;
-        m_optimizePoint = m_optimizer.optimize(new MaxEval(MAX_EVALS_COUNT),
-                new UnivariateObjectiveFunction(this),
-                GoalType.MAXIMIZE,
-                new SearchInterval(m_min, m_max, m_start));
+        try {
+            m_optimizePoint = m_optimizer.optimize(new MaxEval(MAX_EVALS_COUNT),
+                    new UnivariateObjectiveFunction(this),
+                    GoalType.MAXIMIZE,
+                    new SearchInterval(m_min, m_max, m_start));
+        } catch (Exception e) {
+            err("optimize error for field '" + m_fieldConfig.m_vary + "': " + e, e);
+            throw e;
+        }
         console("BrentOptimizer result for " + m_fieldConfig.m_vary.name()
                 + ": point=" + (m_optimizePoint.getPoint() * multiplier)
                 + "; value=" + m_optimizePoint.getValue()

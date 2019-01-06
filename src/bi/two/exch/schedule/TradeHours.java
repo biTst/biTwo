@@ -6,7 +6,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static bi.two.util.Log.console;
+import static bi.two.util.Log.log;
 
 // precalculated trading hours for particular day
 public class TradeHours {
@@ -89,14 +89,14 @@ public class TradeHours {
             String dateFormatted = dateFormat.format(time);
             boolean working = holidays.isWorking(dateFormatted);
             if (working) {
-                console("special working day=" + dateFormatted);
+                log("special working day=" + dateFormatted);
             } else {
                 if ((dayOfWeek == Calendar.SATURDAY) || (dayOfWeek == Calendar.SUNDAY)) {
                     shiftCalendarToNextDay();
                 } else {
                     boolean holiday = holidays.isHoliday(dateFormatted);
                     if (holiday) {
-                        console("skip holiday=" + dateFormatted);
+                        log("skip holiday=" + dateFormatted);
                         shiftCalendarToNextDay();
                     }
                 }
