@@ -95,25 +95,13 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_headEdgeDiff = headEdgeDiff;
 
         if (goUp) {
-            if (headCollapseDiffDiff > 0) {
-                m_secondHeadDiff += headCollapseDiffDiff * m_p1;
-            }
-            if (headEdgeDiffDiff < 0) {
-                m_secondHeadDiff += headEdgeDiffDiff * m_p2;
-            }
-            if (m_secondHeadDiff < 0) {
-                m_secondHeadDiff = 0f;
-            }
+            if (headCollapseDiffDiff > 0) { m_secondHeadDiff += headCollapseDiffDiff * m_p1; }
+            if (headEdgeDiffDiff < 0) { m_secondHeadDiff += headEdgeDiffDiff * m_p2; }
+            if (m_secondHeadDiff < 0) { m_secondHeadDiff = 0f; }
         } else {
-            if (headCollapseDiffDiff < 0) {
-                m_secondHeadDiff += headCollapseDiffDiff * m_p1;
-            }
-            if (headEdgeDiffDiff > 0) {
-                m_secondHeadDiff += headEdgeDiffDiff * m_p2;
-            }
-            if (m_secondHeadDiff > 0) {
-                m_secondHeadDiff = 0f;
-            }
+            if (headCollapseDiffDiff < 0) { m_secondHeadDiff += headCollapseDiffDiff * m_p1; }
+            if (headEdgeDiffDiff > 0) { m_secondHeadDiff += headEdgeDiffDiff * m_p2; }
+            if (m_secondHeadDiff > 0) { m_secondHeadDiff = 0f; }
         }
         float secondHead = ribbonSpreadHead - m_secondHeadDiff;
         m_secondHead = secondHead;
@@ -129,9 +117,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_secondHeadRate = secondHeadRate;
 
         float secondHeadDirection = secondHeadRate * 2 - 1;
-        if (!goUp) {
-            secondHeadDirection = -secondHeadDirection;
-        }
+        if (!goUp) { secondHeadDirection = -secondHeadDirection; }
         m_secondHeadDirection = secondHeadDirection;
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter); // todo: calc only if tailStart updated
@@ -158,6 +144,11 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_collapseRate = collapseRate;
 
         float adjCollapsed = adj - (adj + (goUp ? 1 : -1)) * m_collapse * collapseRate;
+        if (adjCollapsed > 1) {
+            adjCollapsed = 1;
+        } else if (adjCollapsed < 1) {
+            adjCollapsed = -1;
+        }
         m_adjCollapsed = adjCollapsed;
 
 //        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower;
@@ -192,7 +183,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? ",count=" : ",") + m_count
                 + (detailed ? ",linRegMult=" : ",") + m_linRegMultiplier
                 + (detailed ? "|minOrdMul=" : "|") + m_minOrderMul
-//                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
+                + (detailed ? "|joinTicks=" : "|") + m_joinTicks
                 + (detailed ? "|joiner=" : "|") + m_joinerName
                 + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
                 + (detailed ? "|enter=" : "|") + m_enter
@@ -202,7 +193,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|collapse=" : "|") + m_collapse
                 + (detailed ? "|reverseMul=" : "|") + m_reverseMul
                 + (detailed ? "|power=" : "|") + m_power
-                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
+//                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
         + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
                 ;
@@ -255,7 +246,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
-//            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN, false);
+            addChart(chartData, getHeadCollapseDoubleTs(), topLayers, "HeadCollapseDouble", Colors.alpha(Colors.YELLOW, 128), TickPainter.LINE_JOIN, false);
 //            addChart(chartData, getSmallerCollapseTs(), topLayers, "SmallerCollapse", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadTs(), topLayers, "SecondHead", Colors.CANDY_PINK, TickPainter.LINE_JOIN, false);
         }
