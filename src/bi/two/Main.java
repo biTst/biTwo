@@ -144,7 +144,7 @@ public class Main {
 
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
-                tradesReader.readTicks(config, writerTicksTs, callback, tradesWriter);
+                tradesReader.readTicks(config, writerTicksTs, callback);
                 ticksTs.waitWhenAllFinish();
 
                 notifyFinish(watchers);
