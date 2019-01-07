@@ -12,7 +12,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     private BaseRibbonAlgo4.RibbonUi m_ribbonUi;
 
     protected abstract void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
-                                    float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail, Float tailStart);
+                                    float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail);
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
@@ -35,10 +35,9 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
                                            float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
                                            float ribbonSpreadBottom, float mid, float head, float tail) {
         // m_tailStart can be changed inside of m_ribbon.update()
-        Float tailStart = m_ribbon.update(m_directionChanged, mid, head, tail, m_goUp); // use local var to speedup
+        m_ribbon.update(m_directionChanged, mid, head, tail, m_goUp); // use local var to speedup
 
-        recalc4(lastPrice, leadEmaValue, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
-                ribbonSpreadBottom, mid, head, tail, tailStart);
+        recalc4(lastPrice, leadEmaValue, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom, mid, head, tail);
     }
 
     @Override public void reset() {
@@ -46,9 +45,9 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         m_ribbon.reset();
     }
 
-    TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_headStart; } }; }
-    TicksTimesSeriesData<TickData> getTailStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_tailStart; } }; }
-    TicksTimesSeriesData<TickData> getMidStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_midStart; } }; }
+    TicksTimesSeriesData<TickData> getHeadStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbon.m_headStart; } }; }
+    TicksTimesSeriesData<TickData> getTailStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbon.m_tailStart; } }; }
+    TicksTimesSeriesData<TickData> getMidStartTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbon.m_midStart; } }; }
 
     TicksTimesSeriesData<TickData> get1quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_1quarterPaint; } }; }
     TicksTimesSeriesData<TickData> get3quarterTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ribbonUi.m_3quarterPaint; } }; }
@@ -88,7 +87,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
                     if ((tailStart != null) && ((goUp && (tail < tailStart)) || (!goUp && (tail > tailStart)))) {
                         tailStart = tail;
                         float spread = m_headStart - tail;
-                        onTailAdjusted(tail, spread);
+                        onTailAdjusted(tail, spread); // m_tailStart updated inside
 
                         m_collapser.adjustTail(tail);
                     }
