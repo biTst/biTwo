@@ -32,10 +32,11 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     private final float m_collapse;
     private final float m_reverseMul;
     private final float m_power;
+    private final float m_spread;
 
     private Float m_headCollapseDouble;
     private Float m_smallerCollapse;
-    private Float m_smallerCollapseDirection;
+//    private Float m_smallerCollapseDirection;
     private Float m_headCollapseDiff;
     private Float m_headEdgeDiff;
     private Float m_secondHead;
@@ -46,10 +47,19 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     private Float m_simpler;
     private Float m_leadEmaRate;
     private Float m_minLeadEmaRate;
-    private Float m_collapseRate;
-    private Float m_adjCollapsed;
+//    private Float m_collapseRate;
+//    private Float m_adjCollapsed;
     private Float m_enterLevel;
     private Float m_spreadExpand;
+    private float m_spreadSum;
+    private int m_turnCount;
+    private float m_initSpread;
+    private Float m_spreadRate;
+
+    @Override public void notifyFinish() {
+        float avgSpread = m_spreadSum / m_turnCount;
+        console("@#$% avgSpread=" + avgSpread);
+    }
 
     public DoubleHeadAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -60,6 +70,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_collapse = algoConfig.getNumber(Vary.collapse).floatValue();
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
+        m_spread = algoConfig.getNumber(Vary.spread).floatValue();
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
@@ -70,8 +81,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
         Float headStart = m_ribbon.m_headStart;
         Float tailStart = m_ribbon.m_tailStart;
-        float spreadExpand = (ribbonSpreadHead - ribbonSpreadTail) / (headStart - tailStart);
-        m_spreadExpand = spreadExpand;
+//        float spreadExpand = (ribbonSpreadHead - ribbonSpreadTail) / m_initSpread;
+//        m_spreadExpand = spreadExpand;
 
         float headCollapse = head - ribbonSpreadHead;
         float headCollapseDouble = ribbonSpreadHead + headCollapse * m_rate;
@@ -82,19 +93,31 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 : (headCollapseDouble < leadEmaValue) ? headCollapseDouble : leadEmaValue;
         m_smallerCollapse = smallerCollapse;
 
-        float smallerCollapseRate = (smallerCollapse - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail);
-        float smallerCollapseDirection = smallerCollapseRate * 2 - 1;
-        if (!goUp) {
-            smallerCollapseDirection = -smallerCollapseDirection;
-        }
-        m_smallerCollapseDirection = smallerCollapseDirection;
+//        float smallerCollapseRate = (smallerCollapse - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail);
+//        float smallerCollapseDirection = smallerCollapseRate * 2 - 1;
+//        if (!goUp) {
+//            smallerCollapseDirection = -smallerCollapseDirection;
+//        }
+//        m_smallerCollapseDirection = smallerCollapseDirection;
 
+        float spread = head - tail;
+        float absSpread = (spread < 0) ? -spread : spread;
+        float spreadNormalized = absSpread / lastPrice;
         if (m_directionChanged) {
             m_headCollapseDiff = null;
             m_headEdgeDiff = null;
             m_secondHeadDiff = 0f;
             m_minLeadEmaRate = 1f;
+
+            m_initSpread = spread; // can be negative
+            m_spreadSum += spreadNormalized;
+            m_turnCount++;
         }
+
+        float spreadRate = spreadNormalized / m_spread;
+        m_spreadRate = spreadRate;
+        float spreadRateLimited = (spreadRate > 1) ? 1 : spreadRate;
+
         float headCollapseDiff = head - smallerCollapse;
         float headCollapseDiffDiff = (m_headCollapseDiff == null) ? 0 : (headCollapseDiff - m_headCollapseDiff);
         m_headCollapseDiff = headCollapseDiff;
@@ -148,20 +171,20 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         if (enterPower > 1) { enterPower = 1; } else if(enterPower < 0) { enterPower = 0; } // limit to [0...1]
         m_enterPower = enterPower;
 
-        float collapseRate = ((1 - leadEmaRate) * (1 - enterPower)); // [0...1]
-        m_collapseRate = collapseRate;
+//        float collapseRate = ((1 - leadEmaRate) * (1 - enterPower)); // [0...1]
+//        m_collapseRate = collapseRate;
 
-        float adjToRun = goUp ? (1 - m_prevAdj) : (1 + m_prevAdj);
-        float adjToCollapse = goUp ? (1 + m_prevAdj) : (1 - m_prevAdj);
+//        float adjToRun = goUp ? (1 - m_prevAdj) : (1 + m_prevAdj);
+//        float adjToCollapse = goUp ? (1 + m_prevAdj) : (1 - m_prevAdj);
 
-        float adjToEdge = ((goUp && (secondHeadDirection > 0)) || (!goUp && (secondHeadDirection < 0))) ? adjToRun : adjToCollapse;
-        float adj = (1 - enterPower) * (m_prevAdj + enterPower * adjToEdge * secondHeadDirection) + enterPower * secondHeadDirection;
+//        float adjToEdge = ((goUp && (secondHeadDirection > 0)) || (!goUp && (secondHeadDirection < 0))) ? adjToRun : adjToCollapse;
+//        float adj = (1 - enterPower) * (m_prevAdj + enterPower * adjToEdge * secondHeadDirection) + enterPower * secondHeadDirection;
 
-        float adjCollapsed = adj - (adj + (goUp ? 1 : -1)) * m_collapse * collapseRate;
-        if (adjCollapsed > 1) { adjCollapsed = 1; } else if (adjCollapsed < 1) { adjCollapsed = -1; } // limit [-1...1]
-        m_adjCollapsed = adjCollapsed;
+//        float adjCollapsed = adj - (adj + (goUp ? 1 : -1)) * m_collapse * collapseRate;
+//        if (adjCollapsed > 1) { adjCollapsed = 1; } else if (adjCollapsed < 1) { adjCollapsed = -1; } // limit [-1...1]
+//        m_adjCollapsed = adjCollapsed;
 
-        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower;
+        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower * spreadRateLimited;
         m_simpler = simpler;
 
 //        if(adjCollapsed>1 || adjCollapsed<-1) {
@@ -173,7 +196,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
     TicksTimesSeriesData<TickData> getHeadCollapseDoubleTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headCollapseDouble; } }; }
     TicksTimesSeriesData<TickData> getSmallerCollapseTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_smallerCollapse; } }; }
-    TicksTimesSeriesData<TickData> getSmallerCollapseDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_smallerCollapseDirection; } }; }
+//    TicksTimesSeriesData<TickData> getSmallerCollapseDirectionTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_smallerCollapseDirection; } }; }
     TicksTimesSeriesData<TickData> getHeadCollapseDiffTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headCollapseDiff; } }; }
     TicksTimesSeriesData<TickData> getHeadEdgeDiffTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_headEdgeDiff; } }; }
     TicksTimesSeriesData<TickData> getSecondHeadTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_secondHead; } }; }
@@ -182,10 +205,11 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getEnterPowerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterPower; } }; }
     TicksTimesSeriesData<TickData> getSimplerTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_simpler; } }; }
     TicksTimesSeriesData<TickData> getLeadEmaRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_leadEmaRate; } }; }
-    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
-    TicksTimesSeriesData<TickData> getAdjCollapsedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adjCollapsed; } }; }
+//    TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }
+//    TicksTimesSeriesData<TickData> getAdjCollapsedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adjCollapsed; } }; }
     TicksTimesSeriesData<TickData> getEnterLevelTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterLevel; } }; }
     TicksTimesSeriesData<TickData> getSpreadExpandTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadExpand; } }; }
+    TicksTimesSeriesData<TickData> getSpreadRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_spreadRate; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -202,9 +226,10 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|rate=" : "|") + m_rate
                 + (detailed ? "|p1=" : "|") + m_p1
                 + (detailed ? "|p2=" : "|") + m_p2
-                + (detailed ? "|collapse=" : "|") + m_collapse
+//                + (detailed ? "|collapse=" : "|") + m_collapse
                 + (detailed ? "|reverseMul=" : "|") + m_reverseMul
                 + (detailed ? "|power=" : "|") + m_power
+                + (detailed ? "|spread=" : "|") + m_spread
 //                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
         + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
@@ -273,10 +298,11 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 //            addChart(chartData, getHeadCollapseDiffTs(), powerLayers, "HeadCollapseDiff", Colors.YELLOW, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
             addChart(chartData, getSpreadExpandTs(), powerLayers, "SpreadExpand", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
+            addChart(chartData, getSpreadRateTs(), powerLayers, "SpreadRate", Colors.ROSE, TickPainter.LINE_JOIN);
             addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
             addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.PLUM, TickPainter.LINE_JOIN);
             addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
-            addChart(chartData, getCollapseRateTs(), powerLayers, "CollapseRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getCollapseRateTs(), powerLayers, "CollapseRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
@@ -286,7 +312,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
             value.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
-            addChart(chartData, getAdjCollapsedTs(), valueLayers, "AdjCollapsed", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
+//            addChart(chartData, getAdjCollapsedTs(), valueLayers, "AdjCollapsed", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSmallerCollapseDirectionTs(), valueLayers, "SmallerCollapseDirection", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
             addChart(chartData, getSecondHeadDirectionTs(), valueLayers, "SecondHeadDirection", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getSimplerTs(), valueLayers, "Simpler", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
