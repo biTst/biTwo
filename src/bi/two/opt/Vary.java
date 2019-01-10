@@ -46,8 +46,9 @@ public enum Vary {
     p3(VaryType.FLOAT),
     p4(VaryType.FLOAT),
 
-    spread(VaryType.FLOAT);
-    
+    spread(VaryType.FLOAT),
+    spreadPower(VaryType.FLOAT);
+
     public final VaryType m_varyType;
 
     Vary(VaryType varyType) {
