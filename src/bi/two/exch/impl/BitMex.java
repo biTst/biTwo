@@ -21,6 +21,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.*;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ConnectionKeepAliveStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -1515,12 +1516,12 @@ console("    after update: orderData=" + orderData);
                 table = loadTable(nvps);
                 break;
             } catch (Exception e) {
-                if (repeatCount++ < 20) {
+                if (repeatCount++ < 80) {
                     int sec = 2 * repeatCount;
                     err("error loadTable: repeating loadTrades in " + sec + "sec (repeatCount=" + repeatCount + "): " + e, e);
                     TimeUnit.SECONDS.sleep(sec); // no ddos
                 } else {
-                    err("error loadTable: no more wait: rethrow: " + e, e);
+                    err("error loadTable: NO more wait/repeat: rethrow: " + e, e);
                     throw e; // rethrow
                 }
             }
@@ -1625,11 +1626,15 @@ console("    after update: orderData=" + orderData);
 
         console("execute " + httpRequest);
 
-        int DEFAULT_TIMEOUT = 5000;
+        int DEFAULT_TIMEOUT = 15000;
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(DEFAULT_TIMEOUT) // the time to establish the connection with the remote host
-                .setConnectionRequestTimeout(DEFAULT_TIMEOUT)
+                .setConnectionRequestTimeout(DEFAULT_TIMEOUT) // the time to wait for a connection from the connection manager/pool
                 .setSocketTimeout(DEFAULT_TIMEOUT) // the time waiting for data – after the connection was established; maximum time of inactivity between two data packets
+                .build();
+
+        SocketConfig socketConfig = SocketConfig.custom()
+                .setSoTimeout(DEFAULT_TIMEOUT) //  how long to wait for a subsequent byte of data
                 .build();
 
         // see https://hc.apache.org/httpcomponents-client-ga/tutorial/html/fundamentals.html
@@ -1637,6 +1642,7 @@ console("    after update: orderData=" + orderData);
         CloseableHttpClient httpclient = HttpClients.custom()
                 .setKeepAliveStrategy(m_keepAliveStrat)
                 .setDefaultRequestConfig(requestConfig)
+                .setDefaultSocketConfig(socketConfig)
                 .build();
         //CloseableHttpClient httpclient = HttpClients.createDefault();
 
