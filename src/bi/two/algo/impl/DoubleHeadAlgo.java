@@ -33,6 +33,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     private final float m_reverseMul;
     private final float m_power;
     private final float m_spread;
+    private final float m_spreadPower;
 
     private Float m_headCollapseDouble;
     private Float m_smallerCollapse;
@@ -71,6 +72,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_reverseMul = algoConfig.getNumber(Vary.reverseMul).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
         m_spread = algoConfig.getNumber(Vary.spread).floatValue();
+        m_spreadPower = algoConfig.getNumber(Vary.spreadPower).floatValue();
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
@@ -116,7 +118,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
         float spreadRate = spreadNormalized / m_spread;
         m_spreadRate = spreadRate;
-        float spreadRateLimited = (spreadRate > 1) ? 1 : spreadRate;
+        float spreadRateLimited = (spreadRate > 1) ? 1 : spreadRate; // [0...1]
+        float spreadRatePowered = (float)Math.pow(spreadRateLimited, m_spreadPower); // [0...1]
 
         float headCollapseDiff = head - smallerCollapse;
         float headCollapseDiffDiff = (m_headCollapseDiff == null) ? 0 : (headCollapseDiff - m_headCollapseDiff);
@@ -138,7 +141,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         float secondHead = ribbonSpreadHead - m_secondHeadDiff;
         m_secondHead = secondHead;
 
-        float secondHeadRate = (secondHead - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail); // [0...1]
+        float secondHeadRate = (secondHead - ribbonSpreadTail) / (ribbonSpreadHead - ribbonSpreadTail); // [1 -> 0]
         secondHeadRate = 1 - (1 - secondHeadRate) * m_reverseMul;
         if (secondHeadRate < 0) { secondHeadRate = 0; } else if (secondHeadRate > 1) { secondHeadRate = 1; } // limit to [0...1]
         secondHeadRate = (float) Math.pow(secondHeadRate, m_power);
@@ -167,7 +170,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
         float tailRun = tail - tailStart;
         float tailRunToEnter = enterLevel - tailStart;
-        float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : (tailRun / tailRunToEnter); // [0...1]
+        float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : (tailRun / tailRunToEnter); // [0 -> 1]
         if (enterPower > 1) { enterPower = 1; } else if(enterPower < 0) { enterPower = 0; } // limit to [0...1]
         m_enterPower = enterPower;
 
@@ -184,7 +187,8 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 //        if (adjCollapsed > 1) { adjCollapsed = 1; } else if (adjCollapsed < 1) { adjCollapsed = -1; } // limit [-1...1]
 //        m_adjCollapsed = adjCollapsed;
 
-        float simpler = m_prevAdj * (1 - enterPower) + secondHeadDirection * enterPower * spreadRateLimited;
+        float simpler = (1 - enterPower) * m_prevAdj
+                      + enterPower       * secondHeadDirection * spreadRatePowered;
         m_simpler = simpler;
 
 //        if(adjCollapsed>1 || adjCollapsed<-1) {
@@ -230,6 +234,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|reverseMul=" : "|") + m_reverseMul
                 + (detailed ? "|power=" : "|") + m_power
                 + (detailed ? "|spread=" : "|") + m_spread
+                + (detailed ? "|spreadPower=" : "|") + m_spreadPower
 //                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
         + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
