@@ -24,18 +24,9 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
     private final long m_mature;
 
-    private Regression m_exit = new Regression(null, 0);
-    private SimpleRegression m_exitRegression = new SimpleRegression(true);
-    private long m_exitStartTime;
-    private Float m_exitPeakValue;
-    private Float m_exitValue;
-    private Float m_exitMature;
-    private Float m_exitValueMatured;
-
     private Regression m_enter = new Regression(null, 0);
-    private SimpleRegression m_enterRegression = new SimpleRegression(true);
-    private long m_enterStartTime;
-    private Float m_enterValue;
+    private Regression m_exit = new Regression(null, 0);
+    private Float m_exitPeakValue;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -48,12 +39,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
     @Override public void onTimeShift(long shift) {
         super.onTimeShift(shift);
-        if (m_exitStartTime > 0) {
-            m_exitStartTime += shift;
-        }
-        if (m_enterStartTime > 0) {
-            m_enterStartTime += shift;
-        }
+        m_enter.onTimeShift(shift);
+        m_exit.onTimeShift(shift);
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
@@ -62,38 +49,22 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         Boolean goUp = m_goUp;
 
         if (m_directionChanged) {
-            {
-                m_enter = m_exit;
-                IRegressionParent parent = new IRegressionParent() {
-                    @Override public Float update(long timestamp, float lastPrice) {
-                        return m_enter.m_value;
-                    }
-                };
-                m_exit = new Regression(parent, timestamp);
+            m_enter = m_exit;
+            IRegressionParent parent = new IRegressionParent() {
+                @Override public Float update(long timestamp, float lastPrice) {
+                    return m_enter.m_value;
+                }
+            };
+            m_exit = new Regression(parent, timestamp);
 
-                m_exitPeakValue = null;
-            }
-            SimpleRegression tmp = m_enterRegression;
-            m_enterRegression = m_exitRegression;
-            m_enterStartTime = m_exitStartTime;
-
-            m_exitRegression = tmp; // restart exit regression calc
-            m_exitStartTime = timestamp;
-            tmp.clear();
+            m_exitPeakValue = null;
         } else {
             if( (m_exitPeakValue == null)
                     || ( goUp && (lastPrice > m_exitPeakValue) )
                     || ( !goUp && (lastPrice < m_exitPeakValue) )) {
-                {
-                    Regression tmp = m_exit;
-                    m_exit = new Regression(tmp, timestamp);
-
-                    m_exitPeakValue = lastPrice;
-                }
-
-                // restart exit regression
-                m_exitStartTime = timestamp;
-                m_exitRegression.clear();
+                Regression tmp = m_exit;
+                m_exit = new Regression(tmp, timestamp);
+                m_exitPeakValue = lastPrice;
             }
         }
 
@@ -101,40 +72,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         m_enter.update(timestamp, lastPrice);
         m_exit.update(timestamp, lastPrice);
 
-        long enterTimeOffset = timestamp - m_enterStartTime;
-        m_enterRegression.addData(enterTimeOffset, lastPrice);
-        double enterPredict = m_enterRegression.predict(enterTimeOffset);
-        Float enterValue = Double.isNaN(enterPredict)
-                ? null
-                : (float) enterPredict;
-        m_enterValue = enterValue;
-
-        long exitTimeOffset = timestamp - m_exitStartTime;
-        m_exitRegression.addData(exitTimeOffset, lastPrice);
-        float exitPredict = (float) m_exitRegression.predict(exitTimeOffset);
-        boolean isNan = Double.isNaN(exitPredict);
-        Float exitValue = isNan
-                ? null
-                : exitPredict;
-        m_exitValue = exitValue;
-
-        float exitMature = ((float) exitTimeOffset) / m_mature;
-        if (exitMature > 1) {
-            exitMature = 1;
-        }
-        m_exitMature = exitMature;
-
-        Float exitValueMatured = isNan
-                ? null
-                : (exitMature == 1)
-                    ? exitPredict
-                    : exitPredict * exitMature + enterValue * (1 - exitMature);
-        m_exitValueMatured = exitValueMatured;
     }
 
-    TicksTimesSeriesData<TickData> getEnterValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enterValue; } }; }
-    TicksTimesSeriesData<TickData> getExitValueTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValue; } }; }
-    TicksTimesSeriesData<TickData> getExitValueMaruredTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitValueMatured; } }; }
     TicksTimesSeriesData<TickData> getEnterValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enter.m_value; } }; }
     TicksTimesSeriesData<TickData> getExitValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit.m_value; } }; }
 
@@ -205,10 +144,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             BaseTimesSeriesData leadEma = m_emas[0]; // fastest ema
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
-            addChart(chartData, getEnterValueTs(), topLayers, "EnterValue", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitValueTs(), topLayers, "ExitValue", Colors.TRANQUILITY, TickPainter.LINE_JOIN, false);
-            addChart(chartData, getExitValueMaruredTs(), topLayers, "ExitValueMatured", Colors.TURQUOISE, TickPainter.LINE_JOIN);
-            addChart(chartData, getEnterValue2Ts(), topLayers, "EnterValue2", Colors.LIGHT_GREEN, TickPainter.LINE_JOIN);
+            addChart(chartData, getEnterValue2Ts(), topLayers, "EnterValue2", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getExitValue2Ts(), topLayers, "ExitValue2", Colors.YELLOW, TickPainter.LINE_JOIN, false);
         }
 
@@ -302,6 +238,10 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                 m_value = ret;
                 return ret;
             }
+        }
+
+        public void onTimeShift(long shift) {
+            m_startTime += shift;
         }
     }
 }
