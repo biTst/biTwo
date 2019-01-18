@@ -27,10 +27,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     private Regression m_enter = new Regression(null, 0);
     private Regression m_exit = new Regression(null, 0);
     private Float m_exitPeakValue;
+    private Float m_rate;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
     }
+
 
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -68,14 +70,27 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             }
         }
 
-
         m_enter.update(timestamp, lastPrice);
         m_exit.update(timestamp, lastPrice);
 
+        Float enterValue = m_enter.m_value;
+        Float exitValue = m_exit.m_value;
+        if ((enterValue != null) && (exitValue != null)) {
+            float rate = goUp
+                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop/*enterValue*/ - ribbonSpreadBottom)
+                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom/*enterValue*/ - ribbonSpreadTop);
+            if (rate > 1) { rate = 1; } else if (rate < 0) { rate = 0; }
+            rate = rate * 2 - 1;
+            if (!goUp) { rate = -rate; }
+            m_rate = rate;
+
+            m_adj = rate;
+        }
     }
 
     TicksTimesSeriesData<TickData> getEnterValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enter.m_value; } }; }
     TicksTimesSeriesData<TickData> getExitValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit.m_value; } }; }
+    TicksTimesSeriesData<TickData> getRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rate; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -154,7 +169,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             power.addHorizontalLineValue(0);
             power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
-//            addChart(chartData, getHeadCollapseDiffTs(), powerLayers, "HeadCollapseDiff", Colors.YELLOW, TickPainter.LINE_JOIN);
+            addChart(chartData, getRateTs(), powerLayers, "rate", Colors.YELLOW, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSpreadExpandTs(), powerLayers, "SpreadExpand", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSpreadRateTs(), powerLayers, "SpreadRate", Colors.ROSE, TickPainter.LINE_JOIN);
