@@ -33,6 +33,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
     }
 
+    private Float m_rayStart;
+    private long m_rayStartTime;
+    private Float m_rayEnd;
+    private long m_rayEntTime;
+    private Float m_ray;
+
 
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
@@ -59,6 +65,9 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             };
             m_exit = new Regression(parent, timestamp);
 
+            m_rayStart = m_exitPeakValue;
+            m_rayStartTime = m_enter.m_startTime;
+
             m_exitPeakValue = null;
         } else {
             if( (m_exitPeakValue == null)
@@ -75,10 +84,31 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
         Float enterValue = m_enter.m_value;
         Float exitValue = m_exit.m_value;
+
+        if (m_directionChanged) {
+            m_rayEnd = enterValue;
+            m_rayEntTime = timestamp;
+        }
+
+        if ((m_rayStart != null) && (m_rayEnd != null)) {
+            m_ray = m_rayStart + (m_rayEnd - m_rayStart) / (m_rayEntTime - m_rayStartTime) * (timestamp - m_rayStartTime);
+            if (goUp) {
+                if (enterValue > m_ray) {
+                    m_rayEnd = enterValue;
+                    m_rayEntTime = timestamp;
+                }
+            } else {
+                if (enterValue < m_ray) {
+                    m_rayEnd = enterValue;
+                    m_rayEntTime = timestamp;
+                }
+            }
+        }
+
         if ((enterValue != null) && (exitValue != null)) {
             float rate = goUp
-                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop/*enterValue*/ - ribbonSpreadBottom)
-                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom/*enterValue*/ - ribbonSpreadTop);
+                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop - ribbonSpreadBottom)
+                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom - ribbonSpreadTop);
             if (rate > 1) { rate = 1; } else if (rate < 0) { rate = 0; }
             rate = rate * 2 - 1;
             if (!goUp) { rate = -rate; }
@@ -91,6 +121,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getEnterValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_enter.m_value; } }; }
     TicksTimesSeriesData<TickData> getExitValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit.m_value; } }; }
     TicksTimesSeriesData<TickData> getRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rate; } }; }
+    TicksTimesSeriesData<TickData> getRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -160,7 +191,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, leadEma.getJoinNonChangedTs(), topLayers, "leadEma", Colors.alpha(Colors.GRANNY_SMITH, 150), TickPainter.LINE_JOIN);
 
             addChart(chartData, getEnterValue2Ts(), topLayers, "EnterValue2", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitValue2Ts(), topLayers, "ExitValue2", Colors.YELLOW, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getExitValue2Ts(), topLayers, "ExitValue2", Colors.YELLOW, TickPainter.LINE_JOIN);
+            addChart(chartData, getRayTs(), topLayers, "ray", Colors.PLUM, TickPainter.LINE_JOIN, false);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
