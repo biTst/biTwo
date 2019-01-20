@@ -23,12 +23,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     private static final boolean ADJUST_TAIL = true;
 
     private final long m_mature;
+    private final float m_rate;
 
     private Regression m_enter = new Regression(null, 0);
     private Regression m_exit = new Regression(null, 0);
     private Float m_exitPeakValue;
-    private Float m_rate;
-    private Float m_rate2;
+    private Float m_adj2;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -48,6 +48,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
         m_mature = algoConfig.getNumber(Vary.mature).longValue();  // TimeUnit.MINUTES.toMillis(3);
+        m_rate = algoConfig.getNumber(Vary.rate).floatValue();
     }
 
     @Override public void onTimeShift(long shift) {
@@ -121,7 +122,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                     } else {
                         m_rayBend *= rayBendMul;
                     }
-                    m_ray = (m_ray - m_exitMax) * rayBendMul + m_exitMax;
+                    m_ray = m_ray - (m_ray - m_exitMax) * (1 - rayBendMul) * m_rate;
                     m_rayEnd = m_ray;
                     m_rayEntTime = timestamp;
                 }
@@ -143,15 +144,15 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
         if ((enterValue != null) && (exitValue != null)) {
             if (m_ray != null) {
-                float rate2 = goUp
+                float adj2 = goUp
                         ? (exitValue - ribbonSpreadBottom) / (m_ray - ribbonSpreadBottom)
                         : (exitValue - ribbonSpreadTop) / (m_ray - ribbonSpreadTop);
-                if (rate2 > 1) { rate2 = 1; } else if (rate2 < 0) { rate2 = 0; }
-                rate2 = rate2 * 2 - 1;
-                if (!goUp) { rate2 = -rate2; }
-                m_rate2 = rate2;
+                if (adj2 > 1) { adj2 = 1; } else if (adj2 < 0) { adj2 = 0; }
+                adj2 = adj2 * 2 - 1;
+                if (!goUp) { adj2 = -adj2; }
+                m_adj2 = adj2;
 
-                m_adj = rate2;
+                m_adj = adj2;
             }
 
 //            float rate = goUp
@@ -172,7 +173,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray; } }; }
     TicksTimesSeriesData<TickData> getExitRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitRate; } }; }
     TicksTimesSeriesData<TickData> getRayBendTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rayBend; } }; }
-    TicksTimesSeriesData<TickData> getRate2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rate2; } }; }
+    TicksTimesSeriesData<TickData> getRate2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj2; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -187,6 +188,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|turn=" : "|") + Utils.format8(m_turnLevel)
 //                + (detailed ? "|enter=" : "|") + m_enter
                 + (detailed ? "|mature=" : "|") + m_mature
+                + (detailed ? "|rate=" : "|") + m_rate
 //                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
