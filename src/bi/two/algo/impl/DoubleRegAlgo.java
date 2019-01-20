@@ -24,11 +24,13 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
     private final long m_mature;
     private final float m_rate;
+    private final float m_threshold;
 
     private Regression m_enter = new Regression(null, 0);
     private Regression m_exit = new Regression(null, 0);
     private Float m_exitPeakValue;
     private Float m_adj2;
+    private Float m_adj3;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -49,6 +51,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
         m_mature = algoConfig.getNumber(Vary.mature).longValue();  // TimeUnit.MINUTES.toMillis(3);
         m_rate = algoConfig.getNumber(Vary.rate).floatValue();
+        m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
     }
 
     @Override public void onTimeShift(long shift) {
@@ -148,22 +151,21 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                         ? (exitValue - ribbonSpreadBottom) / (m_ray - ribbonSpreadBottom)
                         : (exitValue - ribbonSpreadTop) / (m_ray - ribbonSpreadTop);
                 if (adj2 > 1) { adj2 = 1; } else if (adj2 < 0) { adj2 = 0; }
+                m_adj2 = adj2;
+
+                float threshold = 1 - m_threshold;
+                if (threshold < adj2) {
+                    adj2 = 1;
+                } else {
+                    adj2 /= threshold;
+                }
+                m_adj3 = adj2;
+
                 adj2 = adj2 * 2 - 1;
                 if (!goUp) { adj2 = -adj2; }
-                m_adj2 = adj2;
 
                 m_adj = adj2;
             }
-
-//            float rate = goUp
-//                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop - ribbonSpreadBottom)
-//                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom - ribbonSpreadTop);
-//            if (rate > 1) { rate = 1; } else if (rate < 0) { rate = 0; }
-//            rate = rate * 2 - 1;
-//            if (!goUp) { rate = -rate; }
-//            m_rate = rate;
-
-//            m_adj = rate;
         }
     }
 
@@ -173,7 +175,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray; } }; }
     TicksTimesSeriesData<TickData> getExitRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitRate; } }; }
     TicksTimesSeriesData<TickData> getRayBendTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rayBend; } }; }
-    TicksTimesSeriesData<TickData> getRate2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj2; } }; }
+    TicksTimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj2; } }; }
+    TicksTimesSeriesData<TickData> getAdj3Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj3; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -189,6 +192,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 //                + (detailed ? "|enter=" : "|") + m_enter
                 + (detailed ? "|mature=" : "|") + m_mature
                 + (detailed ? "|rate=" : "|") + m_rate
+                + (detailed ? "|threshold=" : "|") + m_threshold
 //                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
@@ -257,9 +261,9 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getRateTs(), powerLayers, "rate", Colors.YELLOW, TickPainter.LINE_JOIN);
             addChart(chartData, getExitRateTs(), powerLayers, "ExitRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
             addChart(chartData, getRayBendTs(), powerLayers, "RayBend", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
-            addChart(chartData, getRate2Ts(), powerLayers, "rate2", Colors.ROSE, TickPainter.LINE_JOIN);
+            addChart(chartData, getAdj2Ts(), powerLayers, "adj2", Colors.ROSE, TickPainter.LINE_JOIN);
+            addChart(chartData, getAdj3Ts(), powerLayers, "adj3", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
-//            addChart(chartData, getSpreadExpandTs(), powerLayers, "SpreadExpand", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
         }
 
