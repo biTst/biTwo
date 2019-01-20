@@ -28,6 +28,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     private Regression m_exit = new Regression(null, 0);
     private Float m_exitPeakValue;
     private Float m_rate;
+    private Float m_rate2;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -38,6 +39,10 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     private Float m_rayEnd;
     private long m_rayEntTime;
     private Float m_ray;
+
+    private Float m_exitMax;
+    private Float m_exitRate;
+    private Float m_rayBend;
 
 
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
@@ -67,6 +72,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
             m_rayStart = m_exitPeakValue;
             m_rayStartTime = m_enter.m_startTime;
+            m_exitMax = null;
 
             m_exitPeakValue = null;
         } else {
@@ -91,30 +97,72 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         }
 
         if ((m_rayStart != null) && (m_rayEnd != null)) {
-            m_ray = m_rayStart + (m_rayEnd - m_rayStart) / (m_rayEntTime - m_rayStartTime) * (timestamp - m_rayStartTime);
             if (goUp) {
-                if (enterValue > m_ray) {
-                    m_rayEnd = enterValue;
+                if ((m_exitMax == null) || (exitValue > m_exitMax)) {
+                    m_exitMax = exitValue;
+                    m_rayBend = 1.0f;
+                }
+            } else {
+                if ((m_exitMax == null) || (exitValue < m_exitMax)) {
+                    m_exitMax = exitValue;
+                    m_rayBend = 1.0f;
+                }
+            }
+            m_ray = m_rayStart + (m_rayEnd - m_rayStart) / (m_rayEntTime - m_rayStartTime) * (timestamp - m_rayStartTime);
+
+            float exitRate = (exitValue - tail) / (m_exitMax - tail);
+            if (m_exitRate != null) {
+                float exitRateDiff = exitRate - m_exitRate;
+                if (exitRateDiff > 0) {
+                    float rayBendMul = (1 - exitRate) / (1 - m_exitRate);
+                    if (Float.isNaN(rayBendMul)) {
+                        rayBendMul = 0f;
+                        m_rayBend = 0f;
+                    } else {
+                        m_rayBend *= rayBendMul;
+                    }
+                    m_ray = (m_ray - m_exitMax) * rayBendMul + m_exitMax;
+                    m_rayEnd = m_ray;
+                    m_rayEntTime = timestamp;
+                }
+            }
+            m_exitRate = exitRate;
+
+            if (goUp) {
+                if (exitValue > m_ray) {
+                    m_rayEnd = exitValue;
                     m_rayEntTime = timestamp;
                 }
             } else {
-                if (enterValue < m_ray) {
-                    m_rayEnd = enterValue;
+                if (exitValue < m_ray) {
+                    m_rayEnd = exitValue;
                     m_rayEntTime = timestamp;
                 }
             }
         }
 
         if ((enterValue != null) && (exitValue != null)) {
-            float rate = goUp
-                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop - ribbonSpreadBottom)
-                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom - ribbonSpreadTop);
-            if (rate > 1) { rate = 1; } else if (rate < 0) { rate = 0; }
-            rate = rate * 2 - 1;
-            if (!goUp) { rate = -rate; }
-            m_rate = rate;
+            if (m_ray != null) {
+                float rate2 = goUp
+                        ? (exitValue - ribbonSpreadBottom) / (m_ray - ribbonSpreadBottom)
+                        : (exitValue - ribbonSpreadTop) / (m_ray - ribbonSpreadTop);
+                if (rate2 > 1) { rate2 = 1; } else if (rate2 < 0) { rate2 = 0; }
+                rate2 = rate2 * 2 - 1;
+                if (!goUp) { rate2 = -rate2; }
+                m_rate2 = rate2;
 
-            m_adj = rate;
+                m_adj = rate2;
+            }
+
+//            float rate = goUp
+//                    ? (exitValue - ribbonSpreadBottom) / (ribbonSpreadTop - ribbonSpreadBottom)
+//                    : (exitValue - ribbonSpreadTop) / (ribbonSpreadBottom - ribbonSpreadTop);
+//            if (rate > 1) { rate = 1; } else if (rate < 0) { rate = 0; }
+//            rate = rate * 2 - 1;
+//            if (!goUp) { rate = -rate; }
+//            m_rate = rate;
+
+//            m_adj = rate;
         }
     }
 
@@ -122,6 +170,9 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getExitValue2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exit.m_value; } }; }
     TicksTimesSeriesData<TickData> getRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rate; } }; }
     TicksTimesSeriesData<TickData> getRayTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray; } }; }
+    TicksTimesSeriesData<TickData> getExitRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitRate; } }; }
+    TicksTimesSeriesData<TickData> getRayBendTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rayBend; } }; }
+    TicksTimesSeriesData<TickData> getRate2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rate2; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -202,13 +253,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
             addChart(chartData, getRateTs(), powerLayers, "rate", Colors.YELLOW, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitRateTs(), powerLayers, "ExitRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+            addChart(chartData, getRayBendTs(), powerLayers, "RayBend", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
+            addChart(chartData, getRate2Ts(), powerLayers, "rate2", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSpreadExpandTs(), powerLayers, "SpreadExpand", Colors.LIGHT_BLUE_PEARL, TickPainter.LINE_JOIN);
-//            addChart(chartData, getSpreadRateTs(), powerLayers, "SpreadRate", Colors.ROSE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
-//            addChart(chartData, getEnterPowerTs(), powerLayers, "EnterPower", Colors.PLUM, TickPainter.LINE_JOIN);
-//            addChart(chartData, getLeadEmaRateTs(), powerLayers, "LeadEmaRate", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
-//            addChart(chartData, getCollapseRateTs(), powerLayers, "CollapseRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
