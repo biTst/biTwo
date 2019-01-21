@@ -11,6 +11,7 @@ import bi.two.exch.Pair;
 import bi.two.opt.BaseProducer;
 import bi.two.opt.Vary;
 import bi.two.opt.WatchersProducer;
+import bi.two.telegram.TheBot;
 import bi.two.ts.*;
 import bi.two.ts.join.TickJoiner;
 import bi.two.util.Log;
@@ -56,6 +57,10 @@ public class Main {
 
         try {
             MapConfig config = initConfig(args);
+
+            String botToken = config.getPropertyNoComment("telegram");
+            String admin = config.getPropertyNoComment("admin");
+            TheBot theBot = TheBot.create(botToken, admin);
 
             MapConfig defAlgoConfig = new MapConfig();
             String params = config.getString("params");
@@ -149,7 +154,7 @@ public class Main {
 
                 notifyFinish(watchers);
 
-                logResults(watchers, startMillis);
+                logResults(watchers, startMillis, theBot);
 
                 if (frame != null) {
                     frame.repaint();
@@ -243,7 +248,7 @@ public class Main {
         firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }
 
-    private static void logResults(List<Watcher> watchers, long startMillis) {
+    private static void logResults(List<Watcher> watchers, long startMillis, TheBot theBot) {
         int watchersNum = watchers.size();
         if (watchersNum > 0) {
             double maxGain = 0;
@@ -270,10 +275,17 @@ public class Main {
             }
 
             double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
-            console(" processedDays=" + processedDays
-                    + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
-                    + ";   *** inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays)) + " *** ....................................."
+            double perDay = Math.pow(gain, 1 / processedDays);
+            double inYear = Math.pow(gain, 365 / processedDays);
+            console(" perDay=" + Utils.format8(perDay)
+                    + ";   *** inYear=" + Utils.format8(inYear)
+                    + "; processedDays=" + processedDays
+                    + " *** ....................................."
             );
+
+            if (theBot != null) {
+                theBot.sendMsg("done: d=" + Utils.format6(perDay) + "; y=" + Utils.format5(inYear), true);
+            }
         }
 
 //        console(maxWatcher.log());
