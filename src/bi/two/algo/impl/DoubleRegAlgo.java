@@ -25,12 +25,14 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     private final long m_mature;
     private final float m_rate;
     private final float m_threshold;
+    private final float m_power;
 
     private Regression m_enter = new Regression(null, 0);
     private Regression m_exit = new Regression(null, 0);
     private Float m_exitPeakValue;
     private Float m_adj2;
     private Float m_adj3;
+    private Float m_adj4;
 
     static {
         console("ADJUST_TAIL=" + ADJUST_TAIL); // todo
@@ -52,6 +54,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         m_mature = algoConfig.getNumber(Vary.mature).longValue();  // TimeUnit.MINUTES.toMillis(3);
         m_rate = algoConfig.getNumber(Vary.rate).floatValue();
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
+        m_power = algoConfig.getNumber(Vary.power).floatValue();
     }
 
     @Override public void onTimeShift(long shift) {
@@ -161,6 +164,9 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                 }
                 m_adj3 = adj2;
 
+                adj2 = (float) Math.pow(adj2, m_power);
+                m_adj4 = adj2;
+
                 adj2 = adj2 * 2 - 1;
                 if (!goUp) { adj2 = -adj2; }
 
@@ -177,6 +183,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     TicksTimesSeriesData<TickData> getRayBendTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rayBend; } }; }
     TicksTimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj2; } }; }
     TicksTimesSeriesData<TickData> getAdj3Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj3; } }; }
+    TicksTimesSeriesData<TickData> getAdj4Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj4; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -193,6 +200,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                 + (detailed ? "|mature=" : "|") + m_mature
                 + (detailed ? "|rate=" : "|") + m_rate
                 + (detailed ? "|threshold=" : "|") + m_threshold
+                + (detailed ? "|power=" : "|") + m_power
 //                + (detailed ? "|commiss=" : "|") + Utils.format8(m_commission)
                 + ", " + m_barSize
 //                + ", " + Utils.millisToYDHMSStr(m_barSize)
@@ -263,6 +271,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             addChart(chartData, getRayBendTs(), powerLayers, "RayBend", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
             addChart(chartData, getAdj2Ts(), powerLayers, "adj2", Colors.ROSE, TickPainter.LINE_JOIN);
             addChart(chartData, getAdj3Ts(), powerLayers, "adj3", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
+            addChart(chartData, getAdj4Ts(), powerLayers, "adj4", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
 //            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
         }
@@ -274,7 +283,6 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             value.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
-//            addChart(chartData, getAdjCollapsedTs(), valueLayers, "AdjCollapsed", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSmallerCollapseDirectionTs(), valueLayers, "SmallerCollapseDirection", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadDirectionTs(), valueLayers, "SecondHeadDirection", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSimplerTs(), valueLayers, "Simpler", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
