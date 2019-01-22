@@ -60,7 +60,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     }
 
     @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
-                                     float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop,
+                                     float maxRibbonSpread, float ribbonSpreadTop,
                                      float ribbonSpreadBottom, float mid, float head, float tail) {
 
         Boolean goUp = m_goUp;

@@ -88,7 +88,7 @@ public class Midvel3Algo extends BaseRibbonAlgo3 {
     }
 
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, float maxRibbonSpread,
                                      float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
         int count = 0;
         float sum = 0;

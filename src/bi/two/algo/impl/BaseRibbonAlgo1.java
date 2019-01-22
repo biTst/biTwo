@@ -32,11 +32,14 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     private int m_turnsCount;
     protected boolean m_directionChanged;
     protected long m_timestamp;
+    protected float m_emasMax;
+    protected float m_emasMin;
+    protected float m_ribbonSpread;
 
     @Override public int getTurnsCount() { return m_turnsCount; }
 
     protected abstract void recalc2(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
-                                    float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
+                                    float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom);
 
     BaseRibbonAlgo1(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null, algoConfig);
@@ -122,7 +125,10 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
             if (goUp != null) {
                 m_goUp = goUp;
 
+                m_emasMax = emasMax;
+                m_emasMin = emasMin;
                 float ribbonSpread = emasMax - emasMin;
+                m_ribbonSpread = ribbonSpread;
                 float maxRibbonSpread;
                 if (directionChanged) {
                     maxRibbonSpread = ribbonSpread; //reset
@@ -137,7 +143,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_ribbonSpreadBottom = ribbonSpreadBottom;
 
                 // todo: check what is faster, to use m_ribbonSpreadTop or pass as param value into functions chain recalc2->recalc3->recalc5
-                recalc2(lastPrice, emasMin, emasMax, leadEmaValue, ribbonSpread, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
+                recalc2(lastPrice, emasMin, emasMax, leadEmaValue, maxRibbonSpread, ribbonSpreadTop, ribbonSpreadBottom);
             }
         }
         return m_adj;

@@ -94,7 +94,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, float maxRibbonSpread,
                                      float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
         long timestamp = m_timestamp;
 

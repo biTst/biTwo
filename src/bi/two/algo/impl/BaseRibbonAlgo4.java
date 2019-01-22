@@ -22,10 +22,10 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
     }
 
     protected abstract void recalc5(float lastPrice, float leadEmaValue,
-                                    float ribbonSpread, float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
+                                    float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
                                     float mid, float head, float tail, Float tailStart, float collapseRate);
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue, float ribbonSpread, float maxRibbonSpread,
+    @Override protected void recalc4(float lastPrice, float leadEmaValue, float maxRibbonSpread,
                                      float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
         float collapseRate = m_collapser.update(tail);
         m_collapseRate = collapseRate;
@@ -33,7 +33,7 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
             m_remainedEnterDistance = m_goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
         }
         Float tailStart = m_ribbon.m_tailStart;
-        recalc5( lastPrice, leadEmaValue, ribbonSpread, maxRibbonSpread, ribbonSpreadTop,
+        recalc5( lastPrice, leadEmaValue, maxRibbonSpread, ribbonSpreadTop,
                 ribbonSpreadBottom, mid, head, tail, tailStart, collapseRate);
     }
 
