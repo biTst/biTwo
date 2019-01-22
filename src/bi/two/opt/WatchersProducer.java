@@ -237,8 +237,9 @@ public class WatchersProducer {
             ticksTs = tsd;
         } else { // read and process in different threads even for single producer
             int groupTicks = config.getIntOrDefault("groupTicks", 2);
-            console("parallel=" + parallel + "; groupTicks=" + groupTicks);
-            ticksTs = new ParallelTimesSeriesData(tsd, parallel, groupTicks, exchange);
+            int maxQueue = config.getIntOrDefault("maxQueue", 20000);
+            console("parallel=" + parallel + "; groupTicks=" + groupTicks + "; maxQueue=" + maxQueue);
+            ticksTs = new ParallelTimesSeriesData(tsd, parallel, groupTicks, maxQueue, exchange);
         }
 
         List<Watcher> watchers = new ArrayList<>();

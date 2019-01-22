@@ -5,6 +5,7 @@ import bi.two.algo.Node;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
 import bi.two.exch.Exchange;
+import bi.two.util.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +19,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     private final int m_maxParallelSize;
     private final int m_groupTicks;
+    private final int m_maxQueue;
     private final Exchange m_exchange;
     private final List<InnerTimesSeriesData> m_array = new ArrayList<>(); // todo: optimize - remake via array
     private final AtomicInteger m_runningCount = new AtomicInteger();
@@ -28,11 +30,12 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
     private long m_nanoSumm;
     private long m_nanoCount;
 
-    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size, int groupTicks, Exchange exchange) {
+    public ParallelTimesSeriesData(BaseTimesSeriesData ticksTs, int size, int groupTicks, int maxQueue, Exchange exchange) {
         super(ticksTs);
         m_activeIndex = 0;
         m_maxParallelSize = size;
         m_groupTicks = groupTicks;
+        m_maxQueue = maxQueue;
         m_exchange = exchange;
     }
 
@@ -63,7 +66,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
 
     private void addNewestTick(ITickData latestTick) {
         //                         todo: make configurable
-        if ((++m_reportCounter) == 500000) { // log queue states
+        if ((++m_reportCounter) == 500000) { // log queue states every half million ticks
             m_reportCounter = 0;
             StringBuilder sb = new StringBuilder("entered=" + m_ticksEntered + "; buffers");
             for (InnerTimesSeriesData innerTsd : m_array) {
@@ -75,7 +78,7 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             double nanoAvg = ((double) m_nanoSumm) / m_nanoCount;
             m_nanoSumm = 0;
             m_nanoCount = 0;
-            sb.append(" avg=").append(nanoAvg).append(";");
+            sb.append(" avg=").append(Utils.format5(nanoAvg)).append(";");
 
             long freeMemory1 = Runtime.getRuntime().freeMemory();
             long totalMemory1 = Runtime.getRuntime().totalMemory();
@@ -109,10 +112,10 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
                 if (m_array.size() == 1) { // single - no need to sleep much
                     sleep = 10;
                 } else {
-                    if (maxSize > 3000) {
-                        if (maxSize > 5000) {
-                            if (maxSize > 7000) {
-                                if (maxSize > 10000) {
+                    if (maxSize > m_maxQueue / 4) {
+                        if (maxSize > m_maxQueue / 3) {
+                            if (maxSize > m_maxQueue / 2) {
+                                if (maxSize > m_maxQueue) {
                                     sleep = 1000;
                                 } else { sleep = 500; }
                             } else { sleep = 250; }

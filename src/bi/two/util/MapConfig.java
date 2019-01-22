@@ -29,6 +29,17 @@ public class MapConfig extends Properties {
         throw new RuntimeException("property '" + key + "' not found");
     }
 
+    public String getStringOrDefault(String key, String def) {
+        String property = getPropertyNoComment(key);
+        if (property != null) {
+            return property;
+        }
+        if (def != null) {
+            return def;
+        }
+        throw new RuntimeException("property '" + key + "' not found");
+    }
+
     public int getInt(String key) {
         return getIntOrDefault(key, null);
     }
