@@ -65,7 +65,6 @@ public class FastAlgo extends BaseRibbonAlgo4 {
     }
 
     @Override protected void recalc5(float lastPrice, float leadEmaValue,
-                                     float maxRibbonSpread,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (m_directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;
@@ -152,6 +151,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
             }
 
             // spreadClosePower
+            float maxRibbonSpread = m_maxRibbonSpread;
             float spreadClosePower = (maxRibbonSpread - m_ribbonSpread) / maxRibbonSpread;
 //                m_spreadClosePower = spreadClosePower;
 
