@@ -24,7 +24,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         m_prevAdj = 0F;
     }
 
-    protected abstract void recalc3(float mid, float head, float tail);
+    protected abstract void recalc3(float head, float tail);
 
     protected final void recalc2() {
         Float emasMin = m_emasMin;
@@ -42,8 +42,7 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
 
-        recalc3(
-                mid, head, tail);
+        recalc3(head, tail);
     }
 
 

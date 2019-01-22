@@ -94,7 +94,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float mid, float head, float tail) {
+    @Override protected void recalc4(float head, float tail) {
         long timestamp = m_timestamp;
 
         if (m_directionChanged) {

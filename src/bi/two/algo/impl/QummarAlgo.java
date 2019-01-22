@@ -59,7 +59,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 //        }
     }
 
-    @Override protected void recalc3(float mid, float head, float tail) {
+    @Override protected void recalc3(float head, float tail) {
 
         Boolean goUp = m_goUp;
         if (m_directionChanged) {

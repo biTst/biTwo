@@ -11,7 +11,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
     final Ribbon m_ribbon;
     private BaseRibbonAlgo4.RibbonUi m_ribbonUi;
 
-    protected abstract void recalc4(float mid, float head, float tail);
+    protected abstract void recalc4(float head, float tail);
 
     BaseRibbonAlgo3(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange, adjustTail);
@@ -30,11 +30,11 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         }
     }
 
-    @Override protected final void recalc3(float mid, float head, float tail) {
+    @Override protected final void recalc3(float head, float tail) {
         // m_tailStart can be changed inside of m_ribbon.update()
-        m_ribbon.update(m_directionChanged, mid, head, tail, m_goUp); // use local var to speedup
+        m_ribbon.update(m_directionChanged, m_mid, head, tail, m_goUp); // use local var to speedup
 
-        recalc4(mid, head, tail);
+        recalc4(head, tail);
     }
 
     @Override public void reset() {
