@@ -36,10 +36,11 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected Float m_emasMin;
     protected Float m_ribbonSpread;
     protected Float m_leadEmaValue;
+    protected Float m_lastPrice;
 
     @Override public int getTurnsCount() { return m_turnsCount; }
 
-    protected abstract void recalc2(float lastPrice);
+    protected abstract void recalc2();
 
     BaseRibbonAlgo1(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null, algoConfig);
@@ -65,6 +66,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     }
 
     private Float recalc(float lastPrice, long timestamp) {
+        m_lastPrice = lastPrice;
         m_timestamp = timestamp;
         float emasMin = Float.POSITIVE_INFINITY;
         float emasMax = Float.NEGATIVE_INFINITY;
@@ -143,8 +145,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_ribbonSpreadTop = ribbonSpreadTop;
                 m_ribbonSpreadBottom = ribbonSpreadBottom;
 
-                // todo: check what is faster, to use m_ribbonSpreadTop or pass as param value into functions chain recalc2->recalc3->recalc5
-                recalc2(lastPrice);
+                recalc2();
             }
         }
         return m_adj;

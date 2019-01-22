@@ -41,8 +41,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
-    @Override protected void recalc5(float lastPrice,
-                                     float mid, float head, float tail, Float tailStart, float collapseRate) {
+    @Override protected void recalc5(float mid, float head, float tail, Float tailStart, float collapseRate) {
         float ribbonSpreadTop = m_ribbonSpreadTop;
         float ribbonSpreadBottom = m_ribbonSpreadBottom;
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
@@ -132,7 +131,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
             float limitLevel = (m_leadEmaValue + head) / 2;
             if (goUp) {
                 if (adj > m_adj) {
-                    if (lastPrice > limitLevel) {
+                    if (m_lastPrice > limitLevel) {
                         m_adj = adj;
                     }
                 } else {
@@ -140,7 +139,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
                 }
             } else {
                 if (adj < m_adj) {
-                    if (lastPrice < limitLevel) {
+                    if (m_lastPrice < limitLevel) {
                         m_adj = adj;
                     }
                 } else {

@@ -49,7 +49,7 @@ public class Ummar3Algo extends BaseRibbonAlgo1 {
         }
     }
 
-    @Override protected void recalc2(float lastPrice) {
+    @Override protected void recalc2() {
 //            m_min = emasMin;
 //            m_max = emasMax;
 

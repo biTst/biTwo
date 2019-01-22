@@ -94,8 +94,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float lastPrice,
-                                     float mid, float head, float tail) {
+    @Override protected void recalc4(float mid, float head, float tail) {
         long timestamp = m_timestamp;
 
         if (m_directionChanged) {
@@ -114,6 +113,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
 
+        float lastPrice = m_lastPrice;
         boolean exit = goUp
                 ? (lastPrice < ribbonSpreadTop) // up
                 : (lastPrice > ribbonSpreadBottom); // down

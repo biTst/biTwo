@@ -64,8 +64,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc5(float lastPrice,
-                                     float mid, float head, float tail, Float tailStart, float collapseRate) {
+    @Override protected void recalc5(float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (m_directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;
             m_directionIn = (m_adj == null) ? 0 : m_adj;
@@ -219,6 +218,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
 
             if (LIMIT_BY_PRICE) {
                 float adj = (m_adj == null) ? 0 : m_adj;
+                float lastPrice = m_lastPrice;
                 if (direction > adj) {
                     if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
                         m_adj = direction;

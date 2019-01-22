@@ -77,8 +77,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
         m_reverse = algoConfig.getNumber(Vary.reverse).floatValue();
     }
 
-    @Override protected void recalc4(float lastPrice,
-                                     float mid, float head, float tail) {
+    @Override protected void recalc4(float mid, float head, float tail) {
         Boolean goUp = m_goUp;
         float ribbonSpreadTop = m_ribbonSpreadTop;
         float ribbonSpreadBottom = m_ribbonSpreadBottom;
@@ -109,7 +108,7 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
 
         float spread = head - tail;
         float absSpread = (spread < 0) ? -spread : spread;
-        float spreadNormalized = absSpread / lastPrice;
+        float spreadNormalized = absSpread / m_lastPrice;
         if (m_directionChanged) {
             m_headCollapseDiff = null;
             m_headEdgeDiff = null;

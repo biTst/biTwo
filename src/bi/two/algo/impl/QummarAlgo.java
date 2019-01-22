@@ -59,8 +59,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 //        }
     }
 
-    @Override protected void recalc3(float lastPrice,
-                                     float mid, float head, float tail) {
+    @Override protected void recalc3(float mid, float head, float tail) {
 
         Boolean goUp = m_goUp;
         if (m_directionChanged) {
@@ -138,6 +137,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
             Float adj = APPLY_REVERSE ? m_revMulAndPrev : m_mulAndPrev;
 
             if (LIMIT_BY_PRICE) {
+                float lastPrice = m_lastPrice;
                 if (adj > m_adj) {
                     if ((lastPrice > m_leadEmaValue) && (lastPrice > head)) {
                         m_adj = adj;
