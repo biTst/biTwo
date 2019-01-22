@@ -31,7 +31,7 @@ abstract class BaseRibbonAlgo3 extends BaseRibbonAlgo2 {
         }
     }
 
-    @Override protected final void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
+    @Override protected final void recalc3(float lastPrice, float leadEmaValue,
                                            float maxRibbonSpread, float ribbonSpreadTop,
                                            float ribbonSpreadBottom, float mid, float head, float tail) {
         // m_tailStart can be changed inside of m_ribbon.update()

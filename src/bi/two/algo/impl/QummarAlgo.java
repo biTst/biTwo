@@ -59,7 +59,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 //        }
     }
 
-    @Override protected void recalc3(float lastPrice, float emasMin, float emasMax, float leadEmaValue,
+    @Override protected void recalc3(float lastPrice, float leadEmaValue,
                                      float maxRibbonSpread, float ribbonSpreadTop,
                                      float ribbonSpreadBottom, float mid, float head, float tail) {
 
