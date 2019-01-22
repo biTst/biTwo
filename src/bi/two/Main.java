@@ -60,6 +60,7 @@ public class Main {
 
             String botToken = config.getPropertyNoComment("telegram");
             String admin = config.getPropertyNoComment("admin");
+            String botKey = config.getStringOrDefault("botKey", "@");
             TheBot theBot = TheBot.create(botToken, admin);
 
             MapConfig defAlgoConfig = new MapConfig();
@@ -154,7 +155,7 @@ public class Main {
 
                 notifyFinish(watchers);
 
-                logResults(watchers, startMillis, theBot);
+                logResults(watchers, startMillis, theBot, botKey, i);
 
                 if (frame != null) {
                     frame.repaint();
@@ -248,7 +249,7 @@ public class Main {
         firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }
 
-    private static void logResults(List<Watcher> watchers, long startMillis, TheBot theBot) {
+    private static void logResults(List<Watcher> watchers, long startMillis, TheBot theBot, String botKey, int iteration) {
         int watchersNum = watchers.size();
         if (watchersNum > 0) {
             double maxGain = 0;
@@ -284,7 +285,7 @@ public class Main {
             );
 
             if (theBot != null) {
-                theBot.sendMsg("done: d=" + Utils.format6(perDay) + "; y=" + Utils.format5(inYear), true);
+                theBot.sendMsg(botKey + ": i:" + iteration + " d:" + Utils.format6(perDay) + " y:" + Utils.format5(inYear), true);
             }
         }
 
