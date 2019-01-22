@@ -64,7 +64,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
         m_leadEmaVelocity = new MidPointsVelocity(leadEma, (long) (m_barSize * 1.0), multiplier);
     }
 
-    @Override protected void recalc5(Float tailStart, float collapseRate) {
+    @Override protected void recalc5(float collapseRate) {
         if (m_directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;
             m_directionIn = (m_adj == null) ? 0 : m_adj;
@@ -112,6 +112,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
             Float midStart = m_ribbon.m_midStart; // use local var to speedup
             float head = m_head;
             float tail = m_tail;
+            Float tailStart = m_ribbon.m_tailStart;
             float tailRun = tail - tailStart;
             float tailToMidPower = tailRun / (midStart - tailStart);
             if (tailToMidPower > 1) {

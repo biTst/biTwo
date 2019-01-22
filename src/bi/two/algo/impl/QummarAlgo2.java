@@ -41,7 +41,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
-    @Override protected void recalc5(Float tailStart, float collapseRate) {
+    @Override protected void recalc5(float collapseRate) {
         float ribbonSpreadTop = m_ribbonSpreadTop;
         float ribbonSpreadBottom = m_ribbonSpreadBottom;
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
@@ -55,6 +55,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
 
         float enterLevel = m_ribbon.calcEnterLevel(m_enter); // todo: calc only if tailStart updated
         float tail = m_tail;
+        Float tailStart = m_ribbon.m_tailStart;
         float tailRun = tail - tailStart;
         float tailRunToEnter = enterLevel - tailStart;
         float enterPower = ((goUp && (tailRunToEnter <= 0)) || (!goUp && (tailRunToEnter >= 0))) ? 0 : tailRun / tailRunToEnter;

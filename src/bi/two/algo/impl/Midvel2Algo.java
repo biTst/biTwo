@@ -39,7 +39,7 @@ public class Midvel2Algo extends BaseRibbonAlgo4 {
     float m_vel = 0;
     float m_vMax = 0;
 
-    @Override protected void recalc5(Float tailStart, float collapseRate) {
+    @Override protected void recalc5(float collapseRate) {
         ITickData latestTick = m_slope.getLatestTick();
         if (latestTick != null) {
             float velocity = latestTick.getClosePrice();
