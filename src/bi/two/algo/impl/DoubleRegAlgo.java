@@ -19,7 +19,7 @@ import java.util.List;
 
 import static bi.two.util.Log.console;
 
-public class DoubleRegAlgo extends BaseRibbonAlgo3 {
+public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent {
     private static final boolean ADJUST_TAIL = true;
 
     private final long m_mature;
@@ -51,7 +51,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(algoConfig, inTsd, exchange, ADJUST_TAIL);
-        m_mature = algoConfig.getNumber(Vary.mature).longValue();  // TimeUnit.MINUTES.toMillis(3);
+        m_mature = algoConfig.getNumber(Vary.mature).longValue();
         m_rate = algoConfig.getNumber(Vary.rate).floatValue();
         m_threshold = algoConfig.getNumber(Vary.threshold).floatValue();
         m_power = algoConfig.getNumber(Vary.power).floatValue();
@@ -61,6 +61,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         super.onTimeShift(shift);
         m_enter.onTimeShift(shift);
         m_exit.onTimeShift(shift);
+        m_rayStartTime += shift;
+        m_rayEntTime += shift;
     }
 
     @Override protected void recalc4() {
@@ -70,12 +72,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
         if (m_directionChanged) {
             m_enter = m_exit;
-            IRegressionParent parent = new IRegressionParent() {
-                @Override public Float update(long timestamp, float lastPrice) {
-                    return m_enter.m_value;
-                }
-            };
-            m_exit = new Regression(parent, timestamp);
+            m_exit = new Regression(this, timestamp);
 
             m_rayStart = m_exitPeakValue;
             m_rayStartTime = m_enter.m_startTime;
@@ -92,18 +89,17 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             }
         }
 
-        m_enter.update(timestamp, lastPrice);
-        m_exit.update(timestamp, lastPrice);
-
-        Float enterValue = m_enter.m_value;
-        Float exitValue = m_exit.m_value;
+        Float enterValue = m_enter.update(timestamp, lastPrice);
+        Float exitValue = m_exit.update(timestamp, lastPrice);
 
         if (m_directionChanged) {
             m_rayEnd = enterValue;
             m_rayEntTime = timestamp;
         }
 
-        if ((m_rayStart != null) && (m_rayEnd != null)) {
+        Float rayStart = m_rayStart;
+        Float rayEnd = m_rayEnd;
+        if ((rayStart != null) && (rayEnd != null)) {
             if (goUp) {
                 if ((m_exitMax == null) || (exitValue > m_exitMax)) {
                     m_exitMax = exitValue;
@@ -115,7 +111,8 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
                     m_rayBend = 1.0f;
                 }
             }
-            m_ray = m_rayStart + (m_rayEnd - m_rayStart) / (m_rayEntTime - m_rayStartTime) * (timestamp - m_rayStartTime);
+            long rayStartTime = m_rayStartTime;
+            m_ray = rayStart + (rayEnd - rayStart) / (m_rayEntTime - rayStartTime) * (timestamp - rayStartTime);
 
             float tail = m_tail;
             float exitRate = (exitValue - tail) / (m_exitMax - tail);
@@ -151,18 +148,16 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
         if ((enterValue != null) && (exitValue != null)) {
             if (m_ray != null) {
-                float ribbonSpreadTop = m_ribbonSpreadTop;
-                float ribbonSpreadBottom = m_ribbonSpreadBottom;
-                float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
+                float ribbonSpreadTail = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
                 float adj2 = (exitValue - ribbonSpreadTail) / (m_ray - ribbonSpreadTail);
                 if (adj2 > 1) { adj2 = 1; } else if (adj2 < 0) { adj2 = 0; }
                 m_adj2 = adj2;
 
-                float threshold = 1 - m_threshold;
-                if (threshold < adj2) {
+                float thresholdRev = 1 - m_threshold;
+                if (thresholdRev < adj2) {
                     adj2 = 1;
                 } else {
-                    adj2 /= threshold;
+                    adj2 /= thresholdRev;
                 }
                 m_adj3 = adj2;
 
@@ -302,12 +297,10 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-
-
-    // --------------------------------------------------------
-    private interface IRegressionParent {
-        Float update(long timestamp, float lastPrice);
+    @Override public Float update(long timestamp, float lastPrice) {
+        return m_enter.m_value;
     }
+
 
     // --------------------------------------------------------
     private class Regression implements IRegressionParent {
