@@ -39,7 +39,7 @@ public class Ummar2Algo extends BaseRibbonAlgo1 {
     }
 
 
-    @Override protected void recalc2(float lastPrice, float leadEmaValue) {
+    @Override protected void recalc2(float lastPrice) {
 //            m_min = emasMin;
 //            m_max = emasMax;
 
@@ -64,7 +64,7 @@ public class Ummar2Algo extends BaseRibbonAlgo1 {
                         : ribbonSpreadTop * (1-rate) + ribbonSpreadBottom * rate;
 
             if (m_da != null) {
-                m_adj = m_da.update(ribbonSpreadTop, m_level, ribbonSpreadBottom, leadEmaValue);
+                m_adj = m_da.update(ribbonSpreadTop, m_level, ribbonSpreadBottom, m_leadEmaValue);
             }
 
 //            m_adj = goUp ? 1f : -1f;

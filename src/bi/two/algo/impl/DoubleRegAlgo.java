@@ -63,7 +63,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         m_exit.onTimeShift(shift);
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue,
+    @Override protected void recalc4(float lastPrice,
                                      float mid, float head, float tail) {
         long timestamp = m_timestamp;
         Boolean goUp = m_goUp;

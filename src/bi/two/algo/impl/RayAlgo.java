@@ -94,7 +94,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float lastPrice, float leadEmaValue,
+    @Override protected void recalc4(float lastPrice,
                                      float mid, float head, float tail) {
         long timestamp = m_timestamp;
 
@@ -162,6 +162,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         Float headStart = m_ribbon.m_headStart;
         Float tailStart = m_ribbon.m_tailStart;
         float ribbonSpreadHeadRun = ribbonSpreadHead - headStart;
+        float leadEmaValue = m_leadEmaValue;
         float absFalseStartRate = (ribbonSpreadHeadRun == 0) ? 1 : (leadEmaValue - headStart) / ribbonSpreadHeadRun;
         if (absFalseStartRate > 1) {
             absFalseStartRate = 1;

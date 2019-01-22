@@ -59,7 +59,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 //        }
     }
 
-    @Override protected void recalc3(float lastPrice, float leadEmaValue,
+    @Override protected void recalc3(float lastPrice,
                                      float mid, float head, float tail) {
 
         Boolean goUp = m_goUp;
@@ -139,11 +139,11 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
 
             if (LIMIT_BY_PRICE) {
                 if (adj > m_adj) {
-                    if ((lastPrice > leadEmaValue) && (lastPrice > head)) {
+                    if ((lastPrice > m_leadEmaValue) && (lastPrice > head)) {
                         m_adj = adj;
                     }
                 } else { // adj < m_adj
-                    if ((lastPrice < leadEmaValue) && (lastPrice < head)) {
+                    if ((lastPrice < m_leadEmaValue) && (lastPrice < head)) {
                         m_adj = adj;
                     }
                 }

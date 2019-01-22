@@ -35,10 +35,11 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
     protected Float m_emasMax;
     protected Float m_emasMin;
     protected Float m_ribbonSpread;
+    protected Float m_leadEmaValue;
 
     @Override public int getTurnsCount() { return m_turnsCount; }
 
-    protected abstract void recalc2(float lastPrice, float leadEmaValue);
+    protected abstract void recalc2(float lastPrice);
 
     BaseRibbonAlgo1(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
         super(null, algoConfig);
@@ -84,6 +85,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 break; // not ready yet
             }
         }
+        m_leadEmaValue = leadEmaValue;
 
         if (allDone) {
             Boolean canBeUp = (leadEmaValue == emasMax)
@@ -142,7 +144,7 @@ abstract class BaseRibbonAlgo1 extends BaseRibbonAlgo0 {
                 m_ribbonSpreadBottom = ribbonSpreadBottom;
 
                 // todo: check what is faster, to use m_ribbonSpreadTop or pass as param value into functions chain recalc2->recalc3->recalc5
-                recalc2(lastPrice, leadEmaValue);
+                recalc2(lastPrice);
             }
         }
         return m_adj;
