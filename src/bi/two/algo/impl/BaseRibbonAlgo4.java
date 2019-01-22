@@ -10,7 +10,7 @@ import bi.two.util.MapConfig;
 abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
     final float m_collapse;
     private final Collapser m_collapser;
-    private Float m_collapseRate;
+    protected Float m_collapseRate;
     Float m_remainedEnterDistance; // positive
 
     BaseRibbonAlgo4(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
@@ -21,7 +21,7 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
         m_ribbon.setCollapser(m_collapser);
     }
 
-    protected abstract void recalc5(float collapseRate);
+    protected abstract void recalc5();
 
     @Override protected void recalc4() {
         float collapseRate = m_collapser.update(m_tail);
@@ -29,13 +29,14 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
         if (m_directionChanged) {
             m_remainedEnterDistance = m_goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
         }
-        recalc5(collapseRate);
+        recalc5();
     }
 
     @Override public void reset() {
         super.reset();
         m_collapseRate = null;
         m_remainedEnterDistance = null;
+        m_collapseRate = null;
     }
 
     TicksTimesSeriesData<TickData> getCollapseRateTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_collapseRate; } }; }

@@ -41,7 +41,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
         m_backLevel = algoConfig.getNumber(Vary.backLevel).floatValue();
     }
 
-    @Override protected void recalc5(float collapseRate) {
+    @Override protected void recalc5() {
         float ribbonSpreadTop = m_ribbonSpreadTop;
         float ribbonSpreadBottom = m_ribbonSpreadBottom;
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
@@ -111,7 +111,7 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
 ////        float adj = m_prevAdj + sign * m_remainedEnterDistance * enterPower;
 ////        adj = adj * (1 - collapseRate);
 //
-        float power = enterPower * (1 - collapseRate) * (1 - exit2power);
+        float power = enterPower * (1 - m_collapseRate) * (1 - exit2power);
 
 //if(Float.isInfinite(power)) {
 //    Log.console("Infinite power: enterPower="+enterPower+"; collapseRate="+collapseRate+"; exit2power="+exit2power);
