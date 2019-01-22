@@ -94,7 +94,7 @@ public class RayAlgo extends BaseRibbonAlgo3 {
         }
     }
 
-    @Override protected void recalc4(float head, float tail) {
+    @Override protected void recalc4() {
         long timestamp = m_timestamp;
 
         if (m_directionChanged) {
@@ -170,6 +170,8 @@ public class RayAlgo extends BaseRibbonAlgo3 {
             absFalseStartRate = 0;
         }
 
+        float head = m_head;
+        float tail = m_tail;
         float tailToHeadStartPower = (tail - headStart) / (tailStart - headStart);
         if (tailToHeadStartPower < 0) {
             tailToHeadStartPower = 0;

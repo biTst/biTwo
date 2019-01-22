@@ -63,7 +63,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
         m_exit.onTimeShift(shift);
     }
 
-    @Override protected void recalc4(float head, float tail) {
+    @Override protected void recalc4() {
         long timestamp = m_timestamp;
         Boolean goUp = m_goUp;
         float lastPrice = m_lastPrice;
@@ -117,6 +117,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
             }
             m_ray = m_rayStart + (m_rayEnd - m_rayStart) / (m_rayEntTime - m_rayStartTime) * (timestamp - m_rayStartTime);
 
+            float tail = m_tail;
             float exitRate = (exitValue - tail) / (m_exitMax - tail);
             if (m_exitRate != null) {
                 float exitRateDiff = exitRate - m_exitRate;

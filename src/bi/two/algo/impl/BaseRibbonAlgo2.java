@@ -11,6 +11,8 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
     protected Float m_mid;
     private Float m_zigZag;
     Float m_prevAdj = 0F;
+    protected Float m_head;
+    protected Float m_tail;
 
     BaseRibbonAlgo2(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange, boolean adjustTail) {
         super(algoConfig, inTsd, exchange);
@@ -19,12 +21,14 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
 
     @Override public void reset() {
         super.reset();
+        m_head = null;
+        m_tail = null;
         m_mid = null;
         m_zigZag = null;
         m_prevAdj = 0F;
     }
 
-    protected abstract void recalc3(float head, float tail);
+    protected abstract void recalc3();
 
     protected final void recalc2() {
         Float emasMin = m_emasMin;
@@ -41,8 +45,10 @@ abstract class BaseRibbonAlgo2 extends BaseRibbonAlgo1 {
 
         float head = goUp ? emasMax : emasMin;
         float tail = goUp ? emasMin : emasMax;
+        m_head = head;
+        m_tail = tail;
 
-        recalc3(head, tail);
+        recalc3();
     }
 
 

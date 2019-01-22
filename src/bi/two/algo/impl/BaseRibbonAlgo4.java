@@ -21,16 +21,16 @@ abstract class BaseRibbonAlgo4 extends BaseRibbonAlgo3 {
         m_ribbon.setCollapser(m_collapser);
     }
 
-    protected abstract void recalc5(float head, float tail, Float tailStart, float collapseRate);
+    protected abstract void recalc5(Float tailStart, float collapseRate);
 
-    @Override protected void recalc4(float head, float tail) {
-        float collapseRate = m_collapser.update(tail);
+    @Override protected void recalc4() {
+        float collapseRate = m_collapser.update(m_tail);
         m_collapseRate = collapseRate;
         if (m_directionChanged) {
             m_remainedEnterDistance = m_goUp ? 1 - m_prevAdj : 1 + m_prevAdj;
         }
         Float tailStart = m_ribbon.m_tailStart;
-        recalc5(head, tail, tailStart, collapseRate);
+        recalc5(tailStart, collapseRate);
     }
 
     @Override public void reset() {
