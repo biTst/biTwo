@@ -60,8 +60,8 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
     }
 
     @Override protected void recalc3(float lastPrice, float leadEmaValue,
-                                     float maxRibbonSpread, float ribbonSpreadTop,
-                                     float ribbonSpreadBottom, float mid, float head, float tail) {
+                                     float maxRibbonSpread,
+                                     float mid, float head, float tail) {
 
         Boolean goUp = m_goUp;
         if (m_directionChanged) {
@@ -110,6 +110,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
             power = (0.0f >= power) ? 0.0f : power;  //  Math.max(0.0f, power); // bounds
             m_power = power;
 
+            float ribbonSpreadBottom = m_ribbonSpreadBottom;
             m_value = (maxRibbonSpread == 0)
                     ? 0
                     : ((head - ribbonSpreadBottom) / maxRibbonSpread) * 2 - 1;
@@ -117,7 +118,7 @@ public class QummarAlgo extends BaseRibbonAlgo2 {
             m_mul = power * m_value;
             m_mulAndPrev = m_mul + m_prevAdj * (1 - power);
 
-            Float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
+            Float ribbonSpreadHead = goUp ? m_ribbonSpreadTop : ribbonSpreadBottom;
             float reverseLevel = m_zerro + m_reverse * (ribbonSpreadHead - m_zerro);
             m_reverseLevel = reverseLevel;
 

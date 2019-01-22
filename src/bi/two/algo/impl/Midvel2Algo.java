@@ -40,7 +40,7 @@ public class Midvel2Algo extends BaseRibbonAlgo4 {
     float m_vMax = 0;
 
     @Override protected void recalc5(float lastPrice, float leadEmaValue,
-                                     float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
+                                     float maxRibbonSpread,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         ITickData latestTick = m_slope.getLatestTick();
         if (latestTick != null) {

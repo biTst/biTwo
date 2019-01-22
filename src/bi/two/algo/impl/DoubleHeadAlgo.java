@@ -78,8 +78,10 @@ public class DoubleHeadAlgo extends BaseRibbonAlgo3 {
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float maxRibbonSpread,
-                                     float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
+                                     float mid, float head, float tail) {
         Boolean goUp = m_goUp;
+        float ribbonSpreadTop = m_ribbonSpreadTop;
+        float ribbonSpreadBottom = m_ribbonSpreadBottom;
         float ribbonSpreadHead = goUp ? ribbonSpreadTop : ribbonSpreadBottom;
         float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
 

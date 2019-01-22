@@ -64,7 +64,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
     }
 
     @Override protected void recalc4(float lastPrice, float leadEmaValue, float maxRibbonSpread,
-                                     float ribbonSpreadTop, float ribbonSpreadBottom, float mid, float head, float tail) {
+                                     float mid, float head, float tail) {
         long timestamp = m_timestamp;
         Boolean goUp = m_goUp;
 
@@ -150,9 +150,10 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 {
 
         if ((enterValue != null) && (exitValue != null)) {
             if (m_ray != null) {
-                float adj2 = goUp
-                        ? (exitValue - ribbonSpreadBottom) / (m_ray - ribbonSpreadBottom)
-                        : (exitValue - ribbonSpreadTop) / (m_ray - ribbonSpreadTop);
+                float ribbonSpreadTop = m_ribbonSpreadTop;
+                float ribbonSpreadBottom = m_ribbonSpreadBottom;
+                float ribbonSpreadTail = goUp ? ribbonSpreadBottom : ribbonSpreadTop;
+                float adj2 = (exitValue - ribbonSpreadTail) / (m_ray - ribbonSpreadTail);
                 if (adj2 > 1) { adj2 = 1; } else if (adj2 < 0) { adj2 = 0; }
                 m_adj2 = adj2;
 

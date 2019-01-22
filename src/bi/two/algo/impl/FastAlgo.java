@@ -65,7 +65,7 @@ public class FastAlgo extends BaseRibbonAlgo4 {
     }
 
     @Override protected void recalc5(float lastPrice, float leadEmaValue,
-                                     float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
+                                     float maxRibbonSpread,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
         if (m_directionChanged) {
             m_velocityStartHalf = getVelocity() / 2;

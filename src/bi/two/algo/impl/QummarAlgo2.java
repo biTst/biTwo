@@ -42,8 +42,10 @@ public class QummarAlgo2 extends BaseRibbonAlgo4 {
     }
 
     @Override protected void recalc5(float lastPrice, float leadEmaValue,
-                                     float maxRibbonSpread, float ribbonSpreadTop, float ribbonSpreadBottom,
+                                     float maxRibbonSpread,
                                      float mid, float head, float tail, Float tailStart, float collapseRate) {
+        float ribbonSpreadTop = m_ribbonSpreadTop;
+        float ribbonSpreadBottom = m_ribbonSpreadBottom;
         float ribbonSpreadMid = (ribbonSpreadTop + ribbonSpreadBottom) / 2;
         m_ribbonSpreadMid = ribbonSpreadMid;
 
