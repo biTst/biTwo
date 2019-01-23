@@ -83,17 +83,21 @@ public class TheBot {
         return m_bot;
     }
 
-    public TheBot(String botToken, String admin) {
+    private TheBot(String botToken, String admin) {
         m_botToken = botToken;
         m_admin = admin;
     }
 
     public void sendMsg(String msg, boolean silent) {
-        SendMessage message = new SendMessage(m_admin, msg);
-        if (silent) {
-            message.disableNotification(true);
+        try {
+            SendMessage message = new SendMessage(m_admin, msg);
+            if (silent) {
+                message.disableNotification(true);
+            }
+            getBot().execute(message);
+        } catch (Exception e) {
+            err("TheBot.sendMsg error: " + e, e);
         }
-        getBot().execute(message);
     }
 
     public static void main(String[] args) {

@@ -1,5 +1,6 @@
 package bi.two.opt;
 
+import bi.two.telegram.TheBot;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.analysis.MultivariateFunction;
@@ -250,7 +251,7 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         return m_maxTotalPriceRatio;
     }
 
-    @Override public void logResultsEx() {
+    @Override public void logResultsEx(TheBot theBot, String botKey) {
         double gain = m_maxWatcher.totalPriceRatio(true);
         console(m_maxWatcher.getGainLogStr("MAX ", gain));
 
@@ -258,9 +259,15 @@ class MultiDimensionalOptimizeProducer extends OptimizeProducer {
         console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) );
 
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
+        double perDay = Math.pow(gain, 1 / processedDays);
+        double inYear = Math.pow(gain, 365 / processedDays);
         console(" processedDays=" + processedDays
-                + "; perDay=" + Utils.format8(Math.pow(gain, 1 / processedDays))
-                + "; inYear=" + Utils.format8(Math.pow(gain, 365 / processedDays))
+                + "; perDay=" + Utils.format8(perDay)
+                + "; inYear=" + Utils.format8(inYear)
         );
+
+        if (theBot != null) {
+            theBot.sendMsg(botKey + ": DONE d:" + Utils.format6(perDay) + " y:" + Utils.format5(inYear), false);
+        }
     }
 }

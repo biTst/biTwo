@@ -165,7 +165,7 @@ public class Main {
 
             BaseProducer bestProducer = producer.logResults();
             if (bestProducer != null) {
-                bestProducer.logResultsEx();
+                bestProducer.logResultsEx(theBot, botKey);
             }
 
             long allEndMillis = System.currentTimeMillis();

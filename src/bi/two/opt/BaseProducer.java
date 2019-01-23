@@ -3,6 +3,7 @@ package bi.two.opt;
 import bi.two.algo.Watcher;
 import bi.two.exch.Exchange;
 import bi.two.exch.Pair;
+import bi.two.telegram.TheBot;
 import bi.two.ts.BaseTimesSeriesData;
 import bi.two.util.MapConfig;
 
@@ -17,7 +18,7 @@ public abstract class BaseProducer {
 
     public abstract double logResults(int pad);
 
-    public void logResultsEx() { }
+    public void logResultsEx(TheBot theBot, String botKey) { }
 
     public abstract boolean isSingle();
 
