@@ -99,7 +99,6 @@ public class Main {
                 frame.setVisible(true);
             }
             boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
-            int prefillTicks = config.getInt("prefill.ticks");
 
             initDefaultConfig(config, defAlgoConfig);
             // todo: copy all keys from config to defAlgoConfig ?
@@ -140,7 +139,6 @@ public class Main {
 
                 long startMillis = System.currentTimeMillis();
 
-                Runnable callback = collectTicks ? new ReadProgressCallback(frame, prefillTicks) : null;
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
 
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
@@ -150,7 +148,7 @@ public class Main {
 
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
-                tradesReader.readTicks(config, writerTicksTs, callback);
+                tradesReader.readTicks(config, writerTicksTs);
                 ticksTs.waitWhenAllFinish();
 
                 notifyFinish(watchers);
@@ -312,43 +310,4 @@ public class Main {
     public interface IParamIterator<P> {
         void doIteration(P param);
     }
-
-    //=============================================================================================
-    private static class ReadProgressCallback implements Runnable {
-        private final ChartFrame m_frame;
-        private final int m_prefillTicks;
-        private int m_counter = 0;
-        private long lastTime = 0;
-
-        ReadProgressCallback(ChartFrame frame, int prefillTicks) {
-            m_frame = frame;
-            m_prefillTicks = prefillTicks;
-        }
-
-        @Override public void run() {
-            m_counter++;
-            if (m_counter == m_prefillTicks) {
-                console("PREFILLED: ticksCount=" + m_counter);
-            } else if (m_counter > m_prefillTicks) {
-                // them simulate slow trades
-                if (m_counter % 40 == 0) {
-                    if (m_frame != null) {
-                        m_frame.repaint();
-                    }
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) { /*noop*/ }
-                }
-            } else {
-                if (m_counter % 10000 == 0) {
-                    long time = System.currentTimeMillis();
-                    if (time - lastTime > 10000) {
-                        console("lines was read: " + m_counter);
-                        lastTime = time;
-                    }
-                }
-            }
-        }
-    }
-
 }

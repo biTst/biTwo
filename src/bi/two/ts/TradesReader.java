@@ -15,33 +15,33 @@ import static bi.two.util.Log.console;
 
 public enum TradesReader {
     DIR("dir") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
             DirTradesReader.readTrades(config, ticksTs);
         }
     },
     FILE("file") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
             FileTradesReader.readFileTrades(config, ticksTs);
         }
     },
     BITFINEX("bitfinex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
 //            long period = TimeUnit.HOURS.toMillis(10);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = Bitfinex.readTicks(config, period);
-            feedTicks(ticksTs, callback, ticks);
+            feedTicks(ticksTs, ticks);
         }
     },
     CEX("cex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
 //            long period = TimeUnit.MINUTES.toMillis(200);
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = CexIo.readTicks(period);
-            feedTicks(ticksTs, callback, ticks);
+            feedTicks(ticksTs, ticks);
         }
     },
     BITMEX("bitmex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             BitMex.readAndFeedTicks(config, period, ticksTs);
         }
@@ -63,25 +63,22 @@ public enum TradesReader {
         throw new RuntimeException("Unknown TradesReader '" + name + "'");
     }
 
-    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
+    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
         throw new RuntimeException("must be overridden");
     }
 
-    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, List<TickData> ticks) {
+    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, List<TickData> ticks) {
         int size = ticks.size();
         ReverseListIterator<TickData> iterator = new ReverseListIterator<>(ticks);
-        feedTicks(ticksTs, callback, iterator, size);
+        feedTicks(ticksTs, iterator, size);
     }
 
-    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback, Iterable<TickData> iterator, int size) {
+    private static void feedTicks(BaseTicksTimesSeriesData<TickData> ticksTs, Iterable<TickData> iterator, int size) {
         TimeStamp doneTs = new TimeStamp();
         TimeStamp ts = new TimeStamp();
         int count = 0;
         for (TickData tick : iterator) {
             ticksTs.addNewestTick(tick);
-            if (callback != null) {
-                callback.run();
-            }
             if (ts.getPassedMillis() > 30000) {
                 ts.restart();
                 console("feedTicks() " + count + " from " + size + " (" + (((float) count) / size) + ") total " + doneTs.getPassed());
