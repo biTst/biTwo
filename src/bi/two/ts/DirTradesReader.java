@@ -24,8 +24,8 @@ public class DirTradesReader {
         }
     };
 
-    static void readTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) {
-        TimeStamp doneTs = new TimeStamp();
+    static void readTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) {
+        TimeStamp doneStamp = new TimeStamp();
 
         String path = config.getPropertyNoComment("dataDir");
         if (path == null) {
@@ -39,36 +39,42 @@ public class DirTradesReader {
             throw new RuntimeException("not a directory: " + path);
         }
 
-        String filePattern = config.getPropertyNoComment("filePattern");
-
         DataFileType type = DataFileType.obtain(config);
 
         long lastProcessedTickTime = 0;
-        int filesProcessed = 0;
 
+        String filePattern = config.getPropertyNoComment("filePattern");
         Pattern pattern = (filePattern != null) ? Pattern.compile(filePattern) : null;
 
         ArrayList<File> files = new ArrayList<>();
-        process(dir, files, pattern);
+        collectFilesToProcess(dir, files, pattern);
         Collections.sort(files, BY_NAME_FILE_COMPARATOR);
+        int size = files.size();
+        log("--collected " + size + " files to process");
 
+        TimeStamp iterateStamp = new TimeStamp();
+        int filesProcessed = 0;
         for (File file : files) {
             String absolutePath = file.getAbsolutePath();
             log("---readFileTicks: " + absolutePath);
             try {
-                lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, callback, file, type, lastProcessedTickTime, 0, 0, Long.MAX_VALUE);
+                lastProcessedTickTime = FileTradesReader.readFileTrades(ticksTs, file, type, lastProcessedTickTime, 0, 0, Long.MAX_VALUE);
             } catch (Exception e) {
                 throw new RuntimeException("error reading FileTicks: file: " + absolutePath, e);
             }
             filesProcessed++;
+            if (iterateStamp.getPassedMillis() > 15000L) {
+                console("readDir processed " + filesProcessed + " files form " + size);
+                iterateStamp.restart();
+            }
         }
 
-        console("readDirTicks() done in " + doneTs.getPassed() + ";  filesProcessed=" + filesProcessed);
+        console("readDirTicks() done in " + doneStamp.getPassed() + ";  filesProcessed=" + filesProcessed);
 
         ticksTs.notifyNoMoreTicks();
     }
 
-    private static void process(File dir, List<File> ret, Pattern pattern) {
+    private static void collectFilesToProcess(File dir, List<File> ret, Pattern pattern) {
         File[] files = dir.listFiles();
         for (File file : files) {
             if (file.isFile()) {
@@ -83,7 +89,7 @@ public class DirTradesReader {
                 }
                 ret.add(file);
             } else if (file.isDirectory()) {
-                process(file, ret, pattern);
+                collectFilesToProcess(file, ret, pattern);
             }
         }
     }

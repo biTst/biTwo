@@ -16,12 +16,12 @@ import static bi.two.util.Log.console;
 public enum TradesReader {
     DIR("dir") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
-            DirTradesReader.readTrades(config, ticksTs, callback);
+            DirTradesReader.readTrades(config, ticksTs);
         }
     },
     FILE("file") {
         @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback) throws Exception {
-            FileTradesReader.readFileTrades(config, ticksTs, callback);
+            FileTradesReader.readFileTrades(config, ticksTs);
         }
     },
     BITFINEX("bitfinex") {

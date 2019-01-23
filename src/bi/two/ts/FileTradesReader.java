@@ -14,7 +14,7 @@ import static bi.two.util.Log.log;
 
 public class FileTradesReader {
 
-    public static void readFileTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback) throws IOException {
+    public static void readFileTrades(MapConfig config, BaseTicksTimesSeriesData<TickData> tradesTs) throws IOException {
         TimeStamp doneTs = new TimeStamp();
 
         String path = config.getString("dataFile");
@@ -26,16 +26,15 @@ public class FileTradesReader {
 
         DataFileType type = DataFileType.obtain(config);
 
-        readFileTrades(tradesTs, callback, file, type, 0, bytesToSkip, bytesToProcess, ticksToProcess);
+        readFileTrades(tradesTs, file, type, 0, bytesToSkip, bytesToProcess, ticksToProcess);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
         tradesTs.notifyNoMoreTicks();
     }
 
-    public static long readFileTrades(BaseTicksTimesSeriesData<TickData> tradesTs, Runnable callback, File file, DataFileType type,
-                                      long lastProcessedTickTime, long bytesToSkip, long bytesToProcess, long ticksToProcess) throws IOException {
-
+    public static long readFileTrades(BaseTicksTimesSeriesData<TickData> tradesTs, File file, DataFileType type, long lastProcessedTickTime,
+                                      long bytesToSkip, long bytesToProcess, long ticksToProcess) throws IOException {
 
 //        FileInputStream fis = new FileInputStream(new File("ip.bin"));
 //        FileChannel channel = fis.getChannel();
@@ -139,6 +138,7 @@ public class FileTradesReader {
         }
 
         InputStream is = Channels.newInputStream(randomAccessFile.getChannel());
+// todo: if (bytesToSkip == 0) && (bytesToProcess==0) - just use plain InputStreamReader ?
 //        Reader reader = new InputStreamReader(is, Charset.forName("UTF-8"));
         Reader reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
             private long m_wasRead = 0;
@@ -191,11 +191,11 @@ public class FileTradesReader {
 //        };
 
         String name = file.getName();
-        return readFileTrades(reader, tradesTs, callback, resetLine, type, lastProcessedTickTime, ticksToProcess, name); // reader closed inside
+        return readFileTrades(reader, tradesTs, resetLine, type, lastProcessedTickTime, ticksToProcess, name); // reader closed inside
     }
 
-    private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, Runnable callback,
-                                       boolean resetFirstLine, DataFileType type, long lastProcessedTickTime, long ticksToProcess, String perfix) throws IOException {
+    private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, boolean resetFirstLine,
+                                       DataFileType type, long lastProcessedTickTime, long ticksToProcess, String perfix) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 2 * 1024 * 1024); // 2 MB
@@ -220,9 +220,11 @@ public class FileTradesReader {
                     if (tickData != null) {
                         readCounter++;
                         long timestamp = tickData.getTimestamp();
-                        if (timestamp > lastProcessedTickTime) { // skip tick already processed outside
-                            if (timestamp < lastTickTime) {
-                                throw new RuntimeException("backward tick: lastTickTime=" + lastTickTime + "; timestamp=" + timestamp);
+                        if (timestamp > lastProcessedTickTime) { // skip tick if already processed outside
+                            long delta = lastTickTime - timestamp;
+                            if (delta > 0) {
+                                throw new RuntimeException("backward tick: lastTickTime=" + lastTickTime + "; timestamp=" + timestamp + "; delta=" + delta);
+                                // continue; // ignore
                             }
                             float closePrice = tickData.getClosePrice();
                             if (lastClosePrice != 0) {
@@ -235,9 +237,6 @@ public class FileTradesReader {
                             lastClosePrice = closePrice;
 
                             ticksTs.addNewestTick(tickData);
-    //                        if (callback != null) {    // todo: use ProxyTimesSeriesData
-    //                            callback.run();
-    //                        }
                             processCounter++;
                             if (processCounter == ticksToProcess) {
                                 log("processed all requested " + ticksToProcess + " ticks - exit");
@@ -253,7 +252,7 @@ public class FileTradesReader {
                     lastLineError = new RuntimeException("Error processing line: '" + line + "' : " + e, e);
                 }
             }
-            console(perfix + " ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());
+            log(perfix + " ticksTs: ticks stat: " + readCounter + " read; " + processCounter + " processed; " + skipCounter + " skipped in " + ts.getPassed());
         } finally {
             br.close();
         }
