@@ -6,6 +6,7 @@ import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.request.SendMessage;
 
+import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
@@ -96,6 +97,23 @@ public class TheBot {
             }
             getBot().execute(message);
         } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                RuntimeException re = (RuntimeException) e;
+                Throwable e1 = re.getCause();
+                if (e1 instanceof SSLHandshakeException) {
+                    SSLHandshakeException she = (SSLHandshakeException) e1;
+                    Throwable e2 = she.getCause();
+                    String name2 = e2.getClass().getName();
+                    if (name2.equals("sun.security.validator.ValidatorException")) {
+                        Throwable e3 = e2.getCause();
+                        String name3 = e3.getClass().getName();
+                        if (name3.equals("sun.security.provider.certpath.SunCertPathBuilderException")) {
+                            console("TheBot.sendMsg error: " + e); // light log of expected error
+                            return;
+                        }
+                    }
+                }
+            }
             err("TheBot.sendMsg error: " + e, e);
         }
     }
