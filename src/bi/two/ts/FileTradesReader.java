@@ -26,7 +26,7 @@ public class FileTradesReader {
 
         DataFileType type = DataFileType.obtain(config);
 
-        readFileTrades(tradesTs, file, type, 0, bytesToSkip, bytesToProcess, ticksToProcess);
+        readFileTrades(tradesTs, file, type, 0, bytesToSkip, bytesToProcess, ticksToProcess, 0, Long.MAX_VALUE);
 
         console("readFileTicks() done in " + doneTs.getPassed());
 
@@ -34,7 +34,7 @@ public class FileTradesReader {
     }
 
     public static long readFileTrades(BaseTicksTimesSeriesData<TickData> tradesTs, File file, DataFileType type, long lastProcessedTickTime,
-                                      long bytesToSkip, long bytesToProcess, long ticksToProcess) throws IOException {
+                                      long bytesToSkip, long bytesToProcess, long ticksToProcess, long ticksFromMillis, long ticksToMillis) throws IOException {
 
 //        FileInputStream fis = new FileInputStream(new File("ip.bin"));
 //        FileChannel channel = fis.getChannel();
@@ -138,26 +138,29 @@ public class FileTradesReader {
         }
 
         InputStream is = Channels.newInputStream(randomAccessFile.getChannel());
-// todo: if (bytesToSkip == 0) && (bytesToProcess==0) - just use plain InputStreamReader ?
-//        Reader reader = new InputStreamReader(is, Charset.forName("UTF-8"));
-        Reader reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
-            private long m_wasRead = 0;
+        Reader reader;
+        if ((seekPosition == 0) && (maxReadBytes == fileLength)) { // read whole file
+            reader = new InputStreamReader(is, Charset.forName("UTF-8"));
+        } else {
+            reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
+                private long m_wasRead = 0;
 
-            @Override public int read(char[] cbuf, int off, int len) throws IOException {
-                if (maxReadBytes <= m_wasRead) {
-                    return -1; // EOF
+                @Override public int read(char[] cbuf, int off, int len) throws IOException {
+                    if (maxReadBytes <= m_wasRead) {
+                        return -1; // EOF
+                    }
+                    int read = super.read(cbuf, off, len);
+                    long totalRead = m_wasRead + read;
+                    if (maxReadBytes < totalRead) {
+                        long extra = totalRead - maxReadBytes;
+                        read -= extra;
+                        totalRead -= extra;
+                    }
+                    m_wasRead = totalRead;
+                    return read;
                 }
-                int read = super.read(cbuf, off, len);
-                long totalRead = m_wasRead + read;
-                if (maxReadBytes < totalRead) {
-                    long extra = totalRead - maxReadBytes;
-                    read -= extra;
-                    totalRead -= extra;
-                }
-                m_wasRead = totalRead;
-                return read;
-            }
-        };
+            };
+        }
 
 //        Reader reader = new InputStreamReader(is, Charset.forName("UTF-8")) {
 //            private static final long REPORT_BLOCK_SIZE = 10000;
@@ -191,11 +194,11 @@ public class FileTradesReader {
 //        };
 
         String name = file.getName();
-        return readFileTrades(reader, tradesTs, resetLine, type, lastProcessedTickTime, ticksToProcess, name); // reader closed inside
+        return readFileTrades(reader, tradesTs, resetLine, type, lastProcessedTickTime, ticksToProcess, name, ticksFromMillis, ticksToMillis); // reader will be closed inside
     }
 
-    private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, boolean resetFirstLine,
-                                       DataFileType type, long lastProcessedTickTime, long ticksToProcess, String perfix) throws IOException {
+    private static long readFileTrades(Reader reader, BaseTicksTimesSeriesData<TickData> ticksTs, boolean resetFirstLine, DataFileType type,
+                                       long lastProcessedTickTime, long ticksToProcess, String perfix, long ticksFromMillis, long ticksToMillis) throws IOException {
         long lastTickTime = 0;
         TimeStamp ts = new TimeStamp();
         BufferedReader br = new BufferedReader(reader, 2 * 1024 * 1024); // 2 MB
@@ -220,7 +223,9 @@ public class FileTradesReader {
                     if (tickData != null) {
                         readCounter++;
                         long timestamp = tickData.getTimestamp();
-                        if (timestamp > lastProcessedTickTime) { // skip tick if already processed outside
+                        if ((timestamp > lastProcessedTickTime) // skip tick if already processed outside
+                                && (ticksFromMillis <= timestamp)
+                                && (timestamp < ticksToMillis)) {
                             long delta = lastTickTime - timestamp;
                             if (delta > 0) {
                                 throw new RuntimeException("backward tick: lastTickTime=" + lastTickTime + "; timestamp=" + timestamp + "; delta=" + delta);

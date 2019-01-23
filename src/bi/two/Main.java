@@ -137,10 +137,6 @@ public class Main {
                     chartNotLoaded = false;
                 }
 
-                long startMillis = System.currentTimeMillis();
-
-                TradesReader tradesReader = TradesReader.get(tickReaderName);
-
                 String tickWriterName = config.getPropertyNoComment("tick.writer");
                 TradesWriter tradesWriter = ((tickWriterName != null) && (i == 1)) // write on first iteration only
                                                 ? TradesWriter.get(tickWriterName)
@@ -148,9 +144,10 @@ public class Main {
 
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
 
-                tradesReader.readTicks(config, writerTicksTs);
+                TradesReader tradesReader = TradesReader.get(tickReaderName);
+                long startMillis = System.currentTimeMillis();
+                tradesReader.readTicks(config, writerTicksTs, exchange);
                 ticksTs.waitWhenAllFinish();
-
                 notifyFinish(watchers);
 
                 logResults(watchers, startMillis, theBot, botKey, i);

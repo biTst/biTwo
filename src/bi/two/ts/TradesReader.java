@@ -1,6 +1,7 @@
 package bi.two.ts;
 
 import bi.two.chart.TickData;
+import bi.two.exch.Exchange;
 import bi.two.exch.impl.BitMex;
 import bi.two.exch.impl.Bitfinex;
 import bi.two.exch.impl.CexIo;
@@ -15,33 +16,31 @@ import static bi.two.util.Log.console;
 
 public enum TradesReader {
     DIR("dir") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
-            DirTradesReader.readTrades(config, ticksTs);
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
+            DirTradesReader.readTrades(config, ticksTs, exchange);
         }
     },
     FILE("file") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
             FileTradesReader.readFileTrades(config, ticksTs);
         }
     },
     BITFINEX("bitfinex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
-//            long period = TimeUnit.HOURS.toMillis(10);
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = Bitfinex.readTicks(config, period);
             feedTicks(ticksTs, ticks);
         }
     },
     CEX("cex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
-//            long period = TimeUnit.MINUTES.toMillis(200);
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             List<TickData> ticks = CexIo.readTicks(period);
             feedTicks(ticksTs, ticks);
         }
     },
     BITMEX("bitmex") {
-        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
+        @Override public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
             long period = TimeUnit.DAYS.toMillis(365);
             BitMex.readAndFeedTicks(config, period, ticksTs);
         }
@@ -63,7 +62,7 @@ public enum TradesReader {
         throw new RuntimeException("Unknown TradesReader '" + name + "'");
     }
 
-    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs) throws Exception {
+    public void readTicks(MapConfig config, BaseTicksTimesSeriesData<TickData> ticksTs, Exchange exchange) throws Exception {
         throw new RuntimeException("must be overridden");
     }
 
