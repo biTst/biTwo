@@ -46,25 +46,16 @@ public class DirTradesReader {
         sdf.setTimeZone(timezone);
 
         Date dateFrom = parseDate(config, "ticksFrom", sdf);
-console("dateFrom: " + dateFrom);
         long ticksFromMillis = (dateFrom != null) ? dateFrom.getTime() : 0;
 
         long ticksToMillis;
         Date dateTo = parseDate(config, "ticksTo", sdf);
-console("dateTo  : " + dateTo);
         if (dateTo != null) {
             ticksToMillis = dateTo.getTime() + TimeUnit.DAYS.toMillis(1); // include the whole day trades
-console("dateTo+day: " + new Date(ticksToMillis));
-
-//            Calendar calendar = new GregorianCalendar(timezone, Locale.getDefault());
-//            calendar.setTime(dateTo);
-//            calendar.add(Calendar.DAY_OF_MONTH, 1);
-//            ticksToMillis = calendar.getTimeInMillis();
-
             if (ticksFromMillis != 0) {
                 long fromTo = ticksToMillis - ticksFromMillis;
                 String range = Utils.millisToYDHMSStr(fromTo);
-                console("dateFromTo range: " + range);
+                console("dateRange: " + dateFrom + " -> " + dateTo + "; range: " + range);
             }
         } else {
             ticksToMillis = Long.MAX_VALUE;

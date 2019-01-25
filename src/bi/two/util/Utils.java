@@ -19,6 +19,7 @@ public class Utils {
 
     public static final float INVALID_PRICE = Float.MAX_VALUE;
 
+    public static final DecimalFormat X_YY = new DecimalFormat("0.00");
     public static final DecimalFormat X_YYYYY = new DecimalFormat("0.00000");
     public static final DecimalFormat X_YYYYYY = new DecimalFormat("0.000000");
     public static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
@@ -29,6 +30,7 @@ public class Utils {
     public static String format8(Double value) { return format(X_YYYYYYYY, value); }
     public static String format6(Double value) { return format(X_YYYYYY, value); }
     public static String format5(Double value) { return format(X_YYYYY, value); }
+    public static String format2(Double value) { return format(X_YY, value); }
     private static String format(DecimalFormat format, Double value) {
         return (value == null) ? "null" : format.format(value);
     }

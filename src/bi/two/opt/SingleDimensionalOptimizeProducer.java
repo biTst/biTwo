@@ -143,7 +143,7 @@ public class SingleDimensionalOptimizeProducer extends OptimizeProducer implemen
         double processedDays = ((double) processedPeriod) / TimeUnit.DAYS.toMillis(1);
         double perDay = Math.pow(gain, 1 / processedDays);
         double inYear = Math.pow(gain, 365 / processedDays);
-        console(" processedDays=" + processedDays
+        console(" processedDays=" + Utils.format2(processedDays)
                 + "; perDay=" + Utils.format8(perDay)
                 + "; inYear=" + Utils.format8(inYear)
         );

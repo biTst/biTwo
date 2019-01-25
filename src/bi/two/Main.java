@@ -275,7 +275,7 @@ public class Main {
             double inYear = Math.pow(gain, 365 / processedDays);
             console(" perDay=" + Utils.format8(perDay)
                     + ";   *** inYear=" + Utils.format8(inYear)
-                    + "; processedDays=" + processedDays
+                    + "; processedDays=" + Utils.format2(processedDays)
                     + " *** ....................................."
             );
 
