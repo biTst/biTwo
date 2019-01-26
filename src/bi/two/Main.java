@@ -16,6 +16,7 @@ import bi.two.ts.*;
 import bi.two.ts.join.TickJoiner;
 import bi.two.util.Log;
 import bi.two.util.MapConfig;
+import bi.two.util.TimeStamp;
 import bi.two.util.Utils;
 
 import java.io.File;
@@ -58,39 +59,19 @@ public class Main {
         try {
             MapConfig config = initConfig(args);
 
-            String botToken = config.getPropertyNoComment("telegram");
-            String admin = config.getPropertyNoComment("admin");
             String botKey = config.getStringOrDefault("botKey", "@");
-            TheBot theBot = TheBot.create(botToken, admin);
+            TheBot theBot = TheBot.create(config);
 
             MapConfig defAlgoConfig = new MapConfig();
-            String params = config.getString("params");
-            if (params != null) {
-                String[] split = params.split(";");
-                for (String s : split) {
-                    String[] nv = s.trim().split("=");
-                    String name = nv[0];
-                    String value = nv[1];
-                    config.put(name, value);
-                    defAlgoConfig.put(name, value);
-                }
-            }
+            parseParams(config, defAlgoConfig);
 
-            String exchangeName = config.getString("exchange");
-            Exchange exchange = Exchange.get(exchangeName);
+            Exchange exchange = Exchange.get(config);
             String pairName = config.getString("pair");
             Pair pair = Pair.getByName(pairName);
 //            ExchPairData pairData = exchange.getPairData(pair);
 
-            Integer joinTicksInReader = config.getInt("joinTicksInReader");
-            boolean joinTicks = (joinTicksInReader > 0);
-            TickJoiner joiner;
-            if (joinTicks) {
-                String joinerName = config.getString("joiner");
-                joiner = TickJoiner.get(joinerName);
-            } else {
-                joiner = null;
-            }
+            Integer joinTicksInReader = config.getIntOrDefault("joinTicksInReader", 0); // no join by def
+            TickJoiner joiner = (joinTicksInReader > 0) ? TickJoiner.get(config) : null;
 
             String tickReaderName = config.getString("tick.reader");
             final boolean collectTicks = config.getBoolean("collect.ticks");
@@ -106,7 +87,7 @@ public class Main {
             defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
-            long allStartMillis = System.currentTimeMillis();
+            TimeStamp allStart = new TimeStamp();
             boolean stopOnLowMemory = config.getBooleanOrDefault("stopOnLowMemory", false);
 
             boolean chartNotLoaded = true;
@@ -120,9 +101,7 @@ public class Main {
                     ticksTs.addOlderTick(new TickData());
                 }
 
-                BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = (joiner != null)
-                        ? joiner.createBaseTickJoiner(ticksTs, joinTicksInReader, collectTicks)
-                        : ticksTs;
+                BaseTicksTimesSeriesData<? extends ITickData> joinedTicksTs = TickJoiner.wrapIfNeeded(joiner, ticksTs, joinTicksInReader, collectTicks);
 
                 List<Watcher> watchers = producer.getWatchers(defAlgoConfig, joinedTicksTs, config, exchange, pair);
                 console("## iteration " + i + "  watchers.num=" + watchers.size());
@@ -137,20 +116,17 @@ public class Main {
                     chartNotLoaded = false;
                 }
 
-                String tickWriterName = config.getPropertyNoComment("tick.writer");
-                TradesWriter tradesWriter = ((tickWriterName != null) && (i == 1)) // write on first iteration only
-                                                ? TradesWriter.get(tickWriterName)
-                                                : null;
-
-                BaseTicksTimesSeriesData<TickData> writerTicksTs = (tickWriterName != null) ? new TradesWriterTicksTs(ticksTs, tradesWriter, config) : ticksTs;
+                BaseTicksTimesSeriesData<TickData> writerTicksTs = (i == 1)
+                        ? TradesWriterTicksTs.wrapIfNeeded(ticksTs, config) // write on first iteration only
+                        : ticksTs;
 
                 TradesReader tradesReader = TradesReader.get(tickReaderName);
-                long startMillis = System.currentTimeMillis();
+                TimeStamp iterationStart = new TimeStamp();
                 tradesReader.readTicks(config, writerTicksTs, exchange);
                 ticksTs.waitWhenAllFinish();
                 notifyFinish(watchers);
 
-                logResults(watchers, startMillis, theBot, botKey, i);
+                logIterationResults(watchers, iterationStart, theBot, botKey, i);
 
                 if (frame != null) {
                     frame.repaint();
@@ -163,8 +139,7 @@ public class Main {
                 bestProducer.logResultsEx(theBot, botKey);
             }
 
-            long allEndMillis = System.currentTimeMillis();
-            console("all DONE in " + Utils.millisToYDHMSStr(allEndMillis - allStartMillis));
+            console("all DONE in " + allStart.getPassed());
             Log.s_impl.flush();
         } catch (Exception e) {
             err("load data error: " + e, e);
@@ -174,6 +149,20 @@ public class Main {
             Runtime.getRuntime().gc();
             TimeUnit.DAYS.sleep(3);
         } catch (InterruptedException e) { /*noop*/ }
+    }
+
+    private static void parseParams(MapConfig config, MapConfig defAlgoConfig) {
+        String params = config.getString("params");
+        if (params != null) {
+            String[] split = params.split(";");
+            for (String s : split) {
+                String[] nv = s.trim().split("=");
+                String name = nv[0];
+                String value = nv[1];
+                config.put(name, value);
+                defAlgoConfig.put(name, value);
+            }
+        }
     }
 
     private static void notifyFinish(List<Watcher> watchers) {
@@ -244,7 +233,7 @@ public class Main {
         firstWatcher.m_algo.setupChart(collectValues, chartCanvas, ticksTs, firstWatcher);
     }
 
-    private static void logResults(List<Watcher> watchers, long startMillis, TheBot theBot, String botKey, int iteration) {
+    private static void logIterationResults(List<Watcher> watchers, TimeStamp iterationStart, TheBot theBot, String botKey, int iteration) {
         int watchersNum = watchers.size();
         if (watchersNum > 0) {
             double maxGain = 0;
@@ -258,11 +247,19 @@ public class Main {
                 console(watcher.getGainLogStr("", gain));
             }
 
-            Watcher lastWatcher = watchers.get(watchersNum - 1);
-            long processedPeriod = lastWatcher.getProcessedPeriod();
-            long endMillis = System.currentTimeMillis();
-            console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod)
-                    + "   spent=" + Utils.millisToYDHMSStr(endMillis - startMillis));
+            // search working watcher - non empty
+            Watcher testWatcher = null;
+            for (Watcher watcher : watchers) {
+                if (watcher.m_tradesNum > 0) {
+                    testWatcher = watcher;
+                    break;
+                }
+            }
+            if (testWatcher == null) {
+                testWatcher = watchers.get(watchersNum - 1);
+            }
+            long processedPeriod = testWatcher.getProcessedPeriod();
+            console("   processedPeriod=" + Utils.millisToYDHMSStr(processedPeriod) + "   spent=" + iterationStart.getPassed());
 
             double gain = 0;
             if (maxWatcher != null) {

@@ -67,6 +67,11 @@ public class Exchange {
         return exchange;
     }
 
+    @NotNull public static Exchange get(MapConfig config) {
+        String exchangeName = config.getString("exchange");
+        return get(exchangeName);
+    }
+
     @Override public String toString() {
         return "Exchange[" + m_name + ']';
     }

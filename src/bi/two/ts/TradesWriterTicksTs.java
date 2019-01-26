@@ -23,6 +23,16 @@ public class TradesWriterTicksTs extends BaseTicksTimesSeriesData<TickData> {
         m_instance = tradesWriter.instance(config);
     }
 
+    public static BaseTicksTimesSeriesData<TickData> wrapIfNeeded(BaseTicksTimesSeriesData<TickData> ticksTs, MapConfig config) {
+        String tickWriterName = config.getPropertyNoComment("tick.writer");
+        TradesWriter tradesWriter = (tickWriterName != null)
+                ? TradesWriter.get(tickWriterName)
+                : null;
+        return (tradesWriter != null)
+                ? new TradesWriterTicksTs(ticksTs, tradesWriter, config)
+                : ticksTs;
+    }
+
     public void addNewestTick(TickData tickData) {
         try {
             m_tradesWriter.writeTick(m_instance, tickData);

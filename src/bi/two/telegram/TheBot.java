@@ -144,4 +144,10 @@ public class TheBot {
                 : null;
         return bot;
     }
+
+    public static TheBot create(MapConfig config) {
+        String botToken = config.getPropertyNoComment("telegram");
+        String admin = config.getPropertyNoComment("admin");
+        return create(botToken, admin);
+    }
 }
