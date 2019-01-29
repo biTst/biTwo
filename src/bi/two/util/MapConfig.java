@@ -143,18 +143,25 @@ public class MapConfig extends Properties {
     }
 
     public boolean getBoolean(String key) {
-        return getBooleanOrDefault(key, null);
+        Boolean ret = getBooleanOrDefault(key, null);
+        if (ret != null) {
+            return ret;
+        }
+        throw new RuntimeException("property '" + key + "' not found");
     }
-    
-    public boolean getBooleanOrDefault(String key, Boolean def) {
+
+    public Boolean getBooleanOrDefault(String key, Boolean def) {
         String property = getPropertyNoComment(key);
         if (property != null) {
             return property.equals("true") || property.equals("yes");
         }
-        if (def != null) {
-            return def;
+        Object obj = get(key);
+        if (obj instanceof Boolean) {
+            Boolean bool = (Boolean) obj;
+            return bool;
         }
-        throw new RuntimeException("property '" + key + "' not found");
+
+        return def;
     }
 
     public String getPropertyNoComment(String key) {

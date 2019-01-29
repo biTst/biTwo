@@ -1,6 +1,8 @@
 package bi.two.algo.impl;
 
+import org.jetbrains.annotations.Nullable;
+
 // --------------------------------------------------------
 interface IRegressionParent {
-    Float update(long timestamp, float lastPrice);
+    @Nullable Float update(long timestamp, float lastPrice);
 }

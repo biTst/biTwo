@@ -15,7 +15,6 @@ import bi.two.util.Utils;
 
 import java.util.concurrent.TimeUnit;
 
-import static bi.two.algo.BaseAlgo.COLLECT_VALUES_KEY;
 import static bi.two.util.Log.console;
 import static bi.two.util.Log.err;
 
@@ -99,7 +98,7 @@ public class Watcher extends TicksTimesSeriesData<TradeData> {
         m_exchMinOrderToCreate = m_exchPairData.m_minOrderToCreate;
 
         m_minOrderMul = algoConfig.getNumber(Vary.minOrderMul).doubleValue();
-        m_collectValues = algoConfig.getBoolean(COLLECT_VALUES_KEY);
+        m_collectValues = algoConfig.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
         m_algo = createAlgo(priceTs, algoConfig);
         setParent(m_algo);
     }

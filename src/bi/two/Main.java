@@ -68,25 +68,23 @@ public class Main {
             TickJoiner joiner = (joinTicksInReader > 0) ? TickJoiner.get(config) : null;
 
             String tickReaderName = config.getString("tick.reader");
-            final boolean collectTicks = config.getBoolean("collect.ticks");
-            if (collectTicks) {
-                frame = new ChartFrame();
-                frame.setVisible(true);
-            }
-            boolean collectValues = config.getBoolean(BaseAlgo.COLLECT_VALUES_KEY);
+            Boolean showChart = config.getBooleanOrDefault("show.chart", null);
 
             initDefaultConfig(config, defAlgoConfig);
             // todo: copy all keys from config to defAlgoConfig ?
-            defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, Boolean.toString(collectValues));
             defAlgoConfig.put(BaseAlgo.ALGO_NAME_KEY, config.getString(BaseAlgo.ALGO_NAME_KEY));
 
             WatchersProducer producer = new WatchersProducer(config, defAlgoConfig);
+            boolean collectTicksGlobal = ((showChart == null) ? producer.isSingle() : showChart);
+
             TimeStamp allStart = new TimeStamp();
             boolean stopOnLowMemory = config.getBooleanOrDefault("stopOnLowMemory", false);
 
-            boolean chartNotLoaded = true;
             for (int i = 1; producer.isActive(); i++) {
                 cleanMemory(stopOnLowMemory); // clean in every iteration
+
+                boolean collectTicks = (i == 1) && collectTicksGlobal;
+                defAlgoConfig.put(BaseAlgo.COLLECT_VALUES_KEY, collectTicks);
 
                 BaseTicksTimesSeriesData<TickData> ticksTs = collectTicks
                         ? new TicksTimesSeriesData<TickData>(null)
@@ -104,10 +102,11 @@ public class Main {
                     continue;
                 }
 
-                if (collectTicks && chartNotLoaded) {
+                if (collectTicks) {
+                    frame = new ChartFrame();
+                    frame.setVisible(true);
                     ChartCanvas chartCanvas = frame.getChartCanvas();
-                    setupChart(collectValues, chartCanvas, joinedTicksTs, watchers);
-                    chartNotLoaded = false;
+                    setupChart(collectTicks, chartCanvas, joinedTicksTs, watchers);
                 }
 
                 BaseTicksTimesSeriesData<TickData> writerTicksTs = (i == 1)

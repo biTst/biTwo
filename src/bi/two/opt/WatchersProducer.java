@@ -229,6 +229,10 @@ public class WatchersProducer {
         return false; // all inactive
     }
 
+    public boolean isSingle() {
+        return (m_producers.size() == 1) && m_producers.get(0).isSingle();
+    }
+
     public List<Watcher> getWatchers(MapConfig algoConfig, BaseTimesSeriesData tsd, MapConfig config, Exchange exchange, Pair pair) {
         BaseTimesSeriesData ticksTs;
 
