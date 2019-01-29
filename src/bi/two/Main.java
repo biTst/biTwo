@@ -21,7 +21,6 @@ import bi.two.util.Utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.NumberFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -33,11 +32,6 @@ public class Main {
     private static final String DEF_CONFIG_FILE = "cfg" + File.separator + "vary.properties";
 
     private static long s_maxUsedMemory = 0;
-
-    private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
-    static {
-        INTEGER_FORMAT.setGroupingUsed(true);
-    }
 
     public static void main(final String[] args) {
         // cfg\vary.properties logs\log.log
@@ -183,24 +177,21 @@ public class Main {
     private static void cleanMemory(boolean stopOnLowMemory) throws InterruptedException {
         long freeMemory1 = Runtime.getRuntime().freeMemory();
         long totalMemory1 = Runtime.getRuntime().totalMemory();
-        long maxMemory1 = Runtime.getRuntime().maxMemory();
         long usedMemory1 = totalMemory1 - freeMemory1;
+        String memStat1 = Utils.memStat();
         s_maxUsedMemory = Math.max(s_maxUsedMemory, usedMemory1);
         Algo.resetIterationCaches();
         Runtime.getRuntime().gc();
-        long freeMemory2 = Runtime.getRuntime().freeMemory();
-        long totalMemory2 = Runtime.getRuntime().totalMemory();
-        long maxMemory2 = Runtime.getRuntime().maxMemory();
-        long usedMemory2 = totalMemory2 - freeMemory2;
+        String memStat2 = Utils.memStat();
 
         console("memory(free/used/total/max): "
-                + formatMemory(freeMemory1) + "/" + formatMemory(usedMemory1) + "/" + formatMemory(totalMemory1) + "/" + formatMemory(maxMemory1)
-                + "  =>  "
-                + formatMemory(freeMemory2) + "/" + formatMemory(usedMemory2) + "/" + formatMemory(totalMemory2) + "/" + formatMemory(maxMemory2)
-                + "; maxUsed=" + formatMemory(s_maxUsedMemory)
+                + memStat1 + "  =>  " + memStat2
+                + "; maxUsed=" + Utils.formatMemory(s_maxUsedMemory)
         );
 
         if(stopOnLowMemory) {
+            long freeMemory2 = Runtime.getRuntime().freeMemory();
+            long maxMemory2 = Runtime.getRuntime().maxMemory();
             double freeRate = ((double)freeMemory2) / maxMemory2;
             if (freeRate < 0.2) {
                 console("*****************************************************************************");
@@ -211,10 +202,6 @@ public class Main {
                 TimeUnit.DAYS.sleep(3);
             }
         }
-    }
-
-    public static String formatMemory(long memory) {
-        return INTEGER_FORMAT.format(memory);
     }
 
     private static void initDefaultConfig(MapConfig config, MapConfig algoConfig) {

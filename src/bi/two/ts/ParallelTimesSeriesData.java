@@ -1,6 +1,5 @@
 package bi.two.ts;
 
-import bi.two.Main;
 import bi.two.algo.Node;
 import bi.two.chart.ITickData;
 import bi.two.chart.TickData;
@@ -80,15 +79,9 @@ public class ParallelTimesSeriesData extends BaseTimesSeriesData {
             m_nanoCount = 0;
             sb.append(" avg=").append(Utils.format5(nanoAvg)).append(";");
 
-            long freeMemory1 = Runtime.getRuntime().freeMemory();
-            long totalMemory1 = Runtime.getRuntime().totalMemory();
-            long maxMemory1 = Runtime.getRuntime().maxMemory();
-            long usedMemory1 = totalMemory1 - freeMemory1;
+            String memStat = Utils.memStat();
 
-            sb.append("  mem(f/u/t/m): ").append(Main.formatMemory(freeMemory1))
-                    .append("/").append(Main.formatMemory(usedMemory1))
-                    .append("/").append(Main.formatMemory(totalMemory1))
-                    .append("/").append(Main.formatMemory(maxMemory1));
+            sb.append("  mem(f/u/t/m): ").append(memStat);
 
             console(sb.toString());
             return;

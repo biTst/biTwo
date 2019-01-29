@@ -3,6 +3,7 @@ package bi.two.util;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -25,6 +26,10 @@ public class Utils {
     public static final DecimalFormat X_YYYYYYYY = new DecimalFormat("0.00000000");
     public static final DecimalFormat X_YYYYYYYYYYYY = new DecimalFormat("0.000000000000");
 
+    private static final NumberFormat INTEGER_FORMAT = NumberFormat.getIntegerInstance();
+    static {
+        INTEGER_FORMAT.setGroupingUsed(true);
+    }
 
     public static String format12(Double value) { return format(X_YYYYYYYYYYYY, value); }
     public static String format8(Double value) { return format(X_YYYYYYYY, value); }
@@ -152,6 +157,23 @@ public class Utils {
         return !Double.isNaN(price) && (price > 0);
     }
 
+    public static String formatMemory(long memory) {
+        synchronized (INTEGER_FORMAT) {
+            return INTEGER_FORMAT.format(memory);
+        }
+    }
+
+    public static String memStat() {
+        long freeMemory = Runtime.getRuntime().freeMemory();
+        long totalMemory = Runtime.getRuntime().totalMemory();
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        long usedMemory = totalMemory - freeMemory;
+
+        return "mem(f/u/t/m): " + formatMemory(freeMemory)
+                + "/" + formatMemory(usedMemory)
+                + "/" + formatMemory(totalMemory)
+                + "/" + formatMemory(maxMemory);
+    }
     public static String pad(int n) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) {
