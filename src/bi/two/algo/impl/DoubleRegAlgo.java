@@ -13,6 +13,7 @@ import bi.two.ts.TicksTimesSeriesData;
 import bi.two.util.MapConfig;
 import bi.two.util.Utils;
 import org.apache.commons.math3.stat.regression.SimpleRegression;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.util.List;
@@ -21,6 +22,7 @@ import static bi.two.util.Log.console;
 
 public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent {
     private static final boolean ADJUST_TAIL = true;
+    private static final boolean LIMIT_BY_PRICE = true;
 
     private final long m_mature;
     private final float m_rate;
@@ -41,12 +43,20 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
     private Float m_rayStart;
     private long m_rayStartTime;
     private Float m_rayEnd;
-    private long m_rayEntTime;
+    private long m_rayEndTime;
     private Float m_ray;
+
+    private Float m_ray2;
+    private Float m_rayEnd2;
+    private long m_rayEnd2Time;
+    private Float m_exitMin;
+    private Float m_rayCollapse;
+    private Float m_ray2Collapsed;
 
     private Float m_exitMax;
     private Float m_exitRate;
     private Float m_rayBend;
+    private Float m_adjNoLimit;
 
 
     public DoubleRegAlgo(MapConfig algoConfig, ITimesSeriesData inTsd, Exchange exchange) {
@@ -62,7 +72,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
         m_enter.onTimeShift(shift);
         m_exit.onTimeShift(shift);
         m_rayStartTime += shift;
-        m_rayEntTime += shift;
+        m_rayEndTime += shift;
     }
 
     @Override protected void recalc4() {
@@ -76,7 +86,6 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
 
             m_rayStart = m_exitPeakValue;
             m_rayStartTime = m_enter.m_startTime;
-            m_exitMax = null;
 
             m_exitPeakValue = null;
         } else {
@@ -94,25 +103,54 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
 
         if (m_directionChanged) {
             m_rayEnd = enterValue;
-            m_rayEntTime = timestamp;
+            m_rayEndTime = timestamp;
+            m_rayEnd2 = enterValue;
+            m_rayEnd2Time = timestamp;
+            m_exitMax = exitValue;
+            m_exitMin = exitValue;
         }
 
         Float rayStart = m_rayStart;
-        Float rayEnd = m_rayEnd;
-        if ((rayStart != null) && (rayEnd != null)) {
+        if (rayStart != null) {
             if (goUp) {
-                if ((m_exitMax == null) || (exitValue > m_exitMax)) {
+                if (exitValue > m_exitMax) {
                     m_exitMax = exitValue;
+                    m_exitMin = exitValue;
                     m_rayBend = 1.0f;
+                    m_rayEnd2 = exitValue;
+                    m_rayEnd2Time = timestamp;
+                }
+                if (exitValue < m_exitMin) {
+                    m_exitMin = exitValue;
                 }
             } else {
-                if ((m_exitMax == null) || (exitValue < m_exitMax)) {
+                if (exitValue < m_exitMax) {
                     m_exitMax = exitValue;
+                    m_exitMin = exitValue;
                     m_rayBend = 1.0f;
+                    m_rayEnd2 = exitValue;
+                    m_rayEnd2Time = timestamp;
+                }
+                if (exitValue > m_exitMin) {
+                    m_exitMin = exitValue;
                 }
             }
+
             long rayStartTime = m_rayStartTime;
-            m_ray = rayStart + (rayEnd - rayStart) / (m_rayEntTime - rayStartTime) * (timestamp - rayStartTime);
+            m_ray2 = rayStart + (m_rayEnd2 - rayStart) / (m_rayEnd2Time - rayStartTime) * (timestamp - rayStartTime);
+
+            float exitMaxMinDiff = m_exitMax - m_exitMin;
+            float rayCollapse = (exitMaxMinDiff != 0) ? (m_exitMax - exitValue) / exitMaxMinDiff : 1;
+            m_rayCollapse = rayCollapse;
+
+            float ray2Collapsed = m_exitMax + (m_ray2 - m_exitMax) * rayCollapse;
+            m_ray2Collapsed = ray2Collapsed;
+        }
+
+        Float rayEnd = m_rayEnd;
+        if ((rayStart != null) && (rayEnd != null)) {
+            long rayStartTime = m_rayStartTime;
+            m_ray = rayStart + (rayEnd - rayStart) / (m_rayEndTime - rayStartTime) * (timestamp - rayStartTime);
 
             float tail = m_tail;
             float exitRate = (exitValue - tail) / (m_exitMax - tail);
@@ -128,7 +166,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
                     }
                     m_ray = m_ray - (m_ray - m_exitMax) * (1 - rayBendMul) * m_rate;
                     m_rayEnd = m_ray;
-                    m_rayEntTime = timestamp;
+                    m_rayEndTime = timestamp;
                 }
             }
             m_exitRate = exitRate;
@@ -136,12 +174,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             if (goUp) {
                 if (exitValue > m_ray) {
                     m_rayEnd = exitValue;
-                    m_rayEntTime = timestamp;
+                    m_rayEndTime = timestamp;
                 }
             } else {
                 if (exitValue < m_ray) {
                     m_rayEnd = exitValue;
-                    m_rayEntTime = timestamp;
+                    m_rayEndTime = timestamp;
                 }
             }
         }
@@ -149,25 +187,54 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
         if ((enterValue != null) && (exitValue != null)) {
             if (m_ray != null) {
                 float ribbonSpreadTail = goUp ? m_ribbonSpreadBottom : m_ribbonSpreadTop;
-                float adj2 = (exitValue - ribbonSpreadTail) / (m_ray - ribbonSpreadTail);
-                if (adj2 > 1) { adj2 = 1; } else if (adj2 < 0) { adj2 = 0; }
-                m_adj2 = adj2;
+                float adj = (exitValue - ribbonSpreadTail) / (m_ray - ribbonSpreadTail);
+                if (adj > 1) { adj = 1; } else if (adj < 0) { adj = 0; }
+                m_adj2 = adj;
 
                 float thresholdRev = 1 - m_threshold;
-                if (thresholdRev < adj2) {
-                    adj2 = 1;
+                if (thresholdRev < adj) {
+                    adj = 1;
                 } else {
-                    adj2 /= thresholdRev;
+                    adj /= thresholdRev;
                 }
-                m_adj3 = adj2;
+                m_adj3 = adj;
 
-                adj2 = (float) Math.pow(adj2, m_power);
-                m_adj4 = adj2;
+                adj = (float) Math.pow(adj, m_power);
+                m_adj4 = adj;
 
-                adj2 = adj2 * 2 - 1;
-                if (!goUp) { adj2 = -adj2; }
+                adj = adj * 2 - 1;
+                if (!goUp) { adj = -adj; }
 
-                m_adj = adj2;
+                m_adjNoLimit = adj;
+
+                if (LIMIT_BY_PRICE) {
+                    float limitLevel = exitValue;     //(m_leadEmaValue + m_head) / 2;
+                    if (goUp) {
+                        if (adj > m_adj) {
+                            if (m_lastPrice > limitLevel) {
+                                m_adj = adj;
+                            }
+                        } else {
+                            if (m_lastPrice < limitLevel) {
+                                m_adj = adj;
+                            }
+//                            m_adj = adj;
+                        }
+                    } else {
+                        if (adj < m_adj) {
+                            if (m_lastPrice < limitLevel) {
+                                m_adj = adj;
+                            }
+                        } else {
+                            if (m_lastPrice > limitLevel) {
+                                m_adj = adj;
+                            }
+//                            m_adj = adj;
+                        }
+                    }
+                } else {
+                    m_adj = adj;
+                }
             }
         }
     }
@@ -181,6 +248,12 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
     TicksTimesSeriesData<TickData> getAdj2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj2; } }; }
     TicksTimesSeriesData<TickData> getAdj3Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj3; } }; }
     TicksTimesSeriesData<TickData> getAdj4Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adj4; } }; }
+    TicksTimesSeriesData<TickData> getRay2Ts() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray2; } }; }
+    TicksTimesSeriesData<TickData> getExitMaxTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMax; } }; }
+    TicksTimesSeriesData<TickData> getExitMinTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_exitMin; } }; }
+    TicksTimesSeriesData<TickData> getRayCollapseTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_rayCollapse; } }; }
+    TicksTimesSeriesData<TickData> getRay2CollapsedTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_ray2Collapsed; } }; }
+    TicksTimesSeriesData<TickData> getAdjNoLimitTs() { return new JoinNonChangedInnerTimesSeriesData(getParent()) { @Override protected Float getValue() { return m_adjNoLimit; } }; }
 
     @Override public String key(boolean detailed) {
         detailed = true;
@@ -238,13 +311,13 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             addChart(chartData, getMidStartTs(), topLayers, "midStart", Colors.HAZELNUT, TickPainter.LINE_JOIN);
             addChart(chartData, getMidTs(), topLayers, "mid", Colors.CHOCOLATE, TickPainter.LINE_JOIN);
 
-            Color halfGray = Colors.alpha(Color.GRAY, 128);
-            addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
-            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
-            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            Color halfGray = Colors.alpha(Color.GRAY, 128);
+//            addChart(chartData, get1quarterTs(), topLayers, "1quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get3quarterTs(), topLayers, "3quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get5quarterTs(), topLayers, "5quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get6quarterTs(), topLayers, "6quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
+//            addChart(chartData, get7quarterTs(), topLayers, "7quarter", halfGray, TickPainter.LINE_JOIN);
+//            addChart(chartData, get8quarterTs(), topLayers, "8quarter", Colors.LEMONADE, TickPainter.LINE_JOIN);
 
             addChart(chartData, getRibbonSpreadTopTs(), topLayers, "RibbonSpreadTop", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
             addChart(chartData, getRibbonSpreadBottomTs(), topLayers, "RibbonSpreadBottom", Colors.alpha(Colors.SWEET_POTATO, 128), TickPainter.LINE_JOIN);
@@ -255,6 +328,10 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             addChart(chartData, getEnterValue2Ts(), topLayers, "EnterValue2", Colors.BLUE_PEARL, TickPainter.LINE_JOIN);
             addChart(chartData, getExitValue2Ts(), topLayers, "ExitValue2", Colors.YELLOW, TickPainter.LINE_JOIN);
             addChart(chartData, getRayTs(), topLayers, "ray", Colors.PLUM, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getRay2Ts(), topLayers, "ray2", Colors.SPRING_LILAC, TickPainter.LINE_JOIN, false);
+            addChart(chartData, getExitMaxTs(), topLayers, "ExitMax", Colors.ELEPHANT_GRAY, TickPainter.LINE_JOIN);
+            addChart(chartData, getExitMinTs(), topLayers, "ExitMin", Colors.CAMOUFLAGE, TickPainter.LINE_JOIN);
+            addChart(chartData, getRay2CollapsedTs(), topLayers, "Ray2Collapsed", Colors.JEWERLY_GOLD, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings power = chartSetting.addChartAreaSettings("power", 0, 0.6f, 1, 0.1f, Color.LIGHT_GRAY);
@@ -263,14 +340,15 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             power.addHorizontalLineValue(0);
             power.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> powerLayers = power.getLayers();
-            addChart(chartData, getRateTs(), powerLayers, "rate", Colors.YELLOW, TickPainter.LINE_JOIN);
-            addChart(chartData, getExitRateTs(), powerLayers, "ExitRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
-            addChart(chartData, getRayBendTs(), powerLayers, "RayBend", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
-            addChart(chartData, getAdj2Ts(), powerLayers, "adj2", Colors.ROSE, TickPainter.LINE_JOIN);
-            addChart(chartData, getAdj3Ts(), powerLayers, "adj3", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
-            addChart(chartData, getAdj4Ts(), powerLayers, "adj4", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
-//            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
-//            addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
+//            addChart(chartData, getRateTs(), powerLayers, "rate", Colors.YELLOW, TickPainter.LINE_JOIN);
+//            addChart(chartData, getExitRateTs(), powerLayers, "ExitRate", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
+//            addChart(chartData, getRayBendTs(), powerLayers, "RayBend", Colors.BURIED_TREASURE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getAdj2Ts(), powerLayers, "adj2", Colors.ROSE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getAdj3Ts(), powerLayers, "adj3", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
+//            addChart(chartData, getAdj4Ts(), powerLayers, "adj4", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
+////            addChart(chartData, getHeadEdgeDiffTs(), powerLayers, "HeadEdgeDiff", Colors.LIGHT_BLUE, TickPainter.LINE_JOIN);
+////            addChart(chartData, getSecondHeadRateTs(), powerLayers, "SecondHeadRate", Colors.RED_HOT_RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getRayCollapseTs(), powerLayers, "RayCollapse", Colors.RED, TickPainter.LINE_JOIN);
         }
 
         ChartAreaSettings value = chartSetting.addChartAreaSettings("value", 0, 0.7f, 1, 0.15f, Color.LIGHT_GRAY);
@@ -280,6 +358,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             value.addHorizontalLineValue(-1);
             java.util.List<ChartAreaLayerSettings> valueLayers = value.getLayers();
             addChart(chartData, getDirectionTs(), valueLayers, "direction", Color.RED, TickPainter.LINE_JOIN);
+            addChart(chartData, getAdjNoLimitTs(), valueLayers, "AdjNoLimit", Colors.alpha(Colors.FUSCHIA_PEARL, 200), TickPainter.LINE_JOIN);
 //            addChart(chartData, getSmallerCollapseDirectionTs(), valueLayers, "SmallerCollapseDirection", Colors.SWEET_POTATO, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSecondHeadDirectionTs(), valueLayers, "SecondHeadDirection", Colors.DARK_GREEN, TickPainter.LINE_JOIN);
 //            addChart(chartData, getSimplerTs(), valueLayers, "Simpler", Colors.CANDY_PINK, TickPainter.LINE_JOIN);
@@ -297,7 +376,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
         }
     }
 
-    @Override public Float update(long timestamp, float lastPrice) {
+    @Override @Nullable public Float update(long timestamp, float lastPrice) {
         return m_enter.m_value;
     }
 
@@ -314,7 +393,7 @@ public class DoubleRegAlgo extends BaseRibbonAlgo3 implements IRegressionParent 
             m_startTime = startTime;
         }
 
-        public Float update(long timestamp, float lastPrice) {
+        public @Nullable Float update(long timestamp, float lastPrice) {
             long timeOffset = timestamp - m_startTime;
             m_regression.addData(timeOffset, lastPrice);
             double predict = m_regression.predict(timeOffset);
