@@ -45,19 +45,44 @@ public class DirTradesReader {
         SimpleDateFormat sdf = new SimpleDateFormat("ddMMyyyy");
         sdf.setTimeZone(timezone);
 
-        Date dateFrom = parseDate(config, "ticksFrom", sdf);
-        long ticksFromMillis = (dateFrom != null) ? dateFrom.getTime() : 0;
-
+        //ticksFromTo=14122018-29122018
+        long ticksFromMillis;
         long ticksToMillis;
-        Date dateTo = parseDate(config, "ticksTo", sdf);
-        if (dateTo != null) {
-            ticksToMillis = dateTo.getTime() + TimeUnit.DAYS.toMillis(1); // include the whole day trades
-            if (ticksFromMillis != 0) {
+        String str = config.getPropertyNoComment("ticksFromTo");
+        if(str != null) {
+            String[] split = str.split("-");
+            if( split.length == 2 ){
+                Date dateFrom;
+                String ticksFrom = split[0];
+                try {
+                    dateFrom = sdf.parse(ticksFrom);
+                } catch (ParseException e) {
+                    String msg = "error parsing ticksFromTo '" + str + "' as date(ddMMyyyy) ticksFrom='" + ticksFrom + "': " + e;
+                    err(msg, e);
+                    throw new RuntimeException("parse error: " + msg, e);
+                }
+                ticksFromMillis = dateFrom.getTime();
+
+                Date dateTo;
+                String ticksTo = split[1];
+                try {
+                    dateTo = sdf.parse(ticksTo);
+                } catch (ParseException e) {
+                    String msg = "error parsing ticksFromTo '" + str + "' as date(ddMMyyyy) ticksTo='" + ticksTo + "': " + e;
+                    err(msg, e);
+                    throw new RuntimeException("parse error: " + msg, e);
+                }
+
+                ticksToMillis = dateTo.getTime() + TimeUnit.DAYS.toMillis(1); // include the whole day trades
+
                 long fromTo = ticksToMillis - ticksFromMillis;
                 String range = Utils.millisToYDHMSStr(fromTo);
                 console("dateRange: " + dateFrom + " -> " + dateTo + "; range: " + range);
+            } else {
+                throw new RuntimeException("invalid config param ticksFromTo: " + str);
             }
         } else {
+            ticksFromMillis = 0;
             ticksToMillis = Long.MAX_VALUE;
         }
 
@@ -102,23 +127,6 @@ public class DirTradesReader {
         console("readDirTicks() done in " + doneStamp.getPassed() + ";  filesProcessed=" + filesProcessed);
 
         ticksTs.notifyNoMoreTicks();
-    }
-
-    private static Date parseDate(MapConfig config, String key, SimpleDateFormat sdf) {
-        Date ret;
-        String str = config.getPropertyNoComment(key);
-        if (str != null) {
-            try {
-                ret = sdf.parse(str);
-            } catch (ParseException e) {
-                String msg = "error parsing key=" + key + " as date(ddMMyyyy) '" + str + "': " + e;
-                err(msg, e);
-                throw new RuntimeException("parse error: " + msg, e);
-            }
-        } else {
-            ret = null;
-        }
-        return ret;
     }
 
     private static void collectFilesToProcess(File dir, List<File> ret, Pattern pattern, long ticksFromMillis, long ticksToMillis, SimpleDateFormat dateInNameFormat) {
